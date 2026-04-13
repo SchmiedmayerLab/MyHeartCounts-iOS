@@ -35,7 +35,7 @@ platform :ios do
       testplan: "MyHeartCounts UI Tests",
       derived_data_path: ".derivedData",
       code_coverage: true,
-      devices: ["iPhone 17 Pro Max (26.2)"],
+      devices: ["iPhone 17 Pro Max (26.4)"],
       disable_slide_to_type: false,
       concurrent_workers: 1,
       max_concurrent_simulators: 1,

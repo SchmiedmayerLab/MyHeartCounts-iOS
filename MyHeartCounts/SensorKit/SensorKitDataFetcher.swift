@@ -70,6 +70,9 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
                 guard let self else {
                     return
                 }
+                guard !LaunchOptions.launchOptions[.disableSensorKitUpload] else {
+                    return
+                }
                 if await standard.enableDebugSensorKitNotifications {
                     try? await self.localNotifications.send(title: "SensorKit Background Processing", body: "Task started")
                 }

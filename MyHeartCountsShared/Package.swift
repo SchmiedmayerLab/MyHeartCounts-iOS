@@ -20,17 +20,11 @@ var packageDeps: [Package.Dependency] = [
 
 #if !os(Linux)
 packageDeps += [
-    .package(url: "https://github.com/StanfordSpezi/SpeziStudy.git", from: "0.1.16"),
+    .package(url: "https://github.com/StanfordSpezi/SpeziStudy.git", from: "0.1.20"),
+    .package(url: "https://github.com/StanfordSpezi/SpeziStorage.git", from: "2.1.4"), // not actually used but we need to force the version until we update SpeziStudy
     .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols.git", from: "7.0.0")
 ]
 #endif
-
-#if os(iOS)
-packageDeps += [
-    .package(url: "https://github.com/StanfordSpezi/SpeziSensorKit.git", from: "0.6.1")
-]
-#endif
-
 
 /// dependencies of the `MyHeartCountsShared` target
 var mhcSharedTargetDeps: [Target.Dependency] = [
@@ -44,10 +38,6 @@ mhcSharedTargetDeps += [
     .product(name: "SpeziStudyDefinition", package: "SpeziStudy"),
     .product(name: "SFSafeSymbols", package: "SFSafeSymbols")
 ]
-#endif
-
-#if os(iOS)
-mhcSharedTargetDeps.append(.product(name: "SpeziSensorKit", package: "SpeziSensorKit"))
 #endif
 
 let commonSwiftSettings: [SwiftSetting] = [
