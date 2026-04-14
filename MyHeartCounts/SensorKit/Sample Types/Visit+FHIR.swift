@@ -7,10 +7,11 @@
 //
 
 import Foundation
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
 import SensorKit
 import SpeziSensorKit
+import FHIRModelsExtensions
 
 
 extension SRVisit.SafeRepresentation: HealthObservation {

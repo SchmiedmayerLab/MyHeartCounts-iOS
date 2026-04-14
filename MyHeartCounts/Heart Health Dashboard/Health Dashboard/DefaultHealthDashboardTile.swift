@@ -215,7 +215,7 @@ private struct TileImpl: View {
                     .font(.system(size: 8.5, weight: .medium))
                     .foregroundStyle(.secondary)
             }
-            Group {
+            VStack {
                 switch score.variant {
                 case .distinctMapping, .custom:
                     Gauge(

@@ -8,11 +8,12 @@
 
 import Foundation
 import HealthKit
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
 import MyHeartCountsShared
 import SpeziFoundation
 import SpeziHealthKit
+import FHIRModelsExtensions
 
 
 extension QuantitySample: HealthObservation {

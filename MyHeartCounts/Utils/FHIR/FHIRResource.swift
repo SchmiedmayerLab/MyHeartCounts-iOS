@@ -11,8 +11,8 @@ import HealthKit
 import ModelsDSTU2
 import ModelsR4
 import SpeziFHIR
-import SpeziFHIRHealthKit
 import SpeziHealthKit
+import SpeziHealthKitFHIR
 
 
 enum FHIRResource: Hashable {
@@ -113,6 +113,7 @@ extension SpeziFHIR.FHIRResource {
 
 extension FHIRResource {
     init(_ record: HKClinicalRecord, using healthKit: HealthKit) async throws {
-        try await self.init(SpeziFHIR.FHIRResource.initialize(basedOn: record, using: healthKit, loadHealthKitAttachments: true))
+        fatalError("TODO")
+//        try await self.init(SpeziFHIR.FHIRResource.initialize(basedOn: record, using: healthKit, loadHealthKitAttachments: true))
     }
 }

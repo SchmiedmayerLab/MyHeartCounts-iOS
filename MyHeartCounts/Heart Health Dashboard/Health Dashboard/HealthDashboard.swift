@@ -70,7 +70,7 @@ struct HealthDashboard: View {
     private let selectionHandler: SelectionHandler?
     
     var body: some View {
-        Group {
+        Group { // TODO use a `VStack(spacing: 0)` here?
             ForEach(0..<layout.blocks.endIndex, id: \.self) { blockIdx in
                 let block = layout.blocks[blockIdx]
                 Section {
@@ -139,7 +139,7 @@ struct HealthDashboard: View {
     
     @ViewBuilder
     private func makeView(for component: HealthDashboardLayout.GridComponent) -> some View {
-        let view = Group {
+        let view = VStack {
             switch component {
             case .quantityDisplay(let config):
                 healthDashboardComponentView(for: config, withSize: .small)

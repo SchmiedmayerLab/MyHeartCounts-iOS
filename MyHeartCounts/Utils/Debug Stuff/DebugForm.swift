@@ -36,6 +36,7 @@ private struct DebugFormImpl: View {
     @Environment(LocalNotifications.self) private var localNotifications
     @LocalPreference(.sendHealthSampleUploadNotifications) private var healthUploadNotifications
     @LocalPreference(.rejectedHomeTabPromptedActions) private var rejectedHomeTabActions
+    @LocalPreference(.useNewQuestionnaireUI) private var useNewQuestionnaireUI
     @PerformTask private var performTask
     @State private var viewState: ViewState = .idle
     
@@ -43,6 +44,9 @@ private struct DebugFormImpl: View {
         Form { // swiftlint:disable:this closure_body_length
             Section {
                 DemographicsButton(allowDragToDismiss: false)
+            }
+            Section {
+                Toggle("Use new Questionnaire UI" as String, isOn: $useNewQuestionnaireUI)
             }
             Section {
                 MemoryUsageIndicator(style: .labeledContent)

@@ -16,9 +16,11 @@ import SpeziFoundation
 import SpeziHealthKit
 import SpeziHealthKitUI
 import SpeziQuestionnaire
+import SpeziQuestionnaireFHIR
 import SpeziStudy
 import SpeziViews
 import SwiftUI
+import class ModelsR4.Questionnaire
 
 
 struct HeartHealthDashboard: View {
@@ -250,9 +252,6 @@ extension HeartHealthDashboard {
 
 
 private struct HealthDashboardQuestionnaireView: View {
-    @Environment(MyHeartCountsStandard.self)
-    private var standard
-    
     @Environment(StudyManager.self)
     private var studyManager
     
@@ -260,18 +259,12 @@ private struct HealthDashboardQuestionnaireView: View {
     private var dismiss
     
     let questionnaireName: String
-    @State private var questionnaire: Questionnaire?
+    @State private var questionnaire: ModelsR4.Questionnaire?
     
     var body: some View {
-        Group {
+        VStack {
             if let questionnaire {
-                QuestionnaireView(questionnaire: questionnaire) { result in
-                    switch result {
-                    case .completed(let response):
-                        await standard.add(response, for: questionnaire)
-                    case .cancelled, .failed:
-                        break
-                    }
+                MHCQuestionnaireSheet(questionnaire) { _ in
                     dismiss()
                 }
             } else {

@@ -12,7 +12,7 @@ import Foundation
 import MHCStudyDefinition
 import class ModelsR4.Questionnaire
 import MyHeartCountsShared
-import ResearchKitSwiftUI
+import ResearchKitSwiftUI // TODO WHY????
 import SFSafeSymbols
 import SpeziQuestionnaire
 import SpeziScheduler
@@ -160,14 +160,8 @@ private struct UserTaskPerforming: ViewModifier {
             .sheet(item: $currentlyActiveTask.task, id: \.action) { task in
                 switch task.action {
                 case .answerQuestionnaire(let questionnaire):
-                    QuestionnaireView(questionnaire: questionnaire, cancelBehavior: .cancel) { result in
-                        switch result {
-                        case .completed(let response):
-                            await standard.add(response, for: questionnaire)
-                            task.markCompleted(didSucceed: true)
-                        case .cancelled, .failed:
-                            task.markCompleted(didSucceed: false)
-                        }
+                    MHCQuestionnaireSheet(questionnaire) { success in
+                        task.markCompleted(didSucceed: success)
                         currentlyActiveTask.task = nil
                     }
                 case .article(let article):

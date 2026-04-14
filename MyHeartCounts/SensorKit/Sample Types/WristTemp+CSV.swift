@@ -7,12 +7,13 @@
 //
 
 import Foundation
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
 import MyHeartCountsShared
 import SensorKit
 import SpeziFoundation
 import SpeziSensorKit
+import FHIRModelsExtensions
 
 
 extension SRWristTemperatureSession: CSVConvertibleSensorSample {

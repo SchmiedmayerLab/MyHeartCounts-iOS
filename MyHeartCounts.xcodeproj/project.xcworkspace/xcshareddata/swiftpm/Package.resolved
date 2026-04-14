@@ -1,5 +1,5 @@
 {
-  "originHash" : "984c7c02e1a7a67274db93ee59506a9be0502ee82253206861184eeec6073561",
+  "originHash" : "902be620ec688dd97658b99e22409403c1c1bef8f254a05b18bdd77fdc4dab67",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -101,15 +101,6 @@
       }
     },
     {
-      "identity" : "healthkitonfhir",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/StanfordBDHG/HealthKitOnFHIR.git",
-      "state" : {
-        "revision" : "acef83d55f6be6e1ef384d2c4bab2a5450979b32",
-        "version" : "1.2.2"
-      }
-    },
-    {
       "identity" : "interop-ios-for-google-sdks",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/interop-ios-for-google-sdks.git",
@@ -132,8 +123,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordBDHG/MyHeartCounts-StudyDefinitions.git",
       "state" : {
-        "revision" : "a84f12d971eaf1b462cf20eef3708066a79c4afb",
-        "version" : "0.1.16"
+        "branch" : "lukas/updates",
+        "revision" : "43c23c3b5e62aa88780982568ed3235e880e4e59"
       }
     },
     {
@@ -186,8 +177,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordBDHG/ResearchKitOnFHIR.git",
       "state" : {
-        "revision" : "56622e4cc17f2d640aae5e518f963a0ea7fb08e9",
-        "version" : "2.0.10"
+        "branch" : "lukas/movin-and-shakin",
+        "revision" : "8d28674b7cfd90cdb839250d20c4a5c4a52f24f7"
       }
     },
     {
@@ -231,8 +222,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziFHIR.git",
       "state" : {
-        "revision" : "0b1325d57702eb1d6588c09a88d656ccfaaf26aa",
-        "version" : "0.9.0"
+        "branch" : "lukas/movin-and-shakin",
+        "revision" : "4ffc9e7345aa112b8aa8ec185aa811365d4ea9a3"
       }
     },
     {
@@ -249,8 +240,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziFoundation.git",
       "state" : {
-        "revision" : "2181cfb239fca499a861b8cf09cfa6eb8585bf39",
-        "version" : "2.7.5"
+        "branch" : "lukas/LocalizationsDict-init",
+        "revision" : "4cce9f1ca0754faa5db3fc8a9dcc2c5cd19eea57"
       }
     },
     {
@@ -258,8 +249,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziHealthKit.git",
       "state" : {
-        "revision" : "a86db5cf2a6fbc62a9c161b135d87a97911d2533",
-        "version" : "1.4.2"
+        "branch" : "lukas/movin-and-shakin",
+        "revision" : "90507986ad6df0d1c6ae82a754c2b86b0aaf623d"
       }
     },
     {
@@ -294,8 +285,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziQuestionnaire.git",
       "state" : {
-        "revision" : "155a523b463b00a5cd0296af1e34def558ec763c",
-        "version" : "1.3.1"
+        "branch" : "lukas/movin-and-shakin",
+        "revision" : "50ead5bcffae2d36549599e6e159a92ce540bbf2"
       }
     },
     {
@@ -303,8 +294,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziScheduler.git",
       "state" : {
-        "branch" : "lukas/update-deps",
-        "revision" : "620764468d73083bf00dc9a36af2b5cb06aec91c"
+        "revision" : "5852948bc09fc2b0beed27384557939ad6396e1a",
+        "version" : "1.2.20"
       }
     },
     {
@@ -330,8 +321,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziStudy.git",
       "state" : {
-        "revision" : "6820e023943c2665cb893ee5a0e9a98625b3561b",
-        "version" : "0.1.20"
+        "revision" : "bc13d5ab4e3148c06a0bede44b9a21cb07282d92",
+        "version" : "0.2.2"
       }
     },
     {
@@ -339,8 +330,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziViews.git",
       "state" : {
-        "revision" : "236fd063407aaba2a34f3f61b3034dd3a01f22c5",
-        "version" : "1.12.14"
+        "branch" : "lukas/FilePicker",
+        "revision" : "82834fa008a93580d0786ea89c9510749672d83c"
       }
     },
     {
@@ -467,15 +458,6 @@
       "state" : {
         "revision" : "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
         "version" : "1.6.4"
-      }
-    },
-    {
-      "identity" : "swiftlintplugins",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SimplyDanny/SwiftLintPlugins.git",
-      "state" : {
-        "revision" : "8a4640d14777685ba8f14e832373160498fbab92",
-        "version" : "0.63.2"
       }
     },
     {

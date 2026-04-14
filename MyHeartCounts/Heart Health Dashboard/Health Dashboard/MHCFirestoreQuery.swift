@@ -8,7 +8,7 @@
 
 import FirebaseFirestore
 import Foundation
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import struct ModelsR4.DateTime
 import struct ModelsR4.FHIRPrimitive
 import struct ModelsR4.FHIRURI

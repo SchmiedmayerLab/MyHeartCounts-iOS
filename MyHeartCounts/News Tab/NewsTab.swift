@@ -30,7 +30,7 @@ struct NewsTab: RootViewTab {
     
     var body: some View {
         NavigationStack { // swiftlint:disable:this closure_body_length
-            Group {
+            VStack {
                 if isInitialLoad {
                     ProgressView("Fetching…")
                 } else if newsManager.articles.isEmpty {

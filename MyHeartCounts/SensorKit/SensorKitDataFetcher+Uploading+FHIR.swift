@@ -6,9 +6,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
 import SpeziSensorKit
+import FHIRModelsExtensions
 
 
 /// An upload strategy that uploads each sample as a FHIR observation.

@@ -101,7 +101,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--setupTestEnvironment reset login-and-enroll"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--forceEnableDebugMode"
@@ -121,7 +121,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--overrideStudyBundleLocation &apos;/Users/lukas/Desktop/MHC StudyDefs/mhcStudyBundle.spezistudybundle.aar&apos;"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--dashboardConsiderAllSleepData"

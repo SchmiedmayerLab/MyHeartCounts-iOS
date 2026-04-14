@@ -9,11 +9,12 @@
 import CryptoKit
 @preconcurrency import FirebaseFirestore
 import Foundation
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
 import SpeziFirestore
 import SpeziFoundation
 import SpeziSensorKit
+import FHIRModelsExtensions
 
 
 extension MHCSensorSampleUploadStrategy {

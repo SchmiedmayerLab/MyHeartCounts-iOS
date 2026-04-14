@@ -12,7 +12,7 @@ import FirebaseFirestore
 import FirebaseFunctions
 import Foundation
 import HealthKit
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 @preconcurrency import ModelsDSTU2
 @preconcurrency import ModelsR4
 import MyHeartCountsShared
@@ -23,6 +23,7 @@ import SpeziFoundation
 import SpeziHealthKit
 import SpeziStudy
 import UserNotifications
+import FHIRModelsExtensions
 
 
 extension LocalPreferenceKeys {
