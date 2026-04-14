@@ -1,5 +1,5 @@
 {
-  "originHash" : "a10b03c6d496f6fa617a0da345da3a7850f5f314ab5fece5c814f4983375808b",
+  "originHash" : "569f51b828362980428aeaac455244fe26bdb834cea9188f0af2397ceb179d65",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -105,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordBDHG/HealthKitOnFHIR.git",
       "state" : {
-        "revision" : "f866f864ac85cc8d0cdba49772d42ae077361f41",
-        "version" : "1.2.1"
+        "revision" : "acef83d55f6be6e1ef384d2c4bab2a5450979b32",
+        "version" : "1.2.2"
       }
     },
     {
@@ -186,8 +186,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordBDHG/ResearchKitOnFHIR.git",
       "state" : {
-        "revision" : "dc3e35d55e5c0acc0059c5f939535de230fdbd99",
-        "version" : "2.0.7"
+        "revision" : "56622e4cc17f2d640aae5e518f963a0ea7fb08e9",
+        "version" : "2.0.10"
       }
     },
     {
@@ -294,8 +294,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziQuestionnaire.git",
       "state" : {
-        "revision" : "6110a9ec1be8fc35caf9b7aa20b7cf570e1a8ffb",
-        "version" : "1.2.4"
+        "revision" : "155a523b463b00a5cd0296af1e34def558ec763c",
+        "version" : "1.3.1"
       }
     },
     {
