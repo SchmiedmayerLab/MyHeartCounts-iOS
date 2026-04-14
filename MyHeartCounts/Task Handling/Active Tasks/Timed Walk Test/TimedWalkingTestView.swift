@@ -166,12 +166,10 @@ private struct TimedWalkingTestView: View {
                 CenterH {
                     VStack(alignment: .center, spacing: 16) {
                         CountdownView(start: session.inProgressResult.startDate, end: session.inProgressResult.endDate)
-                        Group {
-                            Text("Your \(testName) is in progress.")
-                        }
-                        .multilineTextAlignment(.center)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        Text("Your \(testName) is in progress.")
+                            .multilineTextAlignment(.center)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .toolbar {

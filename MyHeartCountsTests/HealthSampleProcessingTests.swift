@@ -8,7 +8,7 @@
 
 import Foundation
 import HealthKit
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
 @testable import MyHeartCounts
 import SpeziFoundation

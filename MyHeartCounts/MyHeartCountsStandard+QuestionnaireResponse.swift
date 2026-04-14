@@ -12,6 +12,8 @@ import MyHeartCountsShared
 import OSLog
 import Spezi
 import SpeziHealthKit
+import SpeziQuestionnaire
+import SpeziQuestionnaireFHIR
 
 
 extension MyHeartCountsStandard {
@@ -19,10 +21,12 @@ extension MyHeartCountsStandard {
     func add(
         isolation: isolated (any Actor)? = #isolation,
         _ response: ModelsR4.QuestionnaireResponse,
-        for questionnaire: ModelsR4.Questionnaire
+        for questionnaire: ModelsR4.Questionnaire?
     ) async {
-        // shouldn't be necessary, but we had some issues with these not being properly set
-        response.questionnaire = questionnaire.url?.value?.url.absoluteString.asFHIRCanonicalPrimitive()
+        if let questionnaire {
+            // shouldn't be necessary, but we had some issues with these not being properly set
+            response.questionnaire = questionnaire.url?.value?.url.absoluteString.asFHIRCanonicalPrimitive()
+        }
         let logger = await self.logger
         let id = response.identifier?.value?.value?.string ?? UUID().uuidString
         do {
@@ -34,6 +38,32 @@ extension MyHeartCountsStandard {
             logger.error("Could not store questionnaire response: \(error)")
         }
         await parseIfApplicable(response)
+    }
+    
+    // periphery:ignore:parameters isolation
+    func add(
+        isolation: isolated (any Actor)? = #isolation,
+        _ responses: SpeziQuestionnaire.QuestionnaireResponses
+    ) async {
+        do {
+            let response = try ModelsR4.QuestionnaireResponse(responses)
+            await add(response, for: nil)
+        } catch {
+            await logger.error("Failed to convert QuestionnaireResponses to FHIR: \(error)")
+        }
+//        // shouldn't be necessary, but we had some issues with these not being properly set
+//        response.questionnaire = questionnaire.url?.value?.url.absoluteString.asFHIRCanonicalPrimitive()
+//        let logger = await self.logger
+//        let id = response.identifier?.value?.value?.string ?? UUID().uuidString
+//        do {
+//            try await firebaseConfiguration.userDocumentReference
+//                .collection("questionnaireResponses")
+//                .document(id)
+//                .setData(from: response)
+//        } catch {
+//            logger.error("Could not store questionnaire response: \(error)")
+//        }
+//        await parseIfApplicable(response)
     }
     
     

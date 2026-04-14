@@ -55,7 +55,7 @@ struct SensorKitButton: View {
     @State private var sensorAuthStatuses = SensorAuthStatuses()
     
     var body: some View {
-        Group {
+        VStack {
             if isFullyUndetermined {
                 LabeledButton(
                     symbol: .waveformPathEcgRectangle,

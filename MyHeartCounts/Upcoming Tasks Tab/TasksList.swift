@@ -12,7 +12,7 @@ import Algorithms
 import Foundation
 import MHCStudyDefinition
 import OSLog
-import ResearchKitSwiftUI
+import ResearchKitSwiftUI // TODO WHY????
 import SFSafeSymbols
 import SpeziFoundation
 import SpeziQuestionnaire

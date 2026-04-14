@@ -8,16 +8,17 @@
 
 import CoreMotion
 import Foundation
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
 import MyHeartCountsShared
 import SpeziFoundation
 import SpeziStudyDefinition
+import FHIRModelsExtensions
 
 
 extension TimedWalkingTestResult {
     func resource(
-        withMapping: HealthKitOnFHIR.HKSampleMapping,
+        withMapping: HKSampleMapping,
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ModelsR4.ResourceProxy {

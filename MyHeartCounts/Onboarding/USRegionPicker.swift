@@ -42,20 +42,18 @@ struct USRegionPicker: View {
             selection = region == selection ? nil : region
         } label: {
             HStack {
-                Group {
-                    Text(region.name)
-                    Spacer()
-                    if region == selection {
-                        Image(systemSymbol: .checkmark)
-                            .fontWeight(.medium)
-                            .accessibilityLabel("Selection Checkmark")
-                            .foregroundStyle(.blue)
-                    }
-                    Text(region.abbreviation)
-                        .foregroundStyle(.secondary)
+                Text(region.name)
+                Spacer()
+                if region == selection {
+                    Image(systemSymbol: .checkmark)
+                        .fontWeight(.medium)
+                        .accessibilityLabel("Selection Checkmark")
+                        .foregroundStyle(.blue)
                 }
-                .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                Text(region.abbreviation)
+                    .foregroundStyle(.secondary)
             }
+            .foregroundStyle(colorScheme.textLabelForegroundStyle)
         }
     }
 }

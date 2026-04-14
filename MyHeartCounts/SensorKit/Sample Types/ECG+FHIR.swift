@@ -7,9 +7,10 @@
 //
 
 import Foundation
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
 import SpeziSensorKit
+import FHIRModelsExtensions
 
 
 extension SensorKitECGSession: HealthObservation {

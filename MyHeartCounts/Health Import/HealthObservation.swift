@@ -8,8 +8,9 @@
 
 import Foundation
 import HealthKit
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
+import FHIRModelsExtensions
 
 
 protocol HealthObservation: Sendable { // might want to rename this (@lukas); the resulting ResourceProxy is not necessarily an Observation...)

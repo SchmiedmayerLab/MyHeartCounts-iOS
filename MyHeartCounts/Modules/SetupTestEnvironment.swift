@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import MyHeartCountsShared
 import OSLog
 import Spezi

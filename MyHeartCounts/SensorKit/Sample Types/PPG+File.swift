@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import HealthKitOnFHIR
+import SpeziHealthKitFHIR
 import ModelsR4
 import MyHeartCountsShared
 import NIOCore
