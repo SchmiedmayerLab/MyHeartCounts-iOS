@@ -1362,8 +1362,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/StanfordSpezi/SpeziScheduler.git";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.2.17;
+				branch = "lukas/update-deps";
+				kind = branch;
 			};
 		};
 		804D89382EF4C0030037E431 /* XCRemoteSwiftPackageReference "SpeziAccount" */ = {
