@@ -239,6 +239,7 @@ enum DeferredConfigLoading {
                         .manual(\.preferredWorkoutTypes),
                         .manual(\.preferredNudgeNotificationTime),
                         .manual(\.stageOfChange),
+                        .manual(\.postTrialNudgesOptIn),
                         // demographics
                         .manual(\.mhcGenderIdentity),
                         .manual(\.usRegion),

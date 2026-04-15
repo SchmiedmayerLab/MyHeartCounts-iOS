@@ -132,6 +132,9 @@ extension AccountDetails {
     @AccountKey(id: "preferredMeasurementSystem", name: "Preferred Measurement System", as: String.self)
     var preferredMeasurementSystem: String?
     
+    @AccountKey(id: "extendedActivityNudgesOptIn", name: "Post-Trial Nudges Opt-In", as: Bool.self)
+    var postTrialNudgesOptIn: Bool?
+    
     @AccountKey(
         id: "mostRecentOnboardingStep",
         name: "",
@@ -148,7 +151,7 @@ extension AccountDetails {
     \.hasWithdrawnFromStudy,
     \.dateOfEnrollment, \.lastSignedConsentVersion, \.lastSignedConsentDate, \.didOptInToTrial,
     \.fcmToken, \.enableDebugMode, \.timeZone, \.language, \.preferredMeasurementSystem, \.lastActiveDate,
-    \.mostRecentOnboardingStep, \.preferredWorkoutTypes, \.preferredNudgeNotificationTime
+    \.mostRecentOnboardingStep, \.preferredWorkoutTypes, \.preferredNudgeNotificationTime, \.postTrialNudgesOptIn
 )
 extension AccountKeys {}
 
