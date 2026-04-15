@@ -6295,19 +6295,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enable to continue receiving periodic activity nudges after the initial 21 day trial period."
+            "value" : "Enable to continue receiving periodic activity nudges after the initial trial period."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enable to continue receiving periodic activity nudges after the initial 21 day trial period."
+            "value" : "Enable to continue receiving periodic activity nudges after the initial trial period."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Habilitar para seguir recibiendo recordatorios periódicos de actividad después del período de prueba inicial de 21 días."
+            "value" : "Habilitar la opción para seguir recibiendo recordatorios periódicos de actividad después del período de prueba inicial."
           }
         }
       }

@@ -210,28 +210,37 @@ extension AccountSheet {
         private var account
         
         @State private var value = false
-        @State private var updateTask: Task<Void, any Error>?
+        @State private var updateTask: Task<Void, Never>?
+        @State private var shouldHandleUpdates = true
         
         var body: some View {
             Toggle(isOn: $value) {
                 VStack(alignment: .leading) {
                     Text("POST_TRIAL_ACTIVITY_NUDGES_TOGGLE_TITLE")
-//                        .font(.headline)
                     Text("POST_TRIAL_ACTIVITY_NUDGES_TOGGLE_SUBTITLE")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
             .onChange(of: account.details?.postTrialNudgesOptIn ?? false, initial: true) { _, newValue in
+                shouldHandleUpdates = false
                 value = newValue
+                shouldHandleUpdates = true
             }
             .onChange(of: value) { _, newValue in
                 updateTask?.cancel()
+                guard shouldHandleUpdates else {
+                    return
+                }
                 updateTask = Task {
-                    try await Task.sleep(for: .seconds(0.25))
-                    var details = AccountDetails()
-                    details.postTrialNudgesOptIn = newValue
-                    try await account.accountService.updateAccountDetails(AccountModifications(modifiedDetails: details))
+                    do {
+                        try await Task.sleep(for: .seconds(0.25))
+                        var details = AccountDetails()
+                        details.postTrialNudgesOptIn = newValue
+                        try await account.accountService.updateAccountDetails(AccountModifications(modifiedDetails: details))
+                    } catch {
+                        // we silently ignore the error here
+                    }
                 }
             }
         }
