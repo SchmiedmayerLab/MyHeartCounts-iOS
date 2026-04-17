@@ -79,48 +79,8 @@ struct AccountSheet: View {
             }
         }
         if let enrollment = enrollments.first {
-            Section("Study Participation") { // swiftlint:disable:this closure_body_length
-                Button {
-                    openUrl(MyHeartCounts.website())
-                } label: {
-                    HStack {
-                        makeEnrolledStudyRow(for: enrollment)
-                        Spacer()
-                        DisclosureIndicator()
-                    }
-                    .contentShape(Rectangle())
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
-                }
-                NavigationLink("Review Consent Forms") {
-                    SignedConsentForms()
-                }
-                if let text = { () -> LocalizedStringResource? in
-                    switch (isProcessingHealthData, isProcessingSensorKitData) {
-                    case (true, true):
-                        "Processing Health and SensorKit Data…"
-                    case (true, false):
-                        "Processing Health Data…"
-                    case (false, true):
-                        "Processing SensorKit Data…"
-                    case (false, false):
-                        nil
-                    }
-                }() {
-                    let label = HStack {
-                        Text(text)
-                        Spacer()
-                        ProgressView()
-                    }
-                    if debugModeEnabled {
-                        NavigationLink {
-                            DataProcessingDebugView()
-                        } label: {
-                            label
-                        }
-                    } else {
-                        label
-                    }
-                }
+            Section("Study Participation") {
+                studyParticipationSection(enrollment)
             }
         }
         Section {
@@ -171,6 +131,52 @@ struct AccountSheet: View {
     
     
     @ViewBuilder
+    private func studyParticipationSection(_ enrollment: StudyEnrollment) -> some View {
+        Button {
+            openUrl(MyHeartCounts.website())
+        } label: {
+            HStack {
+                makeEnrolledStudyRow(for: enrollment)
+                Spacer()
+                DisclosureIndicator()
+            }
+            .contentShape(Rectangle())
+            .foregroundStyle(colorScheme.textLabelForegroundStyle)
+        }
+        PostTrialNudgesToggle()
+        NavigationLink("Review Consent Forms") {
+            SignedConsentForms()
+        }
+        if let text = { () -> LocalizedStringResource? in
+            switch (isProcessingHealthData, isProcessingSensorKitData) {
+            case (true, true):
+                "Processing Health and SensorKit Data…"
+            case (true, false):
+                "Processing Health Data…"
+            case (false, true):
+                "Processing SensorKit Data…"
+            case (false, false):
+                nil
+            }
+        }() {
+            let label = HStack {
+                Text(text)
+                Spacer()
+                ProgressView()
+            }
+            if debugModeEnabled {
+                NavigationLink {
+                    DataProcessingDebugView()
+                } label: {
+                    label
+                }
+            } else {
+                label
+            }
+        }
+    }
+    
+    @ViewBuilder
     private func makeEnrolledStudyRow(for enrollment: StudyEnrollment) -> some View {
         if let studyInfo = enrollment.studyBundle?.studyDefinition.metadata {
             VStack(alignment: .leading) {
@@ -197,6 +203,49 @@ struct AccountSheet: View {
     }
 }
 
+
+extension AccountSheet {
+    private struct PostTrialNudgesToggle: View {
+        @Environment(Account.self)
+        private var account
+        
+        @State private var value = false
+        @State private var updateTask: Task<Void, Never>?
+        @State private var shouldHandleUpdates = true
+        
+        var body: some View {
+            Toggle(isOn: $value) {
+                VStack(alignment: .leading) {
+                    Text("POST_TRIAL_ACTIVITY_NUDGES_TOGGLE_TITLE")
+                    Text("POST_TRIAL_ACTIVITY_NUDGES_TOGGLE_SUBTITLE")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .onChange(of: account.details?.postTrialNudgesOptIn ?? false, initial: true) { _, newValue in
+                shouldHandleUpdates = false
+                value = newValue
+                shouldHandleUpdates = true
+            }
+            .onChange(of: value) { _, newValue in
+                updateTask?.cancel()
+                guard shouldHandleUpdates else {
+                    return
+                }
+                updateTask = Task {
+                    do {
+                        try await Task.sleep(for: .seconds(0.25))
+                        var details = AccountDetails()
+                        details.postTrialNudgesOptIn = newValue
+                        try await account.accountService.updateAccountDetails(AccountModifications(modifiedDetails: details))
+                    } catch {
+                        // we silently ignore the error here
+                    }
+                }
+            }
+        }
+    }
+}
 
 extension AccountSheet {
     private struct AboutRow: View {

@@ -6290,6 +6290,53 @@
         }
       }
     },
+    "POST_TRIAL_ACTIVITY_NUDGES_TOGGLE_SUBTITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable to continue receiving periodic activity nudges after the initial trial period."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable to continue receiving periodic activity nudges after the initial trial period."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habilitar la opción para seguir recibiendo recordatorios periódicos de actividad después del período de prueba inicial."
+          }
+        }
+      }
+    },
+    "POST_TRIAL_ACTIVITY_NUDGES_TOGGLE_TITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Post-Trial Activity Nudges"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Post-Trial Activity Nudges"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incentivos para la actividad posterior al ensayo"
+          }
+        }
+      }
+    },
+    "Post-Trial Nudges Opt-In" : {
+
+    },
     "Prefer not to state" : {
       "localizations" : {
         "en-GB" : {
