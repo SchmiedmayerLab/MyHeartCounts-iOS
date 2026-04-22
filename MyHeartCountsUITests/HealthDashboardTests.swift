@@ -131,14 +131,12 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
         try navigateResearchKitQuestionnaire(title: "Dashboard - Smoking", steps: [ // NOTE: might want to rename the survey here?!
             .init(actions: [.selectOption(title: "Never smoked/vaped")])
         ])
-        XCTExpectFailure("Fails on the CI, for some reason.")
         XCTAssert(app.staticTexts["Most Recent Response: Never Smoked"].waitForExistence(timeout: 10))
         
         app.navigationBars["Nicotine Exposure"].buttons["Add Data"].tap()
         try navigateResearchKitQuestionnaire(title: "Dashboard - Smoking", steps: [ // NOTE: might want to rename the survey here?!
             .init(actions: [.selectOption(title: "Quit >5 years ago")])
         ])
-        XCTExpectFailure("Fails on the CI, for some reason.")
         XCTAssert(app.staticTexts["Most Recent Response: Quit more than 5 years ago"].waitForExistence(timeout: 10))
     }
     
