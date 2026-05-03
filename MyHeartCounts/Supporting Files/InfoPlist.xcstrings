@@ -248,19 +248,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "https://myheartcounts.su.domains/privacy-policy/"
+            "value" : "https://myheartcounts.stanford.edu/privacy"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "https://myheartcounts.su.domains/privacy-policy/"
+            "value" : "https://myheartcounts.stanford.edu/privacy"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "https://myheartcounts.su.domains/privacy-policy/"
+            "value" : "https://myheartcounts.stanford.edu/privacy"
           }
         }
       }
