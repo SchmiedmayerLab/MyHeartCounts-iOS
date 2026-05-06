@@ -163,7 +163,7 @@ func demographicsLayout(for region: Locale.Region) -> some DemographicsComponent
             } header: {
                 Text("NHS Number")
             } footer: {
-                Link("Find your NHS Number", destination: "https://www.nhs.uk/nhs-services/online-services/find-nhs-number/")
+                Link2("Find your NHS Number", "https://www.nhs.uk/nhs-services/online-services/find-nhs-number/")
                     .font(.footnote)
                     .tint(.blue)
             }

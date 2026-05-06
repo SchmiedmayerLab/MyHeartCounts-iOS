@@ -62,7 +62,7 @@
 	<key>NSMotionUsageDescription</key>
 	<string>My Heart Counts uses motion data to conduct a timed walking test</string>
 	<key>NSSensorKitPrivacyPolicyURL</key>
-	<string>https://myheartcounts.su.domains/privacy-policy/</string>
+	<string>https://myheartcounts.stanford.edu/privacy</string>
 	<key>NSSensorKitUsageDetail</key>
 	<dict>
 		<key>SRSensorUsageAmbientLightSensor</key>

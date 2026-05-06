@@ -6388,6 +6388,16 @@
         }
       }
     },
+    "Privacy Policy" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Política de Privacidad"
+          }
+        }
+      }
+    },
     "Processing Health and SensorKit Data…" : {
       "localizations" : {
         "en-GB" : {

@@ -23,7 +23,6 @@ struct AccountSheet: View {
     // swiftlint:disable attributes
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.openURL) private var openUrl
     @Environment(\.openSettingsApp) private var openSettingsApp
     @Environment(Account.self) private var account
     @Environment(HistoricalHealthSamplesExportManager.self) private var historicalDataExportMgr
@@ -97,6 +96,10 @@ struct AccountSheet: View {
         }
         Section {
             AboutRow()
+            Link2(MyHeartCounts.website(.privacyPolicy)) {
+                Label("Privacy Policy", systemSymbol: .lockShield)
+                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+            }
             NavigationLink {
                 ContributionsList(projectLicense: .mit)
             } label: {
@@ -132,9 +135,7 @@ struct AccountSheet: View {
     
     @ViewBuilder
     private func studyParticipationSection(_ enrollment: StudyEnrollment) -> some View {
-        Button {
-            openUrl(MyHeartCounts.website())
-        } label: {
+        Link2(MyHeartCounts.website(.homepage)) {
             HStack {
                 makeEnrolledStudyRow(for: enrollment)
                 Spacer()
