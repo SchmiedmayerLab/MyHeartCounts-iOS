@@ -69,7 +69,6 @@ enum MHCSampleType: Hashable, Identifiable, Sendable {
 
 
 extension MHCSampleType {
-    private static let allKnownHealthKitIdentifiers: Set<String> = HKObjectType.allKnownObjectTypes.mapIntoSet(\.identifier)
     private static let sampleTypeProxyByIdentifier: [String: SampleTypeProxy] = HKObjectType.allKnownObjectTypes.reduce(into: [:]) { result, type in
         if let sampleType = type.sampleType, let proxy = SampleTypeProxy(_ifPossible: sampleType) {
             result[type.identifier] = proxy
