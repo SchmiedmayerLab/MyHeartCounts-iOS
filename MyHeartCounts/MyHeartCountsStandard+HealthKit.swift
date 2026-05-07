@@ -104,14 +104,33 @@ extension MyHeartCountsStandard: HealthKitConstraint {
 
 
 extension MyHeartCountsStandard {
+    private enum HealthObservationUploadStrategy {
+        case directFirestore
+        case firebaseStorage
+    }
+    
+    
     // NOTE: This is in fact concurrency-safe; we're just missing a `FHIRExtensionBuilderProtocol: Sendable` requirement in HKoF.
     nonisolated(unsafe) static let defaultHealthObservationFHIRExtensions: [any FHIRExtensionBuilderProtocol] = [
         .sampleUploadTimeZone, .mhcStudyRevision
     ]
     
+    /// Determines how a health observation / resource should be persisted when uploading it to firebase.
+    private static func uploadStrategy(forSampleType identifier: String) -> HealthObservationUploadStrategy {
+        if identifier == TimedWalkingTestResult.sampleTypeIdentifier {
+            return .directFirestore
+        }
+        return switch MHCSampleType(sampleTypeIdentifier: identifier) {
+        case nil, .healthKit:
+            .firebaseStorage
+        case .custom:
+            .directFirestore
+        }
+    }
+    
     func uploadHealthObservation(
         _ observation: some HealthObservation & Sendable,
-        postprocessResource: @Sendable (FHIRResource) throws -> Void = { _ in }
+        postprocessResource: @escaping @Sendable (FHIRResource) throws -> Void = { _ in }
     ) async throws {
         try await uploadHealthObservations(
             CollectionOfOne(observation),
@@ -120,12 +139,24 @@ extension MyHeartCountsStandard {
         )
     }
     
-    func uploadHealthObservations( // swiftlint:disable:this function_body_length
+    func uploadHealthObservations( // swiftlint:disable:this function_body_length cyclomatic_complexity
         _ observations: consuming some Collection<some HealthObservation & Sendable> & Sendable,
         batchSize: Int = 100,
-        postprocessResource: @Sendable (FHIRResource) throws -> Void = { _ in }
+        postprocessResource: @escaping @Sendable (FHIRResource) throws -> Void = { _ in }
     ) async throws {
         guard !observations.isEmpty, let sampleTypeIdentifier = observations.first?.sampleTypeIdentifier else {
+            return
+        }
+        guard observations.allSatisfy({ $0.sampleTypeIdentifier == sampleTypeIdentifier }) else {
+            // in the unlikely case of the caller passing in heterogeneous health observations, we process each sample type individually
+            try await withThrowingDiscardingTaskGroup { taskGroup in
+                let bySampleType = observations.grouped(by: \.sampleTypeIdentifier)
+                for (_, observations) in bySampleType {
+                    taskGroup.addTask {
+                        try await self.uploadHealthObservations(observations, batchSize: batchSize, postprocessResource: postprocessResource)
+                    }
+                }
+            }
             return
         }
         let issuedDate = FHIRPrimitive<ModelsR4.Instant>(try .init(date: .now))
@@ -169,12 +200,13 @@ extension MyHeartCountsStandard {
                 return AnyEncodable(resource)
             }
         }
-        let supportsZstdUpload = !HKClinicalTypeIdentifier.allKnownIdentifiers.contains(HKClinicalTypeIdentifier(rawValue: sampleTypeIdentifier))
-        if supportsZstdUpload && observations.count >= 100 && observations.allSatisfy({ $0.sampleTypeIdentifier == sampleTypeIdentifier }) {
+        let uploadStrategy = Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
+        switch uploadStrategy {
+        case .firebaseStorage:
             let numObservations = observations.count
             logger.notice("Uploading \(numObservations) observations of type '\(sampleTypeIdentifier)' via zstd upload")
             let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
-                for: .new(sampleTypeTitle: sampleTypeIdentifier, count: numObservations, uploadMode: .compressed)
+                for: .new(sampleTypeTitle: sampleTypeIdentifier, count: numObservations, uploadStrategy: uploadStrategy)
             )
             let resources: [AnyEncodable] = try await (consume observations).async.reduce(into: []) { resources, observation in
                 if let resource = try await turnIntoFHIRResource(observation) {
@@ -192,10 +224,10 @@ extension MyHeartCountsStandard {
                 try await managedFileUpload.upload(url, category: .liveHealthUpload)
                 await triggerDidUploadNotification()
             }
-        } else {
+        case .directFirestore:
             for chunk in (consume observations).chunks(ofCount: batchSize) {
                 let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
-                    for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadMode: .direct)
+                    for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadStrategy: uploadStrategy)
                 )
                 let batch = Firestore.firestore().batch()
                 for observation in chunk {
@@ -234,13 +266,17 @@ extension MyHeartCountsStandard {
 
 extension MyHeartCountsStandard {
     private enum HealthDocumentChange {
-        case new(sampleTypeTitle: String, count: Int, uploadMode: UploadMode)
+        case new(sampleTypeTitle: String, count: Int, uploadStrategy: HealthObservationUploadStrategy)
         case deleted(sampleTypeTitle: String, count: Int)
     }
     
-    private enum UploadMode: String {
-        case direct
-        case compressed
+    private static func notificationLabel(for uploadStrategy: HealthObservationUploadStrategy) -> String {
+        switch uploadStrategy {
+        case .directFirestore:
+            "direct"
+        case .firebaseStorage:
+            "storage"
+        }
     }
     
     /// - returns: A closure that should be called upon completion of the uploads, and will replaces the "will upload" notifications with "did upload" notifications.
@@ -255,9 +291,9 @@ extension MyHeartCountsStandard {
             let notificationCenter = UNUserNotificationCenter.current()
             let content = UNMutableNotificationContent()
             switch change {
-            case let .new(sampleTypeTitle, count, uploadMode):
+            case let .new(sampleTypeTitle, count, uploadStrategy):
                 content.title = "\(stage) upload new health observations"
-                content.body = "\(count) new observations for \(sampleTypeTitle). mode: \(uploadMode.rawValue)"
+                content.body = "\(count) new observations for \(sampleTypeTitle). mode: \(Self.notificationLabel(for: uploadStrategy))"
             case let .deleted(sampleTypeTitle, count):
                 content.title = "\(stage) delete health observations"
                 content.body = "\(count) deleted observations for \(sampleTypeTitle)"

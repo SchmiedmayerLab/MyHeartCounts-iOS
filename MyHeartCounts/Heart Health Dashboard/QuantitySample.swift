@@ -68,6 +68,26 @@ enum MHCSampleType: Hashable, Identifiable, Sendable {
 }
 
 
+extension MHCSampleType {
+    private static let sampleTypeProxyByIdentifier: [String: SampleTypeProxy] = HKObjectType.allKnownObjectTypes.reduce(into: [:]) { result, type in
+        if let sampleType = type.sampleType, let proxy = SampleTypeProxy(_ifPossible: sampleType) {
+            result[type.identifier] = proxy
+        }
+    }
+    
+    /// Attempts to create an `MHCSampleType` from a raw identifier string.
+    init?(sampleTypeIdentifier identifier: String) {
+        if let custom = CustomQuantitySampleType(identifier: identifier) {
+            self = .custom(custom)
+        } else if let proxy = Self.sampleTypeProxyByIdentifier[identifier] {
+            self = .healthKit(proxy)
+        } else {
+            return nil
+        }
+    }
+}
+
+
 struct CustomQuantitySampleType: Hashable, Identifiable, Sendable {
     let id: String
     let displayTitle: LocalizedStringResource
