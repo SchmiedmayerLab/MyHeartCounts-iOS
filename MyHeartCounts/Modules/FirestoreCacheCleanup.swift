@@ -18,6 +18,11 @@ import Synchronization
 ///
 /// - Important: This module must be configured as early as possible after Firebase is loaded.
 final class FirestoreCacheCleanup: Module, EnvironmentAccessible, @unchecked Sendable {
+    /// How long we're willing to wait for the firestore persistence cleanup operation.
+    ///
+    /// In testing, it took ~0.087 seconds to clear a 800+ MB cache, so this is a very generous timeout.
+    private static let timeout: DispatchTimeInterval = .milliseconds(500)
+    
     @Application(\.logger)
     private var logger
     
@@ -34,13 +39,18 @@ final class FirestoreCacheCleanup: Module, EnvironmentAccessible, @unchecked Sen
             error.withLock { $0 = err }
             semaphore.signal()
         }
-        semaphore.wait()
-        if let error = error.withLock({ $0 }) {
-            logger.error("Error clearing firestore local persistence: \(error)")
+        switch semaphore.wait(timeout: .now() + Self.timeout) {
+        case .success:
+            if let error = error.withLock({ $0 }) {
+                logger.error("Error clearing firestore local persistence: \(error)")
+                // We intentionally keep the flag set to `true`, so that we can retry on the next launch.
+            } else {
+                logger.notice("Successfully cleared the firestore local cache")
+                prefs[.shouldClearFirestoreCacheOnNextLaunch] = false
+            }
+        case .timedOut:
+            logger.error("Timed out clearing firestore local persistence")
             // We intentionally keep the flag set to `true`, so that we can retry on the next launch.
-        } else {
-            logger.notice("Successfully cleared the firestore local cache")
-            prefs[.shouldClearFirestoreCacheOnNextLaunch] = false
         }
     }
 }
