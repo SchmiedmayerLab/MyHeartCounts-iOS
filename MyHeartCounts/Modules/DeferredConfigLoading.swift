@@ -11,6 +11,7 @@
 import class FirebaseCore.FirebaseOptions
 import class FirebaseFirestore.FirestoreSettings
 import class FirebaseFirestore.MemoryCacheSettings
+import class FirebaseFirestore.PersistentCacheSettings
 import Foundation
 import MyHeartCountsShared
 import Observation
@@ -217,6 +218,8 @@ enum DeferredConfigLoading {
             }
             return Array { // swiftlint:disable:this closure_body_length
                 ConfigureFirebaseApp(/*name: "My Heart Counts", */options: firebaseOptions)
+                firestore
+                FirestoreCacheCleanup()
                 LoadFirebaseTracking()
                 AccountConfiguration(
                     service: FirebaseAccountService(providers: [.emailAndPassword], emulatorSettings: accountEmulator),
@@ -268,7 +271,6 @@ enum DeferredConfigLoading {
                         .manual(\.enableDebugMode)
                     ]
                 )
-                firestore
                 if FeatureFlags.useFirebaseEmulator {
                     FirebaseStorageConfiguration(emulatorSettings: (host: "localhost", port: 9199))
                     FirebaseFunctions(emulatorHost: "localhost", port: 5001)
@@ -299,10 +301,21 @@ enum DeferredConfigLoading {
     
     private static var firestore: Firestore {
         let settings = FirestoreSettings()
+        // make firebase callbacks run off the main queue.
+        // this exists primarily to allow `FirestoreCacheCleanup` to block the main thread until its cleanup operations have completed
+        settings.dispatchQueue = DispatchQueue(label: "edu.stanford.MyHeartCounts.firestore")
         if FeatureFlags.useFirebaseEmulator {
             settings.host = "localhost:8080"
             settings.cacheSettings = MemoryCacheSettings()
             settings.isSSLEnabled = false
+        } else {
+            // We explicitly limit the size of the local cache.
+            // This is in fact the same limit as is already the default,
+            // but the hope here is that specifying it explicitly causes
+            // Firebase to be more strict.
+            settings.cacheSettings = PersistentCacheSettings(
+                sizeBytes: NSNumber(value: 100 * 1024 * 1024) // swiftlint:disable:this legacy_objc_type
+            )
         }
         return Firestore(
             settings: settings
