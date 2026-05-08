@@ -99,6 +99,7 @@
 		80A008462DEFD0F900A446BA /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = 80A008452DEFD0F900A446BA /* OrderedCollections */; };
 		80A72D7D2F377E90006B6EAD /* SensorKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80A72D7C2F377E90006B6EAD /* SensorKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		80A8F7F32EDB222400944D94 /* MHCStudyDefinitionExporter in Frameworks */ = {isa = PBXBuildFile; productRef = 80A8F7F22EDB222400944D94 /* MHCStudyDefinitionExporter */; };
+		80B7F0172FAD06A60040F247 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 80B7F0162FAD06A60040F247 /* SQLite */; };
 		80B8A2132EC106A100F0E453 /* SpeziFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2122EC106A100F0E453 /* SpeziFHIR */; };
 		80B8A2152EC106A100F0E453 /* SpeziFHIRHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2142EC106A100F0E453 /* SpeziFHIRHealthKit */; };
 		80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2352EC1336F00F0E453 /* ModelsDSTU2 */; };
@@ -249,6 +250,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				80B7F0172FAD06A60040F247 /* SQLite in Frameworks */,
 				80A72D7D2F377E90006B6EAD /* SensorKit.framework in Frameworks */,
 				80E982FC2EBA463500202499 /* SpeziConsent in Frameworks */,
 				80E982FB2EBA463500202499 /* SpeziConsent in Frameworks */,
@@ -553,6 +555,7 @@
 				8047A8242F6205750094AAF3 /* SpeziLocalization */,
 				80D596DB2F8303720029318F /* SpeziSensorKit */,
 				802CB63E2F85177A0011907F /* AsyncAlgorithms */,
+				80B7F0162FAD06A60040F247 /* SQLite */,
 			);
 			productName = MyHeartCounts;
 			productReference = 653A254D283387FE005D4D48 /* MyHeartCounts.app */;
@@ -710,6 +713,7 @@
 				8047A8212F6205740094AAF3 /* XCRemoteSwiftPackageReference "SpeziFoundation" */,
 				80D596DA2F8303720029318F /* XCRemoteSwiftPackageReference "SpeziSensorKit" */,
 				802CB63D2F85177A0011907F /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
+				80B7F0152FAD06A60040F247 /* XCRemoteSwiftPackageReference "SQLite.swift" */,
 			);
 			productRefGroup = 653A254E283387FE005D4D48 /* Products */;
 			projectDirPath = "";
@@ -1438,6 +1442,14 @@
 				minimumVersion = 3.1.4;
 			};
 		};
+		80B7F0152FAD06A60040F247 /* XCRemoteSwiftPackageReference "SQLite.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stephencelis/SQLite.swift.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.16.0;
+			};
+		};
 		80B8A2112EC106A100F0E453 /* XCRemoteSwiftPackageReference "SpeziFHIR" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/StanfordSpezi/SpeziFHIR.git";
@@ -1897,6 +1909,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 804C11E22ECA380D004783C3 /* XCRemoteSwiftPackageReference "MyHeartCounts-StudyDefinitions" */;
 			productName = MHCStudyDefinitionExporter;
+		};
+		80B7F0162FAD06A60040F247 /* SQLite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 80B7F0152FAD06A60040F247 /* XCRemoteSwiftPackageReference "SQLite.swift" */;
+			productName = SQLite;
 		};
 		80B8A2122EC106A100F0E453 /* SpeziFHIR */ = {
 			isa = XCSwiftPackageProductDependency;

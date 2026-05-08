@@ -45,6 +45,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(NotificationTracking.self) var notificationTracking
     @Dependency(Scheduler.self) var scheduler
     @Dependency(SensorKitDataFetcher.self) private var sensorKitFetcher
+    @Dependency(MHCFHIRStore.self) var fhirStore
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
     @Dependency(AppState.self) private var appState

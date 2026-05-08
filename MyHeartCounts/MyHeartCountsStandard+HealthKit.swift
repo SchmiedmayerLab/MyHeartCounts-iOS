@@ -66,7 +66,8 @@ extension MyHeartCountsStandard: HealthKitConstraint {
             return
         }
         do {
-            try await uploadHealthObservations(addedSamples, batchSize: 100)
+            try await fhirStore.add(samples: addedSamples, ofType: sampleType)
+//            try await uploadHealthObservations(addedSamples, batchSize: 100)
         } catch {
             logger.error("Error uploading HealthKit samples: \(error)")
         }
@@ -77,28 +78,33 @@ extension MyHeartCountsStandard: HealthKitConstraint {
         guard await shouldCollectHealthData else {
             return
         }
-        let deletedObjects = Array(deletedObjects)
-        logger.notice("\(#function) \(deletedObjects.count) deleted HKObjects for \(sampleType.mhcDisplayTitle)")
-        let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
-            for: .deleted(sampleTypeTitle: sampleType.mhcDisplayTitle, count: deletedObjects.count)
-        )
-        guard let accountId = await account?.details?.accountId else {
-            return
-        }
         do {
-            let collection = "HealthObservations_\(sampleType.id)"
-            logger.notice("Will use bulk-delete function to delete \(deletedObjects.count) HealthKit object(s) for \(sampleType.id)")
-            _ = try await Functions.functions()
-                .httpsCallable("deleteHealthSamples")
-                .call([
-                    "userId": accountId,
-                    "collection": collection,
-                    "documentIds": deletedObjects.map(\.uuid.uuidString)
-                ])
+            try await fhirStore.add(deletions: deletedObjects, ofType: sampleType)
         } catch {
-            logger.notice("Error calling bulk-delete function: \(error)")
+            logger.error("Error adding deletion records to FHIRStore: \(error)")
         }
-        await triggerDidUploadNotification()
+//        let deletedObjects = Array(deletedObjects)
+//        logger.notice("\(#function) \(deletedObjects.count) deleted HKObjects for \(sampleType.mhcDisplayTitle)")
+//        let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
+//            for: .deleted(sampleTypeTitle: sampleType.mhcDisplayTitle, count: deletedObjects.count)
+//        )
+//        guard let accountId = await account?.details?.accountId else {
+//            return
+//        }
+//        do {
+//            let collection = "HealthObservations_\(sampleType.id)"
+//            logger.notice("Will use bulk-delete function to delete \(deletedObjects.count) HealthKit object(s) for \(sampleType.id)")
+//            _ = try await Functions.functions()
+//                .httpsCallable("deleteHealthSamples")
+//                .call([
+//                    "userId": accountId,
+//                    "collection": collection,
+//                    "documentIds": deletedObjects.map(\.uuid.uuidString)
+//                ])
+//        } catch {
+//            logger.notice("Error calling bulk-delete function: \(error)")
+//        }
+//        await triggerDidUploadNotification()
     }
 }
 
@@ -162,43 +168,44 @@ extension MyHeartCountsStandard {
         let issuedDate = FHIRPrimitive<ModelsR4.Instant>(try .init(date: .now))
         @concurrent
         func turnIntoFHIRResource(_ observation: some HealthObservation) async throws -> AnyEncodable? {
-            switch observation {
-            case let sample as HKElectrocardiogram:
-                let symptoms = try await sample.symptoms(from: healthKit)
-                let voltages = try await sample.voltageMeasurements(from: healthKit.healthStore)
-                let observation = try sample.observation(
-                    symptoms: symptoms,
-                    voltageMeasurements: voltages.map { (time: $0.timeOffset, value: $0.voltage) },
-                    withMapping: .default,
-                    issuedDate: issuedDate,
-                    extensions: Self.defaultHealthObservationFHIRExtensions
-                )
-                try postprocessResource(FHIRResource(observation))
-                return AnyEncodable(observation)
-            case let record as HKClinicalRecord:
-                guard record.fhirResource != nil else {
-                    // just fail silently...
-                    self.logger.error("Skipping HKClinicalRecord, bc no fhirResource")
-                    return nil
-                }
-                let resource = try await FHIRResource(record, using: healthKit)
-                switch resource {
-                case .dstu2(let resource):
-                    (resource as? ModelsDSTU2.DomainResource)?.addSourceRevisionExtensions(for: record.sourceRevision)
-                case .r4(let resource):
-                    (resource as? ModelsR4.DomainResource)?.addSourceRevisionExtensions(for: record.sourceRevision)
-                }
-                try postprocessResource(resource)
-                return AnyEncodable(resource)
-            default:
-                let resource = try observation.resource(
-                    withMapping: .default,
-                    issuedDate: issuedDate,
-                    extensions: Self.defaultHealthObservationFHIRExtensions
-                )
-                try postprocessResource(FHIRResource(resource.get()))
-                return AnyEncodable(resource)
-            }
+//            switch observation {
+//            case let sample as HKElectrocardiogram:
+//                let symptoms = try await sample.symptoms(from: healthKit)
+//                let voltages = try await sample.voltageMeasurements(from: healthKit.healthStore)
+//                let observation = try sample.observation(
+//                    symptoms: symptoms,
+//                    voltageMeasurements: voltages.map { (time: $0.timeOffset, value: $0.voltage) },
+//                    withMapping: .default,
+//                    issuedDate: issuedDate,
+//                    extensions: Self.defaultHealthObservationFHIRExtensions
+//                )
+//                try postprocessResource(FHIRResource(observation))
+//                return AnyEncodable(observation)
+//            case let record as HKClinicalRecord:
+//                guard record.fhirResource != nil else {
+//                    // just fail silently...
+//                    self.logger.error("Skipping HKClinicalRecord, bc no fhirResource")
+//                    return nil
+//                }
+//                let resource = try await FHIRResource(record, using: healthKit)
+//                switch resource {
+//                case .dstu2(let resource):
+//                    (resource as? ModelsDSTU2.DomainResource)?.addSourceRevisionExtensions(for: record.sourceRevision)
+//                case .r4(let resource):
+//                    (resource as? ModelsR4.DomainResource)?.addSourceRevisionExtensions(for: record.sourceRevision)
+//                }
+//                try postprocessResource(resource)
+//                return AnyEncodable(resource)
+//            default:
+//                let resource = try observation.resource(
+//                    withMapping: .default,
+//                    issuedDate: issuedDate,
+//                    extensions: Self.defaultHealthObservationFHIRExtensions
+//                )
+//                try postprocessResource(FHIRResource(resource.get()))
+//                return AnyEncodable(resource)
+//            }
+            try await observation.turnIntoFHIRResource(issuedDate: issuedDate, using: healthKit, postprocess: postprocessResource)
         }
         let uploadStrategy = Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
         switch uploadStrategy {
