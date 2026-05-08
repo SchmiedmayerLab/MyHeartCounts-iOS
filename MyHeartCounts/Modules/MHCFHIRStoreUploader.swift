@@ -14,7 +14,6 @@ import Foundation
 import HealthKit
 import struct ModelsR4.FHIRPrimitive
 import struct ModelsR4.Instant
-import SQLite
 import Spezi
 import Observation
 import SpeziHealthKit
@@ -54,11 +53,19 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
     
     
     private func process() async throws {
+        guard let db = fhirStore.db else {
+            return
+        }
         let cal = Calendar.current
         guard let processingCutoff = cal.date(byAdding: .day, value: -Self.dataRetentionOffsetInDays, to: .now)
             .flatMap({ cal.startOfDay(for: $0) }) else {
             // should be unreachable
             return
         }
+        // TODO
+//        let drainData = try db.drainData(in: ..<processingCutoff)
+//        for batch in drainData.samples {
+//            batch.sampleType
+//        }
     }
 }

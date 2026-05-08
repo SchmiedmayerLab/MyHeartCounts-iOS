@@ -33,6 +33,7 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             DeferredConfigLoading.initialAppLaunchConfig
             HealthKit()
             MHCFHIRStore()
+            MHCFHIRStoreUploader()
             ClinicalRecordPermissions()
             Scheduler()
             Notifications()
@@ -51,6 +52,7 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             ManagedFileUpload {
                 ManagedFileUpload.Category.liveHealthUpload
                 ManagedFileUpload.Category.historicalHealthUpload
+                ManagedFileUpload.Category.healthDeletions
                 for sensor in SensorKit.mhcSensors {
                     ManagedFileUpload.Category(sensor)
                 }

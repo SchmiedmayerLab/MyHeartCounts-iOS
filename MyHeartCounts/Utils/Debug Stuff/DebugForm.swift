@@ -76,6 +76,9 @@ private struct DebugFormImpl: View {
                 NavigationLink(symbol: .calendar, "Health Data Bulk Upload" as String) {
                     HealthImporterControlView()
                 }
+                NavigationLink("Health Observations Local Persistence" as String) { // TODO better name!
+                    HealthObservationsLocalPersistenceLayerDebugView() // TODO better name!
+                }
                 NavigationLink("SensorKit" as String) {
                     SensorKitControlView()
                 }
@@ -84,6 +87,9 @@ private struct DebugFormImpl: View {
                 }
                 NavigationLink("File Upload Queue" as String) {
                     FileUploadInsights()
+                }
+                NavigationLink("Scheduler Stats" as String) {
+                    SchedulerStats()
                 }
             }
             Section("Other" as String) {

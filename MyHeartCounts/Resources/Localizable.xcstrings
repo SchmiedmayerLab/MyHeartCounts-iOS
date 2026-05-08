@@ -3428,6 +3428,9 @@
         }
       }
     },
+    "HealthKit Deletions" : {
+
+    },
     "HealthKit Upload (Historical)" : {
       "localizations" : {
         "en-GB" : {

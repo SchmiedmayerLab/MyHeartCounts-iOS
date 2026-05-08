@@ -190,6 +190,7 @@ extension MyHeartCountsStandard {
         // if the user wants to switch to a different region, the easiest approach currently is to just kill and relaunch the app.
         try? await managedFileUpload.clearPendingUploads()
         try? await historicalUploadManager.fullyResetSession(restart: false)
+        try? await fhirStore.clear()
         await sensorKitFetcher.resetAllQueryAnchors()
         await clinicalRecordPermissions.resetTracking()
         LocalPreferencesStore.standard[.rejectedHomeTabPromptedActions] = nil
