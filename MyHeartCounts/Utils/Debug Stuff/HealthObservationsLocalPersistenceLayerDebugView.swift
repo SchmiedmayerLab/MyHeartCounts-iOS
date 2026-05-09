@@ -9,6 +9,7 @@
 // swiftlint:disable all
 
 import SpeziFoundation
+import SpeziViews
 import SwiftUI
 
 
@@ -25,6 +26,11 @@ struct HealthObservationsLocalPersistenceLayerDebugView: View {
     
     var body: some View {
         Form {
+            Section {
+                NavigationLink("Uploader" as String) {
+                    UploaderDebugView()
+                }
+            }
             Section {
                 LabeledContent("# samples" as String, value: numSamples?.formatted(.number) ?? "n/a")
                 LabeledContent("# deletions" as String, value: numDeletions?.formatted(.number) ?? "n/a")
@@ -64,15 +70,25 @@ struct HealthObservationsLocalPersistenceLayerDebugView: View {
     
     private func refreshStats() {
         // IDEA: have this auto-update (GRDB provides APIs, but out of scope for now...)
-        guard let db = fhirStore.db else {
-            return
+        let sampleTypeStats = try? fhirStore.fetchSampleTypeStats()
+        numSamples = sampleTypeStats?.pendingUploads.values.reduce(0, +)
+        numDeletions = sampleTypeStats?.pendingDeletions.values.reduce(0, +)
+        pendingUploadCountsBySampleType = sampleTypeStats?.pendingUploads ?? [:]
+        pendingDeletionCountsBySampleType = sampleTypeStats?.pendingDeletions ?? [:]
+    }
+}
+
+
+
+private struct UploaderDebugView: View {
+    @Environment(MHCFHIRStoreUploader.self) private var uploader
+    @State private var viewState: ViewState = .idle
+    
+    var body: some View {
+        Form {
+            AsyncButton("Process" as String, state: $viewState) {
+                try await uploader.process()
+            }
         }
-        numSamples = try? db.fetchCount(of: MHCFHIRStoreDatabase.Sample.self)
-        numDeletions = try? db.fetchCount(of: MHCFHIRStoreDatabase.Deletion.self)
-        let fetchSampleTypeCounts = { (type: any MHCFHIRStoreDatabase._TableRecordWithSampleType.Type) -> [String: Int] in
-            (try? db.fetchSampleTypeCounts(for: type)) ?? [:]
-        }
-        pendingUploadCountsBySampleType = fetchSampleTypeCounts(MHCFHIRStoreDatabase.Sample.self)
-        pendingDeletionCountsBySampleType = fetchSampleTypeCounts(MHCFHIRStoreDatabase.Deletion.self)
     }
 }

@@ -8,6 +8,7 @@
 
 // swiftlint:disable all
 
+import Algorithms
 import AsyncAlgorithms
 import Dispatch
 import Foundation
@@ -19,29 +20,159 @@ import Spezi
 import Observation
 import SpeziHealthKit
 import MyHeartCountsShared
+import SpeziFoundation
 
 
 @Observable
 final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Sendable {
-    @ObservationIgnored @Application(\.logger) private var logger
-    @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
-    @ObservationIgnored let db: MHCFHIRStoreDatabase?
-    @ObservationIgnored private let jsonEncoder = JSONEncoder()
-    
-    nonisolated init() {
-        do {
-            let url = URL.documentsDirectory.appendingPathComponent("healthObservations.sqlite3")
-            db = try! MHCFHIRStoreDatabase(url: url)
-        } catch {
-            print("Error creating db: \(error)")
-            db = nil
-        }
-        jsonEncoder.outputFormatting = [.withoutEscapingSlashes]
+    private enum DBError: Error {
+        /// Thrown if some database operation fails because there is no database (because creation failed).
+        case noDatabase
     }
     
+    enum Persistence {
+        case onDisk(url: URL)
+        case inMemory
+    }
     
-    func clear() throws {
-        try db?.clear()
+    /// Whether, when inserting deletions, the `MHCFHIRStore` should automatically elide (i.e., identify and delete) any matching pending samples.
+    private static let autoElideUploadsWhenInsertingDeletions = false
+    
+    @ObservationIgnored @Application(\.logger) private var logger
+    @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
+    @ObservationIgnored private let dbQueue: DatabaseQueue?
+    @ObservationIgnored private let jsonEncoder = JSONEncoder()
+    
+    nonisolated convenience init() {
+        self.init(persistence: .onDisk(
+            url: URL.documentsDirectory.appendingPathComponent("healthObservations.sqlite3")
+        ))
+    }
+    
+    nonisolated init(persistence: Persistence) {
+        do {
+            let dbQueue: DatabaseQueue
+            switch persistence {
+            case .onDisk(let url):
+                dbQueue = try DatabaseQueue(
+                    path: url.absoluteURL.resolvingSymlinksInPath().path(percentEncoded: false),
+                    configuration: GRDB::Configuration()
+                )
+            case .inMemory:
+                dbQueue = try DatabaseQueue()
+            }
+            try Self.applyMigrations(to: dbQueue)
+            self.dbQueue = dbQueue
+        } catch {
+            print("Error creating db: \(error)")
+            dbQueue = nil
+        }
+        jsonEncoder.outputFormatting = [.withoutEscapingSlashes]
+        
+        Task {
+            try! await Task.sleep(for: .seconds(30))
+            try! self.elidePendingUploadsWherePossible()
+        }
+    }
+}
+
+
+// MARK: DB + Schema
+
+extension MHCFHIRStore {
+    protocol _PendingEntityRecord: Identifiable, Codable, FetchableRecord, PersistableRecord, Sendable {
+        var sampleType: String { get }
+    }
+    
+    @available(*, deprecated, renamed: "PendingSampleRecord")
+    typealias Sample = PendingSampleRecord
+    struct PendingSampleRecord: _PendingEntityRecord {
+        enum Columns {
+            static let id = Column(CodingKeys.id)
+            static let timestamp = Column(CodingKeys.timestamp)
+            static let sampleType = Column(CodingKeys.sampleType)
+            static let sampleId = Column(CodingKeys.sampleId)
+            static let fhirJson = Column(CodingKeys.fhirJson)
+        }
+        static let databaseTableName = "pendingSamples"
+        let id: UUID
+        let timestamp: Date
+        let sampleType: String
+        let sampleId: UUID
+        let fhirJson: String
+    }
+    
+    @available(*, deprecated, renamed: "PendingDeletionRecord")
+    typealias Deletion = PendingDeletionRecord
+    struct PendingDeletionRecord: _PendingEntityRecord {
+        enum Columns {
+            static let id = Column(CodingKeys.id)
+            static let timestamp = Column(CodingKeys.timestamp)
+            static let sampleType = Column(CodingKeys.sampleType)
+            static let sampleId = Column(CodingKeys.sampleId)
+        }
+        static let databaseTableName = "pendingDeletions"
+        let id: UUID
+        let timestamp: Date
+        let sampleType: String
+        let sampleId: UUID
+    }
+    
+//    struct DrainRun: Identifiable, Codable, FetchableRecord, PersistableRecord, Sendable {
+//        enum Columns {
+//            static let id = Column(CodingKeys.id)
+//            static let timestamp = Column(CodingKeys.timestamp)
+//        }
+//        static let databaseTableName = "drainRuns"
+//        let id: UUID
+//        let timestamp: Date
+//    }
+    
+    private static func applyMigrations(to dbQueue: DatabaseQueue) throws {
+        var migrator = DatabaseMigrator()
+        migrator.registerMigration("v0") { db in
+            try db.create(table: "samples", options: .strict) { table in
+                table.primaryKey("id", .text)
+                table.column("timestamp", .numeric) // unix timestamp
+                table.column("sampleType", .text)
+                table.column("sampleId", .text)
+                table.column("fhir", .jsonText)
+            }
+            try db.create(table: "deletions", options: .strict) { table in
+                table.primaryKey("id", .text)
+                table.column("timestamp", .numeric) // unix timestamp
+                table.column("sampleType", .text)
+                table.column("sampleId", .text)
+            }
+        }
+        migrator.registerMigration("v1") { db in
+            try db.rename(table: "samples", column: "fhir", to: "fhirJson")
+        }
+        migrator.registerMigration("v2") { db in
+            try db.rename(table: "samples", to: "pendingSamples")
+            try db.rename(table: "deletions", to: "pendingDeletions")
+        }
+        try migrator.migrate(dbQueue)
+    }
+}
+
+
+extension MHCFHIRStore {
+    var isEmpty: Bool {
+        get throws {
+            guard let dbQueue else {
+                return true
+            }
+            return try dbQueue.read { db in
+                let tables = try String.fetchAll(db, sql: """
+                    SELECT name FROM sqlite_master WHERE type = 'table' 
+                    AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'grdb_%'
+                    """)
+                return try tables.allSatisfy { table in
+                    try Int.fetchOne(db, sql: "SELECT 1 FROM \(table.quotedDatabaseIdentifier) LIMIT 1") == nil
+                }
+            }
+        }
     }
 }
 
@@ -61,12 +192,13 @@ extension MHCFHIRStore {
         guard !samples.isEmpty else {
             return
         }
-        guard let db else {
-            fatalError() // TODO
+        guard let dbQueue else {
+            // TODO throw the error or simply fail silently?
+            throw DBError.noDatabase
         }
         let timestamp = Date()
         let issuedDate = FHIRPrimitive<ModelsR4.Instant>(try .init(date: timestamp))
-        let fhirSamples: [MHCFHIRStoreDatabase.Sample] = try await (consume samples).async.reduce(into: []) { results, observation in
+        let fhirSamples: [PendingSampleRecord] = try await (consume samples).async.reduce(into: []) { results, observation in
             let sampleType = commonSampleType ?? observation.sampleTypeIdentifier
             let sampleId = observation.id
             let resource = try await observation.turnIntoFHIRResource(
@@ -75,7 +207,7 @@ extension MHCFHIRStore {
                 postprocess: postprocessResource
             )
             let fhirJson = try jsonEncoder.encode(consume resource)
-            results.append(MHCFHIRStoreDatabase.Sample(
+            results.append(PendingSampleRecord(
                 id: UUID(),
                 timestamp: timestamp,
                 sampleType: sampleType,
@@ -85,19 +217,21 @@ extension MHCFHIRStore {
         }
         let numSamples = fhirSamples.count
         logger.notice("Adding samples (N=\(numSamples)) to the db")
-        try db.insert(samples: fhirSamples)
+        try insert(fhirSamples, into: dbQueue)
     }
+    
     
     func add<Sample>(_ deletions: some Collection<HKDeletedObject> & Sendable, ofType sampleType: SampleType<Sample>) throws {
         guard !deletions.isEmpty else {
             return
         }
-        guard let db else {
-            fatalError() // TODO
+        guard let dbQueue else {
+            // TODO throw the error or simply fail silently?
+            throw DBError.noDatabase
         }
         let timestamp = Date()
-        let deletions: [MHCFHIRStoreDatabase.Deletion] = deletions.map { deletion in
-            MHCFHIRStoreDatabase.Deletion(
+        let deletions: [PendingDeletionRecord] = deletions.map { deletion in
+            PendingDeletionRecord(
                 id: UUID(),
                 timestamp: timestamp,
                 sampleType: sampleType.id,
@@ -106,6 +240,185 @@ extension MHCFHIRStore {
         }
         let numDeletions = deletions.count
         logger.notice("Adding deletions (N=\(numDeletions)) to the db")
-        try db.insert(deletions: deletions)
+        try insertDeletions(deletions, into: dbQueue)
+    }
+    
+    
+    
+    /// Inserts pending sample upload records into the database.
+    ///
+    /// - Note: This exists as a separate function, instead of being directly in the ``add(_:commonSampleType:postprocessResource:)`` function above,
+    ///     to work around the compiler requiring us to call the async overload of `dbQueue.write` (because the `add` function is async).
+    private func insert(_ pendingSamples: some Collection<PendingSampleRecord>, into dbQueue: DatabaseQueue) throws {
+        guard !pendingSamples.isEmpty else {
+            return
+        }
+        try dbQueue.write { db in
+            for sample in pendingSamples {
+                try sample.insert(db)
+            }
+        }
+    }
+    
+    /// Inserts deletion records into the database, and removes any matching samples.
+    private func insertDeletions(_ deletions: some Collection<PendingDeletionRecord>, into dbQueue: DatabaseQueue) throws {
+        guard !deletions.isEmpty else {
+            return
+        }
+        try dbQueue.write { db in
+            guard Self.autoElideUploadsWhenInsertingDeletions else {
+                for deletion in deletions {
+                    try deletion.insert(db)
+                }
+                return
+            }
+            var numElidedUploads = 0
+            for deletion in deletions {
+                typealias Col = PendingSampleRecord.Columns
+                // try to delete any cached samples matching this deletion record
+                let deletedCount = try PendingSampleRecord
+                    .filter(Col.sampleType == deletion.sampleType && Col.sampleId == deletion.sampleId)
+                    .deleteAll(db)
+                numElidedUploads += deletedCount
+                if deletedCount > 0 {
+                    typealias Col = PendingDeletionRecord.Columns
+                    // if we managed to delete any matching samples, we also remove any pending deletions for this UUID & sampleType, if they exist
+                    try PendingDeletionRecord
+                        .filter(Col.sampleType == deletion.sampleType && Col.sampleId == deletion.sampleId)
+                        .deleteAll(db)
+                } else {
+                    // otherwise, we record the deletion
+                    try deletion.insert(db)
+                }
+            }
+            LocalPreferencesStore.standard[.numElidedHealthObservationUploads] += numElidedUploads
+        }
+    }
+    
+    
+    private func elidePendingUploadsWherePossible() throws {
+        guard let dbQueue else {
+            throw DBError.noDatabase
+        }
+        logger.notice("\(#function)")
+        try dbQueue.write { db in
+            let allDeletions = try PendingDeletionRecord.fetchAll(db)
+            for (sampleType, deletions) in allDeletions.grouped(by: \.sampleType) {
+                typealias SampleCol = PendingSampleRecord.Columns
+                let matchingSamples = try PendingSampleRecord.filter(
+                    SampleCol.sampleType == sampleType && deletions.mapIntoSet(\.sampleId).contains(SampleCol.sampleId)
+                ).fetchAll(db)
+                logger.notice("\(sampleType): \(matchingSamples.count)")
+            }
+        }
+    }
+}
+
+// MARK: Query
+
+extension MHCFHIRStore {
+    struct SampleTypeStats {
+        let pendingUploads: [String: Int]
+        let pendingDeletions: [String: Int]
+    }
+    
+    func fetchSampleTypeStats() throws -> SampleTypeStats? {
+        SampleTypeStats(
+            pendingUploads: try fetchSampleTypeCounts(for: Sample.self),
+            pendingDeletions: try fetchSampleTypeCounts(for: Deletion.self)
+        )
+    }
+}
+
+
+// MARK: Other
+
+extension LocalPreferenceKeys {
+    // TODO have more fine-grained record-keeping here!
+    // (day + sampleType + count?)
+    static let numElidedHealthObservationUploads = LocalPreferenceKey("numElidedHealthObservationUploads", default: 0)
+}
+
+
+extension MHCFHIRStore {
+    // TODO (maybe file an issue w/ GRDB?) why can't i use FetchableRecord here? it has functions for fetchAll, fetchOne, etc.
+    // why doesn't it also have fetchCount?
+    func fetchCount(of type: (some TableRecord).Type) throws -> Int {
+        guard let dbQueue else {
+            throw DBError.noDatabase
+        }
+        return try dbQueue.read { db in
+            try type.fetchCount(db)
+        }
+    }
+    
+    
+    func fetchSampleTypeCounts(for type: any _PendingEntityRecord.Type) throws -> [String: Int] {
+        guard let dbQueue else {
+            throw DBError.noDatabase
+        }
+        let results = try dbQueue.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT sampleType, COUNT(*) AS count
+                FROM \(type.databaseTableName.quotedDatabaseIdentifier)
+                GROUP BY sampleType
+                """)
+        }
+        var retval: [String: Int] = [:]
+        for row in results {
+            let category: String = row["sampleType"]
+            let count: Int = row["count"]
+            retval[category, default: 0] += count
+        }
+        return retval
+    }
+    
+    /// Unconditionally removes all data from the store.
+    func clear() throws {
+        guard let dbQueue else {
+            throw DBError.noDatabase
+        }
+        try dbQueue.write { db in
+            try PendingSampleRecord.deleteAll(db)
+            try PendingDeletionRecord.deleteAll(db)
+        }
+    }
+}
+
+extension MHCFHIRStore {
+    struct DrainFetchResult: Sendable {
+        let samples: [DrainBatch<PendingSampleRecord>]
+        let deletions: [DrainBatch<PendingDeletionRecord>]
+    }
+    
+    struct DrainBatch<Value: _PendingEntityRecord>: Sendable {
+        let sampleType: String
+        let rows: [Value]
+    }
+    
+    func drainData(in range: PartialRangeUpTo<Date>) throws -> DrainFetchResult {
+        guard let dbQueue else {
+            throw DBError.noDatabase
+        }
+        return try dbQueue.read { db in
+            let samples = try PendingSampleRecord
+                .filter(PendingSampleRecord.Columns.timestamp < range.upperBound)
+                .order(PendingSampleRecord.Columns.sampleType)
+                .fetchAll(db)
+            let deletions = try PendingDeletionRecord
+                .filter(PendingDeletionRecord.Columns.timestamp < range.upperBound)
+                .order(PendingDeletionRecord.Columns.sampleType)
+                .fetchAll(db)
+            return DrainFetchResult(
+                samples: samples.grouped(by: \.sampleType).reduce(into: []) { results, entry in
+                    let (sampleType, samples) = entry
+                    results.append(DrainBatch<PendingSampleRecord>(sampleType: sampleType, rows: samples))
+                },
+                deletions: deletions.grouped(by: \.sampleType).reduce(into: []) { results, entry in
+                    let (sampleType, deletions) = entry
+                    results.append(DrainBatch<PendingDeletionRecord>(sampleType: sampleType, rows: deletions))
+                }
+            )
+        }
     }
 }

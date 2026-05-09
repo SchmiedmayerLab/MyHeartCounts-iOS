@@ -8,17 +8,18 @@
 
 // swiftlint:disable all
 
-import AsyncAlgorithms
 import Dispatch
 import Foundation
 import HealthKit
 import struct ModelsR4.FHIRPrimitive
 import struct ModelsR4.Instant
+import enum ModelsR4.ResourceProxy
 import Spezi
 import Observation
 import SpeziHealthKit
 import MyHeartCountsShared
 import SpeziFoundation
+import OSLog
 
 
 extension MHCBackgroundTasks.TaskIdentifier {
@@ -34,8 +35,11 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
     /// (To ensure that there are 2 whole days inbetween.)
     private static let dataRetentionOffsetInDays = 2
     
+    @Application(\.logger) private var logger
+    
     @Dependency(MHCFHIRStore.self) private var fhirStore
     @Dependency(MHCBackgroundTasks.self) private var backgroundTasks
+    @Dependency(ManagedFileUpload.self) private var managedFileUpload
     
     func configure() {
         do {
@@ -44,28 +48,70 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
                 nextTriggerDate: .absolute(.now.addingTimeInterval(TimeConstants.hour * 6)),
                 options: [.requiresNetworkConnectivity]
             ) {
-                try await self.process()
+//                try await self.process() // TODO
             })
         } catch {
-            // TODO
+            logger.error("Failed to register \(MHCBackgroundTasks.TaskIdentifier.fhirStoreUpload) background task: \(error)")
         }
     }
     
     
-    private func process() async throws {
-        guard let db = fhirStore.db else {
-            return
-        }
+    func process() async throws {
         let cal = Calendar.current
         guard let processingCutoff = cal.date(byAdding: .day, value: -Self.dataRetentionOffsetInDays, to: .now)
             .flatMap({ cal.startOfDay(for: $0) }) else {
             // should be unreachable
             return
         }
-        // TODO
-//        let drainData = try db.drainData(in: ..<processingCutoff)
-//        for batch in drainData.samples {
-//            batch.sampleType
-//        }
+        return; // TODO
+        let drainData = try fhirStore.drainData(in: ..<(.now))
+        try await withThrowingDiscardingTaskGroup { taskGroup in
+            for batch in drainData.samples {
+                taskGroup.addTask {
+                    // TODO write a unit test to check that this JSON can be properly decoded into an `[R4.ResourceProxy]`!!
+                    let jsonArray = batch.rows.jsonArray()
+                    let data = Data(jsonArray.utf8)
+                    let compressed = try (consume data).compressed(using: Zstd.self)
+                    let url = URL.temporaryDirectory.appending(
+                        path: "\(batch.sampleType)_\(UUID().uuidString).json.zstd",
+                        directoryHint: .notDirectory
+                    )
+                    try (consume compressed).write(to: url)
+                    Swift::Task {
+                        try await self.managedFileUpload.upload(url, category: .liveHealthUpload)
+                    }
+                }
+            }
+            // TODO have one CSV per samlpe type, or put them all into a single file?
+            for batch in drainData.deletions {
+                taskGroup.addTask {
+                    let csvWriter = try CSVWriter(columns: ["sampleType", "sampleId", "timestamp"])
+                    for deletion in batch.rows {
+                        try csvWriter.appendRow(fields: [
+                            deletion.sampleType, deletion.sampleId, deletion.timestamp
+                        ] as [any CSVWriter.FieldValue])
+                    }
+                    let csvData = csvWriter.data()
+                    let url = URL.temporaryDirectory.appending(
+                        path: "HealthObservationDeletions_\(batch.sampleType)_\(UUID().uuidString).csv.zstd",
+                        directoryHint: .notDirectory
+                    )
+                    try csvData.write(to: url)
+                    Swift::Task {
+                        try await self.managedFileUpload.upload(url, category: .healthDeletions)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+extension Collection where Element == MHCFHIRStore.PendingSampleRecord {
+    func jsonArray() -> String {
+        var json = "["
+        json.append(contentsOf: self.lazy.map(\.fhirJson).joined(separator: ",") as JoinedSequence)
+        json.append("]")
+        return json
     }
 }
