@@ -13,6 +13,7 @@ import ModelsR4
 @testable import MyHeartCounts
 import SpeziFoundation
 import SpeziHealthKit
+import SpeziTesting
 import Testing
 
 
@@ -110,6 +111,36 @@ struct HealthSampleProcessingTests {
         default:
             Issue.record("Invalid value")
         }
+    }
+    
+    
+    @Test
+    func localFHIRStoreJSONPersistence() async throws {
+        let cal = Calendar.current
+        let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
+        let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
+        let standard = MyHeartCountsStandard()
+        let fhirStore = MHCFHIRStore(persistence: .inMemory)
+        let fhirStoreUploader = MHCFHIRStoreUploader()
+        withDependencyResolution(standard: standard) {
+            fhirStore
+            fhirStoreUploader
+        }
+        #expect(try fhirStore.isEmpty == true)
+        let newSamples: [HKQuantitySample] = [
+            HKQuantitySample(
+                type: .init(.stepCount),
+                quantity: HKQuantity(unit: .count(), doubleValue: 52),
+                start: samplesStartDate,
+                end: samplesEndDate
+            ),
+            HKQuantitySample(
+                type: .init(.heartRate),
+                quantity: HKQuantity(unit: .count() / .minute(), doubleValue: 91),
+                start: samplesStartDate,
+                end: samplesEndDate
+            )
+        ]
     }
 }
 
