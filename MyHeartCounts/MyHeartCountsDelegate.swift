@@ -27,7 +27,7 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
         if let selector = FeatureFlags.overrideFirebaseConfig {
             LocalPreferencesStore.standard[.lastUsedFirebaseConfig] = selector
         }
-        return Configuration(standard: MyHeartCountsStandard()) {
+        return Configuration(standard: MyHeartCountsStandard()) { // swiftlint:disable:this closure_body_length
             FirebaseConfiguration()
             SetupTestEnvironment()
             DeferredConfigLoading.initialAppLaunchConfig
