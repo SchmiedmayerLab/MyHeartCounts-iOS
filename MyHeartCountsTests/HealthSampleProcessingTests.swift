@@ -6,11 +6,17 @@
 // SPDX-License-Identifier: MIT
 //
 
+// swiftlint:disable all
+
+import AsyncAlgorithms
 import Foundation
 import HealthKit
 import HealthKitOnFHIR
 import ModelsR4
 @testable import MyHeartCounts
+@testable import MyHeartCountsShared
+@_spi(APISupport) // we need to access `SpeziAppDelegate.spezi`
+import Spezi
 import SpeziFoundation
 import SpeziHealthKit
 import SpeziTesting
@@ -115,17 +121,18 @@ struct HealthSampleProcessingTests {
     
     
     @Test
+    @MainActor
     func localFHIRStoreJSONPersistence() async throws {
+        let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
+        try await Swift::Task.sleep(for: .seconds(0.5)) // give it some time to load everything. (TODO is this actually necessary???)
+        
+        let healthKit = try #require(spezi.module(HealthKit.self))
+        let fhirStore = try #require(spezi.module(MHCFHIRStore.self))
+        
         let cal = Calendar.current
         let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
         let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
-        let standard = MyHeartCountsStandard()
-        let fhirStore = MHCFHIRStore(persistence: .inMemory)
-        let fhirStoreUploader = MHCFHIRStoreUploader()
-        withDependencyResolution(standard: standard) {
-            fhirStore
-            fhirStoreUploader
-        }
+        
         #expect(try fhirStore.isEmpty == true)
         let newSamples: [HKQuantitySample] = [
             HKQuantitySample(
@@ -141,6 +148,29 @@ struct HealthSampleProcessingTests {
                 end: samplesEndDate
             )
         ]
+        let timestamp = Date()
+        nonisolated(unsafe) let issuedDate = try ModelsR4.FHIRPrimitive<ModelsR4.Instant>(.init(date: timestamp))
+        let samplesAsFHIR: Set<ModelsR4.ResourceProxy> = try await newSamples.async.reduce(into: []) { @Sendable result, observation in
+            // ISSUE: we get back an `AnyEncodable` (bc the return type might be a ResourceProxy or an Observation or a R4/DSTU2 FHIRResource)
+            // but we need these as `ModelsR4.ResourceProxy`s, so we need to do a quick JSON roundtrip to turn them into ResourceProxies (will work for everything except ClinicalRecords, but we don't have any of these anyway...
+            let encodable = try await observation.turnIntoFHIRResource(issuedDate: issuedDate, using: healthKit)
+            let encoded = try JSONEncoder().encode(encodable)
+            let decoded = try JSONDecoder().decode(ModelsR4.ResourceProxy.self, from: encoded)
+            result.insert(decoded)
+        }
+        try await fhirStore.add(newSamples, ingestionTimestamp: timestamp)
+        #expect(try fhirStore.fetchCount(of: MHCFHIRStore.PendingSampleRecord.self) == 2)
+        #expect(try fhirStore.fetchCount(of: MHCFHIRStore.PendingDeletionRecord.self) == 0)
+        let drainFetchResult = try fhirStore.drainData(in: ..<(.now))
+        #expect(drainFetchResult.deletions.isEmpty)
+        #expect(drainFetchResult.samples.count == 2)
+        #expect(drainFetchResult.samples.mapIntoSet(\.sampleType) == [SampleType.stepCount.id, SampleType.heartRate.id])
+        let allDecodedSamples: Set<ModelsR4.ResourceProxy> = try drainFetchResult.samples.reduce(into: []) { result, batch in
+            let jsonArray = try batch.rows.jsonArray()
+            let resources = try JSONDecoder().decode(Set<ModelsR4.ResourceProxy>.self, from: jsonArray)
+            result.formUnion(resources)
+        }
+        #expect(allDecodedSamples == samplesAsFHIR)
     }
 }
 

@@ -32,7 +32,9 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             SetupTestEnvironment()
             DeferredConfigLoading.initialAppLaunchConfig
             HealthKit()
-            MHCFHIRStore()
+            MHCFHIRStore(
+                persistence: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .onDisk
+            )
             MHCFHIRStoreUploader()
             ClinicalRecordPermissions()
             Scheduler()
@@ -47,6 +49,7 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             SensorKitDataFetcher()
             LocalNotifications()
             Lifecycle()
+            AppState()
             AppRefresh()
             MHCBackgroundTasks()
             ManagedFileUpload {
@@ -70,5 +73,12 @@ extension ModuleBuilder {
     // periphery:ignore - implicitly called
     static func buildExpression(_ modules: some Sequence<any Module>) -> [any Module] {
         Array(modules)
+    }
+}
+
+
+extension ProcessInfo {
+    static var isReallyRunningInXCTest: Bool {
+        Self.isRunningInXCTest && Self.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 }

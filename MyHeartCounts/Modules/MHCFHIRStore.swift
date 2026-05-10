@@ -23,6 +23,7 @@ import MyHeartCountsShared
 import SpeziFoundation
 
 
+// TODO rename? (it does store FHIR samples, but really only as a secondary thing...)
 @Observable
 final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Sendable {
     private enum DBError: Error {
@@ -33,6 +34,10 @@ final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Senda
     enum Persistence {
         case onDisk(url: URL)
         case inMemory
+        
+        static var onDisk: Self {
+            .onDisk(url: URL.documentsDirectory.appendingPathComponent("healthObservations.sqlite3"))
+        }
     }
     
     /// Whether, when inserting deletions, the `MHCFHIRStore` should automatically elide (i.e., identify and delete) any matching pending samples.
@@ -44,9 +49,7 @@ final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Senda
     @ObservationIgnored private let jsonEncoder = JSONEncoder()
     
     nonisolated convenience init() {
-        self.init(persistence: .onDisk(
-            url: URL.documentsDirectory.appendingPathComponent("healthObservations.sqlite3")
-        ))
+        self.init(persistence: .onDisk)
     }
     
     nonisolated init(persistence: Persistence) {
@@ -84,8 +87,6 @@ extension MHCFHIRStore {
         var sampleType: String { get }
     }
     
-    @available(*, deprecated, renamed: "PendingSampleRecord")
-    typealias Sample = PendingSampleRecord
     struct PendingSampleRecord: _PendingEntityRecord {
         enum Columns {
             static let id = Column(CodingKeys.id)
@@ -99,11 +100,10 @@ extension MHCFHIRStore {
         let timestamp: Date
         let sampleType: String
         let sampleId: UUID
-        let fhirJson: String
+        /// zstd-compressed
+        let fhirJson: Data
     }
     
-    @available(*, deprecated, renamed: "PendingDeletionRecord")
-    typealias Deletion = PendingDeletionRecord
     struct PendingDeletionRecord: _PendingEntityRecord {
         enum Columns {
             static let id = Column(CodingKeys.id)
@@ -118,6 +118,7 @@ extension MHCFHIRStore {
         let sampleId: UUID
     }
     
+//    /// Keps track of a drain run that was performed on the FHIRStore
 //    struct DrainRun: Identifiable, Codable, FetchableRecord, PersistableRecord, Sendable {
 //        enum Columns {
 //            static let id = Column(CodingKeys.id)
@@ -130,27 +131,64 @@ extension MHCFHIRStore {
     
     private static func applyMigrations(to dbQueue: DatabaseQueue) throws {
         var migrator = DatabaseMigrator()
+        // TODO: remove all of these and have only a final `v1` migration when merging the PR!!!
         migrator.registerMigration("v0") { db in
-            try db.create(table: "samples", options: .strict) { table in
-                table.primaryKey("id", .text)
-                table.column("timestamp", .numeric) // unix timestamp
+            try db.create(table: "samples") { table in
+                table.primaryKey("id", .text) // uuid
+                table.column("timestamp", .text) // unix timestamp
                 table.column("sampleType", .text)
-                table.column("sampleId", .text)
+                table.column("sampleId", .text) // uuid
                 table.column("fhir", .jsonText)
             }
-            try db.create(table: "deletions", options: .strict) { table in
-                table.primaryKey("id", .text)
-                table.column("timestamp", .numeric) // unix timestamp
+            try db.create(table: "deletions") { table in
+                table.primaryKey("id", .text) // uuid
+                table.column("timestamp", .text) // unix timestamp
                 table.column("sampleType", .text)
-                table.column("sampleId", .text)
+                table.column("sampleId", .text) // uuid
             }
         }
         migrator.registerMigration("v1") { db in
-            try db.rename(table: "samples", column: "fhir", to: "fhirJson")
+            try db.alter(table: "samples") {
+                $0.rename(column: "fhir", to: "fhirJson")
+            }
         }
         migrator.registerMigration("v2") { db in
             try db.rename(table: "samples", to: "pendingSamples")
             try db.rename(table: "deletions", to: "pendingDeletions")
+        }
+        migrator.registerMigration("v3") { db in
+            do {
+                try db.rename(table: "pendingSamples", to: "pendingSamples_old")
+                try db.create(table: "pendingSamples", options: .strict) {
+                    $0.primaryKey("id", .blob).notNull() // uuid
+                    $0.column("timestamp", .text).notNull() // ISO8601
+                    $0.column("sampleType", .text).notNull()
+                    $0.column("sampleId", .blob).notNull() // uuid
+                    $0.column("fhirJson", .blob).notNull() // zstd-compressed ModelsR4.ResourceProxy
+                }
+                let cursor = try Row.fetchCursor(db, sql: "SELECT * FROM pendingSamples_old")
+                while let row = try cursor.next() {
+                    let newSample = PendingSampleRecord(
+                        id: row["id"] as UUID,
+                        timestamp: row["timestamp"] as Date,
+                        sampleType: row["sampleType"] as String,
+                        sampleId: row["sampleId"] as UUID,
+                        fhirJson: try Data((row["fhirJson"] as String).utf8).compressed(using: Zstd.self)
+                    )
+                    try newSample.insert(db)
+                }
+                try db.drop(table: "pendingSamples_old")
+            }
+            
+            try db.rename(table: "pendingDeletions", to: "pendingDeletions_old")
+            try db.create(table: "pendingDeletions", options: .strict) {
+                $0.primaryKey("id", .blob).notNull() // uuid
+                $0.column("timestamp", .text).notNull() // ISO8601
+                $0.column("sampleType", .text).notNull()
+                $0.column("sampleId", .blob).notNull()
+            }
+            try db.execute(sql: "INSERT INTO pendingDeletions SELECT * FROM pendingDeletions_old")
+            try db.drop(table: "pendingDeletions_old")
         }
         try migrator.migrate(dbQueue)
     }
@@ -180,6 +218,7 @@ extension MHCFHIRStore {
 // MARK: Insertion
 
 extension MHCFHIRStore {
+    // TODO actually needed?
     func add<Sample>(_ samples: some Collection<Sample> & Sendable, ofType sampleType: SampleType<Sample>) async throws {
         try await add(samples, commonSampleType: sampleType.id)
     }
@@ -187,6 +226,7 @@ extension MHCFHIRStore {
     func add(
         _ samples: consuming some Collection<some HealthObservation> & Sendable,
         commonSampleType: String? = nil,
+        ingestionTimestamp: Date = .now,
         postprocessResource: @Sendable (FHIRResource) throws -> Void = { _ in }
     ) async throws {
         guard !samples.isEmpty else {
@@ -196,8 +236,28 @@ extension MHCFHIRStore {
             // TODO throw the error or simply fail silently?
             throw DBError.noDatabase
         }
-        let timestamp = Date()
-        let issuedDate = FHIRPrimitive<ModelsR4.Instant>(try .init(date: timestamp))
+        if let commonSampleType {
+            assert(samples.allSatisfy { $0.sampleTypeIdentifier == commonSampleType })
+        }
+        try await _add(
+            samples,
+            commonSampleType: commonSampleType,
+            postprocessResource: postprocessResource,
+            ingestionTimestamp: ingestionTimestamp,
+            into: dbQueue
+        )
+    }
+    
+    /// - invariant: `samples` is not empty
+    /// - invariant: each sample in `samples` is of type `commonSampleType`
+    private func _add(
+        _ samples: consuming some Collection<some HealthObservation> & Sendable,
+        commonSampleType: String?,
+        postprocessResource: @Sendable (FHIRResource) throws -> Void,
+        ingestionTimestamp: Date,
+        into dbQueue: DatabaseQueue
+    ) async throws {
+        let issuedDate = FHIRPrimitive<ModelsR4.Instant>(try .init(date: ingestionTimestamp))
         let fhirSamples: [PendingSampleRecord] = try await (consume samples).async.reduce(into: []) { results, observation in
             let sampleType = commonSampleType ?? observation.sampleTypeIdentifier
             let sampleId = observation.id
@@ -209,10 +269,10 @@ extension MHCFHIRStore {
             let fhirJson = try jsonEncoder.encode(consume resource)
             results.append(PendingSampleRecord(
                 id: UUID(),
-                timestamp: timestamp,
+                timestamp: ingestionTimestamp,
                 sampleType: sampleType,
                 sampleId: sampleId,
-                fhirJson: String(decoding: consume fhirJson, as: UTF8.self)
+                fhirJson: try (consume fhirJson).compressed(using: Zstd.self)
             ))
         }
         let numSamples = fhirSamples.count
@@ -324,8 +384,8 @@ extension MHCFHIRStore {
     
     func fetchSampleTypeStats() throws -> SampleTypeStats? {
         SampleTypeStats(
-            pendingUploads: try fetchSampleTypeCounts(for: Sample.self),
-            pendingDeletions: try fetchSampleTypeCounts(for: Deletion.self)
+            pendingUploads: try fetchSampleTypeCounts(for: PendingSampleRecord.self),
+            pendingDeletions: try fetchSampleTypeCounts(for: PendingDeletionRecord.self)
         )
     }
 }

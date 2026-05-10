@@ -69,7 +69,7 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
             for batch in drainData.samples {
                 taskGroup.addTask {
                     // TODO write a unit test to check that this JSON can be properly decoded into an `[R4.ResourceProxy]`!!
-                    let jsonArray = batch.rows.jsonArray()
+                    let jsonArray = try batch.rows.jsonArray()
                     let data = Data(jsonArray.utf8)
                     let compressed = try (consume data).compressed(using: Zstd.self)
                     let url = URL.temporaryDirectory.appending(
@@ -108,9 +108,18 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
 
 
 extension Collection where Element == MHCFHIRStore.PendingSampleRecord {
-    func jsonArray() -> String {
+    func jsonArray() throws -> String {
         var json = "["
-        json.append(contentsOf: self.lazy.map(\.fhirJson).joined(separator: ",") as JoinedSequence)
+        //json.append(contentsOf: self.lazy.map(\.fhirJson).joined(separator: ",") as JoinedSequence)
+//        for record in self {
+//            let fhirJson = try record.fhirJson.decompressed(using: Zstd.self)
+//        }
+        json.append(contentsOf: try self.lazy
+            .map {
+                String(decoding: try $0.fhirJson.decompressed(using: Zstd.self), as: UTF8.self)
+            }
+            .joined(separator: ",") as JoinedSequence
+        )
         json.append("]")
         return json
     }

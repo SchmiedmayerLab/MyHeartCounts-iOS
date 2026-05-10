@@ -100,7 +100,7 @@
 		80A72D7D2F377E90006B6EAD /* SensorKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80A72D7C2F377E90006B6EAD /* SensorKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		80A8F7F32EDB222400944D94 /* MHCStudyDefinitionExporter in Frameworks */ = {isa = PBXBuildFile; productRef = 80A8F7F22EDB222400944D94 /* MHCStudyDefinitionExporter */; };
 		80B7F0642FADF2940040F247 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 80B7F0632FADF2940040F247 /* GRDB */; };
-		80B7F0E92FAF93EC0040F247 /* SpeziTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 80B7F0E82FAF93EC0040F247 /* SpeziTesting */; };
+		80B7F0F22FAF98680040F247 /* SpeziTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 80B7F0F12FAF98680040F247 /* SpeziTesting */; };
 		80B8A2132EC106A100F0E453 /* SpeziFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2122EC106A100F0E453 /* SpeziFHIR */; };
 		80B8A2152EC106A100F0E453 /* SpeziFHIRHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2142EC106A100F0E453 /* SpeziFHIRHealthKit */; };
 		80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2352EC1336F00F0E453 /* ModelsDSTU2 */; };
@@ -272,6 +272,7 @@
 				8047A81A2F62054E0094AAF3 /* SpeziStudyDefinition in Frameworks */,
 				80E6B9342EFAC1960037D4BB /* SpeziHealthKit in Frameworks */,
 				8052B8732EB9FFDF005E2D8C /* SpeziHealthKit in Frameworks */,
+				80B7F0F22FAF98680040F247 /* SpeziTesting in Frameworks */,
 				8004746F2EF066E100585753 /* SpeziFirebaseStorage in Frameworks */,
 				8052B8722EB9FFDF005E2D8C /* SpeziHealthKitUI in Frameworks */,
 				804C11D62ECA371A004783C3 /* SpeziValidation in Frameworks */,
@@ -361,7 +362,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				80B7F0E92FAF93EC0040F247 /* SpeziTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -558,6 +558,7 @@
 				80D596DB2F8303720029318F /* SpeziSensorKit */,
 				802CB63E2F85177A0011907F /* AsyncAlgorithms */,
 				80B7F0632FADF2940040F247 /* GRDB */,
+				80B7F0F12FAF98680040F247 /* SpeziTesting */,
 			);
 			productName = MyHeartCounts;
 			productReference = 653A254D283387FE005D4D48 /* MyHeartCounts.app */;
@@ -1925,7 +1926,7 @@
 			package = 80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
 		};
-		80B7F0E82FAF93EC0040F247 /* SpeziTesting */ = {
+		80B7F0F12FAF98680040F247 /* SpeziTesting */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2F49B7742980407B00BCB272 /* XCRemoteSwiftPackageReference "Spezi" */;
 			productName = SpeziTesting;
