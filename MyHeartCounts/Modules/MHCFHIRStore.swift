@@ -40,13 +40,12 @@ final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Senda
         }
     }
     
-    /// Whether, when inserting deletions, the `MHCFHIRStore` should automatically elide (i.e., identify and delete) any matching pending samples.
-    private static let autoElideUploadsWhenInsertingDeletions = false
-    
     @ObservationIgnored @Application(\.logger) private var logger
     @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
     @ObservationIgnored private let dbQueue: DatabaseQueue?
     @ObservationIgnored private let jsonEncoder = JSONEncoder()
+    /// Whether, when inserting deletions, the `MHCFHIRStore` should automatically elide (i.e., identify and delete) any matching pending samples.
+    @ObservationIgnored private let autoElideUploadsWhenInsertingDeletions = false
     
     nonisolated convenience init() {
         self.init(persistence: .onDisk)
@@ -71,11 +70,6 @@ final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Senda
             dbQueue = nil
         }
         jsonEncoder.outputFormatting = [.withoutEscapingSlashes]
-        
-        Task {
-            try! await Task.sleep(for: .seconds(30))
-            try! self.elidePendingUploadsWherePossible()
-        }
     }
 }
 
@@ -85,6 +79,7 @@ final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Senda
 extension MHCFHIRStore {
     protocol _PendingEntityRecord: Identifiable, Codable, FetchableRecord, PersistableRecord, Sendable {
         var sampleType: String { get }
+        var sampleId: UUID { get }
     }
     
     struct PendingSampleRecord: _PendingEntityRecord {
@@ -147,15 +142,18 @@ extension MHCFHIRStore {
                 table.column("sampleId", .text) // uuid
             }
         }
+        
         migrator.registerMigration("v1") { db in
             try db.alter(table: "samples") {
                 $0.rename(column: "fhir", to: "fhirJson")
             }
         }
+        
         migrator.registerMigration("v2") { db in
             try db.rename(table: "samples", to: "pendingSamples")
             try db.rename(table: "deletions", to: "pendingDeletions")
         }
+        
         migrator.registerMigration("v3") { db in
             do {
                 try db.rename(table: "pendingSamples", to: "pendingSamples_old")
@@ -190,6 +188,34 @@ extension MHCFHIRStore {
             try db.execute(sql: "INSERT INTO pendingDeletions SELECT * FROM pendingDeletions_old")
             try db.drop(table: "pendingDeletions_old")
         }
+        
+        migrator.registerMigration("v4") { db in
+            try db.rename(table: "pendingDeletions", to: "pendingDeletions_old")
+            try db.create(table: "pendingDeletions", options: .strict) {
+                $0.primaryKey("id", .blob).notNull() // uuid
+                $0.column("timestamp", .text).notNull() // ISO8601
+                $0.column("sampleType", .text).notNull()
+                $0.column("sampleId", .blob).notNull() // uuid
+                // have it auto-resolve duplicates, based on sampleType+sampleId
+                $0.uniqueKey(["sampleType", "sampleId"], onConflict: .replace)
+            }
+            try db.execute(sql: "INSERT INTO pendingDeletions SELECT * FROM pendingDeletions_old")
+            try db.drop(table: "pendingDeletions_old")
+            
+            try db.rename(table: "pendingSamples", to: "pendingSamples_old")
+            try db.create(table: "pendingSamples", options: .strict) {
+                $0.primaryKey("id", .blob).notNull() // uuid
+                $0.column("timestamp", .text).notNull() // ISO8601
+                $0.column("sampleType", .text).notNull()
+                $0.column("sampleId", .blob).notNull() // uuid
+                $0.column("fhirJson", .blob).notNull() // zstd-compressed ModelsR4.ResourceProxy
+                // have it auto-resolve duplicates, based on sampleType+sampleId
+                $0.uniqueKey(["sampleType", "sampleId"], onConflict: .replace)
+            }
+            try db.execute(sql: "INSERT INTO pendingSamples SELECT * FROM pendingSamples_old")
+            try db.drop(table: "pendingSamples_old")
+        }
+        
         try migrator.migrate(dbQueue)
     }
 }
@@ -326,7 +352,7 @@ extension MHCFHIRStore {
             return
         }
         try dbQueue.write { db in
-            guard Self.autoElideUploadsWhenInsertingDeletions else {
+            guard autoElideUploadsWhenInsertingDeletions else {
                 for deletion in deletions {
                     try deletion.insert(db)
                 }
@@ -356,19 +382,56 @@ extension MHCFHIRStore {
     }
     
     
-    private func elidePendingUploadsWherePossible() throws {
+    /// Matches all pending deletion records against pending upload records, and removes any records that appear in both.
+    ///
+    /// For all deletion records, where there exists at least one matching sample record (with identical sampleType and sampleId),
+    /// the deletion record and all matching sample records will be removed from the database.
+    ///
+    /// - parameter dryRun: Controls whether the operation should actually delete the samples (if `true`), or only compute the statistics (if `false`).
+    /// - returns: A summary of the elision results, ie a mapping of each sample type's number of deleted pending samples.
+    @discardableResult
+    func elidePendingUploadsWherePossible(dryRun: Bool) throws -> [String: Int] {
         guard let dbQueue else {
             throw DBError.noDatabase
         }
-        logger.notice("\(#function)")
-        try dbQueue.write { db in
-            let allDeletions = try PendingDeletionRecord.fetchAll(db)
-            for (sampleType, deletions) in allDeletions.grouped(by: \.sampleType) {
-                typealias SampleCol = PendingSampleRecord.Columns
-                let matchingSamples = try PendingSampleRecord.filter(
-                    SampleCol.sampleType == sampleType && deletions.mapIntoSet(\.sampleId).contains(SampleCol.sampleId)
-                ).fetchAll(db)
-                logger.notice("\(sampleType): \(matchingSamples.count)")
+        typealias SampleCol = PendingSampleRecord.Columns
+        typealias DeletionCol = PendingDeletionRecord.Columns
+        return if dryRun {
+            try dbQueue.read { db in
+                let rows = try Row.fetchAll(db, """
+                    SELECT s.\(SampleCol.sampleType), COUNT(*) AS count
+                    FROM \(PendingSampleRecord.self) s
+                    INNER JOIN \(PendingDeletionRecord.self) d
+                    ON d.\(DeletionCol.sampleType) = s.\(SampleCol.sampleType) AND d.\(DeletionCol.sampleId) = s.\(SampleCol.sampleId) 
+                    GROUP BY s.\(SampleCol.sampleType)
+                    """ as SQLRequest<Row>)
+                return rows.reduce(into: [:]) {
+                    $0[$1[SampleCol.sampleType]] = $1["count"]
+                }
+            }
+        } else {
+            try dbQueue.write { db in
+                // delete & fetch samples w/ matching deletions
+                struct Pair: Decodable, FetchableRecord {
+                    let sampleType: String
+                    let sampleId: UUID
+                }
+                let elided = try Pair.fetchAll(db, """
+                    DELETE from \(PendingSampleRecord.self)
+                    WHERE (\(SampleCol.sampleType), \(SampleCol.sampleId)) IN (
+                        SELECT \(DeletionCol.sampleType), \(DeletionCol.sampleId) FROM \(PendingDeletionRecord.self)
+                    )
+                    RETURNING \(SampleCol.sampleType), \(SampleCol.sampleId)
+                    """ as SQLRequest<Pair>)
+                // delete matched deletions
+                for pair in elided {
+                    try PendingDeletionRecord
+                        .filter(DeletionCol.sampleType == pair.sampleType && DeletionCol.sampleId == pair.sampleId)
+                        .deleteAll(db)
+                }
+                return elided.reduce(into: [:]) {
+                    $0[$1.sampleType, default: 0] += 1
+                }
             }
         }
     }
@@ -401,8 +464,6 @@ extension LocalPreferenceKeys {
 
 
 extension MHCFHIRStore {
-    // TODO (maybe file an issue w/ GRDB?) why can't i use FetchableRecord here? it has functions for fetchAll, fetchOne, etc.
-    // why doesn't it also have fetchCount?
     func fetchCount(of type: (some TableRecord).Type) throws -> Int {
         guard let dbQueue else {
             throw DBError.noDatabase
@@ -418,19 +479,15 @@ extension MHCFHIRStore {
             throw DBError.noDatabase
         }
         let results = try dbQueue.read { db in
-            try Row.fetchAll(db, sql: """
+            try Row.fetchAll(db, """
                 SELECT sampleType, COUNT(*) AS count
-                FROM \(type.databaseTableName.quotedDatabaseIdentifier)
+                FROM \(type)
                 GROUP BY sampleType
-                """)
+                """ as SQLRequest<Row>)
         }
-        var retval: [String: Int] = [:]
-        for row in results {
-            let category: String = row["sampleType"]
-            let count: Int = row["count"]
-            retval[category, default: 0] += count
+        return results.reduce(into: [:]) {
+            $0[$1["sampleType"], default: 0] += $1["count"]
         }
-        return retval
     }
     
     /// Unconditionally removes all data from the store.

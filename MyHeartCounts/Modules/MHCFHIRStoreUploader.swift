@@ -48,7 +48,7 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
                 nextTriggerDate: .absolute(.now.addingTimeInterval(TimeConstants.hour * 6)),
                 options: [.requiresNetworkConnectivity]
             ) {
-//                try await self.process() // TODO
+                try await self.process()
             })
         } catch {
             logger.error("Failed to register \(MHCBackgroundTasks.TaskIdentifier.fhirStoreUpload) background task: \(error)")
@@ -64,7 +64,7 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
             return
         }
         return; // TODO
-        let drainData = try fhirStore.drainData(in: ..<(.now))
+        let drainData = try fhirStore.drainData(in: ..<processingCutoff)
         try await withThrowingDiscardingTaskGroup { taskGroup in
             for batch in drainData.samples {
                 taskGroup.addTask {

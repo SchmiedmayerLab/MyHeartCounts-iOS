@@ -37,7 +37,9 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             )
             MHCFHIRStoreUploader()
             ClinicalRecordPermissions()
-            Scheduler()
+            Scheduler(
+                persistence: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .onDisk
+            )
             Notifications()
             BulkHealthExporter()
             HistoricalHealthSamplesExportManager()

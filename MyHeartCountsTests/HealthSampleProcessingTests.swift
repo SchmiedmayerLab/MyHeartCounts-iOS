@@ -19,7 +19,6 @@ import ModelsR4
 import Spezi
 import SpeziFoundation
 import SpeziHealthKit
-import SpeziTesting
 import Testing
 
 
