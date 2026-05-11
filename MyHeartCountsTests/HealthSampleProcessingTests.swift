@@ -22,7 +22,7 @@ import SpeziHealthKit
 import Testing
 
 
-@Suite
+@Suite(.serialized)
 struct HealthSampleProcessingTests {
     // check that the zstd-compressed FHIR-encoded Health samples can be decompressed and decoded and have the correct values.
     // note that this test is only very barebones; we have more inp-depth testing for this in HealthKitOnFHIR.
@@ -121,18 +121,107 @@ struct HealthSampleProcessingTests {
     
     @Test
     @MainActor
-    func localFHIRStoreJSONPersistence() async throws {
+    func healthUploadStagingDuplicates() async throws {
         let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
         try await Swift::Task.sleep(for: .seconds(0.5)) // give it some time to load everything. (TODO is this actually necessary???)
         
         let healthKit = try #require(spezi.module(HealthKit.self))
-        let fhirStore = try #require(spezi.module(MHCFHIRStore.self))
+        let healthUploadStaging = try #require(spezi.module(HealthUploadStaging.self))
+        try healthUploadStaging.clear()
+        #expect(try healthUploadStaging.isEmpty)
         
         let cal = Calendar.current
         let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
         let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
         
-        #expect(try fhirStore.isEmpty == true)
+        #expect(try healthUploadStaging.isEmpty == true)
+        let newSamples: [HKQuantitySample] = [
+            HKQuantitySample(
+                type: .init(.stepCount),
+                quantity: HKQuantity(unit: .count(), doubleValue: 52),
+                start: samplesStartDate,
+                end: samplesEndDate
+            ),
+            HKQuantitySample(
+                type: .init(.heartRate),
+                quantity: HKQuantity(unit: .count() / .minute(), doubleValue: 91),
+                start: samplesStartDate,
+                end: samplesEndDate
+            )
+        ]
+        
+        try await healthUploadStaging.add(newSamples)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+        
+        try await healthUploadStaging.add(newSamples)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+    }
+    
+    
+    @Test
+    @MainActor
+    func healthUploadStagingSanpleElision() async throws {
+        let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
+        try await Swift::Task.sleep(for: .seconds(0.5)) // give it some time to load everything. (TODO is this actually necessary???)
+        
+        let healthKit = try #require(spezi.module(HealthKit.self))
+        let healthUploadStaging = try #require(spezi.module(HealthUploadStaging.self))
+        try healthUploadStaging.clear()
+        #expect(try healthUploadStaging.isEmpty)
+        
+        let cal = Calendar.current
+        let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
+        let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
+        
+        #expect(try healthUploadStaging.isEmpty == true)
+        let newSamples: [HKQuantitySample] = [
+            HKQuantitySample(
+                type: .init(.stepCount),
+                quantity: HKQuantity(unit: .count(), doubleValue: 52),
+                start: samplesStartDate,
+                end: samplesEndDate
+            ),
+            HKQuantitySample(
+                type: .init(.heartRate),
+                quantity: HKQuantity(unit: .count() / .minute(), doubleValue: 91),
+                start: samplesStartDate,
+                end: samplesEndDate
+            )
+        ]
+        
+        try await healthUploadStaging.add(newSamples)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+        
+        try healthUploadStaging.add([HKDeletedObject.make(uuid: newSamples[0].uuid)], ofType: .stepCount)
+        try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: false)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 1)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+        
+        try healthUploadStaging.add([HKDeletedObject.make(uuid: UUID())], ofType: .bodyMass)
+        try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: false)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 1)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 1)
+    }
+    
+    
+    @Test
+    @MainActor
+    func healthUploadStagingJSONPersistence() async throws {
+        let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
+        try await Swift::Task.sleep(for: .seconds(0.5)) // give it some time to load everything. (TODO is this actually necessary???)
+        
+        let healthKit = try #require(spezi.module(HealthKit.self))
+        let healthUploadStaging = try #require(spezi.module(HealthUploadStaging.self))
+        try healthUploadStaging.clear()
+        #expect(try healthUploadStaging.isEmpty)
+        
+        let cal = Calendar.current
+        let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
+        let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
+        
         let newSamples: [HKQuantitySample] = [
             HKQuantitySample(
                 type: .init(.stepCount),
@@ -157,10 +246,10 @@ struct HealthSampleProcessingTests {
             let decoded = try JSONDecoder().decode(ModelsR4.ResourceProxy.self, from: encoded)
             result.insert(decoded)
         }
-        try await fhirStore.add(newSamples, ingestionTimestamp: timestamp)
-        #expect(try fhirStore.fetchCount(of: MHCFHIRStore.PendingSampleRecord.self) == 2)
-        #expect(try fhirStore.fetchCount(of: MHCFHIRStore.PendingDeletionRecord.self) == 0)
-        let drainFetchResult = try fhirStore.drainData(in: ..<(.now))
+        try await healthUploadStaging.add(newSamples, ingestionTimestamp: timestamp)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+        let drainFetchResult = try healthUploadStaging.drainData(in: ..<(.now))
         #expect(drainFetchResult.deletions.isEmpty)
         #expect(drainFetchResult.samples.count == 2)
         #expect(drainFetchResult.samples.mapIntoSet(\.sampleType) == [SampleType.stepCount.id, SampleType.heartRate.id])
@@ -172,6 +261,35 @@ struct HealthSampleProcessingTests {
         #expect(allDecodedSamples == samplesAsFHIR)
     }
 }
+
+
+extension HKDeletedObject {
+    static func make(uuid: UUID) -> HKDeletedObject {
+        let sel = Selector(("_deletedObjectWithUUID:metadata:"))
+        let imp = method_getImplementation(class_getClassMethod(HKDeletedObject.self, sel)!)
+        typealias Fn = @convention(c) (HKDeletedObject.Type, Selector, NSUUID, NSDictionary?) -> HKDeletedObject
+        let fn = unsafeBitCast(imp, to: Fn.self)
+        return fn(self, sel, uuid as NSUUID, nil)
+    }
+}
+
+
+//final class MockHKDeletedObject: HKDeletedObject {
+//    private let _uuid: UUID
+//    
+//    override var uuid: UUID {
+//        _uuid
+//    }
+//    
+//    override var metadata: [String : Any]? {
+//        nil
+//    }
+//    
+//    init(uuid: UUID) {
+//        self._uuid = uuid
+//        super.init()
+//    }
+//}
 
 
 extension Observation {

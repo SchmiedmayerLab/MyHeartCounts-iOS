@@ -76,9 +76,9 @@ extension MyHeartCountsStandard: HealthKitConstraint {
             return
         }
         do {
-            try self.fhirStore.add(deletedObjects, ofType: sampleType)
+            try self.healthUploadStaging.add(deletedObjects, ofType: sampleType)
         } catch {
-            logger.error("Error adding deletion records to FHIRStore: \(error)")
+            logger.error("Error adding deletion records to staged health upload: \(error)")
         }
     }
 }
@@ -163,7 +163,7 @@ extension MyHeartCountsStandard {
         let uploadStrategy = uploadStrategy ?? Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
         switch uploadStrategy {
         case .queueLocally:
-            try await fhirStore.add(observations, commonSampleType: sampleTypeIdentifier)
+            try await healthUploadStaging.add(observations, commonSampleType: sampleTypeIdentifier)
         case .firebaseStorage:
             let numObservations = observations.count
             logger.notice("Uploading \(numObservations) observations of type '\(sampleTypeIdentifier)' via zstd upload")

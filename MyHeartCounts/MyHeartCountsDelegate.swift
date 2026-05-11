@@ -32,10 +32,10 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             SetupTestEnvironment()
             DeferredConfigLoading.initialAppLaunchConfig
             HealthKit()
-            MHCFHIRStore(
+            HealthUploadStaging(
                 persistence: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .onDisk
             )
-            MHCFHIRStoreUploader()
+            HealthUploadStagingUploader()
             ClinicalRecordPermissions()
             Scheduler(
                 persistence: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .onDisk

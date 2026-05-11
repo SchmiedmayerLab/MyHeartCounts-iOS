@@ -5,7 +5,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>edu.stanford.MyHeartCounts.AppRefresh</string>
-		<string>edu.stanford.MyHeartCounts.FHIRStoreUpload</string>
+		<string>edu.stanford.MyHeartCounts.stagedHealthSamplesUpload</string>
 		<string>edu.stanford.MyHeartCounts.SensorKitProcessing</string>
 		<string>edu.stanford.spezi.scheduler.notifications-scheduling</string>
 	</array>

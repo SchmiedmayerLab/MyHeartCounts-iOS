@@ -14,7 +14,7 @@ import SwiftUI
 
 
 struct HealthObservationsLocalPersistenceLayerDebugView: View {
-    @Environment(MHCFHIRStore.self) private var fhirStore
+    @Environment(HealthUploadStaging.self) private var healthUploadStaging
     
     @State private var numSamples: Int?
     @State private var numDeletions: Int?
@@ -70,7 +70,7 @@ struct HealthObservationsLocalPersistenceLayerDebugView: View {
     
     private func refreshStats() {
         // IDEA: have this auto-update (GRDB provides APIs, but out of scope for now...)
-        let sampleTypeStats = try? fhirStore.fetchSampleTypeStats()
+        let sampleTypeStats = try? healthUploadStaging.fetchSampleTypeStats()
         numSamples = sampleTypeStats?.pendingUploads.values.reduce(0, +)
         numDeletions = sampleTypeStats?.pendingDeletions.values.reduce(0, +)
         pendingUploadCountsBySampleType = sampleTypeStats?.pendingUploads ?? [:]
@@ -81,7 +81,7 @@ struct HealthObservationsLocalPersistenceLayerDebugView: View {
 
 
 private struct UploaderDebugView: View {
-    @Environment(MHCFHIRStoreUploader.self) private var uploader
+    @Environment(HealthUploadStagingUploader.self) private var uploader
     @State private var viewState: ViewState = .idle
     
     var body: some View {

@@ -25,7 +25,7 @@ import SpeziFoundation
 
 // TODO rename? (it does store FHIR samples, but really only as a secondary thing...)
 @Observable
-final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Sendable {
+final class HealthUploadStaging: Spezi::Module, EnvironmentAccessible, @unchecked Sendable {
     private enum DBError: Error {
         /// Thrown if some database operation fails because there is no database (because creation failed).
         case noDatabase
@@ -44,14 +44,18 @@ final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Senda
     @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
     @ObservationIgnored private let dbQueue: DatabaseQueue?
     @ObservationIgnored private let jsonEncoder = JSONEncoder()
-    /// Whether, when inserting deletions, the `MHCFHIRStore` should automatically elide (i.e., identify and delete) any matching pending samples.
-    @ObservationIgnored private let autoElideUploadsWhenInsertingDeletions = false
+    /// Whether, when inserting deletions, the `HealthUploadStaging` should automatically elide (i.e., identify and delete) any matching pending samples.
+    @ObservationIgnored private let autoElideUploadsWhenInsertingDeletions: Bool
     
-    nonisolated convenience init() {
-        self.init(persistence: .onDisk)
-    }
+//    nonisolated convenience init() {
+//        self.init(persistence: .onDisk)
+//    }
     
-    nonisolated init(persistence: Persistence) {
+    nonisolated init(
+        persistence: Persistence,
+        autoElideUploadsWhenInsertingDeletions: Bool = false
+    ) {
+        self.autoElideUploadsWhenInsertingDeletions = autoElideUploadsWhenInsertingDeletions
         do {
             let dbQueue: DatabaseQueue
             switch persistence {
@@ -76,7 +80,7 @@ final class MHCFHIRStore: Spezi::Module, EnvironmentAccessible, @unchecked Senda
 
 // MARK: DB + Schema
 
-extension MHCFHIRStore {
+extension HealthUploadStaging {
     protocol _PendingEntityRecord: Identifiable, Codable, FetchableRecord, PersistableRecord, Sendable {
         var sampleType: String { get }
         var sampleId: UUID { get }
@@ -113,7 +117,7 @@ extension MHCFHIRStore {
         let sampleId: UUID
     }
     
-//    /// Keps track of a drain run that was performed on the FHIRStore
+//    /// Keps track of a drain run that was performed on the HealthUploadStaging
 //    struct DrainRun: Identifiable, Codable, FetchableRecord, PersistableRecord, Sendable {
 //        enum Columns {
 //            static let id = Column(CodingKeys.id)
@@ -221,7 +225,7 @@ extension MHCFHIRStore {
 }
 
 
-extension MHCFHIRStore {
+extension HealthUploadStaging {
     var isEmpty: Bool {
         get throws {
             guard let dbQueue else {
@@ -243,7 +247,7 @@ extension MHCFHIRStore {
 
 // MARK: Insertion
 
-extension MHCFHIRStore {
+extension HealthUploadStaging {
     // TODO actually needed?
     func add<Sample>(_ samples: some Collection<Sample> & Sendable, ofType sampleType: SampleType<Sample>) async throws {
         try await add(samples, commonSampleType: sampleType.id)
@@ -439,7 +443,7 @@ extension MHCFHIRStore {
 
 // MARK: Query
 
-extension MHCFHIRStore {
+extension HealthUploadStaging {
     struct SampleTypeStats {
         let pendingUploads: [String: Int]
         let pendingDeletions: [String: Int]
@@ -463,7 +467,7 @@ extension LocalPreferenceKeys {
 }
 
 
-extension MHCFHIRStore {
+extension HealthUploadStaging {
     func fetchCount(of type: (some TableRecord).Type) throws -> Int {
         guard let dbQueue else {
             throw DBError.noDatabase
@@ -502,7 +506,7 @@ extension MHCFHIRStore {
     }
 }
 
-extension MHCFHIRStore {
+extension HealthUploadStaging {
     struct DrainFetchResult: Sendable {
         let samples: [DrainBatch<PendingSampleRecord>]
         let deletions: [DrainBatch<PendingDeletionRecord>]

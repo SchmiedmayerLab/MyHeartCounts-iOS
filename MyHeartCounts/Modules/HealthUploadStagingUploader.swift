@@ -23,12 +23,12 @@ import OSLog
 
 
 extension MHCBackgroundTasks.TaskIdentifier {
-    static let fhirStoreUpload = Self("edu.stanford.MyHeartCounts.FHIRStoreUpload")
+    static let stagedHealthUpload = Self("edu.stanford.MyHeartCounts.stagedHealthSamplesUpload")
 }
 
 
 //@Observable
-final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @unchecked Sendable {
+final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, @unchecked Sendable {
     /// The number of whole days all data will be retained locally, before it is shared with the backend.
     ///
     /// E.g., if this value is `2`, any data collected on monday will be processed on thursday at the earliest.
@@ -37,21 +37,21 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
     
     @Application(\.logger) private var logger
     
-    @Dependency(MHCFHIRStore.self) private var fhirStore
+    @Dependency(HealthUploadStaging.self) private var healthUploadStaging
     @Dependency(MHCBackgroundTasks.self) private var backgroundTasks
     @Dependency(ManagedFileUpload.self) private var managedFileUpload
     
     func configure() {
         do {
             try backgroundTasks.register(.processing(
-                id: .fhirStoreUpload,
+                id: .stagedHealthUpload,
                 nextTriggerDate: .absolute(.now.addingTimeInterval(TimeConstants.hour * 6)),
                 options: [.requiresNetworkConnectivity]
             ) {
                 try await self.process()
             })
         } catch {
-            logger.error("Failed to register \(MHCBackgroundTasks.TaskIdentifier.fhirStoreUpload) background task: \(error)")
+            logger.error("Failed to register \(MHCBackgroundTasks.TaskIdentifier.stagedHealthUpload) background task: \(error)")
         }
     }
     
@@ -64,7 +64,7 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
             return
         }
         return; // TODO
-        let drainData = try fhirStore.drainData(in: ..<processingCutoff)
+        let drainData = try healthUploadStaging.drainData(in: ..<processingCutoff)
         try await withThrowingDiscardingTaskGroup { taskGroup in
             for batch in drainData.samples {
                 taskGroup.addTask {
@@ -107,7 +107,7 @@ final class MHCFHIRStoreUploader: Spezi::Module, EnvironmentAccessible, @uncheck
 }
 
 
-extension Collection where Element == MHCFHIRStore.PendingSampleRecord {
+extension Collection where Element == HealthUploadStaging.PendingSampleRecord {
     func jsonArray() throws -> String {
         var json = "["
         //json.append(contentsOf: self.lazy.map(\.fhirJson).joined(separator: ",") as JoinedSequence)
