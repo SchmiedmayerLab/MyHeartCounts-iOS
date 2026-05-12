@@ -81,6 +81,7 @@
 		8052B87E2EB9FFDF005E2D8C /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1B2E144A180049798B /* SpeziStudy */; };
 		8052B87F2EB9FFDF005E2D8C /* SpeziStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1D2E144A180049798B /* SpeziStudyDefinition */; };
 		8054D98E2DE54F8900458CD9 /* MyHeartCountsWatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 8054D9842DE54F8800458CD9 /* MyHeartCountsWatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		806344F12FB3641C00BC868F /* SpeziTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 806344F02FB3641C00BC868F /* SpeziTesting */; };
 		807093742EBB48C90038A27F /* MyHeartCountsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 807093732EBB48C90038A27F /* MyHeartCountsShared */; };
 		80713BE52D93F48C00A2DB0A /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80713BE42D93F48C00A2DB0A /* SpeziStudy */; };
 		807423542F28E15E00113313 /* MHCStudyDefinitionExporter in Frameworks */ = {isa = PBXBuildFile; productRef = 807423532F28E15E00113313 /* MHCStudyDefinitionExporter */; };
@@ -271,6 +272,7 @@
 				8047A81A2F62054E0094AAF3 /* SpeziStudyDefinition in Frameworks */,
 				80E6B9342EFAC1960037D4BB /* SpeziHealthKit in Frameworks */,
 				8052B8732EB9FFDF005E2D8C /* SpeziHealthKit in Frameworks */,
+				806344F12FB3641C00BC868F /* SpeziTesting in Frameworks */,
 				8004746F2EF066E100585753 /* SpeziFirebaseStorage in Frameworks */,
 				8052B8722EB9FFDF005E2D8C /* SpeziHealthKitUI in Frameworks */,
 				804C11D62ECA371A004783C3 /* SpeziValidation in Frameworks */,
@@ -556,6 +558,7 @@
 				80D596DB2F8303720029318F /* SpeziSensorKit */,
 				802CB63E2F85177A0011907F /* AsyncAlgorithms */,
 				80B7F0632FADF2940040F247 /* GRDB */,
+				806344F02FB3641C00BC868F /* SpeziTesting */,
 			);
 			productName = MyHeartCounts;
 			productReference = 653A254D283387FE005D4D48 /* MyHeartCounts.app */;
@@ -1351,7 +1354,7 @@
 			repositoryURL = "https://github.com/StanfordSpezi/SpeziFoundation.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 2.7.5;
+				minimumVersion = 2.7.7;
 			};
 		};
 		804C11D42ECA371A004783C3 /* XCRemoteSwiftPackageReference "SpeziViews" */ = {
@@ -1790,6 +1793,11 @@
 		805BE3D02E060B3A001E5CA4 /* SpeziOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SpeziOnboarding;
+		};
+		806344F02FB3641C00BC868F /* SpeziTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F49B7742980407B00BCB272 /* XCRemoteSwiftPackageReference "Spezi" */;
+			productName = SpeziTesting;
 		};
 		8067823A2D9AD89600B40482 /* SpeziStudy */ = {
 			isa = XCSwiftPackageProductDependency;

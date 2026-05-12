@@ -13,15 +13,21 @@ import HealthKitOnFHIR
 import ModelsR4
 @testable import MyHeartCounts
 @testable import MyHeartCountsShared
-@_spi(APISupport) // we need to access `SpeziAppDelegate.spezi`
 import Spezi
 import SpeziFoundation
 import SpeziHealthKit
+import SpeziTesting
 import Testing
 
 
-@Suite(.serialized)
+@Suite
 struct HealthSampleProcessingTests {
+    private actor FakeStandard: Standard, HealthKitConstraint {
+        func handleNewSamples<Sample>(_ addedSamples: some Collection<Sample> & Sendable, ofType sampleType: SampleType<Sample>) {}
+        func handleDeletedObjects<Sample>(_ deletedObjects: some Collection<HKDeletedObject> & Sendable, ofType sampleType: SampleType<Sample>) {}
+    }
+    
+    
     // check that the zstd-compressed FHIR-encoded Health samples can be decompressed and decoded and have the correct values.
     // note that this test is only very barebones; we have more inp-depth testing for this in HealthKitOnFHIR.
     @Test
@@ -118,13 +124,12 @@ struct HealthSampleProcessingTests {
     
     
     @Test
-    @MainActor
     func healthUploadStagingDuplicates() async throws {
-        let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
-        try await Swift::Task.sleep(for: .seconds(0.5))
-        
-        let healthUploadStaging = try #require(spezi.module(HealthUploadStaging.self))
-        try healthUploadStaging.clear()
+        let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
+        await withDependencyResolution(standard: FakeStandard()) {
+            healthUploadStaging
+            HealthKit()
+        }
         #expect(try healthUploadStaging.isEmpty)
         
         let cal = Calendar.current
@@ -158,13 +163,13 @@ struct HealthSampleProcessingTests {
     
     
     @Test
-    @MainActor
     func healthUploadStagingSanpleElision() async throws {
-        let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
-        try await Swift::Task.sleep(for: .seconds(0.5))
-        
-        let healthUploadStaging = try #require(spezi.module(HealthUploadStaging.self))
-        try healthUploadStaging.clear()
+        let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
+        await withDependencyResolution(standard: FakeStandard()) {
+            healthUploadStaging
+            HealthKit()
+        }
+        #expect(try healthUploadStaging.isEmpty)
         #expect(try healthUploadStaging.isEmpty)
         
         let cal = Calendar.current
@@ -204,14 +209,13 @@ struct HealthSampleProcessingTests {
     
     
     @Test
-    @MainActor
     func healthUploadStagingJSONPersistence() async throws {
-        let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
-        try await Swift::Task.sleep(for: .seconds(0.5))
-        
-        let healthKit = try #require(spezi.module(HealthKit.self))
-        let healthUploadStaging = try #require(spezi.module(HealthUploadStaging.self))
-        try healthUploadStaging.clear()
+        let healthKit = HealthKit()
+        let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
+        await withDependencyResolution(standard: FakeStandard()) {
+            healthUploadStaging
+            healthKit
+        }
         #expect(try healthUploadStaging.isEmpty)
         
         let cal = Calendar.current

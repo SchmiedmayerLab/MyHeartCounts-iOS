@@ -1,5 +1,5 @@
 {
-  "originHash" : "6b25ccd1d2b1e1fae34bea31157f75edc52c9996d20035a7da9528c175434d1b",
+  "originHash" : "90c68f27cecaf57e73f9fdf2dd371e2bfd7cc6d982e9529f9c379b2014b625f2",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -258,8 +258,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziFoundation.git",
       "state" : {
-        "revision" : "14b71ec24d42463c273203556c3cbfc03ce04023",
-        "version" : "2.7.6"
+        "revision" : "09b0a95cef41e42e494f74f395d83a4dc9c6d159",
+        "version" : "2.7.7"
       }
     },
     {
