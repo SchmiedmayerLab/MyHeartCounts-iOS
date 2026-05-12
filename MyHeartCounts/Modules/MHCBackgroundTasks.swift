@@ -13,6 +13,7 @@ import Foundation
 import OSLog
 import Spezi
 import SwiftUI
+import Synchronization
 
 
 final class MHCBackgroundTasks: Module, EnvironmentAccessible, @unchecked Sendable {
@@ -31,13 +32,11 @@ final class MHCBackgroundTasks: Module, EnvironmentAccessible, @unchecked Sendab
     @Dependency(Lifecycle.self)
     private var lifecycle
     
-    private var registeredTasks = OSAllocatedUnfairLock<[TaskIdentifier: TaskDefinition]>(initialState: [:])
+    private let registeredTasks = Mutex<[TaskIdentifier: TaskDefinition]>([:])
     
     func configure() {
         lifecycle.onChange(of: \.scenePhase) { _, newValue in
-            self.logger.notice("Scene Phase Change")
             if newValue == .background {
-                self.logger.notice("Scheduling tasks")
                 let taskIds = self.registeredTasks.withLock { Array($0.keys) }
                 for taskId in taskIds {
                     do {
