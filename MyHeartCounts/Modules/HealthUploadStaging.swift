@@ -6,24 +6,20 @@
 // SPDX-License-Identifier: MIT
 //
 
-// swiftlint:disable all
-
 import Algorithms
 import AsyncAlgorithms
 import Dispatch
 import Foundation
+import GRDB
 import HealthKit
 import struct ModelsR4.FHIRPrimitive
 import struct ModelsR4.Instant
-import GRDB
-import Spezi
-import Observation
-import SpeziHealthKit
 import MyHeartCountsShared
+import Spezi
 import SpeziFoundation
+import SpeziHealthKit
 
 
-// TODO rename? (it does store FHIR samples, but really only as a secondary thing...)
 @Observable
 final class HealthUploadStaging: Spezi::Module, EnvironmentAccessible, @unchecked Sendable {
     private enum DBError: Error {
@@ -40,20 +36,18 @@ final class HealthUploadStaging: Spezi::Module, EnvironmentAccessible, @unchecke
         }
     }
     
+    // swiftlint:disable attributes
     @ObservationIgnored @Application(\.logger) private var logger
     @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
     @ObservationIgnored private let dbQueue: DatabaseQueue?
     @ObservationIgnored private let jsonEncoder = JSONEncoder()
     /// Whether, when inserting deletions, the `HealthUploadStaging` should automatically elide (i.e., identify and delete) any matching pending samples.
     @ObservationIgnored private let autoElideUploadsWhenInsertingDeletions: Bool
-    
-//    nonisolated convenience init() {
-//        self.init(persistence: .onDisk)
-//    }
+    // swiftlint:enable attributes
     
     nonisolated init(
         persistence: Persistence,
-        autoElideUploadsWhenInsertingDeletions: Bool = false
+        autoElideUploadsWhenInsertingDeletions: Bool = true
     ) {
         self.autoElideUploadsWhenInsertingDeletions = autoElideUploadsWhenInsertingDeletions
         do {
@@ -75,13 +69,20 @@ final class HealthUploadStaging: Spezi::Module, EnvironmentAccessible, @unchecke
         }
         jsonEncoder.outputFormatting = [.withoutEscapingSlashes]
     }
+    
+    func configure() {
+        Task(priority: .utility) {
+            try? self.elidePendingUploadsWherePossible()
+        }
+    }
 }
 
 
 // MARK: DB + Schema
 
 extension HealthUploadStaging {
-    protocol _PendingEntityRecord: Identifiable, Codable, FetchableRecord, PersistableRecord, Sendable {
+    // swiftlint:disable:next type_name
+    protocol _PendingEntityRecord: Identifiable<UUID>, Codable, FetchableRecord, PersistableRecord, Sendable {
         var sampleType: String { get }
         var sampleId: UUID { get }
     }
@@ -117,109 +118,28 @@ extension HealthUploadStaging {
         let sampleId: UUID
     }
     
-//    /// Keps track of a drain run that was performed on the HealthUploadStaging
-//    struct DrainRun: Identifiable, Codable, FetchableRecord, PersistableRecord, Sendable {
-//        enum Columns {
-//            static let id = Column(CodingKeys.id)
-//            static let timestamp = Column(CodingKeys.timestamp)
-//        }
-//        static let databaseTableName = "drainRuns"
-//        let id: UUID
-//        let timestamp: Date
-//    }
     
     private static func applyMigrations(to dbQueue: DatabaseQueue) throws {
         var migrator = DatabaseMigrator()
-        // TODO: remove all of these and have only a final `v1` migration when merging the PR!!!
-        migrator.registerMigration("v0") { db in
-            try db.create(table: "samples") { table in
-                table.primaryKey("id", .text) // uuid
-                table.column("timestamp", .text) // unix timestamp
-                table.column("sampleType", .text)
-                table.column("sampleId", .text) // uuid
-                table.column("fhir", .jsonText)
-            }
-            try db.create(table: "deletions") { table in
-                table.primaryKey("id", .text) // uuid
-                table.column("timestamp", .text) // unix timestamp
-                table.column("sampleType", .text)
-                table.column("sampleId", .text) // uuid
-            }
-        }
-        
         migrator.registerMigration("v1") { db in
-            try db.alter(table: "samples") {
-                $0.rename(column: "fhir", to: "fhirJson")
-            }
-        }
-        
-        migrator.registerMigration("v2") { db in
-            try db.rename(table: "samples", to: "pendingSamples")
-            try db.rename(table: "deletions", to: "pendingDeletions")
-        }
-        
-        migrator.registerMigration("v3") { db in
-            do {
-                try db.rename(table: "pendingSamples", to: "pendingSamples_old")
-                try db.create(table: "pendingSamples", options: .strict) {
-                    $0.primaryKey("id", .blob).notNull() // uuid
-                    $0.column("timestamp", .text).notNull() // ISO8601
-                    $0.column("sampleType", .text).notNull()
-                    $0.column("sampleId", .blob).notNull() // uuid
-                    $0.column("fhirJson", .blob).notNull() // zstd-compressed ModelsR4.ResourceProxy
-                }
-                let cursor = try Row.fetchCursor(db, sql: "SELECT * FROM pendingSamples_old")
-                while let row = try cursor.next() {
-                    let newSample = PendingSampleRecord(
-                        id: row["id"] as UUID,
-                        timestamp: row["timestamp"] as Date,
-                        sampleType: row["sampleType"] as String,
-                        sampleId: row["sampleId"] as UUID,
-                        fhirJson: try Data((row["fhirJson"] as String).utf8).compressed(using: Zstd.self)
-                    )
-                    try newSample.insert(db)
-                }
-                try db.drop(table: "pendingSamples_old")
-            }
-            
-            try db.rename(table: "pendingDeletions", to: "pendingDeletions_old")
             try db.create(table: "pendingDeletions", options: .strict) {
                 $0.primaryKey("id", .blob).notNull() // uuid
-                $0.column("timestamp", .text).notNull() // ISO8601
-                $0.column("sampleType", .text).notNull()
-                $0.column("sampleId", .blob).notNull()
-            }
-            try db.execute(sql: "INSERT INTO pendingDeletions SELECT * FROM pendingDeletions_old")
-            try db.drop(table: "pendingDeletions_old")
-        }
-        
-        migrator.registerMigration("v4") { db in
-            try db.rename(table: "pendingDeletions", to: "pendingDeletions_old")
-            try db.create(table: "pendingDeletions", options: .strict) {
-                $0.primaryKey("id", .blob).notNull() // uuid
-                $0.column("timestamp", .text).notNull() // ISO8601
+                $0.column("timestamp", .text).notNull() // ISO8601 string
                 $0.column("sampleType", .text).notNull()
                 $0.column("sampleId", .blob).notNull() // uuid
                 // have it auto-resolve duplicates, based on sampleType+sampleId
                 $0.uniqueKey(["sampleType", "sampleId"], onConflict: .replace)
             }
-            try db.execute(sql: "INSERT INTO pendingDeletions SELECT * FROM pendingDeletions_old")
-            try db.drop(table: "pendingDeletions_old")
-            
-            try db.rename(table: "pendingSamples", to: "pendingSamples_old")
             try db.create(table: "pendingSamples", options: .strict) {
                 $0.primaryKey("id", .blob).notNull() // uuid
-                $0.column("timestamp", .text).notNull() // ISO8601
+                $0.column("timestamp", .text).notNull() // ISO8601 string
                 $0.column("sampleType", .text).notNull()
                 $0.column("sampleId", .blob).notNull() // uuid
                 $0.column("fhirJson", .blob).notNull() // zstd-compressed ModelsR4.ResourceProxy
                 // have it auto-resolve duplicates, based on sampleType+sampleId
                 $0.uniqueKey(["sampleType", "sampleId"], onConflict: .replace)
             }
-            try db.execute(sql: "INSERT INTO pendingSamples SELECT * FROM pendingSamples_old")
-            try db.drop(table: "pendingSamples_old")
         }
-        
         try migrator.migrate(dbQueue)
     }
 }
@@ -233,7 +153,7 @@ extension HealthUploadStaging {
             }
             return try dbQueue.read { db in
                 let tables = try String.fetchAll(db, sql: """
-                    SELECT name FROM sqlite_master WHERE type = 'table' 
+                    SELECT name FROM sqlite_master WHERE type = 'table'
                     AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'grdb_%'
                     """)
                 return try tables.allSatisfy { table in
@@ -248,11 +168,6 @@ extension HealthUploadStaging {
 // MARK: Insertion
 
 extension HealthUploadStaging {
-    // TODO actually needed?
-    func add<Sample>(_ samples: some Collection<Sample> & Sendable, ofType sampleType: SampleType<Sample>) async throws {
-        try await add(samples, commonSampleType: sampleType.id)
-    }
-    
     func add(
         _ samples: consuming some Collection<some HealthObservation> & Sendable,
         commonSampleType: String? = nil,
@@ -263,7 +178,6 @@ extension HealthUploadStaging {
             return
         }
         guard let dbQueue else {
-            // TODO throw the error or simply fail silently?
             throw DBError.noDatabase
         }
         if let commonSampleType {
@@ -305,8 +219,6 @@ extension HealthUploadStaging {
                 fhirJson: try (consume fhirJson).compressed(using: Zstd.self)
             ))
         }
-        let numSamples = fhirSamples.count
-        logger.notice("Adding samples (N=\(numSamples)) to the db")
         try insert(fhirSamples, into: dbQueue)
     }
     
@@ -316,7 +228,6 @@ extension HealthUploadStaging {
             return
         }
         guard let dbQueue else {
-            // TODO throw the error or simply fail silently?
             throw DBError.noDatabase
         }
         let timestamp = Date()
@@ -328,11 +239,8 @@ extension HealthUploadStaging {
                 sampleId: deletion.uuid
             )
         }
-        let numDeletions = deletions.count
-        logger.notice("Adding deletions (N=\(numDeletions)) to the db")
         try insertDeletions(deletions, into: dbQueue)
     }
-    
     
     
     /// Inserts pending sample upload records into the database.
@@ -349,6 +257,7 @@ extension HealthUploadStaging {
             }
         }
     }
+    
     
     /// Inserts deletion records into the database, and removes any matching samples.
     private func insertDeletions(_ deletions: some Collection<PendingDeletionRecord>, into dbQueue: DatabaseQueue) throws {
@@ -394,7 +303,7 @@ extension HealthUploadStaging {
     /// - parameter dryRun: Controls whether the operation should actually delete the samples (if `true`), or only compute the statistics (if `false`).
     /// - returns: A summary of the elision results, ie a mapping of each sample type's number of deleted pending samples.
     @discardableResult
-    func elidePendingUploadsWherePossible(dryRun: Bool) throws -> [String: Int] {
+    func elidePendingUploadsWherePossible(dryRun: Bool = false) throws -> [String: Int] {
         guard let dbQueue else {
             throw DBError.noDatabase
         }
@@ -406,7 +315,7 @@ extension HealthUploadStaging {
                     SELECT s.\(SampleCol.sampleType), COUNT(*) AS count
                     FROM \(PendingSampleRecord.self) s
                     INNER JOIN \(PendingDeletionRecord.self) d
-                    ON d.\(DeletionCol.sampleType) = s.\(SampleCol.sampleType) AND d.\(DeletionCol.sampleId) = s.\(SampleCol.sampleId) 
+                    ON d.\(DeletionCol.sampleType) = s.\(SampleCol.sampleType) AND d.\(DeletionCol.sampleId) = s.\(SampleCol.sampleId)
                     GROUP BY s.\(SampleCol.sampleType)
                     """ as SQLRequest<Row>)
                 return rows.reduce(into: [:]) {
@@ -461,7 +370,7 @@ extension HealthUploadStaging {
 // MARK: Other
 
 extension LocalPreferenceKeys {
-    // TODO have more fine-grained record-keeping here!
+    // maybe have more fine-grained record-keeping here!
     // (day + sampleType + count?)
     static let numElidedHealthObservationUploads = LocalPreferenceKey("numElidedHealthObservationUploads", default: 0)
 }
@@ -533,13 +442,22 @@ extension HealthUploadStaging {
             return DrainFetchResult(
                 samples: samples.grouped(by: \.sampleType).reduce(into: []) { results, entry in
                     let (sampleType, samples) = entry
-                    results.append(DrainBatch<PendingSampleRecord>(sampleType: sampleType, rows: samples))
+                    results.append(.init(sampleType: sampleType, rows: samples))
                 },
                 deletions: deletions.grouped(by: \.sampleType).reduce(into: []) { results, entry in
                     let (sampleType, deletions) = entry
-                    results.append(DrainBatch<PendingDeletionRecord>(sampleType: sampleType, rows: deletions))
+                    results.append(.init(sampleType: sampleType, rows: deletions))
                 }
             )
+        }
+    }
+    
+    func remove<R>(_ drainBatch: DrainBatch<R>) throws {
+        guard let dbQueue else {
+            throw DBError.noDatabase
+        }
+        try dbQueue.write { db in
+            _ = try R.deleteAll(db, keys: drainBatch.rows.lazy.map(\.id))
         }
     }
 }

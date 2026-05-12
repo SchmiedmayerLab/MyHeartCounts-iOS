@@ -6,8 +6,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-// swiftlint:disable all
-
 import AsyncAlgorithms
 import Foundation
 import HealthKit
@@ -123,9 +121,8 @@ struct HealthSampleProcessingTests {
     @MainActor
     func healthUploadStagingDuplicates() async throws {
         let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
-        try await Swift::Task.sleep(for: .seconds(0.5)) // give it some time to load everything. (TODO is this actually necessary???)
+        try await Swift::Task.sleep(for: .seconds(0.5))
         
-        let healthKit = try #require(spezi.module(HealthKit.self))
         let healthUploadStaging = try #require(spezi.module(HealthUploadStaging.self))
         try healthUploadStaging.clear()
         #expect(try healthUploadStaging.isEmpty)
@@ -164,9 +161,8 @@ struct HealthSampleProcessingTests {
     @MainActor
     func healthUploadStagingSanpleElision() async throws {
         let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
-        try await Swift::Task.sleep(for: .seconds(0.5)) // give it some time to load everything. (TODO is this actually necessary???)
+        try await Swift::Task.sleep(for: .seconds(0.5))
         
-        let healthKit = try #require(spezi.module(HealthKit.self))
         let healthUploadStaging = try #require(spezi.module(HealthUploadStaging.self))
         try healthUploadStaging.clear()
         #expect(try healthUploadStaging.isEmpty)
@@ -195,12 +191,12 @@ struct HealthSampleProcessingTests {
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
         
-        try healthUploadStaging.add([HKDeletedObject.make(uuid: newSamples[0].uuid)], ofType: .stepCount)
+        try healthUploadStaging.add([try HKDeletedObject.make(uuid: newSamples[0].uuid)], ofType: .stepCount)
         try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: false)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 1)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
         
-        try healthUploadStaging.add([HKDeletedObject.make(uuid: UUID())], ofType: .bodyMass)
+        try healthUploadStaging.add([try HKDeletedObject.make(uuid: UUID())], ofType: .bodyMass)
         try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: false)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 1)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 1)
@@ -211,7 +207,7 @@ struct HealthSampleProcessingTests {
     @MainActor
     func healthUploadStagingJSONPersistence() async throws {
         let spezi = try #require(SpeziAppDelegate.spezi, "Spezi not loaded??")
-        try await Swift::Task.sleep(for: .seconds(0.5)) // give it some time to load everything. (TODO is this actually necessary???)
+        try await Swift::Task.sleep(for: .seconds(0.5))
         
         let healthKit = try #require(spezi.module(HealthKit.self))
         let healthUploadStaging = try #require(spezi.module(HealthUploadStaging.self))
@@ -264,32 +260,16 @@ struct HealthSampleProcessingTests {
 
 
 extension HKDeletedObject {
-    static func make(uuid: UUID) -> HKDeletedObject {
+    static func make(uuid: UUID) throws -> HKDeletedObject {
+        // swiftlint:disable legacy_objc_type
         let sel = Selector(("_deletedObjectWithUUID:metadata:"))
-        let imp = method_getImplementation(class_getClassMethod(HKDeletedObject.self, sel)!)
-        typealias Fn = @convention(c) (HKDeletedObject.Type, Selector, NSUUID, NSDictionary?) -> HKDeletedObject
-        let fn = unsafeBitCast(imp, to: Fn.self)
-        return fn(self, sel, uuid as NSUUID, nil)
+        let imp = method_getImplementation(try #require(class_getClassMethod(HKDeletedObject.self, sel)))
+        typealias Fun = @convention(c) (HKDeletedObject.Type, Selector, NSUUID, NSDictionary?) -> HKDeletedObject
+        let fun = unsafeBitCast(imp, to: Fun.self)
+        return fun(self, sel, uuid as NSUUID, nil)
+        // swiftlint:enable legacy_objc_type
     }
 }
-
-
-//final class MockHKDeletedObject: HKDeletedObject {
-//    private let _uuid: UUID
-//    
-//    override var uuid: UUID {
-//        _uuid
-//    }
-//    
-//    override var metadata: [String : Any]? {
-//        nil
-//    }
-//    
-//    init(uuid: UUID) {
-//        self._uuid = uuid
-//        super.init()
-//    }
-//}
 
 
 extension Observation {
