@@ -3429,7 +3429,26 @@
       }
     },
     "HealthKit Deletions" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HealthKit Deletions"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HealthKit Deletions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminaciones de HealthKit"
+          }
+        }
+      }
     },
     "HealthKit Upload (Historical)" : {
       "localizations" : {

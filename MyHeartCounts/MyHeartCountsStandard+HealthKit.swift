@@ -163,7 +163,11 @@ extension MyHeartCountsStandard {
         let uploadStrategy = uploadStrategy ?? Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
         switch uploadStrategy {
         case .queueLocally:
-            try await healthUploadStaging.add(observations, commonSampleType: sampleTypeIdentifier)
+            try await healthUploadStaging.add(
+                observations,
+                commonSampleType: sampleTypeIdentifier,
+                postprocessResource: postprocessResource
+            )
         case .firebaseStorage:
             let numObservations = observations.count
             logger.notice("Uploading \(numObservations) observations of type '\(sampleTypeIdentifier)' via zstd upload")
