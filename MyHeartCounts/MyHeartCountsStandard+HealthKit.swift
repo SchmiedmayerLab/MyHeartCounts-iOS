@@ -97,6 +97,8 @@ extension MyHeartCountsStandard {
         .sampleUploadTimeZone, .mhcStudyRevision
     ]
     
+    nonisolated private static let directFirestoreUploadDefaultBatchSize = 100
+    
     /// Determines how a health observation / resource should be persisted when uploading it to firebase.
     private static func uploadStrategy(forSampleType identifier: String) -> HealthObservationUploadStrategy {
         if identifier == TimedWalkingTestResult.sampleTypeIdentifier {
@@ -191,7 +193,7 @@ extension MyHeartCountsStandard {
                 await triggerDidUploadNotification()
             }
         case .directFirestore:
-            for chunk in (consume observations).chunks(ofCount: 100) {
+            for chunk in (consume observations).chunks(ofCount: Self.directFirestoreUploadDefaultBatchSize) {
                 let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                     for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadStrategy: uploadStrategy)
                 )
