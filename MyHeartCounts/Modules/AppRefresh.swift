@@ -24,7 +24,7 @@ final class AppRefresh: Module, Sendable {
         do {
             try backgroundTasks.register(.appRefresh(
                 id: .generalAppRefresh,
-                nextTriggerDate: .next(.hourly(calendar: .current, hours: [0, 6, 12, 18], minutes: [0]))
+                nextTriggerDate: .next(.hourly(calendar: .current, hours: [0, 12], minutes: [0]))
             ) {
                 await self.standard.updateStudyDefinition()
             })

@@ -66,15 +66,53 @@ final class StudyBundleLoader: Module, Sendable {
     }
     
     
+    private func _storeStudyBundleResult(
+        _ newValue: Result<StudyBundle, LoadError>,
+        preferCachedBundleOnError: Bool
+    ) -> Result<StudyBundle, LoadError> {
+        _studyBundle.withLock { value in
+            switch (value, newValue) {
+            case (.none, let newValue):
+                value = newValue
+                return newValue
+            case (.some(.failure), let newValue):
+                value = newValue
+                return newValue
+            case (.some(.success(let oldBundle)), .success(let newBundle)):
+                if newBundle != oldBundle {
+                    withMutation(keyPath: \.studyBundle) {
+                        value = .success(newBundle)
+                    }
+                    return newValue
+                } else {
+                    return .success(oldBundle)
+                }
+            case (.some(.success(let oldBundle)), .failure):
+                // in this case (we successfully obtained a study bundle before, but it now has failed),
+                // we keep the old bundle around instead of updating `_studyBundle` with the error case.
+                if preferCachedBundleOnError {
+                    return .success(oldBundle)
+                } else {
+                    return newValue
+                }
+            }
+        }
+    }
+    
+    /// Updates the study bundle.
+    ///
+    /// - parameter returnCachedBundleOnError: Whether, if the update fails, and there still exists an old stucy bundle that was fetched earlier, that one should be returned, instead of the update failing. Defaults to `true`.
     @discardableResult
     @MainActor
-    func update() async throws(LoadError) -> StudyBundle {
+    func update(
+        returnCachedBundleOnError: Bool = true
+    ) async throws(LoadError) -> StudyBundle {
         if let loadStudyBundleTask {
             // we need to do `.result.get()` here, instead of a simple `.value`, since the throw in the later case isn't typed.
             return try await loadStudyBundleTask.result.get().get()
         }
         let task = Task<Result<StudyBundle, LoadError>, Never> {
-            let result: Result<StudyBundle, LoadError>
+            var result: Result<StudyBundle, LoadError>
             do throws(LoadError) {
                 result = .success(try await _update(
                     using: LaunchOptions.launchOptions[.studyBundleSelector]
@@ -83,9 +121,7 @@ final class StudyBundleLoader: Module, Sendable {
                 result = .failure(error)
             }
             await MainActor.run {
-                withMutation(keyPath: \.studyBundle) {
-                    _studyBundle.withLock { $0 = result }
-                }
+                result = _storeStudyBundleResult(result, preferCachedBundleOnError: returnCachedBundleOnError)
                 self.loadStudyBundleTask = nil
             }
             return result
