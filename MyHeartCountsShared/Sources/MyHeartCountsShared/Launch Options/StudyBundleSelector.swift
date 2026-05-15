@@ -32,15 +32,14 @@ public enum StudyBundleSelector: Hashable, LaunchOptionDecodable, LaunchOptionEn
     }
     
     public func launchOptionArgs(for launchOption: LaunchOption<StudyBundleSelector>) -> [String] {
-        let value = switch self {
+        switch self {
         case .firebase:
-            "firebase"
+            [launchOption.key, "firebase"]
         case .bundledWithApp:
-            "bundledWithApp"
+            [launchOption.key, "bundledWithApp"]
         case .atUrl(let url):
-            url.absoluteURL.path(percentEncoded: false)
+            url.launchOptionArgs(for: LaunchOption<URL>.init(launchOption.key, default: url))
         }
-        return [launchOption.key, value]
     }
 }
 
