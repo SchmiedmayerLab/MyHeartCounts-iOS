@@ -38,7 +38,7 @@ public enum StudyBundleSelector: Hashable, LaunchOptionDecodable, LaunchOptionEn
         case .bundledWithApp:
             [launchOption.key, "bundledWithApp"]
         case .atUrl(let url):
-            url.launchOptionArgs(for: LaunchOption<URL>.init(launchOption.key, default: url))
+            url.launchOptionArgs(for: LaunchOption<URL>(launchOption.key, default: url))
         }
     }
 }
