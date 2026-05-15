@@ -20,18 +20,20 @@ import SpeziHealthKit
 
 
 @Observable
-final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, @unchecked Sendable {
+@MainActor
+final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, Sendable {
     /// The number of whole days all data will be retained locally, before it is shared with the backend.
     ///
     /// E.g., if this value is `2`, any data collected on monday will be processed on thursday at the earliest.
     /// (To ensure that there are 2 whole days inbetween.)
-    private static let dataRetentionOffsetInDays = 3
+    nonisolated private static let dataRetentionOffsetInDays = 3
     
     // swiftlint:disable attributes
     @ObservationIgnored @Application(\.logger) private var logger
     @ObservationIgnored @Dependency(HealthUploadStaging.self) private var healthUploadStaging
     @ObservationIgnored @Dependency(MHCBackgroundTasks.self) private var backgroundTasks
     @ObservationIgnored @Dependency(ManagedFileUpload.self) private var managedFileUpload
+    @ObservationIgnored private(set) var currentTask: Task<Void, any Error>?
     // swiftlint:enable attributes
     
     func configure() {
@@ -47,10 +49,27 @@ final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, @
         } catch {
             logger.error("Failed to register \(MHCBackgroundTasks.TaskIdentifier.stagedHealthUpload) background task: \(error)")
         }
+        Task(priority: .background) {
+            try await process()
+        }
     }
     
     
+    @MainActor
     func process() async throws {
+        if let currentTask {
+            try await currentTask.value
+        } else {
+            let task = Task {
+                try await _process()
+            }
+            self.currentTask = task
+            try await task.value
+        }
+    }
+    
+    @concurrent
+    private func _process() async throws {
         let cal = Calendar.current
         guard let processingCutoff = cal
             .date(byAdding: .day, value: -Self.dataRetentionOffsetInDays, to: .now)
@@ -58,7 +77,7 @@ final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, @
             // should be unreachable
             return
         }
-        let drainData = try healthUploadStaging.drainData(in: ..<processingCutoff)
+        let drainData = try await healthUploadStaging.drainData(in: ..<processingCutoff)
         try await withThrowingDiscardingTaskGroup { taskGroup in // swiftlint:disable:this closure_body_length
             for batch in drainData.samples {
                 taskGroup.addTask {
@@ -70,10 +89,10 @@ final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, @
                         directoryHint: .notDirectory
                     )
                     try (consume compressed).write(to: url)
-                    Swift::Task {
+                    Task {
                         try await self.managedFileUpload.upload(url, category: .liveHealthUpload)
                     }
-                    self.deleteDrainBatch(batch)
+                    await self.deleteDrainBatch(batch)
                 }
             }
             // QUESTION have one CSV per samlpe type, or put them all into a single file?
@@ -91,10 +110,10 @@ final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, @
                         directoryHint: .notDirectory
                     )
                     try (consume csvData).compressed(using: Zstd.self).write(to: url)
-                    Swift::Task {
+                    Task {
                         try await self.managedFileUpload.upload(url, category: .healthDeletions)
                     }
-                    self.deleteDrainBatch(batch)
+                    await self.deleteDrainBatch(batch)
                 }
             }
         }
