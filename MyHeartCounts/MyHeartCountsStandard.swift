@@ -212,7 +212,9 @@ extension MyHeartCountsStandard {
         case .onLaunchCleanupBcNoUser:
             return
         case .explicitUserLogoutEvent:
-            break
+            // Schedule a firestore persistence cleanup for the nect launch.
+            // Ideally we'd have this run immediately, but it only works directly after firebase was loaded.
+            LocalPreferencesStore.standard[.shouldClearFirestoreCacheOnNextLaunch] = true
         }
         let isInTestEnvSetup = await setupTestEnvironment.isInSetup
         _Concurrency.Task {
