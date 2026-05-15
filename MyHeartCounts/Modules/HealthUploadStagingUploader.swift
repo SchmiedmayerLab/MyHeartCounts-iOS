@@ -43,7 +43,6 @@ final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, S
                 nextTriggerDate: .absolute(.now.addingTimeInterval(TimeConstants.hour * 6)),
                 options: [.requiresNetworkConnectivity]
             ) {
-                // QUESTION is it sufficient to have just the background task, or should we also call `process()` directly from configure?
                 try await self.process()
             })
         } catch {
@@ -113,7 +112,7 @@ final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, S
                     }
                     let csvData = csvWriter.data()
                     let url = URL.temporaryDirectory.appending(
-                        path: "HealthObservationDeletions_\(batch.sampleType)_\(UUID().uuidString).csv.zstd",
+                        path: "\(batch.sampleType)_\(UUID().uuidString).csv.zstd",
                         directoryHint: .notDirectory
                     )
                     try (consume csvData).compressed(using: Zstd.self).write(to: url)
