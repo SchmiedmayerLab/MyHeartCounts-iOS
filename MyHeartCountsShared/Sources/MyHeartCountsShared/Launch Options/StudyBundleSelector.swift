@@ -11,7 +11,7 @@
 public import struct Foundation.URL
 
 
-public enum StudyBundleSelector: Hashable, LaunchOptionDecodable {
+public enum StudyBundleSelector: Hashable, LaunchOptionDecodable, LaunchOptionEncodable {
     /// The default study bundle, as available in firebase
     case firebase
     /// A study bundle dynamically produced by version of `MyHeartCounts-StudyDefinitions` the app was compiled against
@@ -29,6 +29,18 @@ public enum StudyBundleSelector: Hashable, LaunchOptionDecodable {
         default:
             self = .atUrl(try URL(decodingLaunchOption: context))
         }
+    }
+    
+    public func launchOptionArgs(for launchOption: LaunchOption<StudyBundleSelector>) -> [String] {
+        let value = switch self {
+        case .firebase:
+            "firebase"
+        case .bundledWithApp:
+            "bundledWithApp"
+        case .atUrl(let url):
+            url.absoluteURL.path(percentEncoded: false)
+        }
+        return [launchOption.key, value]
     }
 }
 
