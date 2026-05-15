@@ -97,6 +97,9 @@ final class StudyBundleLoader: Module, Sendable {
                 if preferCachedBundleOnError {
                     return .success(oldBundle)
                 } else {
+                    withMutation(keyPath: \.studyBundle) {
+                        value = newValue
+                    }
                     return newValue
                 }
             }
