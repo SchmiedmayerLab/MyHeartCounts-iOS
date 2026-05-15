@@ -73,10 +73,14 @@ final class StudyBundleLoader: Module, Sendable {
         _studyBundle.withLock { value in
             switch (value, newValue) {
             case (.none, let newValue):
-                value = newValue
+                withMutation(keyPath: \.studyBundle) {
+                    value = newValue
+                }
                 return newValue
             case (.some(.failure), let newValue):
-                value = newValue
+                withMutation(keyPath: \.studyBundle) {
+                    value = newValue
+                }
                 return newValue
             case (.some(.success(let oldBundle)), .success(let newBundle)):
                 if newBundle != oldBundle {
@@ -140,7 +144,7 @@ final class StudyBundleLoader: Module, Sendable {
                let bucket = options.storageBucket {
                 studyBundleArchiveUrl = Self.url(ofFile: "mhcStudyBundle.\(StudyBundle.fileExtension).aar", inBucket: bucket)
             } else {
-                logger.error("No last-used firebase config. Using fallback.")
+                logger.error("No last-used firebase config.")
                 throw .noLastUsedFirebaseConfig
             }
         case .atUrl(let url):
