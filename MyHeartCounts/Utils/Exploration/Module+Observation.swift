@@ -23,8 +23,11 @@ extension Module where Self: Sendable {
         }
         withObservationTracking {
             _ = self[keyPath: keyPath]
-        } onChange: {
-            RunLoop.current.perform {
+        } onChange: { [weak self] in
+            RunLoop.current.perform { [weak self] in
+                guard let self else {
+                    return
+                }
                 let newValue = self[keyPath: keyPath]
                 if newValue != oldValue {
                     handler(oldValue, newValue)

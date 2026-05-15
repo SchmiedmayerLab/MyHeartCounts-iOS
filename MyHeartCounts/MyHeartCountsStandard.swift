@@ -57,7 +57,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     func configure() {
         _Concurrency.Task {
             await handleIsLoggedOut()
-            await updateStudyDefinition()
+            await handleStudyBundleUpdates()
         }
     }
     
@@ -75,27 +75,6 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             } catch {
                 await logger.error("\(#function): \(error)")
             }
-        }
-    }
-    
-    func updateStudyDefinition() async {
-        guard let studyManager else {
-            return
-        }
-        defer {
-            // we still want this to happen if the study bundle loading below failed
-            _Concurrency.Task {
-                await Self._updateCurrentEnrollmentInfo(studyManager)
-            }
-        }
-        guard let studyBundle = try? await studyLoader.update() else {
-            return
-        }
-        logger.notice("Informing StudyManager about v\(studyBundle.studyDefinition.studyRevision) of MHC studyBundle")
-        do {
-            try await studyManager.informAboutStudies([studyBundle])
-        } catch {
-            logger.error("\(error)")
         }
     }
     
@@ -157,6 +136,42 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     func willLogOut(_ details: AccountDetails) async {
         logger.notice("account is being logged out")
         try? await notificationsManager.setFCMToken(nil)
+    }
+}
+
+
+extension MyHeartCountsStandard {
+    func updateStudyDefinition() async {
+        // if this ends up updating the StudyBundle, it will trigger the observation tracking in the function below
+        _ = try? await studyLoader.update()
+    }
+    
+    private func handleStudyBundleUpdates() async {
+        let studyBundle = withObservationTracking {
+            studyLoader.studyBundle?.value
+        } onChange: { [weak self] in
+            Swift::Task { [weak self] in
+                await self?.handleStudyBundleUpdates()
+            }
+        }
+        guard let studyManager else {
+            return
+        }
+        defer {
+            // we still want this to happen if the study bundle loading below failed
+            _Concurrency.Task {
+                await Self._updateCurrentEnrollmentInfo(studyManager)
+            }
+        }
+        guard let studyBundle else {
+            return
+        }
+        do {
+            logger.notice("Informing StudyManager about v\(studyBundle.studyDefinition.studyRevision) of MHC studyBundle")
+            try await studyManager.informAboutStudies([studyBundle])
+        } catch {
+            logger.error("Error informing StudyManager about study bundle: \(error)")
+        }
     }
 }
 

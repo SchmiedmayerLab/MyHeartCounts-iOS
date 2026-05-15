@@ -98,7 +98,7 @@ In order to run and develop the My Heart Counts app locally, you'll need the fol
 2. Adjust the app's run configuration (open via `cmd+shift+,`) and enable the following options:
     - `--useFirebaseEmulator`
         - If you wish to use a custom firebase deployment instead of a local emulator, you'll need to use the `--overrideFirebaseConfig plist=name` flag instead, where `name` is either an absolute path of a GoogleService-Info.plist file (this will only work in the simulator), or the filename (without extension) of a GoogleService-Info.plist file bundled with the app.
-    - `--overrideStudyBundleLocation`
+    - `--studyBundle`
         - Specify the absolute path of the `.aar` file generated above
         - Note: if you're running the app on a physical device, specifying the file location on the Mac won't work, since the iPhone can't access that. Instead, you can do one of the following:
             - Bundle the study definition into the app:
@@ -107,7 +107,7 @@ In order to run and develop the My Heart Counts app locally, you'll need the fol
             - Host the study definition using the Firebase storage emulator:
                 - Open the Storage emulator (likely at http://localhost:4000/storage)
                 - Upload the `mhcStudyBundle.spezistudybundle.aar` file to the `/public` folder
-                - Configure the `--overrideStudyBundleLocation` argument to point to `http://HOSTNAME.local:9199/v0/b/myheart-counts-development.appspot.com/o/public%2FmhcStudyBundle.spezistudybundle.aar?alt=media`
+                - Configure the `--studyBundle` argument to point to `http://HOSTNAME.local:9199/v0/b/myheart-counts-development.appspot.com/o/public%2FmhcStudyBundle.spezistudybundle.aar?alt=media`
                     - Note that you'll need to replace `HOSTNAME` with your Mac's local-network name (you can find this in Settings.app → General → Sharing → Local hostname)
     - `--disableAutomaticBulkHealthExport`
         - (this option will disable the historical health data collection, improving performance when running the app on a real device)
