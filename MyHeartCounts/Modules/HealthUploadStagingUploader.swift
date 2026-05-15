@@ -69,14 +69,21 @@ final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, S
     }
     
     @concurrent
-    private func _process() async throws {
+    private func _process() async throws { // swiftlint:disable:this function_body_length
         let cal = Calendar.current
-        guard let processingCutoff = cal
-            .date(byAdding: .day, value: -Self.dataRetentionOffsetInDays, to: .now)
-            .flatMap({ cal.startOfDay(for: $0) }) else {
-            // should be unreachable
-            return
+        let processingCutoff: Date
+        if Self.dataRetentionOffsetInDays < 1 {
+            processingCutoff = cal.startOfNextDay(for: .now)
+        } else {
+            guard let cutoff = cal
+                .date(byAdding: .day, value: -Self.dataRetentionOffsetInDays, to: .now)
+                .flatMap({ cal.startOfDay(for: $0) }) else {
+                // should be unreachable
+                return
+            }
+            processingCutoff = cutoff
         }
+        await logger.notice("processingCutoff: \(processingCutoff)")
         let drainData = try await healthUploadStaging.drainData(in: ..<processingCutoff)
         try await withThrowingDiscardingTaskGroup { taskGroup in // swiftlint:disable:this closure_body_length
             for batch in drainData.samples {
