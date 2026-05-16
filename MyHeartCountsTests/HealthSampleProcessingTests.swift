@@ -6,18 +6,28 @@
 // SPDX-License-Identifier: MIT
 //
 
+import AsyncAlgorithms
 import Foundation
 import HealthKit
 import HealthKitOnFHIR
 import ModelsR4
 @testable import MyHeartCounts
+@testable import MyHeartCountsShared
+import Spezi
 import SpeziFoundation
 import SpeziHealthKit
+import SpeziTesting
 import Testing
 
 
 @Suite
 struct HealthSampleProcessingTests {
+    private actor FakeStandard: Standard, HealthKitConstraint {
+        func handleNewSamples<Sample>(_ addedSamples: some Collection<Sample> & Sendable, ofType sampleType: SampleType<Sample>) {}
+        func handleDeletedObjects<Sample>(_ deletedObjects: some Collection<HKDeletedObject> & Sendable, ofType sampleType: SampleType<Sample>) {}
+    }
+    
+    
     // check that the zstd-compressed FHIR-encoded Health samples can be decompressed and decoded and have the correct values.
     // note that this test is only very barebones; we have more inp-depth testing for this in HealthKitOnFHIR.
     @Test
@@ -110,6 +120,158 @@ struct HealthSampleProcessingTests {
         default:
             Issue.record("Invalid value")
         }
+    }
+    
+    
+    @Test
+    func healthUploadStagingDuplicates() async throws {
+        let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
+        await withDependencyResolution(standard: FakeStandard()) {
+            healthUploadStaging
+            HealthKit()
+        }
+        #expect(try healthUploadStaging.isEmpty)
+        
+        let cal = Calendar.current
+        let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
+        let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
+        
+        #expect(try healthUploadStaging.isEmpty == true)
+        let newSamples: [HKQuantitySample] = [
+            HKQuantitySample(
+                type: .init(.stepCount),
+                quantity: HKQuantity(unit: .count(), doubleValue: 52),
+                start: samplesStartDate,
+                end: samplesEndDate
+            ),
+            HKQuantitySample(
+                type: .init(.heartRate),
+                quantity: HKQuantity(unit: .count() / .minute(), doubleValue: 91),
+                start: samplesStartDate,
+                end: samplesEndDate
+            )
+        ]
+        
+        try await healthUploadStaging.add(newSamples)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+        
+        try await healthUploadStaging.add(newSamples)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+    }
+    
+    
+    @Test
+    func healthUploadStagingSanpleElision() async throws {
+        let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
+        await withDependencyResolution(standard: FakeStandard()) {
+            healthUploadStaging
+            HealthKit()
+        }
+        #expect(try healthUploadStaging.isEmpty)
+        #expect(try healthUploadStaging.isEmpty)
+        
+        let cal = Calendar.current
+        let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
+        let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
+        
+        #expect(try healthUploadStaging.isEmpty == true)
+        let newSamples: [HKQuantitySample] = [
+            HKQuantitySample(
+                type: .init(.stepCount),
+                quantity: HKQuantity(unit: .count(), doubleValue: 52),
+                start: samplesStartDate,
+                end: samplesEndDate
+            ),
+            HKQuantitySample(
+                type: .init(.heartRate),
+                quantity: HKQuantity(unit: .count() / .minute(), doubleValue: 91),
+                start: samplesStartDate,
+                end: samplesEndDate
+            )
+        ]
+        
+        try await healthUploadStaging.add(newSamples)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+        
+        try healthUploadStaging.add([try HKDeletedObject.make(uuid: newSamples[0].uuid)], ofType: .stepCount)
+        try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: false)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 1)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+        
+        try healthUploadStaging.add([try HKDeletedObject.make(uuid: UUID())], ofType: .bodyMass)
+        try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: false)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 1)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 1)
+    }
+    
+    
+    @Test
+    func healthUploadStagingJSONPersistence() async throws {
+        let healthKit = HealthKit()
+        let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
+        await withDependencyResolution(standard: FakeStandard()) {
+            healthUploadStaging
+            healthKit
+        }
+        #expect(try healthUploadStaging.isEmpty)
+        
+        let cal = Calendar.current
+        let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
+        let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
+        
+        let newSamples: [HKQuantitySample] = [
+            HKQuantitySample(
+                type: .init(.stepCount),
+                quantity: HKQuantity(unit: .count(), doubleValue: 52),
+                start: samplesStartDate,
+                end: samplesEndDate
+            ),
+            HKQuantitySample(
+                type: .init(.heartRate),
+                quantity: HKQuantity(unit: .count() / .minute(), doubleValue: 91),
+                start: samplesStartDate,
+                end: samplesEndDate
+            )
+        ]
+        let timestamp = Date()
+        nonisolated(unsafe) let issuedDate = try ModelsR4.FHIRPrimitive<ModelsR4.Instant>(.init(date: timestamp))
+        let samplesAsFHIR: Set<ModelsR4.ResourceProxy> = try await newSamples.async.reduce(into: []) { @Sendable result, observation in
+            // ISSUE: we get back an `AnyEncodable` (bc the return type might be a ResourceProxy or an Observation or a R4/DSTU2 FHIRResource)
+            // but we need these as `ModelsR4.ResourceProxy`s, so we need to do a quick JSON roundtrip to turn them into ResourceProxies (will work for everything except ClinicalRecords, but we don't have any of these anyway...
+            let encodable = try await observation.turnIntoFHIRResource(issuedDate: issuedDate, using: healthKit)
+            let encoded = try JSONEncoder().encode(encodable)
+            let decoded = try JSONDecoder().decode(ModelsR4.ResourceProxy.self, from: encoded)
+            result.insert(decoded)
+        }
+        try await healthUploadStaging.add(newSamples, ingestionTimestamp: timestamp)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
+        let drainFetchResult = try healthUploadStaging.drainData(in: ..<(.now))
+        #expect(drainFetchResult.deletions.isEmpty)
+        #expect(drainFetchResult.samples.count == 2)
+        #expect(drainFetchResult.samples.mapIntoSet(\.sampleType) == [SampleType.stepCount.id, SampleType.heartRate.id])
+        let allDecodedSamples: Set<ModelsR4.ResourceProxy> = try drainFetchResult.samples.reduce(into: []) { result, batch in
+            let jsonArray = try batch.rows.jsonArray()
+            let resources = try JSONDecoder().decode(Set<ModelsR4.ResourceProxy>.self, from: jsonArray)
+            result.formUnion(resources)
+        }
+        #expect(allDecodedSamples == samplesAsFHIR)
+    }
+}
+
+
+extension HKDeletedObject {
+    static func make(uuid: UUID) throws -> HKDeletedObject {
+        // swiftlint:disable legacy_objc_type
+        let sel = Selector(("_deletedObjectWithUUID:metadata:"))
+        let imp = method_getImplementation(try #require(class_getClassMethod(HKDeletedObject.self, sel)))
+        typealias Fun = @convention(c) (HKDeletedObject.Type, Selector, NSUUID, NSDictionary?) -> HKDeletedObject
+        let fun = unsafeBitCast(imp, to: Fun.self)
+        return fun(self, sel, uuid as NSUUID, nil)
+        // swiftlint:enable legacy_objc_type
     }
 }
 

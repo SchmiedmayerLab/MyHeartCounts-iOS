@@ -1484,6 +1484,16 @@
         }
       }
     },
+    "Check for App Update" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar actualizaciones de la app"
+          }
+        }
+      }
+    },
     "Chronic kidney disease" : {
       "localizations" : {
         "en-GB" : {
@@ -2709,7 +2719,14 @@
       }
     },
     "Failed to create local study bundle" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error al crear el paquete de estudio local"
+          }
+        }
+      }
     },
     "Failed to Download Study Information" : {
       "localizations" : {
@@ -3431,6 +3448,28 @@
         }
       }
     },
+    "HealthKit Deletions" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HealthKit Deletions"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HealthKit Deletions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminaciones de HealthKit"
+          }
+        }
+      }
+    },
     "HealthKit Upload (Historical)" : {
       "localizations" : {
         "en-GB" : {
@@ -3803,6 +3842,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Idaho"
+          }
+        }
+      }
+    },
+    "If this issue persists, you might be running an outdated version of the app." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si el problema persiste, es posible que estés usando una versión desactualizada de la app."
           }
         }
       }
@@ -4294,7 +4343,14 @@
       }
     },
     "Last Active Date" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fecha de última actividad"
+          }
+        }
+      }
     },
     "Last Night" : {
       "localizations" : {
@@ -6338,7 +6394,14 @@
       }
     },
     "Post-Trial Nudges Opt-In" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activar avisos posteriores al estudio"
+          }
+        }
+      }
     },
     "Prefer not to state" : {
       "localizations" : {
@@ -6357,7 +6420,14 @@
       }
     },
     "Preferred Measurement System" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema de medición preferido"
+          }
+        }
+      }
     },
     "Preferred Notification Time" : {
       "localizations" : {
@@ -7059,22 +7129,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reiniciar prueba"
-          }
-        }
-      }
-    },
-    "Retry" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reintentar"
           }
         }
       }
@@ -8181,18 +8235,12 @@
         }
       }
     },
-    "The app was able to download the study, but failed to decode it.\nMake sure you have the newest version installed." : {
+    "The app was able to download the study, but failed to process it." : {
       "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The app was able to download the study, but failed to decode it.\nMake sure you have the newest version installed."
-          }
-        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La aplicación pudo descargar el estudio, pero no pudo descodificarlo. Asegúrate de tener instalada la versión más reciente."
+            "value" : "La aplicación pudo descargar el estudio, pero no pudo procesarlo."
           }
         }
       }
@@ -8467,6 +8515,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Territorios de los Trusts"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentar"
           }
         }
       }

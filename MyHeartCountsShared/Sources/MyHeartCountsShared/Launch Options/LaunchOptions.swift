@@ -13,6 +13,7 @@
 
 public import Foundation
 private import os
+private import Synchronization
 
 
 // MARK: API
@@ -72,7 +73,7 @@ public class LaunchOptions: @unchecked Sendable {
 public final class LaunchOption<Value: LaunchOptionDecodable>: LaunchOptions, @unchecked Sendable {
     public let key: String
     fileprivate let makeDefault: @Sendable () -> Value
-    fileprivate let _parsedValue = OSAllocatedUnfairLock<Value?>(initialState: nil)
+    fileprivate let _parsedValue = Mutex<Value?>(nil)
     
     public init(_ key: String, default makeDefault: @autoclosure @escaping @Sendable () -> Value) {
         self.key = key

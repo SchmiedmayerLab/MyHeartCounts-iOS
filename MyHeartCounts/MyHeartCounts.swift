@@ -19,6 +19,8 @@ let logger = Logger(category: .init(""))
 
 @main
 struct MyHeartCounts: App {
+    static let appId = 972189947
+    
     @UIApplicationDelegateAdaptor(MyHeartCountsDelegate.self)
     private var appDelegate
     

@@ -45,6 +45,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(NotificationTracking.self) var notificationTracking
     @Dependency(Scheduler.self) var scheduler
     @Dependency(SensorKitDataFetcher.self) private var sensorKitFetcher
+    @Dependency(HealthUploadStaging.self) var healthUploadStaging
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
     @Dependency(AppState.self) private var appState
@@ -204,6 +205,7 @@ extension MyHeartCountsStandard {
         // if the user wants to switch to a different region, the easiest approach currently is to just kill and relaunch the app.
         try? await managedFileUpload.clearPendingUploads()
         try? await historicalUploadManager.fullyResetSession(restart: false)
+        try? await healthUploadStaging.clear()
         await sensorKitFetcher.resetAllQueryAnchors()
         await clinicalRecordPermissions.resetTracking()
         LocalPreferencesStore.standard[.rejectedHomeTabPromptedActions] = nil

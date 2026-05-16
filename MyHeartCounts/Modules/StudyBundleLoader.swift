@@ -70,39 +70,51 @@ final class StudyBundleLoader: Module, Sendable {
         _ newValue: Result<StudyBundle, LoadError>,
         preferCachedBundleOnError: Bool
     ) -> Result<StudyBundle, LoadError> {
-        _studyBundle.withLock { value in
+        enum Outcome {
+            case unchanged(Result<StudyBundle, LoadError>)
+            case changed(Result<StudyBundle, LoadError>)
+        }
+        // ISSUE: we need to be careful here wrt how we update _studyBundle, since it's
+        // both a Mutex-protected but also an @ObservationTracked property.
+        // the issue being that were we to simply call `withMutation` from w/in Mutex.withLock,
+        // we'd risk deadlocks, since withMutation will trigger observers immediately.
+        // so eg, a `withObservationTracking { loader.studyBundle } onChange: { ... }` call could
+        // try to immediately access the study bundle (thereby trying to acquire the mutex) even though we're
+        // still holding the mutex in here.
+        // SOLUTION: we update _studyBundle outside of `withMutation`,
+        // and then manually inform the ObservationRegistrar about the mutation after the fact.
+        let outcome: Outcome = _studyBundle.withLock { value in
             switch (value, newValue) {
-            case (.none, let newValue):
-                withMutation(keyPath: \.studyBundle) {
-                    value = newValue
-                }
-                return newValue
-            case (.some(.failure), let newValue):
-                withMutation(keyPath: \.studyBundle) {
-                    value = newValue
-                }
-                return newValue
+            case (.none, _), (.some(.failure), _):
+                value = newValue
+                return .changed(newValue)
             case (.some(.success(let oldBundle)), .success(let newBundle)):
                 if newBundle != oldBundle {
-                    withMutation(keyPath: \.studyBundle) {
-                        value = .success(newBundle)
-                    }
-                    return newValue
+                    value = .success(newBundle)
+                    return .changed(.success(newBundle))
                 } else {
-                    return .success(oldBundle)
+                    return .unchanged(.success(oldBundle))
                 }
             case (.some(.success(let oldBundle)), .failure):
-                // in this case (we successfully obtained a study bundle before, but it now has failed),
-                // we keep the old bundle around instead of updating `_studyBundle` with the error case.
                 if preferCachedBundleOnError {
-                    return .success(oldBundle)
+                    // in this case (we successfully obtained a study bundle before, but it now has failed),
+                    // we keep the old bundle around instead of updating `_studyBundle` with the error case.
+                    return .unchanged(.success(oldBundle))
                 } else {
-                    withMutation(keyPath: \.studyBundle) {
-                        value = newValue
-                    }
-                    return newValue
+                    value = newValue
+                    return .changed(newValue)
                 }
             }
+        }
+        switch outcome {
+        case .unchanged(let result):
+            return result
+        case .changed(let result):
+            // not really ideal bc we technically have already mutated the property,
+            // but the only way we can (easily) get this working w/out riskig deadlocks.
+            _$observationRegistrar.willSet(self, keyPath: \.studyBundle)
+            _$observationRegistrar.didSet(self, keyPath: \.studyBundle)
+            return result
         }
     }
     
@@ -167,10 +179,16 @@ final class StudyBundleLoader: Module, Sendable {
         }
         do {
             return try await openDownloadedStudyBundle(at: downloadUrl)
-        } catch LoadError.unableToDecode where selector == .firebase {
+        } catch LoadError.unableToDecode(let underlyingDecodeError) where selector == .firebase {
             // if we failed to decode the firebase-hosted study bundle, we try to use the bundled one as a fallback.
             // (otherwise, we simply propagate the error up the call stack.)
-            return try await _update(using: .bundledWithApp)
+            do {
+                return try await _update(using: .bundledWithApp)
+            } catch LoadError.unableToCreateLocalBundle {
+                // if the local bundle creation fails, we don't expose that error (since the local bundle thing here was an implicit fallback),
+                // and insead re-propagate the original error.
+                throw LoadError.unableToDecode(underlyingDecodeError)
+            }
         }
     }
     

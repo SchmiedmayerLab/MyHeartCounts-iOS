@@ -76,6 +76,9 @@ private struct DebugFormImpl: View {
                 NavigationLink(symbol: .calendar, "Health Data Bulk Upload" as String) {
                     HealthImporterControlView()
                 }
+                NavigationLink("Health Observations Local Persistence" as String) {
+                    HealthObservationsLocalPersistenceLayerDebugView()
+                }
                 NavigationLink("SensorKit" as String) {
                     SensorKitControlView()
                 }
@@ -84,6 +87,12 @@ private struct DebugFormImpl: View {
                 }
                 NavigationLink("File Upload Queue" as String) {
                     FileUploadInsights()
+                }
+                NavigationLink("Scheduler Stats" as String) {
+                    SchedulerStats()
+                }
+                NavigationLink("File Browser" as String) {
+                    FileBrowser(url: .documentsDirectory)
                 }
             }
             Section("Other" as String) {
@@ -108,6 +117,9 @@ private struct DebugFormImpl: View {
                 answerQuestionnaireRow
                 AsyncButton("Add Demo Data" as String, state: $viewState) {
                     try await demoSetup.addDemoData()
+                }
+                CheckForUpdateButton {
+                    Text(verbatim: "Check for App Update")
                 }
             }
             Section {

@@ -144,4 +144,9 @@ extension ManagedFileUpload.Category {
         title: "HealthKit Upload (Historical)",
         firebasePath: "historicalHealthSamples"
     )
+    static let healthDeletions = Self(
+        id: "HealthKitUpload/deletions",
+        title: "HealthKit Deletions",
+        firebasePath: "healthDeletions"
+    )
 }

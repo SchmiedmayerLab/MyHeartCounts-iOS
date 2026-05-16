@@ -1,5 +1,5 @@
 {
-  "originHash" : "2b8fe4cbbfa4180c302785d2e9a3b936879b338b28730b5d17fbb5e8dfcd00ae",
+  "originHash" : "90c68f27cecaf57e73f9fdf2dd371e2bfd7cc6d982e9529f9c379b2014b625f2",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -80,6 +80,15 @@
       "state" : {
         "revision" : "60da361632d0de02786f709bdc0c4df340f7613e",
         "version" : "8.1.0"
+      }
+    },
+    {
+      "identity" : "grdb.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/groue/GRDB.swift.git",
+      "state" : {
+        "revision" : "36e30a6f1ef10e4194f6af0cff90888526f0c115",
+        "version" : "7.10.0"
       }
     },
     {
@@ -249,8 +258,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziFoundation.git",
       "state" : {
-        "revision" : "14b71ec24d42463c273203556c3cbfc03ce04023",
-        "version" : "2.7.6"
+        "revision" : "09b0a95cef41e42e494f74f395d83a4dc9c6d159",
+        "version" : "2.7.7"
       }
     },
     {
