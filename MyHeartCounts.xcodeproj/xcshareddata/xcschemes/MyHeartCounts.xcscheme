@@ -120,8 +120,8 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--overrideStudyBundleLocation &apos;/Users/lukas/Desktop/MHC StudyDefs/mhcStudyBundle.spezistudybundle.aar&apos;"
-            isEnabled = "NO">
+            argument = "--studyBundle &apos;/Users/lukas/Desktop/MHC StudyDefs/mhcStudyBundle.spezistudybundle.aar&apos;"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--dashboardConsiderAllSleepData"

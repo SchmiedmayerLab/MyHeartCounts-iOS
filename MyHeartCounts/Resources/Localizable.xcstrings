@@ -2708,6 +2708,9 @@
         }
       }
     },
+    "Failed to create local study bundle" : {
+
+    },
     "Failed to Download Study Information" : {
       "localizations" : {
         "en-GB" : {

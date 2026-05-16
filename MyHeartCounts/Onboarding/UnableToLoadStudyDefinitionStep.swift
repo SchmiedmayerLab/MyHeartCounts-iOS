@@ -11,6 +11,7 @@ import SFSafeSymbols
 import SpeziViews
 import SwiftUI
 
+
 /// Onboarding step intended to be used to signal to the user that the app was unable to fetch its study definition; most likely due to network connectivity issues.
 struct UnableToLoadStudyDefinitionStep: View {
     @Environment(ManagedNavigationStack.Path.self)
@@ -48,6 +49,15 @@ struct UnableToLoadStudyDefinitionStep: View {
                 symbol: .xmarkOctagon,
                 title: "Failed to Load Study into App",
                 message: "The app was able to download the study, but failed to decode it.\nMake sure you have the newest version installed.",
+                additionalErrorInfo: error.localizedDescription
+            ) {
+                // maybe have a link to the app store entry here? or our website?
+            }
+        case .failure(.unableToCreateLocalBundle(let error)):
+            makeBody(
+                symbol: .xmarkOctagon,
+                title: "Failed to create local study bundle",
+                message: "",
                 additionalErrorInfo: error.localizedDescription
             ) {
                 // maybe have a link to the app store entry here? or our website?

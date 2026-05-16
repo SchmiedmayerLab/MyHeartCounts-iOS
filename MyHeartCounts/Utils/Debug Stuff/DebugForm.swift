@@ -96,6 +96,14 @@ private struct DebugFormImpl: View {
                 }
             }
             Section("Other" as String) {
+                LabeledContent("size(AS/firestore)" as String, value: { () -> String in
+                    let url = URL.applicationSupportDirectory.appendingPathComponent("firestore", isDirectory: true)
+                    if let size = try? FileManager.default.directorySize(at: url) {
+                        return size.formatted(.byteCount(style: .file))
+                    } else {
+                        return "n/a"
+                    }
+                }())
                 Button("Reset rejected HomeTab actions" as String) {
                     rejectedHomeTabActions = []
                 }
