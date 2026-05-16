@@ -8240,7 +8240,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La aplicación pudo descargar el estudio, pero no pudo descodificarlo."
+            "value" : "La aplicación pudo descargar el estudio, pero no pudo procesarlo."
           }
         }
       }
