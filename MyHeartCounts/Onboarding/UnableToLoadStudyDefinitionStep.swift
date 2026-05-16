@@ -31,7 +31,8 @@ struct UnableToLoadStudyDefinitionStep: View {
             makeBody(
                 symbol: .xmarkOctagon,
                 title: "Failed to Download Study Information",
-                message: "The app was unable to load the study, but we're not sure why"
+                message: "The app was unable to load the study, but we're not sure why",
+                indicateShouldCheckForUpdates: true
             ) {
                 retryButton
             }
@@ -40,7 +41,8 @@ struct UnableToLoadStudyDefinitionStep: View {
                 symbol: .wifiSlash,
                 title: "Network Issue",
                 message: "Make sure your device is connected to the internet and try again",
-                additionalErrorInfo: error.localizedDescription
+                additionalErrorInfo: error.localizedDescription,
+                indicateShouldCheckForUpdates: false
             ) {
                 retryButton
             }
@@ -48,20 +50,18 @@ struct UnableToLoadStudyDefinitionStep: View {
             makeBody(
                 symbol: .xmarkOctagon,
                 title: "Failed to Load Study into App",
-                message: "The app was able to download the study, but failed to decode it.\nMake sure you have the newest version installed.",
-                additionalErrorInfo: error.localizedDescription
-            ) {
-                // maybe have a link to the app store entry here? or our website?
-            }
+                message: "The app was able to download the study, but failed to process it.",
+                additionalErrorInfo: error.localizedDescription,
+                indicateShouldCheckForUpdates: true
+            )
         case .failure(.unableToCreateLocalBundle(let error)):
             makeBody(
                 symbol: .xmarkOctagon,
                 title: "Failed to create local study bundle",
                 message: "",
-                additionalErrorInfo: error.localizedDescription
-            ) {
-                // maybe have a link to the app store entry here? or our website?
-            }
+                additionalErrorInfo: error.localizedDescription,
+                indicateShouldCheckForUpdates: true
+            )
         case .success:
             // we were able to load the study, but somehow ended up in here regardless.
             // this should never happen, but if it does we simply go back to the previous step.
@@ -71,14 +71,14 @@ struct UnableToLoadStudyDefinitionStep: View {
         }
     }
     
-    @ViewBuilder private var retryButton: some View {
+    private var retryButton: some View {
         AsyncButton(state: $viewState) {
             // We don't need to handle the result here; the update() call will
             // end up writing its result into the StudyBundleLoader, which is Observable,
             // and will trigger a view update here.
             _ = try? await studyLoader.update()
         } label: {
-            Text("Retry")
+            Text("Try Again")
                 .font(.headline.bold())
                 // we need to manually set a min width here, since the parent ContentUnavailableView will otherwise
                 // try to make its actions subview as narrow as possible (which we don't want).
@@ -93,7 +93,8 @@ struct UnableToLoadStudyDefinitionStep: View {
         title: LocalizedStringResource,
         message: LocalizedStringResource,
         additionalErrorInfo: String? = nil,
-        @ViewBuilder actionButton: @escaping @MainActor () -> some View = { EmptyView() }
+        indicateShouldCheckForUpdates: Bool,
+        @ViewBuilder actions: @escaping @MainActor () -> some View = { EmptyView() }
     ) -> some View {
         HorizontalGeometryReader { width in
             ContentUnavailableView {
@@ -104,8 +105,16 @@ struct UnableToLoadStudyDefinitionStep: View {
                     Text(additionalErrorInfo)
                         .font(.footnote)
                 }
+                if indicateShouldCheckForUpdates {
+                    Text("If this issue persists, you might be running an outdated version of the app.")
+                }
             } actions: {
-                actionButton()
+                actions()
+                if indicateShouldCheckForUpdates {
+                    CheckForUpdateButton {
+                        Text("Check for App Update")
+                    }
+                }
             }
             .onChange(of: width, initial: true) { _, width in
                 self.viewWidth = width

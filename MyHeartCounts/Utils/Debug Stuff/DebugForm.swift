@@ -118,6 +118,9 @@ private struct DebugFormImpl: View {
                 AsyncButton("Add Demo Data" as String, state: $viewState) {
                     try await demoSetup.addDemoData()
                 }
+                CheckForUpdateButton {
+                    Text(verbatim: "Check for App Update")
+                }
             }
             Section {
                 Button("Replace Root View Controller" as String, role: .destructive) {
