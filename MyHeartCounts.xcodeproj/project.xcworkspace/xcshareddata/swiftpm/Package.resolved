@@ -1,5 +1,5 @@
 {
-  "originHash" : "90c68f27cecaf57e73f9fdf2dd371e2bfd7cc6d982e9529f9c379b2014b625f2",
+  "originHash" : "723b3e21fd15575deda2eb1b4ebec7f9cb203d77ab905d1d30091945aa21cfdf",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -249,8 +249,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziFirebase.git",
       "state" : {
-        "revision" : "f7e5769ca533c846763dc81fa2666ffea7bdee77",
-        "version" : "2.0.9"
+        "revision" : "fcb765a68875a980e2fa3d2d6522248a928ea783",
+        "version" : "2.0.10"
       }
     },
     {
