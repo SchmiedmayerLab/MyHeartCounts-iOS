@@ -120,7 +120,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--overrideStudyBundleLocation &apos;/Users/lukas/Desktop/MHC StudyDefs/mhcStudyBundle.spezistudybundle.aar&apos;"
+            argument = "--studyBundle &apos;/Users/lukas/Desktop/MHC StudyDefs/mhcStudyBundle.spezistudybundle.aar&apos;"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
