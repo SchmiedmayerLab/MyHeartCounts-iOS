@@ -101,7 +101,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--setupTestEnvironment reset login-and-enroll"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--forceEnableDebugMode"

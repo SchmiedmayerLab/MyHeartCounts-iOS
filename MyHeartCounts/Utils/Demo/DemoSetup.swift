@@ -352,10 +352,12 @@ extension NSError {
     
     convenience init(
         mhcErrorCode code: MHCErrorCode = .unspecified,
-        localizedDescription: String
+        localizedDescription: String,
+        underlyingError: (any Error)? = nil
     ) {
         self.init(domain: "edu.stanford.MyHeartCounts", code: code.rawValue, userInfo: [
-            NSLocalizedDescriptionKey: localizedDescription
+            NSLocalizedDescriptionKey: localizedDescription,
+            NSUnderlyingErrorKey: underlyingError
         ])
     }
 }

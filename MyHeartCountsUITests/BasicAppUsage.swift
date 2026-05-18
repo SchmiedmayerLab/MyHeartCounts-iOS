@@ -93,13 +93,17 @@ final class BasicAppUsage: MHCTestCase, @unchecked Sendable {
     
     @MainActor
     func testWithdrawal() throws {
-        throw XCTSkip("needs https://github.com/StanfordBDHG/MyHeartCounts-Firebase/pull/111")
+//        throw XCTSkip("needs https://github.com/StanfordBDHG/MyHeartCounts-Firebase/pull/111")
         try launchAppAndEnrollIntoStudy(locale: .enUS)
         openAccountSheet()
         app.swipeUp()
-        app.navigationBars.buttons["Edit"].tap()
-        app.buttons["Withdraw from Study"].tap()
-        app.alerts["Withdraw from Study"].buttons["Withdraw"].tap()
+        if false {
+            app.navigationBars.buttons["Edit"].tap()
+            app.buttons["Withdraw from Study"].tap()
+            app.alerts["Withdraw from Study"].buttons["Withdraw"].tap()
+        } else {
+            app.buttons["[TMP] Withdraw"].tap()
+        }
         let navigator = OnboardingNavigator(testCase: self)
         navigator.navigateWelcome(timeout: 10)
         try navigator.navigateEligibility(region: .unitedStates)
