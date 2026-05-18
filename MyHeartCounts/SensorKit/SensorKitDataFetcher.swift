@@ -125,6 +125,7 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
         if let processingTask {
             // if we're already performing this task, we simply wait on that task's result, instead of starting a competing second one.
             // this is in order to properly support background processing/fetches.
+            // TODO DO WE NEED A LOCK HERE?
             _ = await processingTask.result
         } else {
             let task = Task { @concurrent in

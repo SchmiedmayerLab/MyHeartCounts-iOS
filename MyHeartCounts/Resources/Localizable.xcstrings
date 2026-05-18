@@ -2600,6 +2600,9 @@
         }
       }
     },
+    "Enrolled for" : {
+
+    },
     "Enrolled since: %@" : {
       "localizations" : {
         "en-GB" : {
@@ -3648,6 +3651,9 @@
         }
       }
     },
+    "Heartbeats" : {
+
+    },
     "Height" : {
       "localizations" : {
         "en-GB" : {
@@ -3871,6 +3877,9 @@
           }
         }
       }
+    },
+    "Increment Stats" : {
+
     },
     "Indiana" : {
       "localizations" : {
@@ -6166,6 +6175,9 @@
         }
       }
     },
+    "Participation Stats" : {
+
+    },
     "Past 2 Weeks" : {
       "localizations" : {
         "en-GB" : {
@@ -7605,6 +7617,9 @@
         }
       }
     },
+    "Since %@" : {
+
+    },
     "Some College" : {
       "localizations" : {
         "en-GB" : {
@@ -7962,6 +7977,9 @@
           }
         }
       }
+    },
+    "Steps Taken" : {
+
     },
     "Stop Suggesting This" : {
       "localizations" : {
@@ -8470,6 +8488,12 @@
           }
         }
       }
+    },
+    "Total Number of Heartbeats While Enrolled (Est.)" : {
+
+    },
+    "Total Number of Steps While Enrolled" : {
+
     },
     "Transient Ischemic Attack (TIA)" : {
       "localizations" : {
