@@ -10,6 +10,7 @@ import FirebaseCore
 import FirebaseFunctions
 import SFSafeSymbols
 import SpeziAccount
+import SpeziFoundation
 import SpeziHealthKitBulkExport
 import SpeziLicense
 import SpeziSensorKit
@@ -276,6 +277,7 @@ extension AccountSheet {
                             let bundle = Bundle.main
                             LabeledContent("Version" as String, value: bundle.appVersion)
                             LabeledContent("Build" as String, value: bundle.appBuildNumber?.description ?? "n/a")
+                            LabeledContent("SpeziStudy Schema" as String, value: StudyDefinition.schemaVersion.description)
                         }
                         Section {
                             LabeledContent("Study Revision" as String, value: enrollments.first?.studyRevision.description ?? "n/a")
