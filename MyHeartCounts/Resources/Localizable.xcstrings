@@ -4,6 +4,9 @@
     "" : {
       "shouldTranslate" : false
     },
+    " " : {
+
+    },
     "  0" : {
       "shouldTranslate" : false
     },
@@ -180,6 +183,9 @@
     },
     "%@ +" : {
       "shouldTranslate" : false
+    },
+    "%@ days" : {
+
     },
     "%@-Minute Run Test" : {
       "localizations" : {
@@ -911,6 +917,12 @@
         }
       }
     },
+    "Active Days" : {
+
+    },
+    "Active Energy" : {
+
+    },
     "Actively smoking" : {
       "localizations" : {
         "en-GB" : {
@@ -1270,6 +1282,9 @@
         }
       }
     },
+    "Articles Read" : {
+
+    },
     "Atrial fibrillation (Afib)" : {
       "localizations" : {
         "en-GB" : {
@@ -1301,6 +1316,9 @@
           }
         }
       }
+    },
+    "Best Step Day" : {
+
     },
     "Biological Sex at Birth" : {
       "localizations" : {
@@ -1387,6 +1405,9 @@
           }
         }
       }
+    },
+    "bpm" : {
+
     },
     "California" : {
       "localizations" : {
@@ -1908,6 +1929,9 @@
         }
       }
     },
+    "Current Streak" : {
+
+    },
     "Cycling" : {
       "localizations" : {
         "en-GB" : {
@@ -1923,6 +1947,9 @@
           }
         }
       }
+    },
+    "d" : {
+
     },
     "Daily Average" : {
       "localizations" : {
@@ -2019,6 +2046,9 @@
           }
         }
       }
+    },
+    "days" : {
+
     },
     "Debug" : {
       "localizations" : {
@@ -2358,6 +2388,9 @@
         }
       }
     },
+    "ECGs Recorded" : {
+
+    },
     "Education Level" : {
       "localizations" : {
         "en-GB" : {
@@ -2568,6 +2601,9 @@
         }
       }
     },
+    "Engagement" : {
+
+    },
     "England (%@)" : {
       "localizations" : {
         "en-GB" : {
@@ -2600,7 +2636,7 @@
         }
       }
     },
-    "Enrolled for" : {
+    "Enrolled since" : {
 
     },
     "Enrolled since: %@" : {
@@ -2698,6 +2734,9 @@
           }
         }
       }
+    },
+    "Exercise Time" : {
+
     },
     "EXERCISE_MINUTES_SCORE_EXPLAINER" : {
       "localizations" : {
@@ -3055,6 +3094,9 @@
         }
       }
     },
+    "Flights Climbed" : {
+
+    },
     "Florida" : {
       "localizations" : {
         "en-GB" : {
@@ -3086,6 +3128,9 @@
           }
         }
       }
+    },
+    "Fun Facts" : {
+
     },
     "Gender Identity" : {
       "localizations" : {
@@ -3362,6 +3407,9 @@
           }
         }
       }
+    },
+    "Health Totals" : {
+
     },
     "HEALTH_RECORDS_NUDGE_SUBTITLE" : {
       "localizations" : {
@@ -3877,9 +3925,6 @@
           }
         }
       }
-    },
-    "Increment Stats" : {
-
     },
     "Indiana" : {
       "localizations" : {
@@ -4485,6 +4530,12 @@
         }
       }
     },
+    "Longest Streak" : {
+
+    },
+    "Longest Workout" : {
+
+    },
     "Louisiana" : {
       "localizations" : {
         "en-GB" : {
@@ -4628,6 +4679,9 @@
           }
         }
       }
+    },
+    "Max Heart Rate" : {
+
     },
     "Mental Well Being" : {
       "localizations" : {
@@ -5294,6 +5348,9 @@
           }
         }
       }
+    },
+    "Next milestone" : {
+
     },
     "NHS Number" : {
       "localizations" : {
@@ -6312,6 +6369,9 @@
         }
       }
     },
+    "Personal Bests" : {
+
+    },
     "Ph.D., M.D., J.D., etc." : {
       "localizations" : {
         "en-GB" : {
@@ -7145,6 +7205,9 @@
         }
       }
     },
+    "Resting HR" : {
+
+    },
     "Review Consent Forms" : {
       "localizations" : {
         "en-GB" : {
@@ -7617,7 +7680,7 @@
         }
       }
     },
-    "Since %@" : {
+    "Sleep" : {
 
     },
     "Some College" : {
@@ -7978,9 +8041,6 @@
         }
       }
     },
-    "Steps Taken" : {
-
-    },
     "Stop Suggesting This" : {
       "localizations" : {
         "en-GB" : {
@@ -8076,6 +8136,9 @@
           }
         }
       }
+    },
+    "Surveys Answered" : {
+
     },
     "Swimming" : {
       "localizations" : {
@@ -8188,6 +8251,9 @@
           }
         }
       }
+    },
+    "Tasks Done" : {
+
     },
     "Tennessee" : {
       "localizations" : {
@@ -8488,12 +8554,6 @@
           }
         }
       }
-    },
-    "Total Number of Heartbeats While Enrolled (Est.)" : {
-
-    },
-    "Total Number of Steps While Enrolled" : {
-
     },
     "Transient Ischemic Attack (TIA)" : {
       "localizations" : {
@@ -8825,6 +8885,9 @@
         }
       }
     },
+    "Walk / Run Tests" : {
+
+    },
     "Walking" : {
       "localizations" : {
         "en-GB" : {
@@ -9142,6 +9205,9 @@
           }
         }
       }
+    },
+    "Workouts" : {
+
     },
     "Wyoming" : {
       "localizations" : {
