@@ -13,6 +13,7 @@ import SpeziAccount
 import SpeziFoundation
 import SpeziHealthKitBulkExport
 import SpeziLicense
+import SpeziLocalization
 import SpeziSensorKit
 import SpeziStudy
 import SpeziViews
@@ -182,11 +183,15 @@ struct AccountSheet: View {
     private func makeEnrolledStudyRow(for enrollment: StudyEnrollment) -> some View {
         if let studyInfo = enrollment.studyBundle?.studyDefinition.metadata {
             VStack(alignment: .leading) {
-                Text(studyInfo.title)
-                    .font(.headline)
-                Text(studyInfo.shortExplanationText)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(.secondary)
+                if let studyTitle = studyInfo.title[LocalizationKey(locale: .current) ?? .enUS] {
+                    Text(studyTitle)
+                        .font(.headline)
+                }
+                if let explanation = studyInfo.shortExplanationText[LocalizationKey(locale: .current) ?? .enUS] {
+                    Text(explanation)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
                 Text("Enrolled since: \(enrollment.enrollmentDate, format: .dateTime)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

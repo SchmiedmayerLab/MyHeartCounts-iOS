@@ -1,5 +1,5 @@
 {
-  "originHash" : "2b8fe4cbbfa4180c302785d2e9a3b936879b338b28730b5d17fbb5e8dfcd00ae",
+  "originHash" : "ab1b0cbd6d6179b19a72d4f6d2d97f6d90e0b0e5304004838a0e0b7bef531188",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -132,8 +132,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordBDHG/MyHeartCounts-StudyDefinitions.git",
       "state" : {
-        "revision" : "dfab3741acc33ec2e5f4ff81835242e7dc1ecee6",
-        "version" : "0.1.17"
+        "revision" : "f4be9a090e4eb393b0c06e9ad2c818b6ddfd5853"
       }
     },
     {
@@ -249,8 +248,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziFoundation.git",
       "state" : {
-        "revision" : "14b71ec24d42463c273203556c3cbfc03ce04023",
-        "version" : "2.7.6"
+        "revision" : "09b0a95cef41e42e494f74f395d83a4dc9c6d159",
+        "version" : "2.7.7"
       }
     },
     {
@@ -303,8 +302,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziScheduler.git",
       "state" : {
-        "revision" : "5852948bc09fc2b0beed27384557939ad6396e1a",
-        "version" : "1.2.20"
+        "revision" : "73697463e97bca3511ef60cdbeb7ab469b935a5a"
       }
     },
     {
@@ -330,8 +328,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/StanfordSpezi/SpeziStudy.git",
       "state" : {
-        "revision" : "6820e023943c2665cb893ee5a0e9a98625b3561b",
-        "version" : "0.1.20"
+        "revision" : "e11803b1897930da7c374085606814e82622bdf3"
       }
     },
     {

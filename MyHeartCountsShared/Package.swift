@@ -19,11 +19,8 @@ var packageDeps: [Package.Dependency] = [
 
 #if !os(Linux)
 packageDeps += [
-    .package(url: "https://github.com/StanfordSpezi/SpeziStudy.git", from: "0.1.20"),
-    .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols.git", from: "7.0.0"),
-    // not actually used but we need to force the version until we update SpeziStudy
-    .package(url: "https://github.com/StanfordSpezi/SpeziStorage.git", from: "2.1.4"),
-    .package(url: "https://github.com/StanfordSpezi/SpeziScheduler.git", from: "1.2.20")
+    .package(url: "https://github.com/StanfordSpezi/SpeziStudy.git", .upToNextMinor(from: "0.2.2")),
+    .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols.git", from: "7.0.0")
 ]
 #endif
 
