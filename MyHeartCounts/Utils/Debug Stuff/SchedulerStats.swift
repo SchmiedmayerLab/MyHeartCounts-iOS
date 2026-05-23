@@ -27,7 +27,6 @@ struct SchedulerStats: View {
                 LabeledContent("# outcomes" as String, value: numOutcomes?.formatted(.number) ?? "n/a")
             }
             Section("# task versions" as String) {
-                let tasksById = (allTasks ?? []).grouped(by: \.id)
                 let taskVersionsByTask: [Task: Int] = (allTasks ?? []).mapIntoSet(\.firstVersion).reduce(into: [:]) {
                     $0[$1] = $1.firstVersion.allVersions.count { _ in true }
                 }

@@ -80,6 +80,7 @@
 		8052B87E2EB9FFDF005E2D8C /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1B2E144A180049798B /* SpeziStudy */; };
 		8052B87F2EB9FFDF005E2D8C /* SpeziStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1D2E144A180049798B /* SpeziStudyDefinition */; };
 		8054D98E2DE54F8900458CD9 /* MyHeartCountsWatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 8054D9842DE54F8800458CD9 /* MyHeartCountsWatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		806344F12FB3641C00BC868F /* SpeziTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 806344F02FB3641C00BC868F /* SpeziTesting */; };
 		807093742EBB48C90038A27F /* MyHeartCountsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 807093732EBB48C90038A27F /* MyHeartCountsShared */; };
 		80713BE52D93F48C00A2DB0A /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80713BE42D93F48C00A2DB0A /* SpeziStudy */; };
 		8076696E2D772C07001B980B /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 8076696D2D772C07001B980B /* Algorithms */; };
@@ -268,6 +269,7 @@
 				8052B8742EB9FFDF005E2D8C /* SpeziHealthKitBulkExport in Frameworks */,
 				80E6B9342EFAC1960037D4BB /* SpeziHealthKit in Frameworks */,
 				8052B8732EB9FFDF005E2D8C /* SpeziHealthKit in Frameworks */,
+				806344F12FB3641C00BC868F /* SpeziTesting in Frameworks */,
 				8004746F2EF066E100585753 /* SpeziFirebaseStorage in Frameworks */,
 				8052B8722EB9FFDF005E2D8C /* SpeziHealthKitUI in Frameworks */,
 				804C11D62ECA371A004783C3 /* SpeziValidation in Frameworks */,
@@ -334,6 +336,7 @@
 				A94DDFFD2CBD1190004930BD /* SpeziNotifications in Frameworks */,
 				807669772D772C40001B980B /* HashTreeCollections in Frameworks */,
 				809AEC3B2EA2BC8500997484 /* SpeziLocalStorage in Frameworks */,
+				80B7F0642FADF2940040F247 /* GRDB in Frameworks */,
 				80D596DC2F8303720029318F /* SpeziSensorKit in Frameworks */,
 				2FB099B62A875E2B00B20952 /* HealthKitOnFHIR in Frameworks */,
 				80E774A02D81B4B20035A0EE /* SpeziFirebaseAccountStorage in Frameworks */,
@@ -551,12 +554,17 @@
 				8047A8242F6205750094AAF3 /* SpeziLocalization */,
 				80D596DB2F8303720029318F /* SpeziSensorKit */,
 				802CB63E2F85177A0011907F /* AsyncAlgorithms */,
+<<<<<<< HEAD
 				801CAADB2FB5E5B10065DB84 /* MHCStudyDefinition */,
 				801CAADD2FB5E5B10065DB84 /* MHCStudyDefinitionExporter */,
 				80C4D94F2FC22E8F0081E4E7 /* SpeziStudy */,
 				80C4D9512FC22E8F0081E4E7 /* SpeziStudyDefinition */,
 				80C4D95A2FC231ED0081E4E7 /* MHCStudyDefinition */,
 				80C4D95C2FC231ED0081E4E7 /* MHCStudyDefinitionExporter */,
+=======
+				80B7F0632FADF2940040F247 /* GRDB */,
+				806344F02FB3641C00BC868F /* SpeziTesting */,
+>>>>>>> cd91155ab064825570d8d21f71ad0cb175154cb6
 			);
 			productName = MyHeartCounts;
 			productReference = 653A254D283387FE005D4D48 /* MyHeartCounts.app */;
@@ -711,8 +719,12 @@
 				8047A8212F6205740094AAF3 /* XCRemoteSwiftPackageReference "SpeziFoundation" */,
 				80D596DA2F8303720029318F /* XCRemoteSwiftPackageReference "SpeziSensorKit" */,
 				802CB63D2F85177A0011907F /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
+<<<<<<< HEAD
 				80C4D94E2FC22E8F0081E4E7 /* XCRemoteSwiftPackageReference "SpeziStudy" */,
 				80C4D9592FC231ED0081E4E7 /* XCRemoteSwiftPackageReference "MyHeartCounts-StudyDefinitions" */,
+=======
+				80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+>>>>>>> cd91155ab064825570d8d21f71ad0cb175154cb6
 			);
 			productRefGroup = 653A254E283387FE005D4D48 /* Products */;
 			projectDirPath = "";
@@ -881,7 +893,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -898,6 +910,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT = YES;
 				SWIFT_VERSION = 6.0;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Debug;
 		};
@@ -949,7 +962,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -966,6 +979,7 @@
 				SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT = YES;
 				SWIFT_VERSION = 6.0;
 				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Release;
 		};
@@ -983,7 +997,6 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "MyHeartCounts/Supporting Files/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1022,7 +1035,6 @@
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "MyHeartCounts/Supporting Files/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1051,7 +1063,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = edu.stanford.MyHeartCounts.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1072,7 +1083,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = edu.stanford.MyHeartCounts.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1092,7 +1102,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = edu.stanford.MyHeartCounts.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1112,7 +1121,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = edu.stanford.MyHeartCounts.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1153,7 +1161,6 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Debug;
 		};
@@ -1186,7 +1193,6 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Release;
 		};
@@ -1302,7 +1308,7 @@
 			repositoryURL = "https://github.com/StanfordSpezi/SpeziFirebase.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.9;
+				minimumVersion = 2.0.10;
 			};
 		};
 		8015C3582EB22EE400CA845E /* XCRemoteSwiftPackageReference "swift-nio" */ = {
@@ -1334,7 +1340,7 @@
 			repositoryURL = "https://github.com/StanfordSpezi/SpeziFoundation.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 2.7.5;
+				minimumVersion = 2.7.7;
 			};
 		};
 		804C11D42ECA371A004783C3 /* XCRemoteSwiftPackageReference "SpeziViews" */ = {
@@ -1423,6 +1429,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 3.1.4;
+			};
+		};
+		80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.10.0;
 			};
 		};
 		80B8A2112EC106A100F0E453 /* XCRemoteSwiftPackageReference "SpeziFHIR" */ = {
@@ -1767,6 +1781,11 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SpeziOnboarding;
 		};
+		806344F02FB3641C00BC868F /* SpeziTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F49B7742980407B00BCB272 /* XCRemoteSwiftPackageReference "Spezi" */;
+			productName = SpeziTesting;
+		};
 		8067823A2D9AD89600B40482 /* SpeziStudy */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SpeziStudy;
@@ -1884,6 +1903,19 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SpeziStudy;
 		};
+<<<<<<< HEAD
+=======
+		80A8F7F22EDB222400944D94 /* MHCStudyDefinitionExporter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 804C11E22ECA380D004783C3 /* XCRemoteSwiftPackageReference "MyHeartCounts-StudyDefinitions" */;
+			productName = MHCStudyDefinitionExporter;
+		};
+		80B7F0632FADF2940040F247 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
+		};
+>>>>>>> cd91155ab064825570d8d21f71ad0cb175154cb6
 		80B8A2122EC106A100F0E453 /* SpeziFHIR */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 80B8A2112EC106A100F0E453 /* XCRemoteSwiftPackageReference "SpeziFHIR" */;

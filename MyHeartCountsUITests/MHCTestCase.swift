@@ -85,7 +85,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
         app.launchArguments = Array {
             "--useFirebaseEmulator"
             testEnvironmentConfig.launchOptionArgs(for: .setupTestEnvironment)
-            studyBundleUrl.launchOptionArgs(for: .overrideStudyBundleLocation)
+            StudyBundleSelector.atUrl(studyBundleUrl).launchOptionArgs(for: .studyBundleSelector)
             "--disableAutomaticBulkHealthExport"
             enableDebugMode.launchOptionArgs(for: .forceEnableDebugMode)
             heightEntryUnitOverride.launchOptionArgs(for: .heightInputUnitOverride)

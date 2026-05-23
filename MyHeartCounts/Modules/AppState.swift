@@ -12,7 +12,7 @@ import Spezi
 
 @Observable
 @MainActor
-final class AppState: Module, EnvironmentAccessible, DefaultInitializable, Sendable {
+final class AppState: Module, EnvironmentAccessible, Sendable {
     /// Indicates that the user is currently in the process of being logged out.
     @MainActor private(set) var isLoggingOut = false
     

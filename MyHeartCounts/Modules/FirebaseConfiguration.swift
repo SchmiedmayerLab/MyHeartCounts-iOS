@@ -14,7 +14,7 @@ import SpeziFirebaseAccount
 import SpeziStudy
 
 
-final class FirebaseConfiguration: Module, EnvironmentAccessible, @unchecked Sendable {
+final class FirebaseConfiguration: Module, EnvironmentAccessible, DefaultInitializable, @unchecked Sendable {
     enum ConfigurationError: Error {
         case userNotAuthenticatedYet
     }

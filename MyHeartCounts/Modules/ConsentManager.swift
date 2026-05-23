@@ -38,9 +38,9 @@ final class ConsentManager: Module, EnvironmentAccessible, @unchecked Sendable {
     private func doUpdate() async {
         let studyBundle = withObservationTracking {
             studyBundleLoader.studyBundle?.value
-        } onChange: {
+        } onChange: { [weak self] in
             Task {
-                await self.doUpdate()
+                await self?.doUpdate()
             }
         }
         guard LocalPreferencesStore.standard[.onboardingFlowComplete] else {

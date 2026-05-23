@@ -45,6 +45,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(NotificationTracking.self) var notificationTracking
     @Dependency(Scheduler.self) var scheduler
     @Dependency(SensorKitDataFetcher.self) private var sensorKitFetcher
+    @Dependency(HealthUploadStaging.self) var healthUploadStaging
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
     @Dependency(AppState.self) private var appState
@@ -57,7 +58,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     func configure() {
         _Concurrency.Task {
             await handleIsLoggedOut()
-            await updateStudyDefinition()
+            await handleStudyBundleUpdates()
         }
     }
     
@@ -75,27 +76,6 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             } catch {
                 await logger.error("\(#function): \(error)")
             }
-        }
-    }
-    
-    func updateStudyDefinition() async {
-        guard let studyManager else {
-            return
-        }
-        defer {
-            // we still want this to happen if the study bundle loading below failed
-            _Concurrency.Task {
-                await Self._updateCurrentEnrollmentInfo(studyManager)
-            }
-        }
-        guard let studyBundle = try? await studyLoader.update() else {
-            return
-        }
-        logger.notice("Informing StudyManager about v\(studyBundle.studyDefinition.studyRevision) of MHC studyBundle")
-        do {
-            try await studyManager.informAboutStudies([studyBundle])
-        } catch {
-            logger.error("\(error)")
         }
     }
     
@@ -162,6 +142,42 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
 
 
 extension MyHeartCountsStandard {
+    func updateStudyDefinition() async {
+        // if this ends up updating the StudyBundle, it will trigger the observation tracking in the function below
+        _ = try? await studyLoader.update()
+    }
+    
+    private func handleStudyBundleUpdates() async {
+        let studyBundle = withObservationTracking {
+            studyLoader.studyBundle?.value
+        } onChange: { [weak self] in
+            Swift::Task { [weak self] in
+                await self?.handleStudyBundleUpdates()
+            }
+        }
+        guard let studyManager else {
+            return
+        }
+        defer {
+            // we still want this to happen if the study bundle loading below failed
+            _Concurrency.Task {
+                await Self._updateCurrentEnrollmentInfo(studyManager)
+            }
+        }
+        guard let studyBundle else {
+            return
+        }
+        do {
+            logger.notice("Informing StudyManager about v\(studyBundle.studyDefinition.studyRevision) of MHC studyBundle")
+            try await studyManager.informAboutStudies([studyBundle])
+        } catch {
+            logger.error("Error informing StudyManager about study bundle: \(error)")
+        }
+    }
+}
+
+
+extension MyHeartCountsStandard {
     private enum LogoutCleanupContext {
         /// The cleanup is triggered as part of the app's internal on-launch cleanup handling, bc the app noticed that no user is logged in.
         case onLaunchCleanupBcNoUser
@@ -189,6 +205,7 @@ extension MyHeartCountsStandard {
         // if the user wants to switch to a different region, the easiest approach currently is to just kill and relaunch the app.
         try? await managedFileUpload.clearPendingUploads()
         try? await historicalUploadManager.fullyResetSession(restart: false)
+        try? await healthUploadStaging.clear()
         await sensorKitFetcher.resetAllQueryAnchors()
         await clinicalRecordPermissions.resetTracking()
         LocalPreferencesStore.standard[.rejectedHomeTabPromptedActions] = nil
@@ -212,7 +229,9 @@ extension MyHeartCountsStandard {
         case .onLaunchCleanupBcNoUser:
             return
         case .explicitUserLogoutEvent:
-            break
+            // Schedule a firestore persistence cleanup for the nect launch.
+            // Ideally we'd have this run immediately, but it only works directly after firebase was loaded.
+            LocalPreferencesStore.standard[.shouldClearFirestoreCacheOnNextLaunch] = true
         }
         let isInTestEnvSetup = await setupTestEnvironment.isInSetup
         _Concurrency.Task {

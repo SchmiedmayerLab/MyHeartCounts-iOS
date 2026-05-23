@@ -96,6 +96,9 @@ struct Consent: View {
         guard consentDocument == nil else {
             return
         }
+        // NOTE: we need to get the StudyBundle from the StudyBundleLoader, instead of the StudyManager,
+        // since the app won't necessarily be already enrolled at this point.
+        // (it is if this is a Consent renewal, but not during the initial onboarding...)
         guard let studyBundle = try? studyLoader.studyBundle?.get(),
               let consentFileRef = studyBundle.studyDefinition.metadata.consentFileRef,
               let text = studyBundle.consentText(
