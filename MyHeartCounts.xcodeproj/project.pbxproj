@@ -24,8 +24,6 @@
 		800DF2412EBB4645001B9993 /* MyHeartCountsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 800DF2402EBB4645001B9993 /* MyHeartCountsShared */; };
 		8015C35A2EB22EE400CA845E /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8015C3592EB22EE400CA845E /* NIOCore */; };
 		8015C35C2EB22EE400CA845E /* NIOFoundationCompat in Frameworks */ = {isa = PBXBuildFile; productRef = 8015C35B2EB22EE400CA845E /* NIOFoundationCompat */; };
-		801CAADC2FB5E5B10065DB84 /* MHCStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 801CAADB2FB5E5B10065DB84 /* MHCStudyDefinition */; };
-		801CAADE2FB5E5B10065DB84 /* MHCStudyDefinitionExporter in Frameworks */ = {isa = PBXBuildFile; productRef = 801CAADD2FB5E5B10065DB84 /* MHCStudyDefinitionExporter */; };
 		802CB63F2F85177A0011907F /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 802CB63E2F85177A0011907F /* AsyncAlgorithms */; };
 		803166A62D75DE7700E9173B /* SpeziScheduler in Frameworks */ = {isa = PBXBuildFile; productRef = 803166A52D75DE7700E9173B /* SpeziScheduler */; };
 		8034CBE02DE6514700E7F9F6 /* Spezi in Frameworks */ = {isa = PBXBuildFile; productRef = 8034CBDF2DE6514700E7F9F6 /* Spezi */; };
@@ -97,6 +95,7 @@
 		80A0083F2DEFD0B300A446BA /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 80A0083E2DEFD0B300A446BA /* Collections */; };
 		80A008462DEFD0F900A446BA /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = 80A008452DEFD0F900A446BA /* OrderedCollections */; };
 		80A72D7D2F377E90006B6EAD /* SensorKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80A72D7C2F377E90006B6EAD /* SensorKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		80B7F0642FADF2940040F247 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 80B7F0632FADF2940040F247 /* GRDB */; };
 		80B8A2132EC106A100F0E453 /* SpeziFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2122EC106A100F0E453 /* SpeziFHIR */; };
 		80B8A2152EC106A100F0E453 /* SpeziFHIRHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2142EC106A100F0E453 /* SpeziFHIRHealthKit */; };
 		80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2352EC1336F00F0E453 /* ModelsDSTU2 */; };
@@ -281,14 +280,12 @@
 				8052B86D2EB9FFDF005E2D8C /* SpeziStudy in Frameworks */,
 				8052B86C2EB9FFDF005E2D8C /* SpeziStudy in Frameworks */,
 				8052B86B2EB9FFDF005E2D8C /* SpeziStudy in Frameworks */,
-				801CAADE2FB5E5B10065DB84 /* MHCStudyDefinitionExporter in Frameworks */,
 				8052B86A2EB9FFDF005E2D8C /* SpeziOnboarding in Frameworks */,
 				800474692EF066E100585753 /* SpeziFirebaseAccount in Frameworks */,
 				8052B8692EB9FFDF005E2D8C /* SpeziFirebaseAccount in Frameworks */,
 				8052B8682EB9FFDF005E2D8C /* SpeziStudy in Frameworks */,
 				8052B8672EB9FFDF005E2D8C /* SpeziOnboarding in Frameworks */,
 				80B8A2132EC106A100F0E453 /* SpeziFHIR in Frameworks */,
-				801CAADC2FB5E5B10065DB84 /* MHCStudyDefinition in Frameworks */,
 				80C4D95D2FC231ED0081E4E7 /* MHCStudyDefinitionExporter in Frameworks */,
 				80C4D95B2FC231ED0081E4E7 /* MHCStudyDefinition in Frameworks */,
 				8052B8662EB9FFDF005E2D8C /* SpeziHealthKitUI in Frameworks */,
@@ -554,17 +551,12 @@
 				8047A8242F6205750094AAF3 /* SpeziLocalization */,
 				80D596DB2F8303720029318F /* SpeziSensorKit */,
 				802CB63E2F85177A0011907F /* AsyncAlgorithms */,
-<<<<<<< HEAD
-				801CAADB2FB5E5B10065DB84 /* MHCStudyDefinition */,
-				801CAADD2FB5E5B10065DB84 /* MHCStudyDefinitionExporter */,
+				80B7F0632FADF2940040F247 /* GRDB */,
+				806344F02FB3641C00BC868F /* SpeziTesting */,
 				80C4D94F2FC22E8F0081E4E7 /* SpeziStudy */,
 				80C4D9512FC22E8F0081E4E7 /* SpeziStudyDefinition */,
 				80C4D95A2FC231ED0081E4E7 /* MHCStudyDefinition */,
 				80C4D95C2FC231ED0081E4E7 /* MHCStudyDefinitionExporter */,
-=======
-				80B7F0632FADF2940040F247 /* GRDB */,
-				806344F02FB3641C00BC868F /* SpeziTesting */,
->>>>>>> cd91155ab064825570d8d21f71ad0cb175154cb6
 			);
 			productName = MyHeartCounts;
 			productReference = 653A254D283387FE005D4D48 /* MyHeartCounts.app */;
@@ -719,12 +711,9 @@
 				8047A8212F6205740094AAF3 /* XCRemoteSwiftPackageReference "SpeziFoundation" */,
 				80D596DA2F8303720029318F /* XCRemoteSwiftPackageReference "SpeziSensorKit" */,
 				802CB63D2F85177A0011907F /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
-<<<<<<< HEAD
+				80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 				80C4D94E2FC22E8F0081E4E7 /* XCRemoteSwiftPackageReference "SpeziStudy" */,
 				80C4D9592FC231ED0081E4E7 /* XCRemoteSwiftPackageReference "MyHeartCounts-StudyDefinitions" */,
-=======
-				80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
->>>>>>> cd91155ab064825570d8d21f71ad0cb175154cb6
 			);
 			productRefGroup = 653A254E283387FE005D4D48 /* Products */;
 			projectDirPath = "";
@@ -1618,14 +1607,6 @@
 			package = 8015C3582EB22EE400CA845E /* XCRemoteSwiftPackageReference "swift-nio" */;
 			productName = NIOFoundationCompat;
 		};
-		801CAADB2FB5E5B10065DB84 /* MHCStudyDefinition */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = MHCStudyDefinition;
-		};
-		801CAADD2FB5E5B10065DB84 /* MHCStudyDefinitionExporter */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = MHCStudyDefinitionExporter;
-		};
 		802141582D81F14000BF5D35 /* SpeziOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SpeziOnboarding;
@@ -1903,19 +1884,11 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SpeziStudy;
 		};
-<<<<<<< HEAD
-=======
-		80A8F7F22EDB222400944D94 /* MHCStudyDefinitionExporter */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 804C11E22ECA380D004783C3 /* XCRemoteSwiftPackageReference "MyHeartCounts-StudyDefinitions" */;
-			productName = MHCStudyDefinitionExporter;
-		};
 		80B7F0632FADF2940040F247 /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
 		};
->>>>>>> cd91155ab064825570d8d21f71ad0cb175154cb6
 		80B8A2122EC106A100F0E453 /* SpeziFHIR */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 80B8A2112EC106A100F0E453 /* XCRemoteSwiftPackageReference "SpeziFHIR" */;
