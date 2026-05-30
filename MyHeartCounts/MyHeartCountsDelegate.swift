@@ -66,6 +66,7 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             NotificationsManager()
             AccountFeatureFlags()
             DemoSetup()
+            ParticipationStatsProvider()
             AchievementsManager()
         }
     }

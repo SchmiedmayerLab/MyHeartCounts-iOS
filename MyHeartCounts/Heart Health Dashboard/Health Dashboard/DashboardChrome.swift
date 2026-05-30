@@ -81,7 +81,7 @@ struct TiledSection<Tiles: View>: View {
 
     init(_ title: LocalizedStringResource, symbol: SFSymbol? = nil, @ViewBuilder tiles: () -> Tiles) {
         self.title = title
-        self.symbol = nil //symbol
+        self.symbol = nil // symbol
         self.tiles = tiles()
     }
 }

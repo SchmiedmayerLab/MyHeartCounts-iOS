@@ -11,7 +11,8 @@ import SwiftUI
 
 
 struct AchievementIcon: View {
-    @Environment(AchievementsManager.self) private var manager
+    @Environment(AchievementsManager.self)
+    private var manager
     
     let achievement: Achievement
     
@@ -30,9 +31,9 @@ struct AchievementIcon: View {
             if let symbol {
                 Image(systemSymbol: symbol)
                     .imageScale(.small)
+                    .accessibilityHidden(true)
             }
         }
         .frame(width: 40, height: 40)
     }
 }
-

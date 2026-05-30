@@ -37,4 +37,3 @@ struct Badge<Label: View>: View {
         }
     }
 }
-
