@@ -170,6 +170,16 @@
         }
       }
     },
+    "%@ / %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ / %2$@"
+          }
+        }
+      }
+    },
     "%@ %@" : {
       "localizations" : {
         "en" : {
@@ -183,9 +193,6 @@
     },
     "%@ +" : {
       "shouldTranslate" : false
-    },
-    "%@ days" : {
-
     },
     "%@-Minute Run Test" : {
       "localizations" : {
@@ -900,6 +907,9 @@
           }
         }
       }
+    },
+    "Achievements" : {
+
     },
     "Active" : {
       "localizations" : {
@@ -6232,9 +6242,6 @@
         }
       }
     },
-    "Participation Stats" : {
-
-    },
     "Past 2 Weeks" : {
       "localizations" : {
         "en-GB" : {
@@ -8025,6 +8032,9 @@
         }
       }
     },
+    "Stats and Achievements" : {
+
+    },
     "Steps" : {
       "localizations" : {
         "en-GB" : {
@@ -8709,6 +8719,9 @@
         }
       }
     },
+    "Upcoming Achievements" : {
+
+    },
     "US State / Region" : {
       "localizations" : {
         "en-GB" : {
@@ -8868,6 +8881,9 @@
           }
         }
       }
+    },
+    "w" : {
+
     },
     "Wales (%@)" : {
       "localizations" : {

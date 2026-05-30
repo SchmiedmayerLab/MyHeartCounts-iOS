@@ -7,12 +7,13 @@
 //
 
 // periphery:ignore:all - currently unused but supported (we keep it in case we want to go down this route in the future)
+// swiftlint:disable all
 
 import Foundation
 import HealthKit
 
 
-struct Achievement: Hashable, Codable, Sendable {
+struct LegacyAchievement: Hashable, Codable, Sendable {
     enum Goal: Hashable, Codable, Sendable {
         enum ReachLevelTarget: Hashable, Codable, Sendable { // swiftlint:disable:this type_contents_order
             case absolute(Double)
@@ -32,7 +33,7 @@ struct Achievement: Hashable, Codable, Sendable {
 }
 
 
-extension Achievement {
+extension LegacyAchievement {
     enum ResolvedGoal: Hashable, Sendable {
         /// The goal is achieved by reaching (or surpassing) a specified quantity.
         /// - parameter quantity: The target quantity

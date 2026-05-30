@@ -191,7 +191,7 @@ final class ScoreDefinition: Hashable, Sendable, AnyObjectBasedDefaultImpls {
 
 struct ScoreResult: Hashable, Sendable {
     /// a user-visible title that explains the kind of this score result, e.g. "Most Recent Sample" or "Daily Average"
-    let title: LocalizedStringResource
+    let title: LocalizedStringResource // rename?!!
     let definition: ScoreDefinition
     let sampleType: MHCSampleType
     @MakeHashable var inputValue: (any Hashable & Sendable)?
