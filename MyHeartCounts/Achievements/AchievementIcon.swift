@@ -17,10 +17,8 @@ struct AchievementIcon: View {
     let achievement: Achievement
     
     var body: some View {
-        ZStack {
-            let progress = manager.unlockProgress(of: achievement)
-            CircularProgressView(progress, lineWidth: 3)
-                .tint(.green)
+        let progress = manager.unlockProgress(of: achievement)
+        CircularProgressView(progress, lineWidth: 3) {
             let symbol: SFSymbol? = if progress >= 1 {
                 achievement.symbol
             } else if achievement.visibility == .secret {
@@ -34,6 +32,7 @@ struct AchievementIcon: View {
                     .accessibilityHidden(true)
             }
         }
+        .tint(.green)
         .frame(width: 40, height: 40)
     }
 }
