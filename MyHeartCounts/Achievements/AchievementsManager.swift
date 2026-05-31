@@ -160,7 +160,7 @@ struct Achievement: Identifiable, Sendable {
         /// sees the immediate next goal plus the levels they've already unlocked — later levels stay hidden.
         /// - Important: An achievement using this visibility **must** have a ``Achievement/subcategory``;
         ///     "next" is undefined without a ladder.
-        case secretUnlessNext
+        case secretUnlessNextInLadder
     }
     
     enum Icon: Sendable {
@@ -201,13 +201,11 @@ struct AchievementsState: Codable {
     }
     
     var triggerEvents: [TriggerEvent]
-//    var triggerCounts: [Achievement.Trigger: Int]
     /// - Note: "metric" here is not referring to the metric system, and rather to the fact that each entry belongs to some metric.
     var metricObservations: [Achievement.Metric: MetricObservation]
     
     init() {
         triggerEvents = []
-//        triggerCounts = [:]
         metricObservations = [:]
     }
 }
@@ -270,7 +268,7 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
             var seenIds = _achievements.mapIntoSet(\.id)
             for new in newEntries where seenIds.insert(new.id).inserted {
                 assert(
-                    new.visibility != .secretUnlessNext || new.subcategory != nil,
+                    new.visibility != .secretUnlessNextInLadder || new.subcategory != nil,
                     "Achievement '\(new.id)' is .secretUnlessNext but has no subcategory — 'next' is undefined without a ladder."
                 )
                 self._achievements.append(new)
@@ -535,7 +533,7 @@ extension AchievementsManager {
                 switch achievement.visibility {
                 case .internal, .secret:
                     return nil
-                case .always, .secretUnlessNext:
+                case .always, .secretUnlessNextInLadder:
                     break
                 }
                 guard case .locked(let progress, let lastUpdate) = self.state(of: achievement) else {

@@ -31,20 +31,10 @@ struct AchievementsView: View {
                 }
             }
             ForEach(allCategories) { category in
-                if let achievements = achievementsByCategory[category], !achievements.isEmpty {
+                if let achievements = achievementsByCategory[category]?.filter(shouldDisplay), !achievements.isEmpty {
                     Section(category.title) {
                         ForEach(achievements) { (achievement: Achievement) in
-                            switch achievement.visibility {
-                            case .always, .secret:
-                                AchievementRow(achievement: achievement)
-                            case .internal:
-                                EmptyView()
-                            case .secretUnlessNext:
-                                // check if this is the first locked one in the category
-                                if shouldDisplay(achievement) {
-                                    AchievementRow(achievement: achievement)
-                                }
-                            }
+                            AchievementRow(achievement: achievement)
                         }
                     }
                 }
@@ -57,7 +47,15 @@ struct AchievementsView: View {
     /// locked level of its ladder. Unlike the "what's next" rail, this only collapses `.secretUnlessNext`
     /// ladders — `.always` ladders show every level here.
     private func shouldDisplay(_ achievement: Achievement) -> Bool {
-        manager.didUnlock(achievement) || manager.isNextLockedLevel(achievement)
+        switch achievement.visibility {
+        case .always, .secret:
+            true
+        case .internal:
+            false
+        case .secretUnlessNextInLadder:
+            // check if this is the first locked one in the category
+            manager.didUnlock(achievement) || manager.isNextLockedLevel(achievement)
+        }
     }
 }
 

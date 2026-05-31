@@ -158,7 +158,7 @@ extension Achievement {
                     title: title,
                     description: "Walk \((count * 1000).formatted(.number)) steps in a day",
                     symbol: .figureWalk,
-                    visibility: .secretUnlessNext
+                    visibility: .secretUnlessNextInLadder
                 )
             }
             
@@ -184,7 +184,7 @@ extension Achievement {
                         title: Self.anniversaryNames[idx],
                         description: "Cross \(durationText) of study enrollment",
                         symbol: input.symbol,
-                        visibility: .secretUnlessNext
+                        visibility: .secretUnlessNextInLadder
                     )
                 }
             }
