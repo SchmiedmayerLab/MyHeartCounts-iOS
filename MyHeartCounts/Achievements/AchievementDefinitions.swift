@@ -6,13 +6,11 @@
 // SPDX-License-Identifier: MIT
 //
 
-// swiftlint:disable all
-
-// TODO ideally we'd also have some of these achievements, when displayed in the UI, be buttons that directly take the user to where they can perform the action that would give them the acheivement, or maybe even directly initiates the thing?!
+// IDEA ideally we'd also have some of these achievements, when displayed in the UI, be buttons that directly take the user to where they can perform the action that would give them the acheivement, or maybe even directly initiates the thing?!
 
 import Foundation
-import SpeziFoundation
 import SFSafeSymbols
+import SpeziFoundation
 
 
 extension Achievement.Category {
@@ -76,23 +74,10 @@ extension Achievement.Metric {
         id: "step-count-daily",
         rule: .atLeast(base: 0)
     )
-    
-//    static let walkRunDistanceDaily = Self(
-//        id: "distance-walking-running-daily-meters",
-//        rule: .atLeast(base: 0)
-//    )
 }
 
 
 extension Achievement {
-    // TODO switch to fancy new Date.ComponentsFormatStyle?!!!(!)
-    private static let durationFmt: DateComponentsFormatter = {
-        let fmt = DateComponentsFormatter()
-        fmt.unitsStyle = .full
-        fmt.allowedUnits = [.weekOfMonth, .month, .year]
-        return fmt
-    }()
-    
     private struct EnrollmentDurationAchievementInput {
         let metric: Metric
         let component: Calendar.Component
@@ -107,8 +92,15 @@ extension Achievement {
         }
     }
     
-    static func registerDefaultAchievements(with manager: AchievementsManager) {
-        manager.register(achievements: Array {
+    private static let durationFmt: DateComponentsFormatter = {
+        let fmt = DateComponentsFormatter()
+        fmt.unitsStyle = .full
+        fmt.allowedUnits = [.weekOfMonth, .month, .year]
+        return fmt
+    }()
+    
+    static func registerDefaultAchievements(with manager: AchievementsManager) { // swiftlint:disable:this function_body_length
+        manager.register(achievements: Array { // swiftlint:disable:this closure_body_length
             Self(
                 id: "first-questionnaire",
                 category: .appUsage,
@@ -150,13 +142,13 @@ extension Achievement {
                 visibility: .always
             )
             
-            for (count, title) in [
+            for (count, title): (Int, LocalizedStringResource) in [
                 (10, "I'm walking here!"),
                 (15, "Super Streaker"),
                 (20, "Mega Streaker"),
                 (30, "Giga Streaker"),
                 (40, "Uber Streaker"),
-                (50, "The Humble Walker"),
+                (50, "The Humble Walker")
             ] {
                 Self(
                     id: "step-count-daily-\(count)k",
@@ -183,24 +175,27 @@ extension Achievement {
             
             // participation streaks
             for (idx, input) in enrollmentDurationAchievementInputs.enumerated() {
-                let durationText = Self.durationFmt.string(from: DateComponents(component: input.component, value: input.count)) ?? "TODOTODOTODO"
-                Achievement(
-                    id: "participation-streak-\(input.count)-\(input.component)",
-                    category: .studyParticipation,
-                    subcategory: .enrollmentDuration,
-                    kind: .threshold(metric: input.metric, target: Double(input.count)),
-                    title: Self.anniversaryNames[idx],
-                    description: "Cross \(durationText) of study enrollment",
-                    symbol: input.symbol,
-                    visibility: .secretUnlessNext
-                )
+                if let durationText = Self.durationFmt.string(from: DateComponents(component: input.component, value: input.count)) {
+                    Achievement(
+                        id: "participation-streak-\(input.count)-\(input.component)",
+                        category: .studyParticipation,
+                        subcategory: .enrollmentDuration,
+                        kind: .threshold(metric: input.metric, target: Double(input.count)),
+                        title: Self.anniversaryNames[idx],
+                        description: "Cross \(durationText) of study enrollment",
+                        symbol: input.symbol,
+                        visibility: .secretUnlessNext
+                    )
+                }
             }
         })
     }
-    
-    
+}
+
+
+extension Achievement {
     /// source: https://en.wikipedia.org/wiki/Wedding_anniversary#Traditional_anniversary_gifts
-    private static let anniversaryNames: [String] = [ // TODO localize
+    private static let anniversaryNames: [LocalizedStringResource] = [
         "Paper Anniversary",
         "Cotton Anniversary",
         "Leather Anniversary",
@@ -229,7 +224,6 @@ extension Achievement {
     
     private static let enrollmentDurationAchievementInputs: [EnrollmentDurationAchievementInput] = [
         .init(.enrollmentDurationInWeeks, .weekOfYear, 1, .calendar),
-//        .init(metric: .enrollmentDurationInWeeks, component: .weekOfYear, count: 2, symbol: .calendar),
         .init(.enrollmentDurationInMonths, .month, 1, .calendar),
         .init(.enrollmentDurationInMonths, .month, 3, .calendar),
         .init(.enrollmentDurationInMonths, .month, 6, .calendar),
@@ -243,7 +237,7 @@ extension Achievement {
 
 
 extension DateComponents {
-    init(component: Calendar.Component, value: Int) {
+    fileprivate init(component: Calendar.Component, value: Int) {
         self.init()
         setValue(value, for: component)
     }

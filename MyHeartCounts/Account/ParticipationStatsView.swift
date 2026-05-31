@@ -53,7 +53,7 @@ struct ParticipationStatsView: View {
                 Button {
                     isShowingExplainerSheet = true
                 } label: {
-                    Label("Info" as String, systemSymbol: .infoCircle)
+                    Label("Info", systemSymbol: .infoCircle)
                         .labelStyle(.iconOnly)
                 }
             }
@@ -70,7 +70,7 @@ struct ParticipationStatsView: View {
                     .background(.red)
                     .padding(.horizontal)
                 }
-                .navigationTitle("Info" as String) // ???
+                .navigationTitle("Info")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -222,21 +222,28 @@ extension ParticipationStatsView {
     
     @ViewBuilder
     private func personalBestsSection(using stats: ParticipationStatsProvider.HealthStats.PersonalBests?) -> some View {
+        let dateFormat: Date.FormatStyle = .dateTime.month(.abbreviated).day()
         StatCard(
             title: "Best Step Day",
             value: stats?.bestDailySteps?.value,
             format: .compactNumber,
             symbol: .figureWalk,
             accentColor: .green,
-            subtitle: (stats?.bestDailySteps?.date).map { formatBestDate($0) }
+            subtitle: stats?.bestDailySteps?.date.formatted(dateFormat)
         )
         StatCard(
             title: "Longest Workout",
-            value: stats?.longestWorkoutDuration?.value.value,
+            value: stats?.longestWorkout?.duration.value,
             format: .duration,
             symbol: .stopwatchFill,
             accentColor: .blue,
-            subtitle: (stats?.longestWorkoutDuration?.date).map { formatBestDate($0) }
+            subtitle: { () -> String in
+                let components: [String?] = [
+                    stats?.longestWorkout?.date.formatted(dateFormat),
+                    stats?.longestWorkout?.activityType.displayTitle.localizedString()
+                ]
+                return components.lazy.compactMap(\.self).joined(separator: " • ")
+            }()
         )
         StatCard(
             title: "Max Heart Rate",
@@ -279,15 +286,6 @@ extension ParticipationStatsView {
 // MARK: - Helpers
 
 extension ParticipationStatsView {
-    private func activeDaysSubtitle(active: Int, totalDays: Int) -> String {
-        let percent = totalDays > 0 ? Double(active) / Double(totalDays) : 0
-        return "\(percent.formatted(.percent.precision(.fractionLength(0)))) of days"
-    }
-    
-    private func formatBestDate(_ date: Date) -> String {
-        date.formatted(.dateTime.month(.abbreviated).day())
-    }
-    
     private func makeFunFacts() -> [FunFact]? { // swiftlint:disable:this function_body_length discouraged_optional_collection
         var facts: [FunFact] = []
         if let steps = stats?.health.totalSteps, steps > 0 {

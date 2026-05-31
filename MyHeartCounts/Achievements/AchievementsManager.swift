@@ -92,7 +92,7 @@ struct Achievement: Identifiable, Sendable {
     
     struct Category: Identifiable, Hashable, Sendable {
         let id: String
-        let title: String // TODO localized!
+        let title: LocalizedStringResource
     }
     
     struct Subcategory: Identifiable, Hashable, Sendable {
@@ -171,8 +171,8 @@ struct Achievement: Identifiable, Sendable {
     let category: Category
     let subcategory: Subcategory?
     let kind: Kind
-    let title: String // TODO localized!
-    let description: String // TODO localized!
+    let title: LocalizedStringResource
+    let description: LocalizedStringResource
     let symbol: SFSymbol
     let visibility: Visibility
 }

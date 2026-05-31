@@ -1416,6 +1416,9 @@
     "bpm" : {
 
     },
+    "Bronze Anniversary" : {
+
+    },
     "California" : {
       "localizations" : {
         "en-GB" : {
@@ -1463,6 +1466,9 @@
           }
         }
       }
+    },
+    "Cardio Connoisseur" : {
+
     },
     "Carotid Artery Blockage/Stenosis" : {
       "localizations" : {
@@ -1633,6 +1639,9 @@
           }
         }
       }
+    },
+    "Complete your first questionnaire" : {
+
     },
     "COMPREHENSION_QUESTION_1" : {
       "localizations" : {
@@ -1888,6 +1897,15 @@
         }
       }
     },
+    "Cooper Trooper" : {
+
+    },
+    "Copper Anniversary" : {
+
+    },
+    "Coral Anniversary" : {
+
+    },
     "Coronary Artery Disease" : {
       "localizations" : {
         "en-GB" : {
@@ -1935,6 +1953,15 @@
           }
         }
       }
+    },
+    "Cotton Anniversary" : {
+
+    },
+    "Cross %@ of study enrollment" : {
+
+    },
+    "Crystal Anniversary" : {
+
     },
     "Current Streak" : {
 
@@ -2164,6 +2191,9 @@
           }
         }
       }
+    },
+    "Diamond Anniversary" : {
+
     },
     "Did Opt In to Trial" : {
       "localizations" : {
@@ -2506,6 +2536,9 @@
         }
       }
     },
+    "Emerald Anniversary" : {
+
+    },
     "Enable" : {
       "localizations" : {
         "en-GB" : {
@@ -2642,6 +2675,9 @@
           }
         }
       }
+    },
+    "Enroll into the study" : {
+
     },
     "Enrolled since" : {
 
@@ -3120,6 +3156,9 @@
         }
       }
     },
+    "Flower Anniversary" : {
+
+    },
     "For more information and updates, visit myheartcounts.stanford.edu" : {
       "localizations" : {
         "en-GB" : {
@@ -3287,6 +3326,9 @@
         }
       }
     },
+    "General" : {
+
+    },
     "Georgia" : {
       "localizations" : {
         "en-GB" : {
@@ -3302,6 +3344,9 @@
           }
         }
       }
+    },
+    "Giga Streaker" : {
+
     },
     "Go to next field" : {
       "localizations" : {
@@ -3334,6 +3379,9 @@
           }
         }
       }
+    },
+    "Gold Anniversary" : {
+
     },
     "Grade School" : {
       "localizations" : {
@@ -3398,6 +3446,9 @@
           }
         }
       }
+    },
+    "Health" : {
+
     },
     "Health Records" : {
       "localizations" : {
@@ -3891,6 +3942,9 @@
         }
       }
     },
+    "I'm walking here!" : {
+
+    },
     "Idaho" : {
       "localizations" : {
         "en-GB" : {
@@ -4015,6 +4069,9 @@
         }
       }
     },
+    "Info" : {
+
+    },
     "Install on Apple Watch" : {
       "localizations" : {
         "en-GB" : {
@@ -4079,6 +4136,9 @@
         }
       }
     },
+    "Iron Anniversary" : {
+
+    },
     "Is selected" : {
       "localizations" : {
         "en-GB" : {
@@ -4094,6 +4154,9 @@
           }
         }
       }
+    },
+    "Ivory Anniversary" : {
+
     },
     "Kansas" : {
       "localizations" : {
@@ -4126,6 +4189,9 @@
           }
         }
       }
+    },
+    "Lace Anniversary" : {
+
     },
     "Language" : {
       "localizations" : {
@@ -4467,6 +4533,9 @@
         }
       }
     },
+    "Leather Anniversary" : {
+
+    },
     "Less than $15,000" : {
       "localizations" : {
         "en-GB" : {
@@ -4688,6 +4757,9 @@
       }
     },
     "Max Heart Rate" : {
+
+    },
+    "Mega Streaker" : {
 
     },
     "Mental Well Being" : {
@@ -6239,6 +6311,9 @@
         }
       }
     },
+    "Paper Anniversary" : {
+
+    },
     "Past 2 Weeks" : {
       "localizations" : {
         "en-GB" : {
@@ -6308,6 +6383,12 @@
           }
         }
       }
+    },
+    "Pearl Anniversary" : {
+
+    },
+    "Pedestrian Pioneer" : {
+
     },
     "Pennsylvania" : {
       "localizations" : {
@@ -6425,6 +6506,9 @@
         }
       }
     },
+    "Porcelain Anniversary" : {
+
+    },
     "POST_TRIAL_ACTIVITY_NUDGES_TOGGLE_SUBTITLE" : {
       "localizations" : {
         "en" : {
@@ -6478,6 +6562,9 @@
           }
         }
       }
+    },
+    "Pottery Anniversary" : {
+
     },
     "Prefer not to state" : {
       "localizations" : {
@@ -6642,6 +6729,9 @@
           }
         }
       }
+    },
+    "Questionnaire Extraordinaire" : {
+
     },
     "Quit 1 to 5 years ago" : {
       "localizations" : {
@@ -7161,6 +7251,15 @@
         }
       }
     },
+    "Record your first ECG" : {
+
+    },
+    "Record your first Run Test" : {
+
+    },
+    "Record your first Walk Test" : {
+
+    },
     "Region" : {
       "localizations" : {
         "en-GB" : {
@@ -7276,6 +7375,9 @@
         }
       }
     },
+    "Ruby Anniversary" : {
+
+    },
     "Running" : {
       "localizations" : {
         "en-GB" : {
@@ -7307,6 +7409,9 @@
           }
         }
       }
+    },
+    "Sapphire Anniversary" : {
+
     },
     "Save" : {
       "localizations" : {
@@ -7684,6 +7789,12 @@
         }
       }
     },
+    "Silk Anniversary" : {
+
+    },
+    "Silver Anniversary" : {
+
+    },
     "Sleep" : {
 
     },
@@ -8032,6 +8143,9 @@
     "Stats and Achievements" : {
 
     },
+    "Steel Anniversary" : {
+
+    },
     "Steps" : {
       "localizations" : {
         "en-GB" : {
@@ -8143,6 +8257,9 @@
           }
         }
       }
+    },
+    "Super Streaker" : {
+
     },
     "Surveys Answered" : {
 
@@ -8352,6 +8469,9 @@
         }
       }
     },
+    "The Humble Walker" : {
+
+    },
     "The My Heart Counts study isn't yet available in %@.\n\nAdd your email below and we'll update you when it launches in your region." : {
       "localizations" : {
         "en-GB" : {
@@ -8514,6 +8634,9 @@
         }
       }
     },
+    "Tin Anniversary" : {
+
+    },
     "Today" : {
       "localizations" : {
         "en-GB" : {
@@ -8619,6 +8742,9 @@
           }
         }
       }
+    },
+    "Uber Streaker" : {
+
     },
     "UK Region" : {
       "localizations" : {
@@ -8901,6 +9027,9 @@
     "Walk / Run Tests" : {
 
     },
+    "Walk %@ steps in a day" : {
+
+    },
     "Walking" : {
       "localizations" : {
         "en-GB" : {
@@ -8996,6 +9125,9 @@
           }
         }
       }
+    },
+    "Welcome to the fold" : {
+
     },
     "WELCOME_AREA1_DESCRIPTION" : {
       "localizations" : {
@@ -9181,6 +9313,9 @@
         }
       }
     },
+    "Wood Anniversary" : {
+
+    },
     "Workout Preference" : {
       "localizations" : {
         "en-GB" : {
@@ -9215,6 +9350,941 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "My Heart Counts te enviará notificaciones personalizadas para ayudarte a mantenerte activo/a. Indícanos qué entrenamientos prefieres y cuándo durante el día desea recibir recordatorios. Esto nos ayuda a adaptar tu experiencia a tu horario y objetivos."
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_AMERICAN_FOOTBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "American Football"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_ARCHERY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Archery"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_AUSTRALIAN_FOOTBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Australian Football"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BADMINTON" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Badminton"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BARRE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Barre"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BASEBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Baseball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BASKETBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Basketball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BOWLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Bowling"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BOXING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Boxing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CARDIO_DANCE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cardio Dance"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CLIMBING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Climbing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_COOLDOWN" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cooldown"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CORE_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Core Training"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CRICKET" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cricket"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CROSS_COUNTRY_SKIING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cross Country Skiing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CROSS_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cross Training"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CURLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Curling"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CYCLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cycling"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_DANCE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dance"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_DANCE_INSPIRED_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dance Inspired Training"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_DISC_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Disc Sports"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_DOWNHILL_SKIING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Downhill Skiing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_ELLIPTICAL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Elliptical"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_EQUESTRIAN_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Equestrian Sports"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FENCING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fencing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FISHING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fishing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FITNESS_GAMING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fitness Gaming"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FLEXIBILITY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flexibility"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FUNCTIONAL_STRENGTH_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Functional Strength Training"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_GOLF" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Golf"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_GYMNASTICS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Gymnastics"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HAND_CYCLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hand Cycling"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HANDBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Handball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "High Intensity Interval Training"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HIKING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hiking"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HOCKEY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hockey"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HUNTING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hunting"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_JUMP_ROPE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Jump Rope"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_KICKBOXING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Kickboxing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_LACROSSE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Lacrosse"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_MARTIAL_ARTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Martial Arts"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_MIND_AND_BODY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mind and Body"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_MIXED_CARDIO" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mixed Cardio"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_MIXED_METABOLIC_CARDIO_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mixed Metabolic Cardio Training"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_OTHER" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Other"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PADDLE_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Paddle Sports"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PICKLEBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pickleball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PILATES" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pilates"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PLAY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Play"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PREPARATION_AND_RECOVERY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Preparation and Recovery"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_RACQUETBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Racquetball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_ROWING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rowing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_RUGBY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rugby"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_RUNNING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Running"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SAILING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Sailing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SKATING_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Skating Sports"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SNOW_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Snow Sports"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SNOWBOARDING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Snowboarding"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SOCCER" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Soccer"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SOCIAL_DANCE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Social Dance"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SOFTBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Softball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SQUASH" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Squash"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_STAIR_CLIMBING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Stair Climbing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_STAIRS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Stairs"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_STEP_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step Training"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SURFING_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Surfing Sports"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SWIM_BIKE_RUN" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Swim Bike Run"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SWIMMING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Swimming"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TABLE_TENNIS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Table Tennis"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TAI_CHI" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Tai Chi"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TENNIS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Tennis"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TRACK_AND_FIELD" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Track and Field"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TRADITIONAL_STRENGTH_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Traditional Strength Training"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TRANSITION" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Transition"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_UNDERWATER_DIVING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Underwater Diving"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_UNKNOWN" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Workout"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_VOLLEYBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Volleyball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WALKING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Walking"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WATER_FITNESS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Water Fitness"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WATER_POLO" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Water Polo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WATER_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Water Sports"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WHEELCHAIR_RUN_PACE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Wheelchair Run Pace"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WHEELCHAIR_WALK_PACE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Wheelchair Walk Pace"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WRESTLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Wrestling"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_YOGA" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Yoga"
           }
         }
       }

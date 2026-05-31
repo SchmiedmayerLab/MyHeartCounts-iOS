@@ -63,6 +63,12 @@ extension ParticipationStatsProvider {
             let totalDuration: Measurement<UnitDuration>
         }
         
+        struct LongestWorkoutInfo {
+            let date: Date
+            let activityType: HKWorkoutActivityType
+            let duration: Measurement<UnitDuration>
+        }
+        
         struct PersonalBests: Sendable {
             struct Entry<Value: Sendable>: Sendable { // swiftlint:disable:this nesting
                 let date: Date
@@ -74,7 +80,7 @@ extension ParticipationStatsProvider {
             }
             
             let bestDailySteps: Entry<Int>?
-            let longestWorkoutDuration: Entry<Measurement<UnitDuration>>?
+            let longestWorkout: LongestWorkoutInfo?
             let maxHeartRateBPM: Int?
             let avgRestingHeartRateBPM: Int?
         }
@@ -112,7 +118,7 @@ extension ParticipationStatsProvider {
         )
     }
     
-    @MainActor // ewwww
+    @MainActor // required bc of the Scheduler...
     private func computeTaskEngagementStats(
         studyId: UUID,
         enrollmentTimeRange: Range<Date>
@@ -201,7 +207,7 @@ extension ParticipationStatsProvider {
         )
         return HealthStats.PersonalBests(
             bestDailySteps: await bestStepDay,
-            longestWorkoutDuration: await longestWorkout,
+            longestWorkout: await longestWorkout,
             maxHeartRateBPM: (await maxHR).map { Int($0.rounded()) },
             avgRestingHeartRateBPM: (await avgRestingHR).map { Int($0.rounded()) }
         )
@@ -224,12 +230,25 @@ extension ParticipationStatsProvider {
         return stats.reduce(0) { $0 + ($1.sumQuantity()?.doubleValue(for: unit) ?? 0) }
     }
     
+    /// Determines the daily best for a cumulative sample type, e.g. the max total quantity value observed over the course of a single day.
+    ///
+    /// - parameter timeRange: The time range for which the daily best should be computed
+    /// - parameter sampleType: The sample type to operate on
+    /// - parameter unit: The `HKUnit` to use when working with samples. Defaults to `sampleType.displayUnit` if `nil`.
+    /// - parameter isConsideredBetter: Compares two values (of unit `unit`) to determine if the first one is "better" than the second one.
+    ///     Defaults to a greater-than comparison, which results in the function selecting the highest daily sum.
+    ///     For a metric where the lowest-possible value is be considered the "daily best", you would pass a lower-than comparison function (i.e., `(<)`).
     private func bestDay(
         in timeRange: Range<Date>,
         of sampleType: SampleType<HKQuantitySample>,
         using unit: HKUnit? = nil,
-//        isConsideredBetter: (Double, Double) -> Bool = (>)
+        isConsideredBetter: (_ fst: Double, _ snd: Double) -> Bool = (>)
     ) async -> HealthStats.PersonalBests.Entry<Double>? {
+        guard sampleType.hkSampleType.aggregationStyle == .cumulative else {
+            return nil
+        }
+        let cal = Calendar.current
+        assert(timeRange.lowerBound == cal.startOfDay(for: timeRange.lowerBound))
         guard let stats = try? await healthKit.statisticsQuery(
             sampleType,
             aggregatedBy: [.sum],
@@ -241,13 +260,12 @@ extension ParticipationStatsProvider {
         let unit = unit ?? sampleType.displayUnit
         return stats
             .compactMap { stat -> HealthStats.PersonalBests.Entry<Double>? in
-                guard let value = stat.sumQuantity()?.doubleValue(for: unit), value > 0 else { // TODO why the value > 0 check?
+                guard let value = stat.sumQuantity()?.doubleValue(for: unit), value > 0 else {
                     return nil
                 }
                 return .init(date: stat.startDate, value: value)
             }
-            // TODO allow passing smth in that selects the min value?!
-            .max { $0.value < $1.value }
+            .min { isConsideredBetter($0.value, $1.value) }
     }
     
     private func discreteStat(
@@ -301,13 +319,8 @@ extension ParticipationStatsProvider {
         ) else {
             return nil
         }
-        let asleepValues: Set<Int> = [
-            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
-            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-            HKCategoryValueSleepAnalysis.asleepREM.rawValue
-        ]
-        return samples
+        let asleepValues = HKCategoryValueSleepAnalysis.allAsleepValues.mapIntoSet(\.rawValue)
+        return samples.lazy
             .filter { asleepValues.contains($0.value) }
             .reduce(0) { acc, sample in
                 acc + sample.endDate.timeIntervalSince(sample.startDate)
@@ -324,13 +337,19 @@ extension ParticipationStatsProvider {
         )
     }
     
-    private func longestWorkout(in timeRange: Range<Date>) async -> HealthStats.PersonalBests.Entry<Measurement<UnitDuration>>? {
+    private func longestWorkout(in timeRange: Range<Date>) async -> HealthStats.LongestWorkoutInfo? {
         guard let workouts = try? await healthKit.query(.workout, timeRange: .init(timeRange)) else {
             return nil
         }
         return workouts
             .max { $0.duration < $1.duration }
-            .map { .init(date: $0.startDate, value: .init(value: $0.duration, unit: .seconds)) }
+            .map {
+                .init(
+                    date: $0.startDate,
+                    activityType: $0.workoutActivityType,
+                    duration: .init(value: $0.duration, unit: .seconds)
+                )
+            }
     }
 }
 
