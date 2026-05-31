@@ -208,15 +208,6 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
 }
 
 
-protocol _AchievementProjectable {
-    var _achievement: Achievement { get }
-}
-
-extension Achievement: _AchievementProjectable {
-    var _achievement: Achievement { self }
-}
-
-
 extension Achievement {
     /// Used to identify an "achievements ladder", i.e., a sequence of achievements that track the same event/metric, and unlock in order.
     ///
@@ -259,6 +250,40 @@ extension AchievementsManager {
         }
     }
     
+    /// An already unlocked achievement
+    struct UnlockedAchievement: Sendable {
+        let unlockDate: Date
+        let achievement: Achievement
+    }
+    
+    /// A yet-to-be unlocked achievement
+    struct UpcomingAchievement: Sendable {
+        let achievement: Achievement
+        /// The achivement's current progress.
+        ///
+        /// Since this is representing an upcoming (i.e., yet to be unlocked) achievement, this value will always be in the range `0..<1`.
+        let progress: Double
+        let lastUpdate: Date?
+    }
+    
+    
+    enum AchievementState {
+        case locked(progress: Double, lastUpdate: Date?)
+        case unlocked(unlockDate: Date)
+        
+        /// The progress wrt unlocking this achievement, on a scale from `0` to `1`.
+        ///
+        /// - Note: Not all achievement support fractional progress reports; in these cases the value will be either `0` or `1`, but never anything inbetween.
+        var progress: Double {
+            switch self {
+            case .locked(let progress, lastUpdate: _):
+                progress
+            case .unlocked:
+                1
+            }
+        }
+    }
+    
     
     /// user-displayable number of achievements existing in the app
     var userDisplayableTotalAchievementCount: Int {
@@ -270,13 +295,6 @@ extension AchievementsManager {
         achievements.count { $0.visibility != .internal && didUnlock($0) }
     }
     
-    
-    struct UnlockedAchievement: _AchievementProjectable, Sendable {
-        let unlockDate: Date
-        let achievement: Achievement
-        
-        var _achievement: Achievement { achievement}
-    }
     
     /// Returns all unlocked achievements, optionally sorted by the date they were unlocked
     @MainActor
@@ -305,15 +323,6 @@ extension AchievementsManager {
     }
     
     
-//    /// The ladder an achievement belongs to, or `nil` if it's a standalone goal (no subcategory).
-//    ///
-//    /// A "ladder" is identified purely structurally, by `(category, subcategory)` — visibility plays no
-//    /// part. Whether later levels of a ladder are hidden is a separate, visibility-driven concern
-//    /// (see ``Achievement/Visibility/secretUnlessNext``).
-//    private func ladderKey(for achievement: Achievement) -> LadderKey? {
-//        achievement.subcategory.map { LadderKey(category: achievement.category, subcategory: $0) }
-//    }
-
     /// Whether `achievement` is currently the first still-locked level of its ladder, in registration order.
     ///
     /// Standalone achievements (no ladder) are trivially "next" while locked. Already-unlocked achievements
@@ -324,16 +333,6 @@ extension AchievementsManager {
             return !didUnlock(achievement)
         }
         return achievements.first { $0.ladder == ladder && !didUnlock($0) } == achievement
-    }
-    
-    struct UpcomingAchievement: _AchievementProjectable, Sendable {
-        let achievement: Achievement
-        /// The achivement's current progress.
-        ///
-        /// Since this is representing an upcoming (i.e., yet to be unlocked) achievement, this value will always be in the range `0..<1`.
-        let progress: Double
-        let lastUpdate: Date?
-        var _achievement: Achievement { achievement }
     }
     
     
@@ -391,29 +390,13 @@ extension AchievementsManager {
         // 3. closest-to-unlock first; stable tie-break preserves authored order for equal progress
         return collapsed
             .enumerated()
-            .sorted { $0.element.progress != $1.element.progress
-                ? $0.element.progress > $1.element.progress
-                : $0.offset < $1.offset }
+            .sorted {
+                $0.element.progress != $1.element.progress
+                    ? $0.element.progress > $1.element.progress
+                    : $0.offset < $1.offset
+            }
             .map(\.element)
             .filter { !excluding.contains($0.achievement) }
-    }
-    
-    
-    enum AchievementState {
-        case locked(progress: Double, lastUpdate: Date?)
-        case unlocked(unlockDate: Date)
-        
-        /// The progress wrt unlocking this achievement, on a scale from `0` to `1`.
-        ///
-        /// - Note: Not all achievement support fractional progress reports; in these cases the value will be either `0` or `1`, but never anything inbetween.
-        var progress: Double {
-            switch self {
-            case .locked(let progress, lastUpdate: _):
-                progress
-            case .unlocked:
-                1
-            }
-        }
     }
     
     @MainActor
