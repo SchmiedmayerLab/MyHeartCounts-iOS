@@ -46,18 +46,6 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
             triggerEvents = []
             metricObservations = [:]
         }
-        
-        fileprivate init(triggerEvents: Set<TriggerEvent>, metricObservations: [Achievement.Metric: MetricObservation]) {
-            self.version = 1
-            self.triggerEvents = triggerEvents
-            self.metricObservations = metricObservations
-        }
-    }
-    
-    
-    private enum StateImpl: Hashable, Sendable {
-        case upToDate(State)
-        case pendingChanges(State, updateTask: Task<Void, any Error>)
     }
     
     
@@ -80,17 +68,17 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
         }
     }
     
-    // TODO move all of this off the main actor, somehow!
-    @MainActor private var shouldScheduleSyncOnStateMutation = true
-    @MainActor private var syncTask: Task<Void, Never>?
+    /// The single in-flight sync. All sync funnels through this one task, so two syncs can never
+    /// interleave their read-merge-write. Cleared by the task itself (via `defer`) on completion.
+    @MainActor private var runningSync: Task<Void, any Error>?
+    /// Set whenever local state changes; tells an in-flight sync loop it must run another pass.
+    @MainActor private var syncDirty = false
+    /// Pending debounce timer for a requested-but-not-yet-started sync.
+    @MainActor private var debounceTask: Task<Void, Never>?
     @MainActor private var achievementsState = State() {
         didSet {
-            guard shouldScheduleSyncOnStateMutation, achievementsState != oldValue else {
-                // skip the sync if nothing changed
-                return
-            }
-            Task {
-                try? await scheduleSync()
+            if achievementsState != oldValue {
+                scheduleSync()
             }
         }
     }
@@ -102,6 +90,16 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
                 throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Not enrolled in study")
             }
             return try firebaseConfiguration.userDocumentReference.collection("achievementTracking").document(studyId.uuidString)
+        }
+    }
+    
+    /// Trigger IDs whose events collapse to a single (earliest) entry when merging two states.
+    @MainActor
+    private var recordOnceTriggerIDs: Set<Achievement.Trigger.ID> {
+        achievements.reduce(into: []) { result, achievement in
+            if case .event(let trigger, _) = achievement.kind, trigger.recordingMode == .recordOnce {
+                result.insert(trigger.id)
+            }
         }
     }
     
@@ -131,7 +129,7 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
             for new in newEntries where seenIds.insert(new.id).inserted {
                 assert(
                     new.visibility != .secretUnlessNextInLadder || new.subcategory != nil,
-                    "Achievement '\(new.id)' is .secretUnlessNext but has no subcategory — 'next' is undefined without a ladder."
+                    "Achievement '\(new.id)' is .secretUnlessNext but has no subcategory. 'next' is undefined without a ladder."
                 )
                 self._achievements.append(new)
             }
@@ -141,7 +139,7 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
     
     func refresh() async throws {
         // make sure the local version is up-to-date
-        try await scheduleSync(forceImmediately: true)
+        try await syncNow()
         if let enrollmentDate = await MainActor.run(body: { studyManager?.studyEnrollments.first?.enrollmentDate }) {
             await updateEnrollmentStats(enrollmentDate: enrollmentDate)
             await updateHealthMetrics(enrollmentDate: enrollmentDate)
@@ -150,65 +148,127 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
     
     
     // TODO
-//    @MainActor
-//    private func observeServerSideChanges() throws {
-//        let doc = try self.achievementTrackingDoc
-//        doc.snapshots
-//    }
+    //    @MainActor
+    //    private func observeServerSideChanges() throws {
+    //        let doc = try self.achievementTrackingDoc
+    //        doc.snapshots
+    //    }
+}
+
+
+extension AchievementsManager {
+    // MARK: Sync
     
-    
+    /// Scheduled a debounced sync.
     @MainActor
-    func scheduleSync(forceImmediately: Bool = false) async throws {
-        let sync = { @MainActor () async throws in
-            let doc = try self.achievementTrackingDoc
-            let local = self.achievementsState
-            let cloud: State
-            guard try await doc.getDocument().exists else {
-                // if no cloud state exists yet, we simply write the local state and call it a da
-                try await doc.setData(from: local)
-                return
-            }
-            cloud = try await doc.getDocument(as: State.self)
-            if local == cloud {
-                // local and cloud state are equal.
-                // in this case, we immediately return, since updating `achievementsState` would lead to a new sync being scheduled.
-                return
-            }
-            let combined = local.merging(cloud)
-            self.shouldScheduleSyncOnStateMutation = false
-            self.achievementsState = combineds
-            self.shouldScheduleSyncOnStateMutation = true
-            guard combined != cloud else {
-                return
-            }
-            try await doc.setData(from: combined)
-        }
-        guard !forceImmediately else {
-            // we want the sync to happen immediately
-            syncTask?.cancel()
-            syncTask = nil
-            try await sync()
+    private func scheduleSync() {
+        syncDirty = true
+        // A running sync will pick up `syncDirty` and run another pass; a pending debounce will fire
+        // on its own. In either case there's nothing more to schedule.
+        guard runningSync == nil, debounceTask == nil else {
             return
         }
-        guard syncTask == nil else {
-            // if there is already a sync ongoing or scheduled, and we don't need it to run immediately,
-            // we simply return and rely on that task performing the sync in the near future
-            return
-        }
-        syncTask = Task {
+        debounceTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            self.debounceTask = nil
             do {
-                try await Task.sleep(for: .seconds(2))
-                try await sync()
+                try await self._runSync()
             } catch {
-                self.logger.error("Sync failed: \(error)")
+                self.logger.error("Scheduled sync failed: \(error)")
             }
-            self.syncTask = nil
         }
     }
     
+    /// Performs an immediate sync between the local state and the firebase state.
+    @MainActor
+    func syncNow() async throws {
+        debounceTask?.cancel()
+        debounceTask = nil
+        syncDirty = true // guarantees a coalesced caller still gets one pass over the latest state
+        try await _runSync()
+    }
     
+    /// Performs a sync between the local state and the firebase state.
+    ///
+    /// It is safe to call this function while another sync is already in progress.
+    /// It also is safe to mutate ``achievementsState`` while a sync is in progress; the changes will be picked up and synced as well.
+    @MainActor
+    private func _runSync() async throws { // swiftlint:disable:this function_body_length
+        if let runningSync {
+            try await runningSync.value
+            return
+        }
+        /// Performs a single read-merge-write pass against the cloud document
+        let syncImpl = { @MainActor () async throws in
+            let doc = try self.achievementTrackingDoc
+            let snapshot = try await doc.getDocument()
+            // Capture the state this pass commits and clear the dirty flag in the SAME synchronous turn.
+            // Anything recorded after this line re-sets `syncDirty` (handled by the next pass); anything
+            // recorded before (including during the fetch above) is included in `local`.
+            let local = self.achievementsState
+            self.syncDirty = false
+            guard snapshot.exists else {
+                // No cloud doc yet: create it, but never write empty state over the server (e.g. a
+                // fresh/offline launch before anything has been recorded).
+                guard !local.isEmpty else {
+                    return
+                }
+                do {
+                    try await doc.setData(from: local)
+                } catch {
+                    self.syncDirty = true // upload failed: keep the change pending so runSync re-arms
+                    throw error
+                }
+                return
+            }
+            let cloud = try snapshot.data(as: State.self)
+            // Fold cloud into the captured local state (least-upper-bound). `merged >= local`, so
+            // adopting it never regresses local progress.
+            let merged = local.merging(cloud, recordOnceTriggerIDs: self.recordOnceTriggerIDs)
+            if merged != self.achievementsState {
+                self.achievementsState = merged
+            }
+            guard merged != cloud else {
+                return // cloud already has everything; nothing to upload
+            }
+            do {
+                try await doc.setData(from: merged)
+            } catch {
+                self.syncDirty = true // upload failed: keep the change pending so runSync re-arms
+                throw error
+            }
+        }
+        let task = Task { @MainActor in
+            // Cleared synchronously with the loop's exit decision: on the serial executor no `record()`
+            // can interleave between the final `while self.syncDirty` read and this assignment.
+            defer {
+                runningSync = nil
+            }
+            repeat {
+                try await syncImpl()
+            } while syncDirty
+        }
+        runningSync = task
+        defer {
+            // By the time we resume here, the task's own defer has already cleared `runningSync`.
+            // If a change is still pending (a `record(...)` that landed in the teardown gap, or a pass
+            // that threw with `syncDirty` still set), re-arm a debounced retry now that we are no
+            // longer the runner (so `scheduleSync`'s `runningSync == nil` guard lets it through).
+            if syncDirty {
+                scheduleSync()
+            }
+        }
+        try await task.value
+    }
+}
+
+
+extension AchievementsManager {
+    // MARK: Mutations
+    
+    @MainActor
     private func updateEnrollmentStats(enrollmentDate: Date) async {
-        await record(.completeEnrollment, timestamp: enrollmentDate)
+        record(.completeEnrollment, timestamp: enrollmentDate)
         let now = Date()
         let cal = Calendar.current
         let enrollmentDate = cal.startOfDay(for: enrollmentDate)
@@ -216,13 +276,13 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
         let numWeeks = cal.dateComponents([.weekOfYear], from: enrollmentDate, to: now).weekOfYear ?? (numDays / 7)
         let numMonths = cal.dateComponents([.month], from: enrollmentDate, to: now).month ?? (numWeeks / 4)
         let numYears = cal.dateComponents([.year], from: enrollmentDate, to: now).year ?? (numMonths / 12)
-        await record(.enrollmentDurationInDays, value: numDays, timestamp: now)
-        await record(.enrollmentDurationInWeeks, value: numWeeks, timestamp: now)
-        await record(.enrollmentDurationInMonths, value: numMonths, timestamp: now)
-        await record(.enrollmentDurationInYears, value: numYears, timestamp: now)
+        record(.enrollmentDurationInDays, value: numDays, timestamp: now)
+        record(.enrollmentDurationInWeeks, value: numWeeks, timestamp: now)
+        record(.enrollmentDurationInMonths, value: numMonths, timestamp: now)
+        record(.enrollmentDurationInYears, value: numYears, timestamp: now)
     }
     
-    
+    @MainActor
     private func updateHealthMetrics(enrollmentDate: Date) async {
         for stats in (try? await healthKit.statisticsQuery(
             .stepCount,
@@ -233,34 +293,51 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
             guard let stepCount = stats.sumQuantity()?.doubleValue(for: .count()) else {
                 continue
             }
-            await record(.dailyStepCount, value: stepCount, timestamp: stats.timeRange.middle)
+            record(.dailyStepCount, value: stepCount, timestamp: stats.timeRange.middle)
         }
     }
     
-    // IDEA maybe add a function that updates muleiple triggers/metrics at once!!!
-    
-    func record(_ trigger: Achievement.Trigger, timestamp: Date) async {
-        await MainActor.run {
-            achievementsState.record(trigger, timestamp: timestamp)
-        }
+    @MainActor
+    func record(_ trigger: Achievement.Trigger, timestamp: Date) {
+        achievementsState.record(trigger, timestamp: timestamp)
     }
     
-    func record(_ metric: Achievement.Metric, value: some BinaryInteger, timestamp: Date) async {
-        await record(metric, value: Double(value), timestamp: timestamp)
+    @MainActor
+    func record(_ metric: Achievement.Metric, value: some BinaryInteger, timestamp: Date) {
+        record(metric, value: Double(value), timestamp: timestamp)
     }
     
-    func record(_ metric: Achievement.Metric, value: Double, timestamp: Date) async {
-        await MainActor.run {
-            achievementsState.record(metric, value: value, timestamp: timestamp)
-        }
+    @MainActor
+    func record(_ metric: Achievement.Metric, value: Double, timestamp: Date) {
+        achievementsState.record(metric, value: value, timestamp: timestamp)
     }
 }
 
 
 extension AchievementsManager.State {
-    fileprivate func merging(_ other: Self/*, using achievements: [Achievement]*/) -> Self {
+    var isEmpty: Bool {
+        triggerEvents.isEmpty && metricObservations.isEmpty
+    }
+    
+    /// Least-upper-bound merge of two states (commutative, idempotent, monotone).
+    ///
+    /// - `triggerEvents` are unioned, except `.recordOnce` triggers (identified by `recordOnceTriggerIDs`),
+    ///   for which only the earliest event per `triggerId` is kept, otherwise a raw union of two states
+    ///   holding the same logical one-shot event with differing timestamps would permanently duplicate it.
+    /// - `metricObservations` are merged by `metric.rule` (`.atLeast` -> max value, `.atMost` -> min
+    ///   value; ties on value resolve to the earliest timestamp to stay commutative).
+    fileprivate func merging(_ other: Self, recordOnceTriggerIDs: Set<Achievement.Trigger.ID>) -> Self {
         var merged = self
         merged.triggerEvents.formUnion(other.triggerEvents)
+        // collapse each record-once trigger to its earliest event
+        for triggerID in recordOnceTriggerIDs {
+            let events = merged.triggerEvents.filter { $0.triggerId == triggerID }
+            guard events.count > 1, let earliest = events.min(by: { $0.timestamp < $1.timestamp }) else {
+                continue
+            }
+            merged.triggerEvents.subtract(events)
+            merged.triggerEvents.insert(earliest)
+        }
         for (metric, observation) in other.metricObservations {
             merged.record(metric, value: observation.value, timestamp: observation.timestamp)
         }
@@ -280,19 +357,19 @@ extension AchievementsManager.State {
     }
     
     fileprivate mutating func record(_ metric: Achievement.Metric, value: Double, timestamp: Date) {
-        if let oldEntry = metricObservations[metric] {
-            switch metric.rule {
-            case .atLeast: // tracking upwards
-                if value >= oldEntry.value {
-                    metricObservations[metric] = .init(timestamp: timestamp, value: value)
-                }
-            case .atMost: // tracking downwards
-                if value <= oldEntry.value {
-                    metricObservations[metric] = .init(timestamp: timestamp, value: value)
-                }
-            }
-        } else {
+        guard let oldEntry = metricObservations[metric] else {
             metricObservations[metric] = .init(timestamp: timestamp, value: value)
+            return
+        }
+        switch metric.rule {
+        case .atLeast: // tracking upwards: keep the max value, earliest timestamp on a tie
+            if value > oldEntry.value || (value == oldEntry.value && timestamp < oldEntry.timestamp) {
+                metricObservations[metric] = .init(timestamp: timestamp, value: value)
+            }
+        case .atMost: // tracking downwards: keep the min value, earliest timestamp on a tie
+            if value < oldEntry.value || (value == oldEntry.value && timestamp < oldEntry.timestamp) {
+                metricObservations[metric] = .init(timestamp: timestamp, value: value)
+            }
         }
     }
 }
@@ -504,9 +581,6 @@ extension AchievementsManager {
     
     @MainActor
     func state(of achievement: Achievement) -> AchievementState {
-//        guard let state = self.achievementsState else {
-//            return .locked(progress: 0, lastUpdate: nil)
-//        }
         switch achievement.kind {
         case let .event(trigger, predicate):
             return predicate(
