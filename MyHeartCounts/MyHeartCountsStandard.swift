@@ -49,6 +49,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
     @Dependency(AppState.self) private var appState
+    @Dependency(AchievementsManager.self) private var achievementsManager
     @Application(\.registerRemoteNotifications) private var registerRemoteNotifications
     // swiftlint:disable attributes
     
@@ -120,9 +121,11 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         switch event {
         case .associatedAccount(let details):
             logger.notice("account was associated (account id: \(details.accountId))")
-            _Concurrency.Task {
-                await environmentTracking?.triggerAll()
-                _ = try? await registerRemoteNotifications()
+            Swift::Task {
+                async let updateEnvTracking = environmentTracking?.triggerAll()
+                async let registerNotifications = try? registerRemoteNotifications()
+                async let syncAchievements = try? achievementsManager.startObservingFirebase()
+                _ = await (updateEnvTracking, registerNotifications, syncAchievements)
             }
         case .deletingAccount:
             logger.notice("account is being deleted")
@@ -136,7 +139,10 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     
     func willLogOut(_ details: AccountDetails) async {
         logger.notice("account is being logged out")
-        try? await notificationsManager.setFCMToken(nil)
+        async let updateFCMToken = try? notificationsManager.setFCMToken(nil)
+        async let syncAchievements = try? achievementsManager.syncNow()
+        _ = await (updateFCMToken, syncAchievements)
+        await achievementsManager.stopObservingFirebase()
     }
 }
 

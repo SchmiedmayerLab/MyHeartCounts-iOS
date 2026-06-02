@@ -78,6 +78,9 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
     @MainActor private var syncDirty = false
     /// Pending debounce timer for a requested-but-not-yet-started sync.
     @MainActor private var debounceTask: Task<Void, Never>?
+    /// The task used to observe server-side changes, and respond to them
+    @MainActor private var remoteChangesObserver: Task<Void, Never>?
+    
     @MainActor private var achievementsState = State() {
         didSet {
             if achievementsState != oldValue {
@@ -164,14 +167,6 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
             await updateHealthMetrics(enrollmentDate: enrollmentDate)
         }
     }
-    
-    
-    // TODO
-    //    @MainActor
-    //    private func observeServerSideChanges() throws {
-    //        let doc = try self.achievementTrackingDoc
-    //        doc.snapshots
-    //    }
 }
 
 
@@ -282,6 +277,46 @@ extension AchievementsManager {
             }
         }
         try await task.value
+    }
+    
+    
+    /// Sets up an observer on the firestore document tracking the current user's achievements progress, and automatically syncs any remote changes back into the local state.
+    @MainActor
+    func startObservingFirebase() throws {
+        guard remoteChangesObserver == nil else {
+            return
+        }
+        let doc = try achievementTrackingDoc
+        let snapshots = doc.snapshots
+        remoteChangesObserver = Task {
+            defer {
+                self.remoteChangesObserver = nil
+            }
+            do {
+                for try await snapshot: DocumentSnapshot in snapshots {
+                    guard !snapshot.metadata.hasPendingWrites else {
+                        // if `snapshot.metadata.hasPendingWrites` is true, we're being informed about a client-side mutation
+                        // (which obv we want to skip)
+                        continue
+                    }
+                    do {
+                        try await syncNow()
+                    } catch {
+                        logger.error("Sync in response to remote doc update failed: \(error)")
+                    }
+                }
+            } catch {
+                self.logger.error("Remote changes observation failed: \(error)")
+            }
+        }
+    }
+    
+    
+    /// Cancels and clears any observer set up by ``startObservingFirebase()``.
+    @MainActor
+    func stopObservingFirebase() {
+        remoteChangesObserver?.cancel()
+        remoteChangesObserver = nil
     }
 }
 
