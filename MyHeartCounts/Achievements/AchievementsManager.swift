@@ -577,11 +577,10 @@ extension AchievementsManager {
     func nextLockedAchievement(
         in category: Achievement.Category,
         subcategory: Achievement.Subcategory?
-    ) -> Achievement? { // TODO also return an UpcomingAchievement?
-        // TODO this kinda has the implicit assumption that the achievements will always be segmented into a head of unlocked ones, and a tail of locked ones...
-        achievements.lazy
-            .filter { AchievementsFilter.category(category, subcategory: subcategory).evaluate($0) }
-            .first { !didUnlock($0) }
+    ) -> UpcomingAchievement? {
+        nextLockedAchievements(in: category).first {
+            AchievementsFilter.category(category, subcategory: subcategory).evaluate($0.achievement)
+        }
     }
     
     /// Computes a list of upcoming, currently still locked achievements.

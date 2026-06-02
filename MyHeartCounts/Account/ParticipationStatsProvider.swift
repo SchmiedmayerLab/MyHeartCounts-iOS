@@ -35,15 +35,27 @@ final class ParticipationStatsProvider: Module, EnvironmentAccessible, @unchecke
 
 extension ParticipationStatsProvider {
     struct Stats: Sendable {
+        let enrollment: EnrollmentStats
+        let appEngagement: AppEngagementStats?
+        let taskEngagement: TaskEngagementStats
+        let health: HealthStats
+    }
+    
+    
+    struct EnrollmentStats: Sendable {
         let enrollmentDate: Date
         let numDaysEnrolled: Int
         let numWeeksEnrolled: Int
         let numMonthsEnrolled: Int
         let numYearsEnrolled: Int
-        let taskEngagement: TaskEngagementStats
-        let health: HealthStats
     }
     
+    struct AppEngagementStats: Sendable {
+        /// The user's current streak of opening the app at least once per week.
+        let currentLaunchAppStreak: Int
+        /// The user's longest recorded streak of opening the app at least once per week.
+        let longestLaunchAppStreak: Int
+    }
     
     struct TaskEngagementStats: Sendable {
         let totalCompleted: Int
@@ -51,9 +63,6 @@ extension ParticipationStatsProvider {
         let articlesRead: Int
         let ecgsRecorded: Int
         let walkRunTestsCompleted: Int
-        let activeDays: Int
-        let currentStreak: Int
-        let longestStreak: Int
     }
     
     
@@ -108,11 +117,14 @@ extension ParticipationStatsProvider {
         async let taskEngagement = computeTaskEngagementStats(studyId: studyId, enrollmentTimeRange: enrollmentTimeRange)
         async let healthStats = computeHealthStats(for: enrollmentTimeRange)
         return Stats(
-            enrollmentDate: enrollmentDate,
-            numDaysEnrolled: cal.countDistinctDays(from: enrollmentDate, to: now),
-            numWeeksEnrolled: cal.countDistinctWeeks(from: enrollmentDate, to: now),
-            numMonthsEnrolled: cal.countDistinctMonths(from: enrollmentDate, to: now),
-            numYearsEnrolled: cal.countDistinctYears(from: enrollmentDate, to: now),
+            enrollment: EnrollmentStats(
+                enrollmentDate: enrollmentDate,
+                numDaysEnrolled: cal.countDistinctDays(from: enrollmentDate, to: now),
+                numWeeksEnrolled: cal.countDistinctWeeks(from: enrollmentDate, to: now),
+                numMonthsEnrolled: cal.countDistinctMonths(from: enrollmentDate, to: now),
+                numYearsEnrolled: cal.countDistinctYears(from: enrollmentDate, to: now)
+            ),
+            appEngagement: nil, // TODO
             taskEngagement: await taskEngagement,
             health: await healthStats
         )
@@ -123,7 +135,6 @@ extension ParticipationStatsProvider {
         studyId: UUID,
         enrollmentTimeRange: Range<Date>
     ) async -> TaskEngagementStats {
-        let cal = Calendar.current
         // ECGs come from HealthKit rather than from Scheduler outcomes so the count survives a
         // reinstall (HealthKit data persists; the Scheduler's local task-completion store does not).
         async let ecgCount = countECGs(in: enrollmentTimeRange)
@@ -132,31 +143,18 @@ extension ParticipationStatsProvider {
             event.isCompleted && event.task.studyContext?.studyId == studyId
         }
         var perCategory: [Task.Category: Int] = [:]
-        var daysWithCompletion = Set<Date>()
-        var weeksWithCompletion = Set<Date>()
         for event in studyEvents {
             if let cat = event.task.category {
                 perCategory[cat, default: 0] += 1
             }
-            let date = event.outcome?.completionDate ?? event.occurrence.start
-            daysWithCompletion.insert(cal.startOfDay(for: date))
-            if let weekStart = cal.dateInterval(of: .weekOfYear, for: date)?.start {
-                weeksWithCompletion.insert(weekStart)
-            }
         }
-        let activeDays = daysWithCompletion.count
-        let thisWeekStart = cal.dateInterval(of: .weekOfYear, for: .now)?.start ?? cal.startOfDay(for: .now)
-        let (current, longest) = computeWeekStreaks(activeWeeks: weeksWithCompletion, thisWeek: thisWeekStart, calendar: cal)
         let walkRun = (perCategory[.timedWalkingTest] ?? 0) + (perCategory[.timedRunningTest] ?? 0)
         return TaskEngagementStats(
             totalCompleted: studyEvents.count,
             questionnairesCompleted: perCategory[.questionnaire] ?? 0,
             articlesRead: perCategory[.informational] ?? 0,
             ecgsRecorded: (await ecgCount) ?? 0,
-            walkRunTestsCompleted: walkRun,
-            activeDays: activeDays,
-            currentStreak: current,
-            longestStreak: longest
+            walkRunTestsCompleted: walkRun
         )
     }
 }
@@ -354,7 +352,6 @@ extension ParticipationStatsProvider {
 }
 
 
-// TODO REMOVE!!!
 private func computeWeekStreaks(
     activeWeeks: Set<Date>,
     thisWeek: Date,

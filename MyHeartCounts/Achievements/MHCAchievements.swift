@@ -36,7 +36,6 @@ extension Achievement.Trigger {
         recordingMode: .recordOnce
     )
     
-    // TODO or have these modeled as metrics as well, so that we can easily do first and N...?
     static let completeQuestionnaire = Self(
         id: "complete-questionnaire",
         recordingMode: .keepAll

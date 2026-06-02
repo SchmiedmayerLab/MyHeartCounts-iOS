@@ -5742,6 +5742,7 @@
       }
     },
     "Next milestone" : {
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {

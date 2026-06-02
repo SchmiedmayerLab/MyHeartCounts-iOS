@@ -30,7 +30,7 @@ struct ParticipationStatsView: View {
         Form {
             EnrollmentStatsSection(enrollmentDate: enrollment.enrollmentDate)
             TiledSection("Engagement", symbol: .checklistChecked) {
-                engagementSection(using: stats?.taskEngagement)
+                engagementSection(using: stats)
             }
             TiledSection("Health Totals", symbol: .heartFill) {
                 healthTotalsSection(using: stats?.health)
@@ -95,30 +95,32 @@ struct ParticipationStatsView: View {
 
 extension ParticipationStatsView {
     @ViewBuilder
-    private func engagementSection(
-        using stats: ParticipationStatsProvider.TaskEngagementStats?
+    private func engagementSection( // swiftlint:disable:this function_body_length
+        using stats: ParticipationStatsProvider.Stats?
     ) -> some View {
         StatCard(
             title: "Tasks Done",
-            value: stats?.totalCompleted,
+            value: stats?.taskEngagement.totalCompleted,
             format: .number,
             symbol: .checkmarkCircleFill,
             accentColor: .accentColor
         )
-        StatCard(
-            title: "Current Streak",
-            value: stats?.currentStreak,
-            format: .weekCount,
-            symbol: .flameFill,
-            accentColor: .orange
-        )
-        StatCard(
-            title: "Longest Streak",
-            value: stats?.longestStreak,
-            format: .weekCount,
-            symbol: .trophyFill,
-            accentColor: .yellow
-        )
+        if let appEngagement = stats?.appEngagement {
+            StatCard(
+                title: "Current Streak",
+                value: appEngagement.currentLaunchAppStreak,
+                format: .weekCount,
+                symbol: .flameFill,
+                accentColor: .orange
+            )
+            StatCard(
+                title: "Longest Streak",
+                value: appEngagement.longestLaunchAppStreak,
+                format: .weekCount,
+                symbol: .trophyFill,
+                accentColor: .yellow
+            )
+        }
 //            StatCard(
 //                title: "Active Days",
 //                value: stats?.activeDays,
@@ -129,28 +131,28 @@ extension ParticipationStatsView {
 //            )
         StatCard(
             title: "Surveys Answered",
-            value: stats?.questionnairesCompleted,
+            value: stats?.taskEngagement.questionnairesCompleted,
             format: .number,
             symbol: .listClipboardFill,
             accentColor: .purple
         )
         StatCard(
             title: "Articles Read",
-            value: stats?.articlesRead,
+            value: stats?.taskEngagement.articlesRead,
             format: .number,
             symbol: .bookFill,
             accentColor: .brown
         )
         StatCard(
             title: "ECGs Recorded",
-            value: stats?.ecgsRecorded,
+            value: stats?.taskEngagement.ecgsRecorded,
             format: .number,
             symbol: .waveformPathEcgRectangle,
             accentColor: .red
         )
         StatCard(
             title: "Walk / Run Tests",
-            value: stats?.walkRunTestsCompleted,
+            value: stats?.taskEngagement.walkRunTestsCompleted,
             format: .number,
             symbol: .figureWalk,
             accentColor: .blue
@@ -337,7 +339,7 @@ extension ParticipationStatsView {
                 text: "You've spent about \(days.formatted(.number.precision(.fractionLength(1)))) full days asleep since enrolling. Rest is part of the work."
             ))
         }
-        // TODO
+        // IDEA re-implement, based on weeks (months?) w/ activity
 //        if let active = stats.taskEngagement?.activeDays, let total = engagement?.daysSinceEnrollment, total > 0 {
 //            let percent = Double(active) / Double(total)
 //            if percent >= 0.7 {
@@ -404,7 +406,7 @@ private struct EnrollmentStatsSection: View {
         }
     }
     
-    private var nextEnrollmentDurationAchievement: Achievement? {
+    private var nextEnrollmentDurationAchievement: AchievementsManager.UpcomingAchievement? {
         achievements.nextLockedAchievement(in: .studyParticipation, subcategory: .enrollmentDuration)
     }
     
@@ -436,7 +438,7 @@ private struct EnrollmentStatsSection: View {
                         .font(.headline)
                 }
                 Spacer()
-                if let achievement = nextEnrollmentDurationAchievement {
+                if let achievement = nextEnrollmentDurationAchievement?.achievement {
                     achievementInfoCapsule(for: achievement)
                 }
             }
@@ -462,7 +464,7 @@ private struct EnrollmentStatsSection: View {
     @ViewBuilder
     private var achievementsRow: some View {
         let upcoming = achievements
-            .nextLockedAchievements(excluding: nextEnrollmentDurationAchievement.map { [$0] } ?? [])
+            .nextLockedAchievements(excluding: nextEnrollmentDurationAchievement.map { [$0.achievement] } ?? [])
             .prefix(3)
         if !upcoming.isEmpty {
             VStack(alignment: .leading) {
@@ -474,27 +476,6 @@ private struct EnrollmentStatsSection: View {
                     let achievement = upcoming.achievement
                     achievementInfoCapsule(for: achievement)
                 }
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private var nextAchievementRow: some View {
-        if let achievement = achievements.nextLockedAchievement(in: .studyParticipation, subcategory: .enrollmentDuration) {
-            let state = achievements.state(of: achievement)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Next milestone")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    Spacer()
-                    Text(achievement.title)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                ProgressView(value: state.progress)
-                    .progressViewStyle(.linear)
             }
         }
     }
