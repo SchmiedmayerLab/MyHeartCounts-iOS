@@ -6,7 +6,9 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Foundation
 import SFSafeSymbols
+import SpeziFoundation
 
 
 /// A tracked goal the user can unlock by satisfying some condition.
@@ -23,7 +25,10 @@ struct Achievement: Identifiable, Sendable {
         /// - parameter predicate: The function that determines whether the achievement's condition is fulfilled, i.e., whether the achievement is unlocked.
         ///     The trigger events passed to the closure are sorted in increasing order w.r.t. their timestamps.
         ///     Returns the current ``AchievementsManager/AchievementState``, i.e., locked/unlocked.
-        case event(trigger: Trigger, predicate: @Sendable (_ events: [AchievementsState.TriggerEvent]) -> AchievementsManager.AchievementState)
+        case event(
+            trigger: Trigger,
+            predicate: @Sendable (_ events: [AchievementsManager.State.TriggerEvent]) -> AchievementsManager.AchievementState
+        )
         /// An achievement that unlocks when a value associated with some metric reaches a threshold.
         case threshold(metric: Metric, target: MetricValue)
         
