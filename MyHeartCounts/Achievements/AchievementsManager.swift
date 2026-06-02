@@ -21,6 +21,7 @@ import SpeziHealthKit
 import SpeziStudy
 
 
+/// Manages tracked achievements and syncs them with Firebase.
 @Observable
 final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Sendable {
     struct State: Hashable, Codable, Sendable {
@@ -34,12 +35,14 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
             let value: Double
         }
         
-        /// The version of the ``State`` type. Used to enable potential future evolution here.
+        /// The version of the ``State`` type.
+        ///
+        /// Used to enable potential future evolution of the type.
         fileprivate let version: UInt
         
         fileprivate var triggerEvents: Set<TriggerEvent>
         /// - Note: "metric" here is not referring to the metric system, and rather to the fact that each entry belongs to some metric.
-        fileprivate var metricObservations: [Achievement.Metric: MetricObservation]
+        fileprivate var metricObservations: [Achievement.Metric.ID: MetricObservation]
         
         fileprivate init() {
             version = 1
@@ -94,11 +97,27 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
     }
     
     /// Trigger IDs whose events collapse to a single (earliest) entry when merging two states.
-    @MainActor
     private var recordOnceTriggerIDs: Set<Achievement.Trigger.ID> {
         achievements.reduce(into: []) { result, achievement in
-            if case .event(let trigger, _) = achievement.kind, trigger.recordingMode == .recordOnce {
-                result.insert(trigger.id)
+            switch achievement.kind {
+            case .event(let trigger, predicate: _):
+                if trigger.recordingMode == .recordOnce {
+                    result.insert(trigger.id)
+                }
+            case .threshold:
+                break
+            }
+        }
+    }
+    
+    
+    private var metricRules: [Achievement.Metric.ID: Achievement.ThresholdRule] {
+        achievements.reduce(into: [:]) { result, achievement in
+            switch achievement.kind {
+            case .threshold(let metric, target: _):
+                result[metric.id] = metric.rule
+            case .event:
+                break
             }
         }
     }
@@ -156,9 +175,9 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
 }
 
 
+// MARK: Sync
+
 extension AchievementsManager {
-    // MARK: Sync
-    
     /// Scheduled a debounced sync.
     @MainActor
     private func scheduleSync() {
@@ -224,7 +243,11 @@ extension AchievementsManager {
             let cloud = try snapshot.data(as: State.self)
             // Fold cloud into the captured local state (least-upper-bound). `merged >= local`, so
             // adopting it never regresses local progress.
-            let merged = local.merging(cloud, recordOnceTriggerIDs: self.recordOnceTriggerIDs)
+            let merged = local.merging(
+                cloud,
+                recordOnceTriggerIDs: self.recordOnceTriggerIDs,
+                metricRuleThresholds: self.metricRules
+            )
             if merged != self.achievementsState {
                 self.achievementsState = merged
             }
@@ -263,9 +286,9 @@ extension AchievementsManager {
 }
 
 
+// MARK: Mutations
+
 extension AchievementsManager {
-    // MARK: Mutations
-    
     @MainActor
     private func updateEnrollmentStats(enrollmentDate: Date) async {
         record(.completeEnrollment, timestamp: enrollmentDate)
@@ -315,7 +338,7 @@ extension AchievementsManager {
 
 
 extension AchievementsManager.State {
-    var isEmpty: Bool {
+    fileprivate var isEmpty: Bool {
         triggerEvents.isEmpty && metricObservations.isEmpty
     }
     
@@ -326,7 +349,11 @@ extension AchievementsManager.State {
     ///   holding the same logical one-shot event with differing timestamps would permanently duplicate it.
     /// - `metricObservations` are merged by `metric.rule` (`.atLeast` -> max value, `.atMost` -> min
     ///   value; ties on value resolve to the earliest timestamp to stay commutative).
-    fileprivate func merging(_ other: Self, recordOnceTriggerIDs: Set<Achievement.Trigger.ID>) -> Self {
+    fileprivate func merging(
+        _ other: Self,
+        recordOnceTriggerIDs: Set<Achievement.Trigger.ID>,
+        metricRuleThresholds: [Achievement.Metric.ID: Achievement.ThresholdRule]
+    ) -> Self {
         var merged = self
         merged.triggerEvents.formUnion(other.triggerEvents)
         // collapse each record-once trigger to its earliest event
@@ -338,8 +365,14 @@ extension AchievementsManager.State {
             merged.triggerEvents.subtract(events)
             merged.triggerEvents.insert(earliest)
         }
-        for (metric, observation) in other.metricObservations {
-            merged.record(metric, value: observation.value, timestamp: observation.timestamp)
+        for (metricId, observation) in other.metricObservations {
+            if let rule = metricRuleThresholds[metricId] {
+                merged.record(.init(id: metricId, rule: rule), value: observation.value, timestamp: observation.timestamp)
+            } else if merged.metricObservations[metricId] == nil {
+                // metric this app version doesn't define (e.g. written by a newer build):
+                // preserve it verbatim rather than dropping it on write-back
+                merged.metricObservations[metricId] = observation
+            }
         }
         return merged
     }
@@ -357,23 +390,25 @@ extension AchievementsManager.State {
     }
     
     fileprivate mutating func record(_ metric: Achievement.Metric, value: Double, timestamp: Date) {
-        guard let oldEntry = metricObservations[metric] else {
-            metricObservations[metric] = .init(timestamp: timestamp, value: value)
+        guard let oldEntry = metricObservations[metric.id] else {
+            metricObservations[metric.id] = .init(timestamp: timestamp, value: value)
             return
         }
         switch metric.rule {
         case .atLeast: // tracking upwards: keep the max value, earliest timestamp on a tie
             if value > oldEntry.value || (value == oldEntry.value && timestamp < oldEntry.timestamp) {
-                metricObservations[metric] = .init(timestamp: timestamp, value: value)
+                metricObservations[metric.id] = .init(timestamp: timestamp, value: value)
             }
         case .atMost: // tracking downwards: keep the min value, earliest timestamp on a tie
             if value < oldEntry.value || (value == oldEntry.value && timestamp < oldEntry.timestamp) {
-                metricObservations[metric] = .init(timestamp: timestamp, value: value)
+                metricObservations[metric.id] = .init(timestamp: timestamp, value: value)
             }
         }
     }
 }
 
+
+// MARK: Querying
 
 extension Achievement {
     /// Used to identify an "achievements ladder", i.e., a sequence of achievements that track the same event/metric, and unlock in order.
@@ -589,7 +624,7 @@ extension AchievementsManager {
                     .sorted(using: KeyPathComparator(\.timestamp))
             )
         case let .threshold(metric, target):
-            guard let observation = achievementsState.metricObservations[metric] else {
+            guard let observation = achievementsState.metricObservations[metric.id] else {
                 return .locked(progress: 0, lastUpdate: nil)
             }
             let progress: Double = switch metric.rule {
