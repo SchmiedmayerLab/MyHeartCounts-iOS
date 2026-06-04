@@ -61,14 +61,11 @@ struct ParticipationStatsView: View {
         .sheet(isPresented: $isShowingExplainerSheet) {
             NavigationStack {
                 ScrollView {
-                    Text(verbatim: """
-                        Participation Stats cover all engagement and activity recorded.
-                        Your enrollment date is \(enrollment.enrollmentDate.formatted(.dateTime)).
-                        """)
+                    Text("PARTICIPATION_STATS_EXPLAINER(enrollmentDate: \(enrollment.enrollmentDate, format: .dateTime))")
                     // Note that leaving the study (e.g., by deleting the app or logging out) and re-enrolling will reset some of the engagement-related statistics.
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.red)
-                    .padding(.horizontal)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.red)
+                        .padding(.horizontal)
                 }
                 .navigationTitle("Info")
                 .navigationBarTitleDisplayMode(.inline)
@@ -289,15 +286,23 @@ extension ParticipationStatsView {
 
 extension ParticipationStatsView {
     private func makeFunFacts() -> [FunFact]? { // swiftlint:disable:this function_body_length discouraged_optional_collection
+        guard let stats else {
+            return nil
+        }
+        let healthStats = stats.health
         var facts: [FunFact] = []
-        if let steps = stats?.health.totalSteps, steps > 0 {
-            let distanceKm = Double(steps) * 0.000762 // ~0.762m per step
-            let isMetric = Locale.current.measurementSystem != .us
-            let distanceFormatted: String = {
-                let measurement = Measurement<UnitLength>(value: distanceKm, unit: .kilometers)
-                let converted = isMetric ? measurement : measurement.converted(to: .miles)
-                return converted.formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.precision(.fractionLength(0))))
-            }()
+        if let steps = healthStats.totalSteps, steps > 0 {
+            let distanceKm = healthStats.totalDistanceWalkingRunning?.converted(to: .kilometers).value ?? Double(steps) * 0.000762 // ~0.762m per step
+            let distanceFormatted: String = Measurement<UnitLength>(value: distanceKm, unit: .kilometers)
+                .converted(to: { () -> UnitLength in
+                    switch Locale.current.measurementSystem {
+                    case .uk, .us:
+                        .miles
+                    default: // includes .metric
+                        .kilometers
+                    }
+                }())
+                .formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.precision(.fractionLength(0))))
             if let comparison = stepDistanceComparison(distanceKm: distanceKm) {
                 facts.append(.init(
                     symbol: .figureWalk,
@@ -312,7 +317,7 @@ extension ParticipationStatsView {
                 ))
             }
         }
-        if let beats = stats?.health.totalHeartbeats, beats > 0 {
+        if let beats = healthStats.totalHeartbeats, beats > 0 {
             let lifetimePercent = Double(beats) / 3_000_000_000
             let percentFormatted = lifetimePercent.formatted(.percent.precision(.fractionLength(0...2)))
             facts.append(.init(
@@ -321,7 +326,7 @@ extension ParticipationStatsView {
                 text: "Your heart has beaten about \(beats.formatted(.number.notation(.compactName))) times since you enrolled \u{2014} roughly \(percentFormatted) of an average lifetime."
             ))
         }
-        if let kcal = stats?.health.totalActiveEnergyKcal, kcal > 0 {
+        if let kcal = healthStats.totalActiveEnergyKcal, kcal > 0 {
             let pizzaSlices = Int((kcal / 285).rounded())
             if pizzaSlices > 0 {
                 facts.append(.init(
@@ -331,7 +336,7 @@ extension ParticipationStatsView {
                 ))
             }
         }
-        if let sleepSec = stats?.health.totalSleepTime?.value(in: .seconds), sleepSec > TimeConstants.day {
+        if let sleepSec = healthStats.totalSleepTime?.value(in: .seconds), sleepSec > TimeConstants.day {
             let days = sleepSec / TimeConstants.day
             facts.append(.init(
                 symbol: .bedDoubleFill,
