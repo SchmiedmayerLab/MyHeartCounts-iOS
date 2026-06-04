@@ -113,7 +113,12 @@ extension ParticipationStatsProvider {
         let cal = Calendar.current
         let studyId = enrollment.studyId
         let enrollmentDate = enrollment.enrollmentDate
-        let enrollmentTimeRange = cal.startOfDay(for: enrollmentDate)..<now
+        let enrollmentTimeRange = if enrollmentDate < now {
+            cal.startOfDay(for: enrollmentDate)..<now
+        } else {
+            // unlikely but let's make sure this does not crash.
+            now..<now
+        }
         async let taskEngagement = computeTaskEngagementStats(studyId: studyId, enrollmentTimeRange: enrollmentTimeRange)
         async let healthStats = computeHealthStats(for: enrollmentTimeRange)
         return Stats(
