@@ -6642,6 +6642,22 @@
         }
       }
     },
+    "PARTICIPATION_STATS_EXPLAINER(enrollmentDate: %@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Participation Stats cover all engagement and activity recorded.\n\nYour enrollment date is %1$(enrollmentDate)@."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Participation Stats cover all engagement and activity recorded.\n\nYour enrollment date is %1$(enrollmentDate)@."
+          }
+        }
+      }
+    },
     "Past 2 Weeks" : {
       "localizations" : {
         "en-GB" : {

@@ -73,6 +73,11 @@ extension Achievement.Metric {
         id: "step-count-daily",
         rule: .atLeast(base: 0)
     )
+    
+    static let numRecordedECGs = Self(
+        id: "num-recorded-ecgs",
+        rule: .atLeast(base: 0)
+    )
 }
 
 
@@ -114,7 +119,7 @@ extension Achievement {
                 id: "first-6mwt",
                 category: .appUsage,
                 subcategory: nil,
-                kind: .eventOnce(trigger: .completeQuestionnaire),
+                kind: .eventOnce(trigger: .complete6MinWalkTest),
                 title: "Pedestrian Pioneer",
                 description: "Record your first Walk Test",
                 symbol: .figureWalk,
@@ -124,7 +129,7 @@ extension Achievement {
                 id: "first-12mrt",
                 category: .appUsage,
                 subcategory: nil,
-                kind: .eventOnce(trigger: .completeQuestionnaire),
+                kind: .eventOnce(trigger: .complete12MinRunTest),
                 title: "Cooper Trooper",
                 description: "Record your first Run Test",
                 symbol: .figureRun,
@@ -134,7 +139,7 @@ extension Achievement {
                 id: "first-ecg",
                 category: .appUsage,
                 subcategory: nil,
-                kind: .eventOnce(trigger: .completeQuestionnaire),
+                kind: .threshold(metric: .numRecordedECGs, target: 1),
                 title: "Cardio Connoisseur",
                 description: "Record your first ECG",
                 symbol: .waveformPathEcgRectangle,
