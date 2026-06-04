@@ -49,7 +49,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
     @Dependency(AppState.self) private var appState
-    @Dependency(AchievementsManager.self) private var achievementsManager
+    @Dependency(AchievementsManager.self) var achievementsManager
     @Application(\.registerRemoteNotifications) private var registerRemoteNotifications
     // swiftlint:disable attributes
     
@@ -81,10 +81,8 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     }
     
     func enroll(in studyBundle: StudyBundle) async throws {
-        guard let account, let studyManager else {
-            throw NSError(domain: "edu.stanford.MyHeartCounts", code: 0, userInfo: [
-                NSLocalizedDescriptionKey: "Missing Account / StudyManager"
-            ])
+        guard let account, await account.signedIn, let studyManager else {
+            throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing Account / StudyManager")
         }
         do {
             if let enrollmentDate = await account.details?.dateOfEnrollment {
@@ -103,8 +101,15 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                 }
             }
             LocalPreferencesStore.standard[.studyActivationDate] = .now
-            _Concurrency.Task(priority: .background) {
+            Swift::Task(priority: .background) {
                 historicalUploadManager.startAutomaticExportingIfNeeded()
+                // the .associatedAccount event below will already have called this, but it likely will have failed,
+                // since there was an account logged in, but the enrollment didn't exist yet at that point.
+                // so we call it again after creating the enrollment.
+                // this only is relevant if the user wasn't logged in and enrolled when the app was launched.
+                // all subsequent launches will go only through the `associateWithAccount()` call below, and will work correctly
+                // bc both the account and the enrollment will exist in these cases.
+                try await achievementsManager.associateWithAccount()
             }
             await Self._updateCurrentEnrollmentInfo(studyManager)
         } catch StudyManager.StudyEnrollmentError.alreadyEnrolledInNewerStudyRevision {
@@ -124,7 +129,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             Swift::Task {
                 async let updateEnvTracking = environmentTracking?.triggerAll()
                 async let registerNotifications = try? registerRemoteNotifications()
-                async let syncAchievements = try? achievementsManager.startObservingFirebase()
+                async let syncAchievements = try? achievementsManager.associateWithAccount()
                 _ = await (updateEnvTracking, registerNotifications, syncAchievements)
             }
         case .deletingAccount:
@@ -142,7 +147,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         async let updateFCMToken = try? notificationsManager.setFCMToken(nil)
         async let syncAchievements = try? achievementsManager.syncNow()
         _ = await (updateFCMToken, syncAchievements)
-        await achievementsManager.stopObservingFirebase()
+        await achievementsManager.disassociateFromAccount()
     }
 }
 

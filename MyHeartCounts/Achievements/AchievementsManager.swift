@@ -23,7 +23,7 @@ import SpeziStudy
 
 /// Manages tracked achievements and syncs them with Firebase.
 @Observable
-final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Sendable {
+final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Sendable { // call it just Achievements?
     struct State: Hashable, Codable, Sendable {
         struct TriggerEvent: Hashable, Codable, Sendable {
             let triggerId: Achievement.Trigger.ID
@@ -133,9 +133,11 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
         Achievement.registerDefaultAchievements(with: self)
         Task {
             do {
-                try await self.refresh()
+                // try to connect the manager w/ the account. this will fail if no user is logged in, in which case we fall back
+                // to the association happening when the Standard calls -associateWithAccount in response to the user logging in
+                try await self.associateWithAccount()
             } catch {
-                logger.error("Refresh failed: \(error)")
+                logger.error("Setup failed: \(error)")
             }
         }
     }
@@ -280,9 +282,14 @@ extension AchievementsManager {
     }
     
     
-    /// Sets up an observer on the firestore document tracking the current user's achievements progress, and automatically syncs any remote changes back into the local state.
+    /// Configures the `AchievementsManager` to populate its state from the currently logged-in `Account`
+    ///
+    /// This function also sets up an observer on the firestore document tracking the current user's achievements progress, and automatically syncs any remote changes back into the local state.
+    ///
+    /// This function only performs actual work the first time is called; any subsequent calls will see that an association already exists and return early.
+    /// Call  ``disassociateFromAccount()`` to clear the association (e.g., in response to user logout), in which case the next call to this function will set up a new one.
     @MainActor
-    func startObservingFirebase() throws {
+    func associateWithAccount() async throws {
         guard remoteChangesObserver == nil else {
             return
         }
@@ -309,14 +316,24 @@ extension AchievementsManager {
                 self.logger.error("Remote changes observation failed: \(error)")
             }
         }
+        try await refresh()
     }
     
     
-    /// Cancels and clears any observer set up by ``startObservingFirebase()``.
+    /// Cancels the association set up by ``associateWithAccount()`` and clears the local achievments state.
+    ///
+    /// - Important: you very likely want to perform a final sync (``syncNow()``) before calling this function, to ensure the local state is correctly persisted in the cloud.
+    ///     This function will cancel all pending debounces and all in-progress syncs!
     @MainActor
-    func stopObservingFirebase() {
-        remoteChangesObserver?.cancel()
-        remoteChangesObserver = nil
+    func disassociateFromAccount() {
+        func cancel(_ task: inout Task<some Any, some Any>?) {
+            task?.cancel()
+            task = nil
+        }
+        cancel(&remoteChangesObserver)
+        cancel(&debounceTask)
+        cancel(&runningSync)
+        achievementsState = .init()
     }
 }
 
@@ -342,16 +359,29 @@ extension AchievementsManager {
     
     @MainActor
     private func updateHealthMetrics(enrollmentDate: Date) async {
-        for stats in (try? await healthKit.statisticsQuery(
-            .stepCount,
-            aggregatedBy: [.sum],
-            over: .day,
-            timeRange: .init(Calendar.current.startOfDay(for: enrollmentDate)..<Date.now)
-        )) ?? [] {
-            guard let stepCount = stats.sumQuantity()?.doubleValue(for: .count()) else {
-                continue
+        await withDiscardingTaskGroup { taskGroup in
+            let queryTimeRange = HealthKitQueryTimeRange(Calendar.current.startOfDay(for: enrollmentDate)..<Date.now)
+            taskGroup.addTask {
+                for stats in (try? await self.healthKit.statisticsQuery(
+                    .stepCount,
+                    aggregatedBy: [.sum],
+                    over: .day,
+                    timeRange: queryTimeRange
+                )) ?? [] {
+                    guard let stepCount = stats.sumQuantity()?.doubleValue(for: .count()) else {
+                        continue
+                    }
+                    await self.record(.dailyStepCount, value: stepCount, timestamp: stats.timeRange.middle)
+                }
             }
-            record(.dailyStepCount, value: stepCount, timestamp: stats.timeRange.middle)
+            taskGroup.addTask {
+                guard let ecgs = try? await self.healthKit.query(.electrocardiogram, timeRange: queryTimeRange), !ecgs.isEmpty else {
+                    return
+                }
+                // SAFETY: we know that `ecgs` has at least one element, so `max(of:)` will never be nil.
+                let newestECGDate = ecgs.max(of: \.endDate)! // swiftlint:disable:this force_unwrapping
+                await self.record(.numRecordedECGs, value: ecgs.count, timestamp: newestECGDate)
+            }
         }
     }
     
@@ -666,7 +696,7 @@ extension AchievementsManager {
                 if let base {
                     ((observation.value - base) / (target - base)).clamped(to: 0...1)
                 } else {
-                    (observation.value <= target) ? 1 : 0
+                    (observation.value >= target) ? 1 : 0
                 }
             case .atMost(let base): // tracking downwards
                 if let base {
