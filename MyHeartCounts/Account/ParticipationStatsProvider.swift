@@ -67,12 +67,12 @@ extension ParticipationStatsProvider {
     
     
     struct HealthStats: Sendable {
-        struct WorkoutInfo {
+        struct WorkoutInfo: Sendable {
             let numWorkouts: Int
             let totalDuration: Measurement<UnitDuration>
         }
         
-        struct LongestWorkoutInfo {
+        struct LongestWorkoutInfo: Sendable {
             let date: Date
             let activityType: HKWorkoutActivityType
             let duration: Measurement<UnitDuration>
@@ -129,9 +129,17 @@ extension ParticipationStatsProvider {
                 numMonthsEnrolled: cal.countDistinctMonths(from: enrollmentDate, to: now),
                 numYearsEnrolled: cal.countDistinctYears(from: enrollmentDate, to: now)
             ),
-            appEngagement: nil, // TODO
+            appEngagement: computeAppEngagementStats(enrollmentTimeRange: enrollmentTimeRange),
             taskEngagement: await taskEngagement,
             health: await healthStats
+        )
+    }
+    
+    nonisolated private func computeAppEngagementStats(enrollmentTimeRange: Range<Date>) -> AppEngagementStats {
+        // TODO (we don't have app opening tracking yet...)
+        return AppEngagementStats(
+            currentLaunchAppStreak: 0,
+            longestLaunchAppStreak: 0
         )
     }
     
@@ -268,7 +276,7 @@ extension ParticipationStatsProvider {
                 }
                 return .init(date: stat.startDate, value: value)
             }
-            .min { isConsideredBetter($0.value, $1.value) }
+            .max { isConsideredBetter($1.value, $0.value) }
     }
     
     private func discreteStat(

@@ -29,13 +29,13 @@ struct ParticipationStatsView: View {
     var body: some View {
         Form {
             EnrollmentStatsSection(enrollmentDate: enrollment.enrollmentDate)
-            TiledSection("Engagement", symbol: .checklistChecked) {
+            TiledSection("Engagement"/*, symbol: .checklistChecked*/) {
                 engagementSection(using: stats)
             }
-            TiledSection("Health Totals", symbol: .heartFill) {
+            TiledSection("Health Totals"/*, symbol: .heartFill*/) {
                 healthTotalsSection(using: stats?.health)
             }
-            TiledSection("Personal Bests", symbol: .starFill) {
+            TiledSection("Personal Bests"/*, symbol: .starFill*/) {
                 personalBestsSection(using: stats?.health.personalBests)
             }
             funFactsSection()
@@ -64,7 +64,6 @@ struct ParticipationStatsView: View {
                     Text("PARTICIPATION_STATS_EXPLAINER(enrollmentDate: \(enrollment.enrollmentDate, format: .dateTime))")
                     // Note that leaving the study (e.g., by deleting the app or logging out) and re-enrolling will reset some of the engagement-related statistics.
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.red)
                         .padding(.horizontal)
                 }
                 .navigationTitle("Info")
@@ -228,7 +227,7 @@ extension ParticipationStatsView {
             format: .compactNumber,
             symbol: .figureWalk,
             accentColor: .green,
-            subtitle: stats?.bestDailySteps?.date.formatted(dateFormat)
+            subtitle: (stats?.bestDailySteps?.date).map { "\($0, format: dateFormat)" }
         )
         StatCard(
             title: "Longest Workout",
@@ -236,12 +235,13 @@ extension ParticipationStatsView {
             format: .duration,
             symbol: .stopwatchFill,
             accentColor: .blue,
-            subtitle: { () -> String in
+            subtitle: { () -> LocalizedStringResource? in
                 let components: [String?] = [
                     stats?.longestWorkout?.date.formatted(dateFormat),
                     stats?.longestWorkout?.activityType.displayTitle.localizedString()
                 ]
-                return components.lazy.compactMap(\.self).joined(separator: " • ")
+                let text = components.lazy.compactMap(\.self).joined(separator: " • ")
+                return text.isEmpty ? nil : "\(text)"
             }()
         )
         StatCard(
@@ -318,7 +318,7 @@ extension ParticipationStatsView {
             }
         }
         if let beats = healthStats.totalHeartbeats, beats > 0 {
-            let lifetimePercent = Double(beats) / 3_000_000_000
+            let lifetimePercent = Double(beats) / 3_000_000_000 // TODO can we simply estimate 3bn lifetime total heartbeats?
             let percentFormatted = lifetimePercent.formatted(.percent.precision(.fractionLength(0...2)))
             facts.append(.init(
                 symbol: .heartFill,
@@ -428,7 +428,7 @@ private struct EnrollmentStatsSection: View {
                 Text(numDaysEnrolled, format: .number)
                     .font(.system(size: 64, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                Text("days")
+                Text(numDaysEnrolled > 1 ? "days" : "day")
                     .font(.title2.weight(.medium))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -504,7 +504,6 @@ private struct StatCard: View {
     enum Format {
         case number
         case compactNumber
-        case dayCount
         case weekCount
         /// in meters
         case distance
@@ -517,7 +516,7 @@ private struct StatCard: View {
     }
     
     let title: LocalizedStringResource
-    let subtitle: String?
+    let subtitle: LocalizedStringResource?
     let value: Double?
     let format: Format
     let symbol: SFSymbol
@@ -571,7 +570,7 @@ private struct StatCard: View {
         format: Format,
         symbol: SFSymbol,
         accentColor: Color,
-        subtitle: String? = nil
+        subtitle: LocalizedStringResource? = nil
     ) {
         self.title = title
         self.subtitle = subtitle
@@ -587,7 +586,7 @@ private struct StatCard: View {
         format: Format,
         symbol: SFSymbol,
         accentColor: Color,
-        subtitle: String? = nil
+        subtitle: LocalizedStringResource? = nil
     ) {
         self.title = title
         self.value = value.map { Double($0) }
@@ -604,11 +603,6 @@ private struct StatCard: View {
             Text(Int(value), format: .number)
         case .compactNumber:
             Text(Int(value), format: .number.notation(.compactName))
-        case .dayCount:
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(Int(value), format: .number)
-                Text("d").font(.title3.weight(.medium)).foregroundStyle(.secondary)
-            }
         case .weekCount:
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(Int(value), format: .number)
@@ -625,27 +619,12 @@ private struct StatCard: View {
             let measurement = Measurement<UnitEnergy>(value: value, unit: .kilocalories)
             Text(measurement.formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.notation(.compactName))))
         case .duration:
-            Text(formatDuration(seconds: value))
+            Text(Duration.seconds(value), format: .units(allowed: [.days, .hours, .minutes], width: .condensedAbbreviated))
         case .heartRate:
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(Int(value), format: .number)
                 Text("bpm").font(.title3.weight(.medium)).foregroundStyle(.secondary)
             }
-        }
-    }
-    
-    private func formatDuration(seconds: Double) -> String {
-        let totalMinutes = Int(seconds / 60)
-        if totalMinutes >= 60 * 24 {
-            let days = totalMinutes / (60 * 24)
-            let hours = (totalMinutes / 60) % 24
-            return hours == 0 ? "\(days)d" : "\(days)d \(hours)h"
-        } else if totalMinutes >= 60 {
-            let hours = totalMinutes / 60
-            let minutes = totalMinutes % 60
-            return minutes == 0 ? "\(hours)h" : "\(hours)h \(minutes)m"
-        } else {
-            return "\(totalMinutes)m"
         }
     }
 }
@@ -691,11 +670,19 @@ extension Measurement {
 
 // MARK: TMP
 
+/// A Button that presents a sheet with the participation stats & achievements.
+///
+/// - Note: This button is only functional if there exists at least one study enrollment.
+///     Otherwise, the button will be disabled and not do anything.
 struct ParticipationStatsButton: View {
-    @Environment(StudyManager.self)
-    private var studyManager: StudyManager?
-    
+    // Important: we currently assume that there is only ever at most one enrollment, and that that enrollment will always be the MHC one.
+    // this is correct currently, bc we don't have sub-studies yet, but might change at some point down the road.
+    @StudyManagerQuery private var enrollments: [StudyEnrollment]
     @State private var showStats = false
+    
+    private var enrollment: StudyEnrollment? {
+        enrollments.first
+    }
     
     var body: some View {
         Button {
@@ -705,8 +692,9 @@ struct ParticipationStatsButton: View {
                 Text("Stats and Achievements")
             }
         }
+        .disabled(enrollment == nil)
         .sheet(isPresented: $showStats) {
-            if let enrollment = studyManager?.studyEnrollments.first {
+            if let enrollment {
                 NavigationStack {
                     ParticipationStatsView(enrollment: enrollment)
                         .toolbar {

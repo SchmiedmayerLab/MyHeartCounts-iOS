@@ -38,6 +38,8 @@ struct Achievement: Identifiable, Sendable {
         }
         
         /// An achievement that unlocks when the amount of times a specific "thing" happened exceeds a threshold.
+        ///
+        /// - parameter target: the trigger threshold. Must be a positive value greater than 0; otherwise the achievement will always be considered locked.
         static func counting(trigger: Trigger, target: Int) -> Self {
             // Qurstions:
             // 1. do we want to support negative trigger-based achievement kinds?
@@ -48,7 +50,7 @@ struct Achievement: Identifiable, Sendable {
             //    we want most if not all of the time...
             .event(trigger: trigger) { events in
                 guard target > 0 else {
-                    return .unlocked(unlockDate: .now)
+                    return .locked(progress: 0, lastUpdate: nil)
                 }
                 // assuming that events is sorted in ascending order, this will give us the first event that fulfilled the target count
                 if let event = events[safe: target - 1] {

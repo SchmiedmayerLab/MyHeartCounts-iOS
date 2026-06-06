@@ -26,13 +26,95 @@ import SpeziStudy
 final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Sendable { // call it just Achievements?
     struct State: Hashable, Codable, Sendable {
         struct TriggerEvent: Hashable, Codable, Sendable {
+            /// The trigger that occurred
             let triggerId: Achievement.Trigger.ID
+            /// The timestamp when this trigger occurred
             let timestamp: Date
+            
+            init(triggerId: Achievement.Trigger.ID, timestamp: Date) {
+                self.triggerId = triggerId
+                self.timestamp = timestamp.normalizedForFirestore()
+            }
+            
+            init(from decoder: any Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                // we want to route this through the normalizing init
+                self.init(
+                    triggerId: try container.decode(Achievement.Trigger.ID.self, forKey: .triggerId),
+                    timestamp: try container.decode(Date.self, forKey: .timestamp)
+                )
+            }
         }
         
+        
         struct MetricObservation: Hashable, Codable, Sendable {
+            /// The timestamp when this value was observed.
             let timestamp: Date
+            /// The value that was observed
             let value: Double
+            
+            init(timestamp: Date, value: Double) {
+                self.value = value
+                self.timestamp = timestamp.normalizedForFirestore()
+            }
+            
+            init(from decoder: any Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                // we want to route this through the normalizing init
+                self.init(
+                    timestamp: try container.decode(Date.self, forKey: .timestamp),
+                    value: try container.decode(Double.self, forKey: .value)
+                )
+            }
+        }
+        
+        
+        struct AchievementUnlock: Hashable, Codable, Sendable {
+            let achievementId: Achievement.ID
+            let unlockDate: Date
+            
+            init(achievementId: Achievement.ID, unlockDate: Date) {
+                self.achievementId = achievementId
+                self.unlockDate = unlockDate.normalizedForFirestore()
+            }
+            
+            init(from decoder: any Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                // we want to route this through the normalizing init
+                self.init(
+                    achievementId: try container.decode(Achievement.ID.self, forKey: .achievementId),
+                    unlockDate: try container.decode(Date.self, forKey: .unlockDate)
+                )
+            }
+        }
+        
+        
+        struct AchievementUnlocks: Hashable, Codable, Sendable {
+            private var storage: [Achievement.ID: Date]
+            
+            init() {
+                storage = [:]
+            }
+            
+            init(from decoder: any Decoder) throws {
+                let container = try decoder.singleValueContainer()
+                storage = try container.decode([Achievement.ID: Date].self)
+                    .mapValues { $0.normalizedForFirestore() }
+            }
+            
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(storage)
+            }
+            
+            subscript(achievementId: Achievement.ID) -> Date? {
+                get {
+                    storage[achievementId]
+                }
+                set {
+                    storage[achievementId] = newValue?.normalizedForFirestore()
+                }
+            }
         }
         
         /// The version of the ``State`` type.
@@ -41,16 +123,43 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
         fileprivate let version: UInt
         
         fileprivate var triggerEvents: Set<TriggerEvent>
+        
         /// - Note: "metric" here is not referring to the metric system, and rather to the fact that each entry belongs to some metric.
         fileprivate var metricObservations: [Achievement.Metric.ID: MetricObservation]
+        
+        /// Keeps track of recorded unlock events.
+        fileprivate var unlocks: AchievementUnlocks
         
         fileprivate init() {
             version = 1
             triggerEvents = []
             metricObservations = [:]
+            unlocks = .init()
+        }
+        
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let version = try container.decode(UInt.self, forKey: .version)
+            switch version {
+            case 1:
+                self.version = version
+                self.triggerEvents = try container.decode(Set<TriggerEvent>.self, forKey: .triggerEvents)
+                self.metricObservations = try container.decode([Achievement.Metric.ID: MetricObservation].self, forKey: .metricObservations)
+                self.unlocks = try container.decode(AchievementUnlocks.self, forKey: .unlocks)
+            default:
+                throw DecodingError.dataCorruptedError(
+                    forKey: .version,
+                    in: container,
+                    debugDescription: "Unsupported version \(version)"
+                )
+            }
         }
     }
     
+    
+    private enum SyncError: Error {
+        case notEnrolled
+    }
     
     // swiftlint:disable attributes
     @ObservationIgnored @Application(\.logger) private var logger
@@ -74,7 +183,9 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
     /// The single in-flight sync. All sync funnels through this one task, so two syncs can never
     /// interleave their read-merge-write. Cleared by the task itself (via `defer`) on completion.
     @MainActor private var runningSync: Task<Void, any Error>?
-    /// Set whenever local state changes; tells an in-flight sync loop it must run another pass.
+    /// Set to `true` whenever local state changes and a sync is scheduled.
+    ///
+    /// The purpose of this flag is to tell an in-flight sync loop it must run another pass, in order to handle situations where the state is changed while the sync is ongoing.
     @MainActor private var syncDirty = false
     /// Pending debounce timer for a requested-but-not-yet-started sync.
     @MainActor private var debounceTask: Task<Void, Never>?
@@ -93,35 +204,9 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
     private var achievementTrackingDoc: DocumentReference {
         get throws {
             guard let studyId = studyManager?.studyEnrollments.first?.studyId else {
-                throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Not enrolled in study")
+                throw SyncError.notEnrolled
             }
             return try firebaseConfiguration.userDocumentReference.collection("achievementTracking").document(studyId.uuidString)
-        }
-    }
-    
-    /// Trigger IDs whose events collapse to a single (earliest) entry when merging two states.
-    private var recordOnceTriggerIDs: Set<Achievement.Trigger.ID> {
-        achievements.reduce(into: []) { result, achievement in
-            switch achievement.kind {
-            case .event(let trigger, predicate: _):
-                if trigger.recordingMode == .recordOnce {
-                    result.insert(trigger.id)
-                }
-            case .threshold:
-                break
-            }
-        }
-    }
-    
-    
-    private var metricRules: [Achievement.Metric.ID: Achievement.ThresholdRule] {
-        achievements.reduce(into: [:]) { result, achievement in
-            switch achievement.kind {
-            case .threshold(let metric, target: _):
-                result[metric.id] = metric.rule
-            case .event:
-                break
-            }
         }
     }
     
@@ -209,14 +294,26 @@ extension AchievementsManager {
     /// It is safe to call this function while another sync is already in progress.
     /// It also is safe to mutate ``achievementsState`` while a sync is in progress; the changes will be picked up and synced as well.
     @MainActor
-    private func _runSync() async throws { // swiftlint:disable:this function_body_length
+    private func _runSync() async throws { // swiftlint:disable:this function_body_length cyclomatic_complexity
         if let runningSync {
             try await runningSync.value
             return
         }
         /// Performs a single read-merge-write pass against the cloud document
-        let syncImpl = { @MainActor () async throws in
-            let doc = try self.achievementTrackingDoc
+        let syncImpl = { @MainActor () async throws in // swiftlint:disable:this closure_body_length
+            let doc: DocumentReference
+            do {
+                doc = try self.achievementTrackingDoc
+            } catch SyncError.notEnrolled {
+                // loading the doc failed bc the user is not enrolled.
+                // in this case, we intentionally don't want to go down the retry path.
+                self.achievementsState = State()
+                self.syncDirty = false
+                return
+            } catch {
+                self.syncDirty = true
+                throw error
+            }
             let snapshot = try await doc.getDocument()
             // Capture the state this pass commits and clear the dirty flag in the SAME synchronous turn.
             // Anything recorded after this line re-sets `syncDirty` (handled by the next pass); anything
@@ -237,14 +334,16 @@ extension AchievementsManager {
                 }
                 return
             }
-            let cloud = try snapshot.data(as: State.self)
+            let cloud: State
+            do {
+                cloud = try snapshot.data(as: State.self)
+            } catch {
+                self.syncDirty = true
+                throw error
+            }
             // Fold cloud into the captured local state (least-upper-bound). `merged >= local`, so
             // adopting it never regresses local progress.
-            let merged = local.merging(
-                cloud,
-                recordOnceTriggerIDs: self.recordOnceTriggerIDs,
-                metricRuleThresholds: self.metricRules
-            )
+            let merged = local.merging(cloud, allAchievements: self.achievements)
             if merged != self.achievementsState {
                 self.achievementsState = merged
             }
@@ -347,6 +446,7 @@ extension AchievementsManager {
         let now = Date()
         let cal = Calendar.current
         let enrollmentDate = cal.startOfDay(for: enrollmentDate)
+        // Note that `numDays` here intentionally differs from `num{Weeks|Months|Years}` in that it starts counting at 1 instead of 0.
         let numDays = cal.countDistinctDays(from: enrollmentDate, to: now)
         let numWeeks = cal.dateComponents([.weekOfYear], from: enrollmentDate, to: now).weekOfYear ?? (numDays / 7)
         let numMonths = cal.dateComponents([.month], from: enrollmentDate, to: now).month ?? (numWeeks / 4)
@@ -371,7 +471,12 @@ extension AchievementsManager {
                     guard let stepCount = stats.sumQuantity()?.doubleValue(for: .count()) else {
                         continue
                     }
-                    await self.record(.dailyStepCount, value: stepCount, timestamp: stats.timeRange.middle)
+                    await self.record(
+                        .dailyStepCount,
+                        value: stepCount,
+                        // using start of day here.
+                        timestamp: stats.timeRange.lowerBound
+                    )
                 }
             }
             taskGroup.addTask {
@@ -397,7 +502,7 @@ extension AchievementsManager {
     
     @MainActor
     func record(_ metric: Achievement.Metric, value: Double, timestamp: Date) {
-        achievementsState.record(metric, value: value, timestamp: timestamp)
+        achievementsState.record(metric, value: value, timestamp: timestamp, allAchievements: achievements)
     }
 }
 
@@ -414,15 +519,39 @@ extension AchievementsManager.State {
     ///   holding the same logical one-shot event with differing timestamps would permanently duplicate it.
     /// - `metricObservations` are merged by `metric.rule` (`.atLeast` -> max value, `.atMost` -> min
     ///   value; ties on value resolve to the earliest timestamp to stay commutative).
+    ///
+    /// - parameter recordOnceTriggerIDs: all currently-known trigger ids whose rule is ``Achievement/Trigger/RecordingMode/recordOnce``.
+    /// - parameter metricRuleThresholds: the currently-registered metric rule thresholds.
     fileprivate func merging(
         _ other: Self,
-        recordOnceTriggerIDs: Set<Achievement.Trigger.ID>,
-        metricRuleThresholds: [Achievement.Metric.ID: Achievement.ThresholdRule]
+//        recordOnceTriggerIDs: Set<Achievement.Trigger.ID>,
+//        metricRuleThresholds: [Achievement.Metric.ID: Achievement.ThresholdRule],
+        allAchievements: some Collection<Achievement>
     ) -> Self {
+        /// Trigger IDs whose events collapse to a single (earliest) entry when merging two states.
+        let recordOnceTriggerIds: Set<Achievement.Trigger.ID> = allAchievements.reduce(into: []) { result, achievement in
+            switch achievement.kind {
+            case .event(let trigger, predicate: _):
+                if trigger.recordingMode == .recordOnce {
+                    result.insert(trigger.id)
+                }
+            case .threshold:
+                break
+            }
+        }
+        /// Metric rules by metric id
+        let metricRuleThresholds: [Achievement.Metric.ID: Achievement.ThresholdRule] = allAchievements.reduce(into: [:]) { result, achievement in
+            switch achievement.kind {
+            case .threshold(let metric, target: _):
+                result[metric.id] = metric.rule
+            case .event:
+                break
+            }
+        }
         var merged = self
         merged.triggerEvents.formUnion(other.triggerEvents)
         // collapse each record-once trigger to its earliest event
-        for triggerID in recordOnceTriggerIDs {
+        for triggerID in recordOnceTriggerIds {
             let events = merged.triggerEvents.filter { $0.triggerId == triggerID }
             guard events.count > 1, let earliest = events.min(by: { $0.timestamp < $1.timestamp }) else {
                 continue
@@ -432,11 +561,24 @@ extension AchievementsManager.State {
         }
         for (metricId, observation) in other.metricObservations {
             if let rule = metricRuleThresholds[metricId] {
-                merged.record(.init(id: metricId, rule: rule), value: observation.value, timestamp: observation.timestamp)
-            } else if merged.metricObservations[metricId] == nil {
-                // metric this app version doesn't define (e.g. written by a newer build):
-                // preserve it verbatim rather than dropping it on write-back
-                merged.metricObservations[metricId] = observation
+                merged.record(
+                    .init(id: metricId, rule: rule),
+                    value: observation.value,
+                    timestamp: observation.timestamp,
+                    allAchievements: allAchievements
+                )
+            } else {
+                // unknown metric (likely written by server / other build, and we're currently running an outdated version of the app)
+                if let currentValue = merged.metricObservations[metricId] {
+                    // the observation exists in self, and in other.
+                    // this presents us with a problem w.r.t. the question of how this should be handled
+                    // (the issue being that we don't have the definition so we don't know how to reduce these 2 observations into 1)...
+                    // TODO
+                } else { // present in other but not in self
+                    // the observation is present in the incoming State, but not in the destination one.
+                    // we simply preserve it as-is.
+                    merged.metricObservations[metricId] = observation
+                }
             }
         }
         return merged
@@ -445,8 +587,12 @@ extension AchievementsManager.State {
     fileprivate mutating func record(_ trigger: Achievement.Trigger, timestamp: Date) {
         switch trigger.recordingMode {
         case .recordOnce:
-            let hasEvent = triggerEvents.contains { $0.triggerId == trigger.id }
-            if !hasEvent {
+            if let idx = triggerEvents.firstIndex(where: { $0.triggerId == trigger.id }) {
+                if timestamp < triggerEvents[idx].timestamp {
+                    triggerEvents.remove(at: idx)
+                    fallthrough
+                }
+            } else {
                 fallthrough
             }
         case .keepAll:
@@ -454,19 +600,108 @@ extension AchievementsManager.State {
         }
     }
     
-    fileprivate mutating func record(_ metric: Achievement.Metric, value: Double, timestamp: Date) {
+    fileprivate mutating func record(
+        _ metric: Achievement.Metric,
+        value: Double,
+        timestamp: Date,
+        allAchievements: some Collection<Achievement>
+    ) {
         guard let oldEntry = metricObservations[metric.id] else {
             metricObservations[metric.id] = .init(timestamp: timestamp, value: value)
+            evaluateUnlocks(trigger: .updatedMetricObservation(metric: metric), allAchievements: allAchievements)
             return
         }
         switch metric.rule {
         case .atLeast: // tracking upwards: keep the max value, earliest timestamp on a tie
             if value > oldEntry.value || (value == oldEntry.value && timestamp < oldEntry.timestamp) {
                 metricObservations[metric.id] = .init(timestamp: timestamp, value: value)
+                evaluateUnlocks(trigger: .updatedMetricObservation(metric: metric), allAchievements: allAchievements)
             }
         case .atMost: // tracking downwards: keep the min value, earliest timestamp on a tie
             if value < oldEntry.value || (value == oldEntry.value && timestamp < oldEntry.timestamp) {
                 metricObservations[metric.id] = .init(timestamp: timestamp, value: value)
+                evaluateUnlocks(trigger: .updatedMetricObservation(metric: metric), allAchievements: allAchievements)
+            }
+        }
+    }
+    
+    
+    fileprivate func state(of achievement: Achievement) -> AchievementsManager.AchievementState {
+        if let unlockDate = unlocks[achievement.id] {
+            return .unlocked(unlockDate: unlockDate)
+        }
+        switch achievement.kind {
+        case let .event(trigger, predicate):
+            return predicate(
+                triggerEvents
+                    .filter { $0.triggerId == trigger.id }
+                    .sorted(using: KeyPathComparator(\.timestamp))
+            )
+        case let .threshold(metric, target):
+            guard let observation = metricObservations[metric.id] else {
+                return .locked(progress: 0, lastUpdate: nil)
+            }
+            let progress: Double = switch metric.rule {
+            case .atLeast(let base): // tracking upwards
+                if let base {
+                    ((observation.value - base) / (target - base)).clamped(to: 0...1)
+                } else {
+                    (observation.value >= target) ? 1 : 0
+                }
+            case .atMost(let base): // tracking downwards
+                if let base {
+                    ((base - observation.value) / (base - target)).clamped(to: 0...1)
+                } else {
+                    (observation.value <= target) ? 1 : 0
+                }
+            }
+            return if progress >= 1 {
+                .unlocked(unlockDate: observation.timestamp)
+            } else {
+                .locked(progress: progress, lastUpdate: observation.timestamp)
+            }
+        }
+    }
+}
+
+
+extension AchievementsManager.State {
+    /// Info about the specific thing that caused the evaluation to be performed.
+    private enum UnlocksEvalTrigger {
+        case updatedMetricObservation(metric: Achievement.Metric)
+        case unknown
+    }
+    
+    private mutating func evaluateUnlocks(
+        trigger: UnlocksEvalTrigger,
+        allAchievements: some Collection<Achievement>
+    ) {
+        for achievement in allAchievements {
+            switch achievement.kind {
+            case .event:
+                // currently not covered by `AchievementUnlocks`.
+                break
+            case .threshold(let metric, _):
+                switch trigger {
+                case .updatedMetricObservation(let updatedMetric):
+                    guard metric == updatedMetric else {
+                        continue
+                    }
+                case .unknown:
+                    break
+                }
+                guard self.unlocks[achievement.id] == nil else {
+                    // already unlocked
+                    break
+                }
+                switch state(of: achievement) {
+                case .locked:
+                    // still unlocked
+                    break
+                case .unlocked(let unlockDate):
+                    // previously locked, now unlocked
+                    unlocks[achievement.id] = unlockDate
+                }
             }
         }
     }
@@ -680,36 +915,21 @@ extension AchievementsManager {
     
     @MainActor
     func state(of achievement: Achievement) -> AchievementState {
-        switch achievement.kind {
-        case let .event(trigger, predicate):
-            return predicate(
-                achievementsState.triggerEvents
-                    .filter { $0.triggerId == trigger.id }
-                    .sorted(using: KeyPathComparator(\.timestamp))
-            )
-        case let .threshold(metric, target):
-            guard let observation = achievementsState.metricObservations[metric.id] else {
-                return .locked(progress: 0, lastUpdate: nil)
-            }
-            let progress: Double = switch metric.rule {
-            case .atLeast(let base): // tracking upwards
-                if let base {
-                    ((observation.value - base) / (target - base)).clamped(to: 0...1)
-                } else {
-                    (observation.value >= target) ? 1 : 0
-                }
-            case .atMost(let base): // tracking downwards
-                if let base {
-                    ((base - observation.value) / (base - target)).clamped(to: 0...1)
-                } else {
-                    (observation.value <= target) ? 1 : 0
-                }
-            }
-            return if progress >= 1 {
-                .unlocked(unlockDate: observation.timestamp)
-            } else {
-                .locked(progress: progress, lastUpdate: observation.timestamp)
-            }
-        }
+        achievementsState.state(of: achievement)
+    }
+}
+
+
+extension Date {
+    /// Creates a new date value by normalizing (rounding) this date in a way that will make it resilient to Firestore decoding/encoding round trips.
+    func normalizedForFirestore() -> Date {
+        Date(timeIntervalSinceReferenceDate: timeIntervalSinceReferenceDate.rounded(toNearestMultipleOf: 0x1p-3)) // 1 * 2^-3
+    }
+}
+
+
+extension FloatingPoint {
+    func rounded(toNearestMultipleOf step: Self, rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) -> Self {
+        (self / step).rounded(rule) * step
     }
 }

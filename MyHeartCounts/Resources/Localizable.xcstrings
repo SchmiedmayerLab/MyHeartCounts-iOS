@@ -5,7 +5,7 @@
       "shouldTranslate" : false
     },
     " " : {
-
+      "shouldTranslate" : false
     },
     "  0" : {
       "shouldTranslate" : false
@@ -1329,6 +1329,9 @@
         }
       }
     },
+    "Average" : {
+
+    },
     "Bachelor" : {
       "localizations" : {
         "en-GB" : {
@@ -2094,6 +2097,7 @@
       }
     },
     "d" : {
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2198,6 +2202,9 @@
           }
         }
       }
+    },
+    "day" : {
+
     },
     "days" : {
       "localizations" : {
@@ -2950,6 +2957,9 @@
           }
         }
       }
+    },
+    "Estimate" : {
+
     },
     "Exercise Time" : {
       "localizations" : {
@@ -3732,19 +3742,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "If you agree, this study can securely access selected health information that you have already stored in Apple’s Health app through your healthcare providers. This information may include:\n- Laboratory results (for example, cholesterol, blood sugar, or other blood tests)\n- Clinical measurements such as blood pressure, heart rate, or body mass index recorded by your medical provider\n- Medications prescribed to you\nImmunizations (such as flu or COVID-19 vaccines)\n- Allergies, diagnoses, and conditions listed in your medical record\n- Procedures and clinical visits documented by your health system\n\nAccess will occur only if you grant permission in Apple Health. Your health records are encrypted and transferred securely. The research team will not receive your full medical chart, only the specific data types you approve. You may withdraw this permission at any time through the Health app settings.\nThe purpose of collecting this information is to combine it with other data you choose to share—such as physical activity, heart rate, or survey responses—to help researchers better understand how clinical history relates to heart health and to develop improved strategies for prevention and treatment."
+            "value" : "If you agree, this study can securely access selected health information that you have already stored in Apple’s Health app through your healthcare providers. This information may include:\n- Laboratory results (for example, cholesterol, blood sugar, or other blood tests)\n- Clinical measurements such as blood pressure, heart rate, or body mass index recorded by your medical provider\n- Medications prescribed to you\n- Immunizations (such as flu or COVID-19 vaccines)\n- Allergies, diagnoses, and conditions listed in your medical record\n- Procedures and clinical visits documented by your health system\n\nAccess will occur only if you grant permission in Apple Health. Your health records are encrypted and transferred securely. The research team will not receive your full medical chart, only the specific data types you approve. You may withdraw this permission at any time through the Health app settings.\n\nThe purpose of collecting this information is to combine it with other data you choose to share—such as physical activity, heart rate, or survey responses—to help researchers better understand how clinical history relates to heart health and to develop improved strategies for prevention and treatment."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "If you agree, this study can securely access selected health information that you have already stored in Apple’s Health app through your healthcare providers. This information may include:\n- Laboratory results (for example, cholesterol, blood sugar, or other blood tests)\n- Clinical measurements such as blood pressure, heart rate, or body mass index recorded by your medical provider\n- Medications prescribed to you\nImmunisations (such as flu or COVID-19 vaccines)\n- Allergies, diagnoses, and conditions listed in your medical record\n- Procedures and clinical visits documented by your health system\n\nAccess will occur only if you grant permission in Apple Health. Your health records are encrypted and transferred securely. The research team will not receive your full medical chart, only the specific data types you approve. You may withdraw this permission at any time through the Health app settings.\nThe purpose of collecting this information is to combine it with other data you choose to share—such as physical activity, heart rate, or survey responses—to help researchers better understand how clinical history relates to heart health and to develop improved strategies for prevention and treatment."
+            "value" : "If you agree, this study can securely access selected health information that you have already stored in Apple’s Health app through your healthcare providers. This information may include:\n- Laboratory results (for example, cholesterol, blood sugar, or other blood tests)\n- Clinical measurements such as blood pressure, heart rate, or body mass index recorded by your medical provider\n- Medications prescribed to you\n- Immunisations (such as flu or COVID-19 vaccines)\n- Allergies, diagnoses, and conditions listed in your medical record\n- Procedures and clinical visits documented by your health system\n\nAccess will occur only if you grant permission in Apple Health. Your health records are encrypted and transferred securely. The research team will not receive your full medical chart, only the specific data types you approve. You may withdraw this permission at any time through the Health app settings.\n\nThe purpose of collecting this information is to combine it with other data you choose to share—such as physical activity, heart rate, or survey responses—to help researchers better understand how clinical history relates to heart health and to develop improved strategies for prevention and treatment."
           }
         },
         "es" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "El acceso se realizará únicamente si otorga el permiso en Apple Health."
+            "state" : "needs_review",
+            "value" : "Si estás de acuerdo, este estudio puede acceder de forma segura a determinada información de salud que ya tiene almacenada en la Health app de Apple. Esta información puede incluir:\n- Resultados de laboratorio (por ejemplo, colesterol, glucosa en sangre u otras pruebas de sangre)\n- Mediciones clínicas, como presión arterial, frecuencia cardíaca o índice de masa corporal, registradas por tu proveedor de atención médica\n- Medicamentos recetados\n- Inmunizaciones (como vacunas contra la gripe o la COVID-19)\n- Alergias, diagnósticos y afecciones consignados en tu expediente médico\n- Procedimientos y consultas clínicas documentados por tu sistema de salud\n\nEl acceso se realizará únicamente si otorgas el permiso. Tus registros de salud están cifrados y se transfieren de forma segura. El equipo de investigación no recibirá tu expediente médico completo, sino únicamente los tipos específicos de datos que apruebes. Puedes retirar este permiso en cualquier momento desde la configuración de la Health app.\n\nEl propósito de recopilar esta información es combinarla con otros datos que elijas compartir —como actividad física, frecuencia cardíaca o respuestas a encuestas— para ayudar a los investigadores a comprender mejor cómo el historial clínico se relaciona con la salud del corazón y desarrollar estrategias mejoradas de prevención y tratamiento."
           }
         }
       }
@@ -9098,7 +9108,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cuando esté listo, toque «Iniciar» y corra lo más rápido que pueda"
+            "value" : "Esta prueba estima tu aptitud aeróbica (VO2 máx) al medir qué tan lejos corres en 12 minutos en una superficie plana. (Para rangos de referencia, consulta [aquí](https://www.ptdirect.com/training-delivery/client-assessment/cooper-12-minute-run-a-predictive-test-of-vo2max).)\n\n**Calentamiento:** Antes de comenzar la prueba, realiza 10 minutos de trote ligero para aflojar los músculos y evitar lesiones. Recupera el aliento antes de continuar.\n\n**Instrucciones:** Busca un camino plano y sin obstáculos o una pista de atletismo. Usa tenis para correr (zapatos deportivos). Cuando estés listo, toqua “Iniciar” y corre lo más rápido que puedas para cubrir la mayor distancia posible hasta que tu teléfono vibre. Mantén el teléfono en la mano hasta que vibre."
           }
         }
       }
@@ -9452,6 +9462,9 @@
           }
         }
       }
+    },
+    "View Participation Stats" : {
+
     },
     "Virgin Islands" : {
       "localizations" : {

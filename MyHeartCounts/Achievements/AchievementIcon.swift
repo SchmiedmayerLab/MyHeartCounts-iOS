@@ -17,14 +17,13 @@ struct AchievementIcon: View {
     let achievement: Achievement
     
     var body: some View {
-        let progress = manager.unlockProgress(of: achievement)
-        CircularProgressView(progress, lineWidth: 3) {
-            let symbol: SFSymbol? = if progress >= 1 {
+        let state = manager.state(of: achievement)
+        CircularProgressView(state.progress, lineWidth: 3) {
+            let symbol: SFSymbol? = switch state {
+            case .unlocked:
                 achievement.symbol
-            } else if achievement.visibility == .secret {
-                nil
-            } else {
-                achievement.symbol // also nil???
+            case .locked:
+                achievement.visibility == .secret ? nil : achievement.symbol
             }
             if let symbol {
                 Image(systemSymbol: symbol)
