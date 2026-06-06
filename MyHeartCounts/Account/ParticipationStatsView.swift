@@ -109,13 +109,15 @@ extension ParticipationStatsView {
                 symbol: .flameFill,
                 accentColor: .orange
             )
-            StatCard(
-                title: "Longest Streak",
-                value: appEngagement.longestLaunchAppStreak,
-                format: .weekCount,
-                symbol: .trophyFill,
-                accentColor: .yellow
-            )
+            if appEngagement.longestLaunchAppStreak >= 2 {
+                StatCard(
+                    title: "Longest Streak",
+                    value: appEngagement.longestLaunchAppStreak,
+                    format: .weekCount,
+                    symbol: .trophyFill,
+                    accentColor: .yellow
+                )
+            }
         }
 //            StatCard(
 //                title: "Active Days",
@@ -286,6 +288,7 @@ extension ParticipationStatsView {
 
 extension ParticipationStatsView {
     private func makeFunFacts() -> [FunFact]? { // swiftlint:disable:this function_body_length discouraged_optional_collection
+        // TODO NEED TO LOCALIZE ALL OF THIS HERE!!! (won't be easy bc the substitution placement will differ...)
         guard let stats else {
             return nil
         }

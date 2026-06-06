@@ -6662,8 +6662,14 @@
         },
         "en-GB" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Participation Stats cover all engagement and activity recorded.\n\nYour enrollment date is %1$(enrollmentDate)@."
+            "state" : "translated",
+            "value" : "Participation Stats cover all engagement and activity recorded.\n\nYour enrolment date is %1$(enrollmentDate)@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las estadísticas de participación abarcan toda la interacción y actividad registradas.\n\nSu fecha de inscripción es %1$(enrollmentDate)@."
           }
         }
       }

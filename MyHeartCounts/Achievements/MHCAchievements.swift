@@ -52,6 +52,8 @@ extension Achievement.Trigger {
 
 
 extension Achievement.Metric {
+    // currently unused but we wanna track it anyways,
+    // just in case we wanna do smth with this down the road
     static let enrollmentDurationInDays = Self(
         id: "enrollment-duration-days",
         rule: .atLeast(base: 0)

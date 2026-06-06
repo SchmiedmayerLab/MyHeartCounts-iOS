@@ -134,6 +134,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             }
         case .deletingAccount:
             logger.notice("account is being deleted")
+            // not really doing anything in here since each deletion should also trigger an account disassociation, which will then be handled below
         case .disassociatingAccount:
             logger.notice("account did disassociate")
             try? await performLogoutCleanup(context: .explicitUserLogoutEvent)
