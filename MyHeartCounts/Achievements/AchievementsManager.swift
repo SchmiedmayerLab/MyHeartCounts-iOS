@@ -25,6 +25,19 @@ import SpeziStudy
 @Observable
 final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Sendable { // call it just Achievements?
     struct State: Hashable, Codable, Sendable {
+        /// An error that indicates that decoding a `State` failed because the version (i.e., schema) was incompatible.
+        struct IncompatibleVersionDecodingError: Error {
+            /// The version of the `State` that failed to decode.
+            let incomingVersion: UInt
+            /// The version supported by the app.
+            let supportedVersion: UInt
+            
+            /// Determines if the decoding failed because the incoming encoded `State` was newer than what the app can support.
+            var incomingWasNewer: Bool {
+                incomingVersion > supportedVersion
+            }
+        }
+        
         /// A recorded event where a trigger was fired.
         ///
         /// - Note: This type intentionally stores only a reference to the Trigger (via its ``Achievement/Trigger/ID``) rather than the whole trigger itself,
@@ -172,11 +185,7 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
                 self.metricObservations = try container.decode([Achievement.Metric.ID: MetricObservation].self, forKey: .metricObservations)
                 self.unlocks = try container.decode(AchievementUnlocks.self, forKey: .unlocks)
             default:
-                throw DecodingError.dataCorruptedError(
-                    forKey: .version,
-                    in: container,
-                    debugDescription: "Unsupported version \(version)"
-                )
+                throw IncompatibleVersionDecodingError(incomingVersion: version, supportedVersion: 1)
             }
         }
     }
@@ -364,6 +373,11 @@ extension AchievementsManager {
             let cloud: State
             do {
                 cloud = try snapshot.data(as: State.self)
+            } catch let error as State.IncompatibleVersionDecodingError where error.incomingWasNewer {
+                // The decoding failed because the state on the server uses a coding schema that is newer than what the app can support.
+                // In this case, we need to be careful, because we don't want the app to accidentally overwrite the state on the server.
+                // TODO how do we best handle this?
+                fatalError()
             } catch {
                 self.syncDirty = true
                 throw error
@@ -385,7 +399,7 @@ extension AchievementsManager {
                 throw error
             }
         }
-        let task = Task { @MainActor in
+        let syncTask = Task { @MainActor in
             // Cleared synchronously with the loop's exit decision: on the serial executor no `record()`
             // can interleave between the final `while self.syncDirty` read and this assignment.
             defer {
@@ -395,7 +409,7 @@ extension AchievementsManager {
                 try await syncImpl()
             } while syncDirty
         }
-        runningSync = task
+        runningSync = syncTask
         defer {
             // By the time we resume here, the task's own defer has already cleared `runningSync`.
             // If a change is still pending (a `record(...)` that landed in the teardown gap, or a pass
@@ -405,7 +419,7 @@ extension AchievementsManager {
                 scheduleSync()
             }
         }
-        try await task.value
+        try await syncTask.value
     }
     
     
@@ -550,7 +564,7 @@ extension AchievementsManager.State {
     ///
     /// - parameter recordOnceTriggerIDs: all currently-known trigger ids whose rule is ``Achievement/Trigger/RecordingMode/recordOnce``.
     /// - parameter metricRuleThresholds: the currently-registered metric rule thresholds.
-    fileprivate func merging( // swiftlint:disable:this cyclomatic_complexity
+    fileprivate func merging( // swiftlint:disable:this cyclomatic_complexity function_body_length
         _ other: Self,
         allAchievements: some Collection<Achievement>
     ) -> Self {
@@ -607,7 +621,11 @@ extension AchievementsManager.State {
                     // ALSO: it should be pointed out that in the specific context of MHC, any metric observations we have in the local state
                     // that don't have a corresponding Metric definition shipped with the app, will very likely always be imported from the
                     // cloud state anyway (since there is no other way these observations can be added to the local state).
-                    merged.metricObservations[metricId] = localObservation.timestamp >= incomingObservation ? localObservation : incomingObservation
+                    merged.metricObservations[metricId] = if localObservation.timestamp >= incomingObservation.timestamp {
+                        localObservation
+                    } else {
+                        incomingObservation
+                    }
                 } else { // present in other but not in self
                     // the observation is present in the incoming State, but not in the destination one.
                     // we simply preserve it as-is.

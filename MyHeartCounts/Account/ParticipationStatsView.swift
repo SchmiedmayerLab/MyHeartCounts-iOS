@@ -622,7 +622,7 @@ private struct StatCard: View {
             let measurement = Measurement<UnitEnergy>(value: value, unit: .kilocalories)
             Text(measurement.formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.notation(.compactName))))
         case .duration:
-            Text(Duration.seconds(value), format: .units(allowed: [.days, .hours, .minutes], width: .condensedAbbreviated))
+            Text(Duration.seconds(value), format: .units(allowed: [.days, .hours, .minutes], width: .narrow))
         case .heartRate:
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(Int(value), format: .number)
