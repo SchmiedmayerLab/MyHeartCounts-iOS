@@ -323,6 +323,7 @@ extension ParticipationStatsProvider {
         }
     }
     
+    @concurrent
     private func totalSleepSeconds(in timeRange: Range<Date>) async -> Double? {
         guard let samples = try? await healthKit.query(
             .sleepAnalysis,
@@ -330,12 +331,20 @@ extension ParticipationStatsProvider {
         ) else {
             return nil
         }
-        let asleepValues = HKCategoryValueSleepAnalysis.allAsleepValues.mapIntoSet(\.rawValue)
-        return samples.lazy
-            .filter { asleepValues.contains($0.value) }
-            .reduce(0) { acc, sample in
-                acc + sample.endDate.timeIntervalSince(sample.startDate)
+        if let sessions = try? samples.splitIntoSleepSessions() {
+            return sessions.reduce(0) { total, session in
+                total + session.totalTimeSpentAsleep
             }
+        } else {
+            // fallback in case we can't compute the sessions.
+            // this will be slightly inaccurate, but at least will show _something_
+            let asleepValues = HKCategoryValueSleepAnalysis.allAsleepValues.mapIntoSet(\.rawValue)
+            return samples.lazy
+                .filter { asleepValues.contains($0.value) }
+                .reduce(0) { acc, sample in
+                    acc + sample.endDate.timeIntervalSince(sample.startDate)
+                }
+        }
     }
     
     private func loadWorkoutStats(in timeRange: Range<Date>) async -> HealthStats.WorkoutInfo? {
