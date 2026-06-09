@@ -194,6 +194,12 @@
     "%@ +" : {
       "shouldTranslate" : false
     },
+    "%@ laps around a running track" : {
+
+    },
+    "%@ lengths of the Golden Gate Bridge" : {
+
+    },
     "%@-Minute Run Test" : {
       "localizations" : {
         "en-GB" : {
@@ -825,6 +831,9 @@
           }
         }
       }
+    },
+    "about %@ trips around the Earth" : {
+
     },
     "About the My Heart Counts Study" : {
       "localizations" : {
@@ -7805,6 +7814,9 @@
         }
       }
     },
+    "roughly %@ trips from San Francisco to New York" : {
+
+    },
     "Ruby Anniversary" : {
       "localizations" : {
         "es" : {
@@ -8968,6 +8980,9 @@
           }
         }
       }
+    },
+    "the distance of %@ marathons" : {
+
     },
     "The Humble Walker" : {
       "localizations" : {
@@ -12109,6 +12124,19 @@
         }
       }
     },
+    "You've burned %@ active calories — the equivalent of %@ slices of pizza." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "You've burned %1$@ active calories — the equivalent of %2$@ slices of pizza."
+          }
+        }
+      }
+    },
+    "You've spent about %@ full days asleep since enrolling. Rest is part of the work." : {
+
+    },
     "Your %@ is in progress." : {
       "localizations" : {
         "en-GB" : {
@@ -12121,6 +12149,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Su %@ está en progreso."
+          }
+        }
+      }
+    },
+    "Your %@ steps cover about %@ — that's %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your %1$@ steps cover about %2$@ — that's %3$@."
+          }
+        }
+      }
+    },
+    "Your %@ steps cover roughly %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your %1$@ steps cover roughly %2$@."
           }
         }
       }
@@ -12153,6 +12201,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Su ECG se ha registrado correctamente"
+          }
+        }
+      }
+    },
+    "Your heart has beaten about %@ times since you enrolled — roughly %@ of an average lifetime." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your heart has beaten about %1$@ times since you enrolled — roughly %2$@ of an average lifetime."
           }
         }
       }

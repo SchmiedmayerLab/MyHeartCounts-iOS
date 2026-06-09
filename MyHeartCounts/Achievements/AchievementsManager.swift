@@ -384,6 +384,8 @@ extension AchievementsManager {
                 self.syncDirty = true
                 throw error
             }
+            // would ideally use a firestore transaction here to wrap all interactions with `doc`,
+            // but that isn't possible as the API does not support async transactions.
             let snapshot = try await doc.getDocument()
             try Task.checkCancellation()
             // Capture the state this pass commits and clear the dirty flag in the SAME synchronous turn.
@@ -472,6 +474,8 @@ extension AchievementsManager {
             return
         }
         let doc = try achievementTrackingDoc
+        // if we can obtain the doc, there must be a user.
+        systemAvailability = .available
         let snapshots = doc.snapshots
         remoteChangesObserver = Task {
             defer {
@@ -508,11 +512,11 @@ extension AchievementsManager {
             task?.cancel()
             task = nil
         }
+        systemAvailability = .unavailable(.noUser)
         cancel(&remoteChangesObserver)
         cancel(&debounceTask)
         cancel(&runningSync)
         achievementsState = .init()
-        systemAvailability = .available
     }
 }
 

@@ -170,7 +170,7 @@ extension ParticipationStatsProvider {
     private func computeHealthStats(for timeRange: Range<Date>) async -> HealthStats {
         async let steps = cumulativeSum(in: timeRange, of: .stepCount).map(Int.init)
         async let energy = cumulativeSum(in: timeRange, of: .activeEnergyBurned)
-        async let distance = cumulativeSum(in: timeRange, of: .distanceWalkingRunning)
+        async let distance = cumulativeSum(in: timeRange, of: .distanceWalkingRunning, using: .meter())
         async let exerciseMin = cumulativeSum(in: timeRange, of: .appleExerciseTime)
         async let flights = cumulativeSum(in: timeRange, of: .flightsClimbed).map(Int.init)
         async let heartbeats = estimateTotalHeartbeats(in: timeRange)

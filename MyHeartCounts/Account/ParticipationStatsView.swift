@@ -120,14 +120,6 @@ extension ParticipationStatsView {
                 )
             }
         }
-//            StatCard(
-//                title: "Active Days",
-//                value: stats?.activeDays,
-//                format: .number,
-//                symbol: .calendarBadgeCheckmark,
-//                accentColor: .green,
-//                subtitle: stats.map { activeDaysSubtitle(active: $0.activeDays, totalDays: $0.daysSinceEnrollment) }
-//            )
         StatCard(
             title: "Surveys Answered",
             value: stats?.taskEngagement.questionnairesCompleted,
@@ -282,46 +274,25 @@ extension ParticipationStatsView {
 // MARK: - Helpers
 
 extension ParticipationStatsView {
-    private func makeFunFacts() -> [FunFact]? { // swiftlint:disable:this function_body_length discouraged_optional_collection
-        // TODO NEED TO LOCALIZE ALL OF THIS HERE!!! (won't be easy bc the substitution placement will differ...)
+    private func makeFunFacts() -> [FunFact]? { // swiftlint:disable:this discouraged_optional_collection
         guard let stats else {
             return nil
         }
         let healthStats = stats.health
         var facts: [FunFact] = []
         if let steps = healthStats.totalSteps, steps > 0 {
-            let distanceKm = healthStats.totalDistanceWalkingRunning?.converted(to: .kilometers).value ?? Double(steps) * 0.000762 // ~0.762m per step
-            let distanceFormatted: String = Measurement<UnitLength>(value: distanceKm, unit: .kilometers)
-                .converted(to: { () -> UnitLength in
-                    switch Locale.current.measurementSystem {
-                    case .uk, .us:
-                        .miles
-                    default: // includes .metric
-                        .kilometers
-                    }
-                }())
-                .formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.precision(.fractionLength(0))))
-            if let comparison = stepDistanceComparison(distanceKm: distanceKm) {
-                facts.append(.init(
-                    symbol: .figureWalk,
-                    color: .green,
-                    text: "Your \(steps.formatted(.number)) steps cover about \(distanceFormatted) \u{2014} that's \(comparison)."
-                ))
-            } else {
-                facts.append(.init(
-                    symbol: .figureWalk,
-                    color: .green,
-                    text: "Your \(steps.formatted(.number)) steps cover roughly \(distanceFormatted)."
-                ))
-            }
+            facts.append(.init(
+                symbol: .figureWalk,
+                color: .green,
+                text: stepCountFunFactText(numSteps: steps, distance: healthStats.totalDistanceWalkingRunning)
+            ))
         }
         if let beats = healthStats.totalHeartbeats, beats > 0 {
-            let lifetimePercent = Double(beats) / 3_000_000_000 // TODO can we simply estimate 3bn lifetime total heartbeats?
-            let percentFormatted = lifetimePercent.formatted(.percent.precision(.fractionLength(0...2)))
+            let lifetimePercent = Double(beats) / 3_000_000_000 // QUESTION can we simply estimate 3bn lifetime total heartbeats?
             facts.append(.init(
                 symbol: .heartFill,
                 color: .red,
-                text: "Your heart has beaten about \(beats.formatted(.number.notation(.compactName))) times since you enrolled \u{2014} roughly \(percentFormatted) of an average lifetime."
+                text: "Your heart has beaten about \(beats, format: .number.notation(.compactName)) times since you enrolled — roughly \(lifetimePercent, format: .percent.precision(.fractionLength(0...2))) of an average lifetime."
             ))
         }
         if let kcal = healthStats.totalActiveEnergyKcal, kcal > 0 {
@@ -330,7 +301,7 @@ extension ParticipationStatsView {
                 facts.append(.init(
                     symbol: .flameFill,
                     color: .orange,
-                    text: "You've burned \(Int(kcal).formatted(.number)) active calories \u{2014} the equivalent of \(pizzaSlices.formatted(.number)) slices of pizza."
+                    text: "You've burned \(Int(kcal), format: .number) active calories — the equivalent of \(pizzaSlices, format: .number) slices of pizza."
                 ))
             }
         }
@@ -339,7 +310,7 @@ extension ParticipationStatsView {
             facts.append(.init(
                 symbol: .bedDoubleFill,
                 color: .indigo,
-                text: "You've spent about \(days.formatted(.number.precision(.fractionLength(1)))) full days asleep since enrolling. Rest is part of the work."
+                text: "You've spent about \(days, format: .number.precision(.fractionLength(1))) full days asleep since enrolling. Rest is part of the work."
             ))
         }
         // IDEA re-implement, based on weeks (months?) w/ activity
@@ -349,32 +320,53 @@ extension ParticipationStatsView {
 //                facts.append(.init(
 //                    symbol: .starFill,
 //                    color: .yellow,
-//                    text: "You've been active on \(active.formatted(.number)) of \(total.formatted(.number)) days \u{2014} that's a fantastic \(percent.formatted(.percent.precision(.fractionLength(0)))). Keep it up!"
+//                    text: "You've been active on \(active.formatted(.number)) of \(total.formatted(.number)) days — that's a fantastic \(percent.formatted(.percent.precision(.fractionLength(0)))). Keep it up!"
 //                ))
 //            }
 //        }
         return facts
     }
     
-    private func stepDistanceComparison(distanceKm: Double) -> String? {
-        // Pick the most "fun" reference for the user's actual distance.
-        if distanceKm >= 20_000 {
-            let earths = distanceKm / 40_075
-            return "about \(earths.formatted(.number.precision(.fractionLength(1)))) trips around the Earth"
-        } else if distanceKm >= 1_000 {
-            let coastToCoast = distanceKm / 3_940 // SF to NY
-            return "roughly \(coastToCoast.formatted(.number.precision(.fractionLength(1)))) trips from San Francisco to New York"
-        } else if distanceKm >= 50 {
-            let marathons = distanceKm / 42.195
-            return "the distance of \(marathons.formatted(.number.precision(.fractionLength(1)))) marathons"
-        } else if distanceKm >= 5 {
-            let bridges = distanceKm / 2.737 // Golden Gate Bridge length
-            return "\(Int(bridges.rounded())) lengths of the Golden Gate Bridge"
-        } else if distanceKm >= 0.5 {
-            let laps = (distanceKm * 1000) / 400 // 400m track
-            return "\(Int(laps.rounded())) laps around a running track"
+    
+    private func stepCountFunFactText(
+        numSteps: Int,
+        distance: Measurement<UnitLength>?
+    ) -> LocalizedStringResource {
+        // extremely unlikely that the user has step counts w/out distance, but we provide a fallback nonetheless.
+        let distance = distance ?? Measurement(value: Double(numSteps) * 0.762 /* ~0.762m per step*/, unit: .meters)
+        let distanceKm = distance.value(in: .kilometers)
+        let distanceFormatted = distance
+            .converted(to: { () -> UnitLength in
+                switch Locale.current.measurementSystem {
+                case .uk, .us: .miles
+                default: .kilometers // includes .metric
+                }
+            }())
+            .formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.precision(.fractionLength(0))))
+        let comparison = { () -> LocalizedStringResource? in
+            if distanceKm >= 20_000 {
+                let earths = distanceKm / 40_075
+                return "about \(earths, format: .number.precision(.fractionLength(1))) trips around the Earth"
+            } else if distanceKm >= 1_000 {
+                let coastToCoast = distanceKm / 4_700 // SF to NYC on foot
+                return "roughly \(coastToCoast, format: .number.precision(.fractionLength(1))) trips from San Francisco to New York"
+            } else if distanceKm >= 50 {
+                let marathons = distanceKm / 42.195
+                return "the distance of \(marathons, format: .number.precision(.fractionLength(1))) marathons"
+            } else if distanceKm >= 5 {
+                let bridges = distanceKm / 2.737 // Golden Gate Bridge
+                return "\(bridges, format: .number.precision(.fractionLength(0...1))) lengths of the Golden Gate Bridge"
+            } else if distanceKm >= 0.5 {
+                let laps = distanceKm / 0.4 // 400m track
+                return "\(laps, format: .number.precision(.fractionLength(0...1))) laps around a running track"
+            } else {
+                return nil
+            }
+        }()
+        return if let comparison {
+            "Your \(numSteps, format: .number) steps cover about \(distanceFormatted) — that's \(comparison)."
         } else {
-            return nil
+            "Your \(numSteps, format: .number) steps cover roughly \(distanceFormatted)."
         }
     }
 }
@@ -637,7 +629,7 @@ private struct FunFact: Identifiable {
     let id = UUID()
     let symbol: SFSymbol
     let color: Color
-    let text: String
+    let text: LocalizedStringResource
 }
 
 
@@ -650,7 +642,6 @@ private struct FunFactCard: View {
                 .font(.title3)
                 .foregroundStyle(fact.color)
                 .frame(width: 28, height: 28)
-//                .background(fact.color.opacity(0.12), in: Circle())
                 .accessibilityHidden(true)
             Text(fact.text)
                 .font(.subheadline)
