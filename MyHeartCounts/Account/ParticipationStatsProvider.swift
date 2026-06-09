@@ -21,15 +21,6 @@ final class ParticipationStatsProvider: Module, EnvironmentAccessible, @unchecke
     // swiftlint:enable attributes
     
     nonisolated init() {}
-    
-    static func enrollmentTimeRange(for enrollment: StudyEnrollment, upTo now: Date) -> Range<Date> {
-        let startDate = enrollment.enrollmentDate
-        return if startDate < now {
-            startDate..<now
-        } else {
-            now..<now
-        }
-    }
 }
 
 
@@ -327,11 +318,13 @@ extension ParticipationStatsProvider {
     private func totalSleepSeconds(in timeRange: Range<Date>) async -> Double? {
         guard let samples = try? await healthKit.query(
             .sleepAnalysis,
-            timeRange: .init(timeRange)
+            timeRange: .init(timeRange),
+            source: .appleHealthSystem
         ) else {
             return nil
         }
-        if let sessions = try? samples.splitIntoSleepSessions() {
+        if let sessions = try? samples.splitIntoSleepSessions(separateBySource: false) {
+            // preferred path. will not overcount overlapping samples, in part bc the `separateBySource` param above is false.
             return sessions.reduce(0) { total, session in
                 total + session.totalTimeSpentAsleep
             }

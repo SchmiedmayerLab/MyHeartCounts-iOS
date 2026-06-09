@@ -190,6 +190,19 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
         }
     }
     
+    /// The current overall availability of the achievements system
+    enum SystemAvailability: Hashable {
+        case available
+        case unavailable(UnavailableReason)
+        
+        enum UnavailableReason: Hashable {
+            /// The current install of the app is too old to be able to parse and ingest the achievements state stored on the server.
+            case appOutdated
+            /// No user is logged in to sync achievements with.
+            case noUser
+        }
+    }
+    
     
     private enum SyncError: Error {
         case notEnrolled
@@ -214,6 +227,21 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
         }
     }
     
+    
+    /// The current availability of the achievement system.
+    ///
+    /// The system will be available most of the time, but if it is unavailable it typically is because the achievements state on the server is using a newer schema than what the app can support,
+    /// and since we don't want to override the newer server schema with the outdated client schema, we disable achievements entirely, until the next launch (where the app will
+    /// either have been updated to a version that understands the server schema, or will also disable itself again).
+    ///
+    /// Note that this does open a possible failure path where the user performs some achievement trigger-firing task, which is then not persisted to the server,
+    /// Additionally, there currently is no local caching mechanism for these cases. Overall, this should not be terribly bad, since the only triggers we have are completions
+    /// of tasks that are persisted to the server anyway, so we could easily fill in the missing trigger events server-side.
+    ///
+    /// For the time being, this is fine, because we only have one ``State`` schema version at the moment (the initial one),
+    /// and are not planning on making any changes to that anytime soon...
+    @MainActor private(set) var systemAvailability: SystemAvailability = .available
+    
     /// The single in-flight sync. All sync funnels through this one task, so two syncs can never
     /// interleave their read-merge-write. Cleared by the task itself (via `defer`) on completion.
     @MainActor private var runningSync: Task<Void, any Error>?
@@ -226,6 +254,9 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
     /// The task used to observe server-side changes, and respond to them
     @MainActor private var remoteChangesObserver: Task<Void, Never>?
     
+    /// Locally cached achievements state.
+    ///
+    /// Automatically kept in sync with the server.
     @MainActor private var achievementsState = State() {
         didSet {
             if achievementsState != oldValue {
@@ -234,8 +265,7 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
         }
     }
     
-    @MainActor
-    private var achievementTrackingDoc: DocumentReference {
+    @MainActor private var achievementTrackingDoc: DocumentReference {
         get throws {
             guard let studyId = studyManager?.studyEnrollments.first?.studyId else {
                 throw SyncError.notEnrolled
@@ -272,7 +302,7 @@ final class AchievementsManager: Module, EnvironmentAccessible, @unchecked Senda
             for new in newEntries where seenIds.insert(new.id).inserted {
                 assert(
                     new.visibility != .secretUnlessNextInLadder || new.subcategory != nil,
-                    "Achievement '\(new.id)' is .secretUnlessNext but has no subcategory. 'next' is undefined without a ladder."
+                    "Achievement '\(new.id)' is .secretUnlessNextInLadder but has no subcategory. 'next' is undefined without a ladder."
                 )
                 self._achievements.append(new)
             }
@@ -297,6 +327,9 @@ extension AchievementsManager {
     /// Scheduled a debounced sync.
     @MainActor
     private func scheduleSync() {
+        guard systemAvailability == .available else {
+            return
+        }
         syncDirty = true
         // A running sync will pick up `syncDirty` and run another pass; a pending debounce will fire
         // on its own. In either case there's nothing more to schedule.
@@ -329,6 +362,9 @@ extension AchievementsManager {
     /// It also is safe to mutate ``achievementsState`` while a sync is in progress; the changes will be picked up and synced as well.
     @MainActor
     private func _runSync() async throws { // swiftlint:disable:this function_body_length cyclomatic_complexity
+        guard systemAvailability == .available else {
+            return
+        }
         if let runningSync {
             try await runningSync.value
             return
@@ -376,8 +412,9 @@ extension AchievementsManager {
             } catch let error as State.IncompatibleVersionDecodingError where error.incomingWasNewer {
                 // The decoding failed because the state on the server uses a coding schema that is newer than what the app can support.
                 // In this case, we need to be careful, because we don't want the app to accidentally overwrite the state on the server.
-                // TODO how do we best handle this?
-                fatalError()
+                self.systemAvailability = .unavailable(.appOutdated)
+                self.achievementsState = State()
+                throw error
             } catch {
                 self.syncDirty = true
                 throw error
@@ -475,6 +512,7 @@ extension AchievementsManager {
         cancel(&debounceTask)
         cancel(&runningSync)
         achievementsState = .init()
+        systemAvailability = .available
     }
 }
 
@@ -534,6 +572,9 @@ extension AchievementsManager {
     
     @MainActor
     func record(_ trigger: Achievement.Trigger, timestamp: Date) {
+        guard systemAvailability == .available else {
+            return
+        }
         achievementsState.record(trigger, timestamp: timestamp)
     }
     
@@ -544,6 +585,9 @@ extension AchievementsManager {
     
     @MainActor
     func record(_ metric: Achievement.Metric, value: Double, timestamp: Date) {
+        guard systemAvailability == .available else {
+            return
+        }
         achievementsState.record(metric, value: value, timestamp: timestamp, allAchievements: achievements)
     }
 }

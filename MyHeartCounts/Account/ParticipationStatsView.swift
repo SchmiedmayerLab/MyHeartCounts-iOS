@@ -102,6 +102,7 @@ extension ParticipationStatsView {
             accentColor: .accentColor
         )
         if let appEngagement = stats?.appEngagement {
+            // TODO verify that this starts counting at 1, ie even if the user only has had the app installed for like 2-3 days!!
             StatCard(
                 title: "Current Streak",
                 value: appEngagement.currentLaunchAppStreak,
@@ -266,17 +267,11 @@ extension ParticipationStatsView {
     @ViewBuilder
     private func funFactsSection() -> some View {
         if let funFacts = makeFunFacts(), !funFacts.isEmpty {
-            Section {
+            Section("Fun Facts") {
                 ForEach(funFacts) { fact in
                     FunFactCard(fact: fact)
                         .listRowInsets(.zero)
                         .listRowBackground(Color.clear)
-                }
-            } header: {
-                Label {
-                    Text("Fun Facts")
-                } icon: {
-                    Image(systemSymbol: .sparkles)
                 }
             }
         }
@@ -622,7 +617,12 @@ private struct StatCard: View {
             let measurement = Measurement<UnitEnergy>(value: value, unit: .kilocalories)
             Text(measurement.formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.notation(.compactName))))
         case .duration:
-            Text(Duration.seconds(value), format: .units(allowed: [.days, .hours, .minutes], width: .narrow))
+            let duration: Duration = .seconds(value)
+            let formatStyle: Duration.UnitsFormatStyle = .units(
+                allowed: duration >= .days(1) ? [.days, .hours] : [.hours, .minutes],
+                width: .narrow
+            )
+            Text(duration, format: formatStyle)
         case .heartRate:
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(Int(value), format: .number)
