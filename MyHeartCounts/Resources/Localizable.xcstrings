@@ -195,10 +195,24 @@
       "shouldTranslate" : false
     },
     "%@ laps around a running track" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ vueltas a una pista de atletismo"
+          }
+        }
+      }
     },
     "%@ lengths of the Golden Gate Bridge" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ veces la longitud del puente Golden Gate"
+          }
+        }
+      }
     },
     "%@-Minute Run Test" : {
       "localizations" : {
@@ -833,7 +847,14 @@
       }
     },
     "about %@ trips around the Earth" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unas %1$@ vueltas alrededor de la Tierra"
+          }
+        }
+      }
     },
     "About the My Heart Counts Study" : {
       "localizations" : {
@@ -1339,7 +1360,14 @@
       }
     },
     "Average" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Promedio"
+          }
+        }
+      }
     },
     "Bachelor" : {
       "localizations" : {
@@ -2105,17 +2133,6 @@
         }
       }
     },
-    "d" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "d"
-          }
-        }
-      }
-    },
     "Daily Average" : {
       "localizations" : {
         "en-GB" : {
@@ -2213,7 +2230,14 @@
       }
     },
     "day" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "día"
+          }
+        }
+      }
     },
     "days" : {
       "localizations" : {
@@ -2968,7 +2992,14 @@
       }
     },
     "Estimate" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimación"
+          }
+        }
+      }
     },
     "Exercise Time" : {
       "localizations" : {
@@ -7815,7 +7846,14 @@
       }
     },
     "roughly %@ trips from San Francisco to New York" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aproximadamente %1$@ viajes de San Francisco a Nueva York"
+          }
+        }
+      }
     },
     "Ruby Anniversary" : {
       "localizations" : {
@@ -8982,7 +9020,14 @@
       }
     },
     "the distance of %@ marathons" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la distancia de %1$@ maratones"
+          }
+        }
+      }
     },
     "The Humble Walker" : {
       "localizations" : {
@@ -12131,11 +12176,24 @@
             "state" : "new",
             "value" : "You've burned %1$@ active calories — the equivalent of %2$@ slices of pizza."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ha quemado %1$@ calorías activas, el equivalente a %2$@ porciones de pizza."
+          }
         }
       }
     },
     "You've spent about %@ full days asleep since enrolling. Rest is part of the work." : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ha pasado unos %1$@ días completos durmiendo desde que se inscribió. El descanso también forma parte del trabajo."
+          }
+        }
+      }
     },
     "Your %@ is in progress." : {
       "localizations" : {
@@ -12160,6 +12218,12 @@
             "state" : "new",
             "value" : "Your %1$@ steps cover about %2$@ — that's %3$@."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sus %1$@ pasos recorren aproximadamente %2$@ — eso equivale a %3$@."
+          }
         }
       }
     },
@@ -12169,6 +12233,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Your %1$@ steps cover roughly %2$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sus %1$@ pasos recorren aproximadamente %2$@."
           }
         }
       }
@@ -12211,6 +12281,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Your heart has beaten about %1$@ times since you enrolled — roughly %2$@ of an average lifetime."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su corazón ha latido unas %1$@ veces desde que se inscribió, aproximadamente el %2$@ de una vida promedio."
           }
         }
       }
