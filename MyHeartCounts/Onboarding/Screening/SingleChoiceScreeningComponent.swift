@@ -115,17 +115,3 @@ struct SingleChoiceScreeningComponentImpl<Option: Hashable>: View {
         }
     }
 }
-
-
-struct TextLabelForegroundColor: ShapeStyle {
-    func resolve(in environment: EnvironmentValues) -> Color {
-        environment.colorScheme == .dark ? .white : .black
-    }
-}
-
-
-extension ShapeStyle where Self == TextLabelForegroundColor {
-    static var textLabel: Self {
-        TextLabelForegroundColor()
-    }
-}
