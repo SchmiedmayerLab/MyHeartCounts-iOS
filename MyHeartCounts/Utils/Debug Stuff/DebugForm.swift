@@ -30,7 +30,6 @@ struct DebugForm: View {
 
 
 private struct DebugFormImpl: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(StudyManager.self) private var studyManager
     @Environment(DemoSetup.self) private var demoSetup
     @Environment(LocalNotifications.self) private var localNotifications
@@ -50,7 +49,7 @@ private struct DebugFormImpl: View {
             Section("Notifications") {
                 Toggle(isOn: $healthUploadNotifications) {
                     Label("Live Health Upload Notifications" as String, systemSymbol: .arrowUpHeart)
-                        .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                        .foregroundStyle(.textLabel)
                 }
                 NavigationLink(symbol: .appBadge, "Notifications Status" as String) {
                     NotificationsManagerControlView()

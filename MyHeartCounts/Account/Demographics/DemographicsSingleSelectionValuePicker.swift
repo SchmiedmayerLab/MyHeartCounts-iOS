@@ -57,9 +57,6 @@ extension DemographicsSelectableSimpleValue {
 
 
 struct DemographicsSingleSelectionPicker<Value: DemographicsSelectableSimpleValue>: View {
-    @Environment(\.colorScheme)
-    private var colorScheme
-    
     @Binding var selection: Value
     
     var body: some View {
@@ -88,7 +85,7 @@ struct DemographicsSingleSelectionPicker<Value: DemographicsSelectableSimpleValu
                             .foregroundStyle(.secondary)
                     }
                 }
-                .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                .foregroundStyle(.textLabel)
                 Spacer()
                 if option == selection {
                     Image(systemSymbol: .checkmark)

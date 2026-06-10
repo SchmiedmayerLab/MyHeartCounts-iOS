@@ -12,9 +12,6 @@ import SwiftUI
 
 
 struct LabeledButton: View {
-    @Environment(\.colorScheme)
-    private var colorScheme
-    
     private let symbol: SFSymbol
     private let title: LocalizedStringResource
     private let subtitle: LocalizedStringResource
@@ -30,7 +27,7 @@ struct LabeledButton: View {
                     Text(title)
                     Text(subtitle)
                         .font(.footnote)
-                        .foregroundStyle(colorScheme.textLabelForegroundStyle.secondary)
+                        .foregroundStyle(.textLabel.secondary)
                 }
             }
         }

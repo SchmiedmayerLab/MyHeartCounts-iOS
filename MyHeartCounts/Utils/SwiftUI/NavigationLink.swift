@@ -12,7 +12,6 @@ import SwiftUI
 
 
 struct TitleAndSymbolNavigationLinkLabel: View {
-    @Environment(\.colorScheme) private var colorScheme // swiftlint:disable:this attributes
     private let symbol: SFSymbol
     private let title: Text
     
@@ -21,7 +20,7 @@ struct TitleAndSymbolNavigationLinkLabel: View {
             title
         } icon: {
             Image(systemSymbol: symbol)
-                .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                .foregroundStyle(.textLabel)
                 .accessibilityHidden(true)
         }
     }

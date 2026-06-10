@@ -22,7 +22,6 @@ struct AccountSheet: View {
     private let dismissAfterSignIn: Bool
     // swiftlint:disable attributes
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openSettingsApp) private var openSettingsApp
     @Environment(Account.self) private var account
     @Environment(HistoricalHealthSamplesExportManager.self) private var historicalDataExportMgr
@@ -98,20 +97,20 @@ struct AccountSheet: View {
             AboutRow()
             Link2(MyHeartCounts.website(.privacyPolicy)) {
                 Label("Privacy Policy", systemSymbol: .lockShield)
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                    .foregroundStyle(.textLabel)
             }
             NavigationLink {
                 ContributionsList(projectLicense: .mit)
             } label: {
                 Label("License Information", systemSymbol: .buildingColumns)
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                    .foregroundStyle(.textLabel)
             }
             if debugModeEnabled || FeatureFlags.isTakingDemoScreenshots {
                 NavigationLink {
                     DebugForm()
                 } label: {
                     Label("Debug", systemSymbol: .wrenchAdjustable)
-                        .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                        .foregroundStyle(.textLabel)
                 }
             }
         }
@@ -142,7 +141,7 @@ struct AccountSheet: View {
                 DisclosureIndicator()
             }
             .contentShape(Rectangle())
-            .foregroundStyle(colorScheme.textLabelForegroundStyle)
+            .foregroundStyle(.textLabel)
         }
         PostTrialNudgesToggle()
         NavigationLink("Review Consent Forms") {
@@ -251,7 +250,6 @@ extension AccountSheet {
 extension AccountSheet {
     private struct AboutRow: View {
         // swiftlint:disable attributes
-        @Environment(\.colorScheme) private var colorScheme
         @Environment(Account.self) private var account
         // swiftlint:enable attributes
         @StudyManagerQuery private var enrollments: [StudyEnrollment]
@@ -264,7 +262,7 @@ extension AccountSheet {
                 Text(bundle.appVersion)
             } label: {
                 Label("My Heart Counts", systemSymbol: .infoCircle)
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                    .foregroundStyle(.textLabel)
             }
             .onTapGesture(count: 5) {
                 showExtendedInfo = true
