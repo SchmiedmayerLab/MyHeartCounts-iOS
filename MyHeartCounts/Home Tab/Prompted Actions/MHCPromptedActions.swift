@@ -52,7 +52,7 @@ extension HomeTab.PromptedAction {
         conditions: [
             .daysSinceEnrollment(0...21),
             .custom { spezi in
-                if HealthRecords.includeInOnboarding {
+                if HealthRecordPermissions.includeInOnboarding {
                     // if the onboarding already asked for health records authorization, we only want to prompt
                     // this again if the user cancelled (rather than rejected) the authorization prompt.
                     spezi.module(ClinicalRecordPermissions.self)?.authorizationState == .cancelled
@@ -64,7 +64,7 @@ extension HomeTab.PromptedAction {
             }
         ],
         content: .init(
-            symbol: HealthRecords.symbol,
+            symbol: HealthRecordPermissions.symbol,
             title: "Enable Clinical Records",
             message: "HEALTH_RECORDS_NUDGE_SUBTITLE"
         )

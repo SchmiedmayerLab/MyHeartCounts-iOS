@@ -17,7 +17,7 @@ import SpeziViews
 import SwiftUI
 
 
-struct HealthRecords: View {
+struct HealthRecordPermissions: View {
     /// Whether the Onboarding flow should include a Health Records step
     static let includeInOnboarding = false
     
