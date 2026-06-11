@@ -18,6 +18,9 @@ import SwiftUI
 
 
 struct HealthRecords: View {
+    /// Whether the Onboarding flow should include a Health Records step
+    static let includeInOnboarding = false
+    
     static let symbol: SFSymbol = if #available(iOS 18.1, *) {
         .waveformPathEcgTextPage
     } else {
