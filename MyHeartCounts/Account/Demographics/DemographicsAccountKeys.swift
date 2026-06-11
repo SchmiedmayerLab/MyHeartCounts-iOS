@@ -56,9 +56,6 @@ extension AccountDetails {
     )
     var ukRegion: UKRegion?
     
-    @AccountKey(id: "ukPostcodePrefix", name: "First half of Postcode", category: .demographics, options: .mutable, as: String.self)
-    var ukPostcodePrefix: String?
-    
     @AccountKey(
         id: "householdIncomeUK",
         name: "Household Income",
@@ -149,6 +146,15 @@ extension AccountDetails {
     )
     var nhsNumber: NHSNumber?
     
+    @AccountKey(
+        id: "ukPostcode",
+        name: "Postcode (UK)",
+        category: .demographics,
+        options: .mutable,
+        as: String.self
+    )
+    var ukPostcode: String?
+    
     @AccountKey(id: "futureStudies", name: "", category: .demographics, options: .mutable, as: Bool.self)
     var futureStudies: Bool? // swiftlint:disable:this discouraged_optional_boolean
     
@@ -166,7 +172,7 @@ extension AccountDetails {
 
 @KeyEntry(
     \.usRegion, \.usZipCodePrefix, \.householdIncomeUS, \.educationUS,
-    \.ukRegion, \.ukPostcodePrefix, \.householdIncomeUK, \.educationUK,
+    \.ukRegion, \.ukPostcode, \.householdIncomeUK, \.educationUK,
     \.heightInCM, \.weightInKG, \.bloodType, \.nhsNumber, \.mhcGenderIdentity,
     \.raceEthnicity, \.latinoStatus,
     \.biologicalSexAtBirth, \.comorbidities, \.futureStudies, \.stageOfChange

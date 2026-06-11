@@ -3037,6 +3037,7 @@
       }
     },
     "First half of Postcode" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -6402,6 +6403,9 @@
           }
         }
       }
+    },
+    "Postcode (UK)" : {
+
     },
     "Prefer not to state" : {
       "localizations" : {

@@ -209,7 +209,7 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                     )
                 }
             }
-            // TODO postcode
+            // UK postcode will be asked here
             LeafComponent(\.ukEducationLevel, isRequired: didOptInToTrial) { binding, _ in
                 makeSimpleValuePickerRow("Education Level", binding: binding.withDefault(.notSet))
             }

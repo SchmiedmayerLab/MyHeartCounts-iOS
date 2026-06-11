@@ -152,7 +152,7 @@ final class DemographicsData {
         }
         updateTask?.cancel()
         updateTask = Task {
-            try await Task.sleep(for: .seconds(1))
+            try await Task.sleep(for: .seconds(2))
             try await write(to: account)
         }
     }
@@ -239,8 +239,7 @@ extension DemographicsData {
 
 
 extension DemographicsData {
-    // It's important that this is a struct, since we need these values to be Observation-trackable.
-    @MainActor
+    // It's important that this be a struct, since we need these values to be Observation-trackable.
     struct Field<Value> {
         private let _isEmpty: (Value) -> Bool
         fileprivate(set) var value: Value?
