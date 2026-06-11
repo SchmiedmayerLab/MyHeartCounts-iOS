@@ -33,7 +33,7 @@ struct FinalEnrollmentStep: View {
     
     
     private var showTrialSection: Bool {
-        onboardingData.consentResponses?.selects["short-term-physical-activity-trial"] == "short-term-physical-activity-trial-yes"
+        onboardingData.trialOptInState == .optedIn
     }
     
     var body: some View {

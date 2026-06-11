@@ -43,3 +43,20 @@ final class OnboardingDataCollection: Sendable {
     var comprehension = Comprehension()
     var consentResponses: ConsentDocument.UserResponses?
 }
+
+
+extension OnboardingDataCollection {
+    enum OptInState {
+        case unknown
+        case optedIn
+        case notOptedIn
+    }
+    
+    var trialOptInState: OptInState {
+        switch consentResponses?.selectedOption(for: .trialOptIn) {
+        case .trialYes: .optedIn
+        case .trialNo: .notOptedIn
+        default: .unknown
+        }
+    }
+}

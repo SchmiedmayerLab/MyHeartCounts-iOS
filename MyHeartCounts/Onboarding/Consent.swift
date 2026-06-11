@@ -47,9 +47,8 @@ struct Consent: View {
                 var accountDetailUpdates = AccountDetails()
                 accountDetailUpdates.lastSignedConsentDate = .now
                 accountDetailUpdates.lastSignedConsentVersion = consentDocument.metadata.version?.description
-                accountDetailUpdates.futureStudies = consentDocument.userResponses.toggles["future-studies"] == true
-                // swiftlint:disable:next line_length
-                accountDetailUpdates.didOptInToTrial = consentDocument.userResponses.selects["short-term-physical-activity-trial"] == "short-term-physical-activity-trial-yes"
+                accountDetailUpdates.futureStudies = consentDocument.userResponses.toggleValue(for: .futureStudiesOptIn) == true
+                accountDetailUpdates.didOptInToTrial = consentDocument.userResponses.selectedOption(for: .trialOptIn) == .trialYes
                 let modifications = try AccountModifications(modifiedDetails: accountDetailUpdates)
                 try await account.accountService.updateAccountDetails(modifications)
             }
