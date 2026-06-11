@@ -16,6 +16,9 @@ import SpeziSensorKit
 
 
 extension HomeTab {
+    /// An action that is presented to the user at the top of the ``HomeTab``.
+    ///
+    /// - Note: All actions are automatically considered disabled when MHC's automated screenshot flow is running.
     @Observable
     @MainActor
     final class PromptedAction: nonisolated Identifiable, Sendable {
@@ -64,7 +67,7 @@ extension HomeTab {
         
         nonisolated init(id: ID, conditions: [Condition], content: Content, handler: @escaping Handler) {
             self.id = id
-            self.conditions = conditions
+            self.conditions = conditions + [.custom { _ in !FeatureFlags.isTakingDemoScreenshots }]
             self.content = content
             self.handler = handler
         }
@@ -75,58 +78,5 @@ extension HomeTab {
             }
             return try lastResult!.get() // swiftlint:disable:this force_unwrapping return_value_from_void_function
         }
-    }
-}
-
-
-extension HomeTab.PromptedAction.ID {
-    static let sensorKit = Self("edu.stanford.MyHeartCounts.HomeTabAction.EnableSensorKit")
-    static let clinicalRecords = Self("edu.stanford.MyHeartCounts.HomeTabAction.EnableClinicalRecords")
-}
-
-
-extension HomeTab.PromptedAction {
-    static let allActions: [HomeTab.PromptedAction] = [.enableSensorKit]
-    
-    static let enableSensorKit = HomeTab.PromptedAction(
-        id: .sensorKit,
-        conditions: [
-            .daysSinceEnrollment(0...21),
-            .custom { _ in
-                   SensorKit.isAvailable
-                && !FeatureFlags.isTakingDemoScreenshots
-                && SensorKit.mhcSensors.contains { $0.authorizationStatus == .notDetermined }
-            }
-        ],
-        content: .init(
-            symbol: .waveformPathEcgRectangle,
-            title: "Enable SensorKit",
-            message: "ENABLE_SENSORKIT_SUBTITLE"
-        )
-    ) { spezi in
-        guard let sensorKit = spezi.module(SensorKit.self) else {
-            return
-        }
-        let result = try await sensorKit.requestAccess(to: SensorKit.mhcSensors)
-        for sensor in result.authorized {
-            try? await sensor.startRecording()
-        }
-    }
-    
-    static let enableClinicalRecords = HomeTab.PromptedAction(
-        id: .clinicalRecords,
-        conditions: [
-            .daysSinceEnrollment(0...21),
-            .custom { spezi in
-                spezi.module(ClinicalRecordPermissions.self)?.authorizationState == .cancelled
-            }
-        ],
-        content: .init(
-            symbol: HealthRecords.symbol,
-            title: "Enable Clinical Records",
-            message: "HEALTH_RECORDS_NUDGE_SUBTITLE"
-        )
-    ) { spezi in
-        try await spezi.module(ClinicalRecordPermissions.self)?.askForAuthorization(askAgainIfCancelledPreviously: true)
     }
 }
