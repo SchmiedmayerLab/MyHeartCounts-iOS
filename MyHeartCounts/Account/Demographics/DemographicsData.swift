@@ -145,7 +145,7 @@ final class DemographicsData {
         self[\.stageOfChange] = details.stageOfChange
     }
     
-    private func onChange() {
+    fileprivate func onChange() {
         updateCounter &+= 1
         guard shouldHandleUpdates, let account else {
             return
@@ -176,13 +176,13 @@ final class DemographicsData {
             }
         }
         func write<T: Equatable>(
-            _ selfKeyPath: ReferenceWritableKeyPath<DemographicsData, Field<T>>,
+            _ selfKeyPath: KeyPath<DemographicsData, Field<T>>,
             to detailsKeyPath: WritableKeyPath<AccountDetails, T?>
         ) {
             write(self[selfKeyPath], to: detailsKeyPath)
         }
         func write<T, U: Equatable>(
-            _ selfKeyPath: ReferenceWritableKeyPath<DemographicsData, Field<T>>,
+            _ selfKeyPath: KeyPath<DemographicsData, Field<T>>,
             to detailsKeyPath: WritableKeyPath<AccountDetails, U?>,
             transform: (T) -> U
         ) {
@@ -222,6 +222,11 @@ extension DemographicsData {
     }
     
     /// Accesses the value of a field
+    subscript<Value>(_ keyPath: KeyPath<DemographicsData, Field<Value>>) -> Value? {
+        self[keyPath: keyPath].value
+    }
+    
+    /// Accesses the value of a field
     subscript<Value>(_ keyPath: ReferenceWritableKeyPath<DemographicsData, Field<Value>>) -> Value? {
         get {
             self[keyPath: keyPath].value
@@ -234,6 +239,7 @@ extension DemographicsData {
 
 
 extension DemographicsData {
+    // It's important that this is a struct, since we need these values to be Observation-trackable.
     @MainActor
     struct Field<Value> {
         private let _isEmpty: (Value) -> Bool
@@ -248,7 +254,74 @@ extension DemographicsData {
         /// - parameter isEmpty: A closure that determines whether a non-`nil` value for this field should be considered an empty value.
         ///     `nil` values are always considered empty. By default, all non-`nil` values are considered as representing non-empty values.
         fileprivate init(isEmpty: @escaping (Value) -> Bool = { _ in false }) {
+            // ^ fileprivate bc we need the properties in the DemographicsData to be mutable,
+            // but we don't want external code (outside this file) to be able to assign whole new values.
             self._isEmpty = isEmpty
         }
     }
+}
+
+
+extension DemographicsData {
+//    /// NOTE: must annotate with @ObservationIgnored; the property wrapper will correctly handle observability on its own.
+//    @MainActor
+//    @propertyWrapper
+//    struct Field2<Value> {
+//        private let _isEmpty: (Value) -> Bool
+//        fileprivate(set) var value: Value?
+//        
+//        var isEmpty: Bool {
+//            value.map(_isEmpty) ?? true
+//        }
+//        
+//        /*fileprivate*/ init() {
+//            self.init(isEmpty: { _ in false })
+//        }
+//        
+//        /// Creates a new `Field` for a demographics value.
+//        ///
+//        /// - parameter isEmpty: A closure that determines whether a non-`nil` value for this field should be considered an empty value.
+//        ///     `nil` values are always considered empty. By default, all non-`nil` values are considered as representing non-empty values.
+//        /*fileprivate*/ init(isEmpty: @escaping (Value) -> Bool) { // somehow make this fileprivate?!
+//            self._isEmpty = isEmpty
+//        }
+//        
+//        static subscript(
+//            _enclosingInstance instance: DemographicsData,
+//            wrapped wrappedKeyPath: ReferenceWritableKeyPath<DemographicsData, Value?>,
+//            storage storageKeyPath: ReferenceWritableKeyPath<DemographicsData, Self>
+//        ) -> Value? {
+//            get {
+//                instance.access(keyPath: wrappedKeyPath)
+//                return instance[keyPath: storageKeyPath].value
+//            }
+//            set {
+//                let oldValue = instance[keyPath: storageKeyPath].value
+//                if let oldValue = oldValue as? any Equatable, let newValue = newValue as? any Equatable, !oldValue.isEqual(newValue) {
+//                    // value didn't actually change
+//                    return
+//                } else {
+//                    // value did change (or we can't determine that it didn't)
+//                    instance.withMutation(keyPath: wrappedKeyPath) {
+//                        instance[keyPath: storageKeyPath].value = newValue
+//                        instance.onChange()
+//                    }
+//                }
+//            }
+//        }
+//        
+//        @available(*, unavailable)
+//        var wrappedValue: Value? {
+//            get {
+//                fatalError("Not available")
+//            }
+//            set {
+//                fatalError("Not available")
+//            }
+//        }
+//        
+//        var projectedValue: Self {
+//            self
+//        }
+//    }
 }

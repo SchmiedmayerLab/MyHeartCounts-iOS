@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-// swiftlint:disable file_types_order attributes
+// swiftlint:disable file_types_order attributes discouraged_optional_boolean
 
 import Foundation
 import MyHeartCountsShared
@@ -32,15 +32,19 @@ struct DemographicsForm<Footer: View>: View {
     private let footer: @MainActor () -> Footer
     
     var body: some View {
-        Impl(isComplete: $isComplete, footer: footer)
-            .environment(data)
-            .navigationTitle("Demographics")
-            .onAppear {
-                if !didPopulateData {
-                    didPopulateData = true
-                    data.populate(from: account)
-                }
+        Impl(
+            didOptInToTrial: account.details?.didOptInToTrial == true,
+            isComplete: $isComplete,
+            footer: footer
+        )
+        .environment(data)
+        .navigationTitle("Demographics")
+        .onAppear {
+            if !didPopulateData {
+                didPopulateData = true
+                data.populate(from: account)
             }
+        }
     }
     
     init(
@@ -61,6 +65,7 @@ private struct Impl<Footer: View>: View {
     @Environment(StudyManager.self) private var studyManager
     @Environment(DemographicsData.self) private var data
     
+    let didOptInToTrial: Bool
     @Binding var isComplete: Bool
     let footer: @MainActor () -> Footer
     
@@ -68,32 +73,23 @@ private struct Impl<Footer: View>: View {
     
     @State private var viewState: ViewState = .idle
     @State private var regionOverride: Locale.Region?
+    @State private var trialOptInOverride: Bool?
     
     private var region: Locale.Region {
-        // NOTE: should probably use the region selected in the onboarding here?!
+        // if no override is set, we use `studyManager.preferredLocale`,
+        // which will be set to the region selected during the onboarding.
         regionOverride ?? studyManager.preferredLocale.region ?? .unitedStates
     }
     
     var body: some View {
         Form {
             if debugModeEnabled {
-                Section {
-                    Picker("Override Region" as String, selection: $regionOverride) {
-                        ForEach([Locale.Region?.none, .unitedStates, .unitedKingdom, .germany], id: \.self) { region in
-                            if let region {
-                                Text(region.localizedName(in: locale, includeEmoji: .front))
-                            } else {
-                                Text("Disable Override" as String)
-                            }
-                        }
-                    }
-                    LabeledContent("Effective Region" as String, value: region.localizedName(in: locale, includeEmoji: .front))
-                }
+                debugSection
             }
             Section {
                 ReadFromHealthKitButton(viewState: $viewState)
             }
-            let layout = demographicsLayout(for: region)
+            let layout = demographicsLayout(region: region, didOptInToTrial: trialOptInOverride ?? didOptInToTrial)
             layout.view
                 .onChange(of: data.updateCounter, initial: true) { _, _ in
                     isComplete = layout.isComplete(in: data)
@@ -104,6 +100,27 @@ private struct Impl<Footer: View>: View {
         .toolbar {
             if ProcessInfo.isBeingUITested {
                 testingSupportMenu
+            }
+        }
+    }
+    
+    private var debugSection: some View {
+        Section {
+            Picker("Override Region" as String, selection: $regionOverride) {
+                ForEach([Locale.Region?.none, .unitedStates, .unitedKingdom, .germany], id: \.self) { region in
+                    if let region {
+                        Text(region.localizedName(in: locale, includeEmoji: .front))
+                    } else {
+                        Text("Disable Override" as String)
+                    }
+                }
+            }
+            LabeledContent("Effective Region" as String, value: region.localizedName(in: locale, includeEmoji: .front))
+            Picker("TrialOptIn" as String, selection: $trialOptInOverride) {
+                Text("Default (\(didOptInToTrial))" as String).tag(Bool?.none)
+                Divider()
+                Text("Force Yes" as String).tag(Bool?.some(true))
+                Text("Force No" as String).tag(Bool?.some(false))
             }
         }
     }
