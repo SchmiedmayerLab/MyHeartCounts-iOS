@@ -104,7 +104,7 @@ struct AccountSheet: View {
             NavigationLink {
                 ContributionsList(
                     projectLicense: .mit,
-                    projectUrl: "https://github.com/SchmiedmayerLab/MyHeartCounts-iOS/blob/main/LICENSE.md"
+                    projectUrl: "https://github.com/SchmiedmayerLab/MyHeartCounts-iOS/"
                 )
             } label: {
                 Label("License Information", systemSymbol: .buildingColumns)
