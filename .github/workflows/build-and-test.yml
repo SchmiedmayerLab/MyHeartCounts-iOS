@@ -21,6 +21,9 @@ jobs:
   mhc_app_unit_tests:
     name: App Unit Tests
     uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild-fastlane.yml@v0.1
+    permissions:
+      contents: read
+      security-events: write
     with:
       runsonlabels: '["macOS", "self-hosted"]'
       scheme: MyHeartCounts
@@ -32,6 +35,7 @@ jobs:
     uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild-fastlane.yml@v0.1
     permissions:
       contents: read
+      security-events: write
     with:
       runsonlabels: '["macOS", "self-hosted"]'
       artifactname: MHC-App-UITests.xcresult
@@ -43,6 +47,9 @@ jobs:
   mhc_utils_unit_tests:
     name: Utils Unit Tests (${{ matrix.platform.name }} ${{ matrix.config }})
     uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild-fastlane.yml@v0.1
+    permissions:
+      contents: read
+      security-events: write
     strategy:
       matrix:
         config: [Debug, Release]
@@ -61,6 +68,8 @@ jobs:
   mhc_utils_unit_tests_linux:
     name: Utils Unit Tests (Linux ${{ matrix.config }})
     uses: SchmiedmayerLab/.github/.github/workflows/swift-test.yml@v0.1
+    permissions:
+      contents: read
     strategy:
       matrix:
         config: [Debug, Release]
@@ -73,6 +82,7 @@ jobs:
     needs: [mhc_app_unit_tests, mhc_app_ui_tests, mhc_utils_unit_tests, mhc_utils_unit_tests_linux]
     uses: SchmiedmayerLab/.github/.github/workflows/coverage.yml@v0.1
     permissions:
+      actions: read
       contents: read
     with:
       coveragereports: MHC-*.xcresult
