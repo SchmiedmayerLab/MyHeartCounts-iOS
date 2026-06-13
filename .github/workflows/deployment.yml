@@ -129,7 +129,7 @@ jobs:
   testflight:
     name: iOS App TestFlight Deployment
     needs: [determineenvironment, vars] #, test]
-    uses: StanfordBDHG/.github/.github/workflows/xcodebuild-or-fastlane.yml@v2
+    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild-fastlane.yml@v0.1
     permissions:
       contents: read
     with:

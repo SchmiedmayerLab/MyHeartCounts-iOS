@@ -139,7 +139,7 @@
     {
       "identity" : "myheartcounts-studydefinitions",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/StanfordBDHG/MyHeartCounts-StudyDefinitions.git",
+      "location" : "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git",
       "state" : {
         "revision" : "5ccee3145fa9608c01a6dee715bf231dd394a856",
         "version" : "0.1.19"
