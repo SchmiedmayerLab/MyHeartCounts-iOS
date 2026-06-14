@@ -1494,6 +1494,9 @@
         }
       }
     },
+    "Check your inbox and click the confirmation link to verify your account." : {
+
+    },
     "Chronic kidney disease" : {
       "localizations" : {
         "en-GB" : {
@@ -1605,6 +1608,12 @@
           }
         }
       }
+    },
+    "Complete" : {
+
+    },
+    "Complete Demographics" : {
+
     },
     "COMPREHENSION_QUESTION_1" : {
       "localizations" : {
@@ -1940,7 +1949,11 @@
         }
       }
     },
+    "Data collection enabled for %@ sensors" : {
+
+    },
     "Data collection enabled for %lld sensors" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -4637,6 +4650,9 @@
         }
       }
     },
+    "Message" : {
+
+    },
     "MHC Heart Health" : {
       "localizations" : {
         "en-GB" : {
@@ -6055,6 +6071,9 @@
         }
       }
     },
+    "Open Mail App" : {
+
+    },
     "Open Settings" : {
       "localizations" : {
         "en-GB" : {
@@ -6465,6 +6484,9 @@
         }
       }
     },
+    "Present Sheet" : {
+
+    },
     "Privacy Policy" : {
       "localizations" : {
         "es" : {
@@ -6503,6 +6525,216 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Procesando datos de sueño..."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_ALL_SET" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You're All Set"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You're All Set"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo listo"
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_CHECKLIST_DONT_SUGGEST_A11Y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don't suggest “%@” again"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don't suggest “%@” again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No volver a sugerir “%@”"
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_CHECKLIST_FOOTER" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These optional steps help My Heart Counts gather richer data for cardiovascular research. Suggestions you decline won't be shown again."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These optional steps help My Heart Counts gather richer data for cardiovascular research. Suggestions you decline won't be shown again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Estos pasos opcionales ayudan a My Heart Counts a recopilar datos más completos para la investigación cardiovascular. Las sugerencias que rechace no se volverán a mostrar."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_CHECKLIST_TITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggested for You"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggested for You"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sugerencias para usted"
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_DIGEST_A11Y_HINT" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens a list of suggested setup steps."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens a list of suggested setup steps."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre una lista de pasos de configuración sugeridos."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_DIGEST_SUBTITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld recommended steps](inflect: true) to get the most out of the study"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld recommended steps](inflect: true) to get the most out of the study"
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld paso recomendado para aprovechar al máximo el estudio"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pasos recomendados para aprovechar al máximo el estudio"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_DIGEST_TITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete Your Study Setup"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete Your Study Setup"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete la configuración del estudio"
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_STOP_SUGGESTING_CONFIRM_MESSAGE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This action remains available through the app's settings."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This action remains available through the app's settings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta acción seguirá estando disponible en los ajustes de la aplicación."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_STOP_SUGGESTING_CONFIRM_TITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Suggesting This?"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Suggesting This?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Dejar de sugerir esto?"
           }
         }
       }
@@ -8427,6 +8659,9 @@
         }
       }
     },
+    "Title" : {
+
+    },
     "Today" : {
       "localizations" : {
         "en-GB" : {
@@ -8458,6 +8693,9 @@
           }
         }
       }
+    },
+    "TODO" : {
+
     },
     "Total Household Income" : {
       "localizations" : {
@@ -8708,6 +8946,9 @@
           }
         }
       }
+    },
+    "Verify Account Email" : {
+
     },
     "Vermont" : {
       "localizations" : {

@@ -72,6 +72,7 @@ struct AccountSheet: View {
     }
     
     @ViewBuilder private var accountSheetExtraContent: some View {
+        PromptedActionsDigest(includeRejected: true)
         if let enrollment = enrollments.first {
             Section("Study Participation") {
                 studyParticipationSection(enrollment)
