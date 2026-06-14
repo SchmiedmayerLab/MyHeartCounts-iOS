@@ -19,44 +19,17 @@ import SwiftUI
 
 
 struct SensorKitButton: View {
-    private struct SensorAuthStatuses {
-        var authorized: [any AnySensor] = []
-        var denied: [any AnySensor] = []
-        var notDetermined: [any AnySensor] = []
-        
-        init() {
-            for sensor in SensorKit.mhcSensors {
-                switch sensor.authorizationStatus {
-                case .authorized:
-                    authorized.append(sensor)
-                case .denied:
-                    denied.append(sensor)
-                case .notDetermined:
-                    notDetermined.append(sensor)
-                @unknown default:
-                    break
-                }
-            }
-        }
-        
-        mutating func update() {
-            self = .init()
-        }
-    }
-    
-    // swiftlint:disable attributes
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(SensorKit.self) private var sensorKit
-    // swiftlint:enable attributes
+    @Environment(SensorKit.self)
+    private var sensorKit
     
     @State private var viewState: ViewState = .idle
     @State private var isManageSheetPresented = false
     
-    @State private var sensorAuthStatuses = SensorAuthStatuses()
+    @SensorAccessPermissions private var sensorAccessPermissions
     
     var body: some View {
         Group {
-            if isFullyUndetermined {
+            if sensorAccessPermissions.isFullyUndetermined {
                 LabeledButton(
                     symbol: .waveformPathEcgRectangle,
                     title: "Enable SensorKit",
@@ -66,10 +39,11 @@ struct SensorKitButton: View {
                     try await enable(SensorKit.mhcSensors)
                 }
             } else {
-                let subtitle: LocalizedStringResource = if sensorAuthStatuses.authorized.isEmpty {
+                let subtitle: LocalizedStringResource = switch sensorAccessPermissions.numAuthorized {
+                case 0:
                     "No data collection active"
-                } else {
-                    "Data collection enabled for \(sensorAuthStatuses.authorized.count) sensors"
+                case let count:
+                    "Data collection enabled for \(count, format: .number) sensors"
                 }
                 LabeledButton(
                     symbol: .waveformPathEcgRectangle,
@@ -80,32 +54,16 @@ struct SensorKitButton: View {
                     isManageSheetPresented = true
                 }
                 .sheet(isPresented: $isManageSheetPresented) {
-                    manageSensorKitSheet
+                    NavigationStack {
+                        SensorKitSheet(viewState: $viewState, enable: enable)
+                    }
                 }
             }
         }
         .viewStateAlert(state: $viewState)
-        .onChange(of: scenePhase) { _, scenePhase in
-            if scenePhase == .active {
-                sensorAuthStatuses.update()
-            }
-        }
-    }
-    
-    @ViewBuilder private var manageSensorKitSheet: some View {
-        NavigationStack {
-            SensorKitSheet(viewState: $viewState, enable: self.enable)
-        }
-    }
-    
-    private var isFullyUndetermined: Bool {
-        sensorAuthStatuses.authorized.isEmpty && sensorAuthStatuses.denied.isEmpty
     }
     
     private func enable(_ sensors: [any AnySensor]) async throws {
-        defer {
-            sensorAuthStatuses.update()
-        }
         let result = try await sensorKit.requestAccess(to: sensors)
         for sensor in result.authorized {
             try await sensor.startRecording()
