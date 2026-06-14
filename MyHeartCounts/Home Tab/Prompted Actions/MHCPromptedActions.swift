@@ -115,14 +115,16 @@ extension PromptedAction {
             .custom { spezi in
                 // TODO verify that this correctly will get re-evaluated when the Account module is loaded after the fact?! (ObservationTracking-wise...)
                 guard let account = spezi.module(Account.self),
-                      let studyManager = spezi.module(StudyManager.self) else {
+                      let studyManager = spezi.module(StudyManager.self),
+                      let details = account.details,
+                      !details.isIncomplete else {
                     return false
                 }
                 let data = DemographicsData()
                 data.populate(from: account)
                 let layout = demographicsLayout(
                     region: studyManager.preferredLocale.region ?? .unitedStates,
-                    didOptInToTrial: account.details?.didOptInToTrial == true
+                    didOptInToTrial: details.didOptInToTrial == true
                 )
                 return layout.completionState(in: data).isIncomplete
             }
