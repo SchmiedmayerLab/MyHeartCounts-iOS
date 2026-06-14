@@ -34,12 +34,22 @@ extension PromptedAction {
     
     private static let enableSensorKit = PromptedAction(
         id: .sensorKit,
-        enabledWhen: [
-            .daysSinceEnrollment(0...21),
-            .custom { _ in
-                SensorKit.isAvailable && SensorKit.mhcSensors.contains { $0.authorizationStatus == .notDetermined }
+        state: { context in
+            guard context.daysSinceActivation <= 21 else {
+                return .unavailable
             }
-        ],
+            guard SensorKit.isAvailable else {
+                return .unavailable
+            }
+            let sensorAuthStates = SensorKit.mhcSensors.mapIntoSet(\.authorizationStatus)
+            return if sensorAuthStates.contains(.notDetermined) {
+                .pending
+            } else if sensorAuthStates == [.authorized] {
+                .completed
+            } else {
+                .pending
+            }
+        },
         content: .init(
             symbol: .waveformPathEcgRectangle,
             title: "Enable SensorKit",
@@ -59,23 +69,41 @@ extension PromptedAction {
     
     private static let enableClinicalRecords = PromptedAction(
         id: .clinicalRecords,
-        enabledWhen: [
-            .daysSinceEnrollment(0...21),
-            .custom { spezi in
-                guard HKHealthStore().supportsHealthRecords() else {
-                    return false
+        state: { context in
+            guard context.daysSinceActivation <= 21 else {
+                return .unavailable
+            }
+            guard HKHealthStore().supportsHealthRecords() else {
+                return .unavailable
+            }
+            guard let module = context.spezi.module(ClinicalRecordPermissions.self) else {
+                return .unavailable
+            }
+            let authState = module.authorizationState
+            return if HealthRecordPermissions.includeInOnboarding {
+                // if the onboarding already asked for health records authorization, we only want to prompt
+                // this again if the user cancelled (rather than rejected) the authorization prompt.
+                switch authState {
+                case .cancelled, .undetermined:
+                    .pending
+                case .decided:
+                    // NOTE that completed here does not mean that the user actually gave us access;
+                    // it just means that the user completed the task of responding to the clinical records request.
+                    .completed
                 }
-                return if HealthRecordPermissions.includeInOnboarding {
-                    // if the onboarding already asked for health records authorization, we only want to prompt
-                    // this again if the user cancelled (rather than rejected) the authorization prompt.
-                    spezi.module(ClinicalRecordPermissions.self)?.authorizationState == .cancelled
-                } else {
-                    // if the Health Records access is not part of the onboarding, we want to prompt it as part of the app itself.
-                    // in this case we prompt it if the user hasn't yet been prompted.
-                    spezi.module(ClinicalRecordPermissions.self)?.authorizationState == .undetermined
+            } else {
+                // if the Health Records access is not part of the onboarding, we want to prompt it as part of the app itself.
+                // in this case we prompt it if the user hasn't yet been prompted.
+                switch authState {
+                case .undetermined:
+                    .pending
+                case .cancelled, .decided:
+                    // NOTE that completed here does not mean that the user actually gave us access;
+                    // it just means that the user completed the task of responding to the clinical records request.
+                    .completed
                 }
             }
-        ],
+        },
         content: .init(
             symbol: HealthRecordPermissions.symbol,
             title: "Enable Clinical Records",
@@ -89,15 +117,13 @@ extension PromptedAction {
     
     private static let verifyAccountEmail = PromptedAction(
         id: .verifyAccountEmail,
-        enabledWhen: [
-            .custom { spezi in
-                guard let details = spezi.module(Account.self)?.details else {
-                    // if there is no user, there is nothing to verify
-                    return false
-                }
-                return !details.isVerified
+        state: { context in
+            guard let details = context.spezi.module(Account.self)?.details else {
+                // if there is no user, there is nothing to verify
+                return .unavailable
             }
-        ],
+            return details.isVerified ? .completed : .pending
+        },
         content: .init(
             symbol: .envelope,
             title: "Verify Account Email",
@@ -111,59 +137,32 @@ extension PromptedAction {
     
     private static let completeDemographics = PromptedAction(
         id: .completeDemographics,
-        enabledWhen: [
-            .custom { spezi in
-                // TODO verify that this correctly will get re-evaluated when the Account module is loaded after the fact?! (ObservationTracking-wise...)
-                guard let account = spezi.module(Account.self),
-                      let studyManager = spezi.module(StudyManager.self),
-                      let details = account.details,
-                      !details.isIncomplete else {
-                    return false
-                }
-                let data = DemographicsData()
-                data.populate(from: account)
-                let layout = demographicsLayout(
-                    region: studyManager.preferredLocale.region ?? .unitedStates,
-                    didOptInToTrial: details.didOptInToTrial == true
-                )
-                return layout.completionState(in: data).isIncomplete
+        state: { context in
+            let spezi = context.spezi
+            guard let account = spezi.module(Account.self),
+                  let studyManager = spezi.module(StudyManager.self),
+                  let details = account.details,
+                  !details.isIncomplete else {
+                return .unavailable
             }
-        ],
+            let data = DemographicsData()
+            data.populate(from: account)
+            let layout = demographicsLayout(
+                region: studyManager.preferredLocale.region ?? .unitedStates,
+                didOptInToTrial: details.didOptInToTrial == true
+            )
+            return layout.completionState(in: data).isIncomplete ? .pending : .completed
+        },
         content: .init(
             symbol: .personTextRectangle,
             title: "Complete Demographics",
-            message: "TODO", // TODO
+            message: "PROMPTED_ACTION_COMPLETE_DEMOGRAPHICS_MESSAGE",
             performActionButtonTitle: "Complete"
         ),
-        sheetContent: { onCompletion in
+        sheetContent: {
             NavigationStack {
                 DemographicsForm()
             }
-            .onDisappear {
-                // TODO test that this only gets triggered when the view actually disappears as in getting dismissed, but NOT when we simply push smth else onto the nacigationStack!
-                onCompletion(.success(()))
-            }
         }
     )
-    
-    
-    private static let sheetTest = PromptedAction(
-        id: .init("sheetTest"),
-        enabledWhen: [],
-        content: .init(
-            symbol: .textPage,
-            title: "Title",
-            message: "Message",
-            performActionButtonTitle: "Present Sheet"
-        )
-    ) { onCompletion in
-        Form {
-            Button("Yes" as String) {
-                onCompletion(.success(()))
-            }
-            Button("No" as String) {
-                onCompletion(.failure(NSError(mhcErrorCode: .unspecified, localizedDescription: "oh no")))
-            }
-        }
-    }
 }

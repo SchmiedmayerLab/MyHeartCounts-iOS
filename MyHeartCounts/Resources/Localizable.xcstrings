@@ -1615,6 +1615,9 @@
     "Complete Demographics" : {
 
     },
+    "Completed" : {
+
+    },
     "COMPREHENSION_QUESTION_1" : {
       "localizations" : {
         "en" : {
@@ -4650,9 +4653,6 @@
         }
       }
     },
-    "Message" : {
-
-    },
     "MHC Heart Health" : {
       "localizations" : {
         "en-GB" : {
@@ -6484,9 +6484,6 @@
         }
       }
     },
-    "Present Sheet" : {
-
-    },
     "Privacy Policy" : {
       "localizations" : {
         "es" : {
@@ -6525,6 +6522,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Procesando datos de sueño..."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTION_COMPLETE_DEMOGRAPHICS_MESSAGE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Providing demographic information such as age, sex, and background helps researchers understand how heart health varies across different groups."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Providing demographic information such as age, sex, and background helps researchers understand how heart health varies across different groups."
           }
         }
       }
@@ -6573,7 +6586,23 @@
         }
       }
     },
-    "PROMPTED_ACTIONS_SETUP_CHECKLIST_FOOTER" : {
+    "PROMPTED_ACTIONS_SETUP_CHECKLIST_FOOTER_ALL_ACTIONS" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These optional steps help My Heart Counts gather richer data for cardiovascular research."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These optional steps help My Heart Counts gather richer data for cardiovascular research."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_CHECKLIST_FOOTER_PENDING_ONLY" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6585,12 +6614,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "These optional steps help My Heart Counts gather richer data for cardiovascular research. Suggestions you decline won't be shown again."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Estos pasos opcionales ayudan a My Heart Counts a recopilar datos más completos para la investigación cardiovascular. Las sugerencias que rechace no se volverán a mostrar."
           }
         }
       }
@@ -6669,6 +6692,22 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_DIGEST_SUBTITLE_ALL_COMPLETED" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’ve completed all recommended setup steps."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’ve completed all recommended setup steps."
           }
         }
       }
@@ -7689,6 +7728,9 @@
         }
       }
     },
+    "SensorKit" : {
+
+    },
     "SensorKit %@" : {
       "localizations" : {
         "en-GB" : {
@@ -8659,9 +8701,6 @@
         }
       }
     },
-    "Title" : {
-
-    },
     "Today" : {
       "localizations" : {
         "en-GB" : {
@@ -8693,9 +8732,6 @@
           }
         }
       }
-    },
-    "TODO" : {
-
     },
     "Total Household Income" : {
       "localizations" : {

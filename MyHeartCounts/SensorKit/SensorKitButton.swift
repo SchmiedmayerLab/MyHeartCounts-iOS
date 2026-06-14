@@ -28,39 +28,51 @@ struct SensorKitButton: View {
     @SensorAccessPermissions private var sensorAccessPermissions
     
     var body: some View {
-        Group {
+        AsyncButton(state: $viewState) {
             if sensorAccessPermissions.isFullyUndetermined {
-                LabeledButton(
-                    symbol: .waveformPathEcgRectangle,
-                    title: "Enable SensorKit",
-                    subtitle: "ENABLE_SENSORKIT_SUBTITLE",
-                    state: $viewState
-                ) {
-                    try await enable(SensorKit.mhcSensors)
-                }
+                try await enable(SensorKit.mhcSensors)
             } else {
-                let subtitle: LocalizedStringResource = switch sensorAccessPermissions.numAuthorized {
-                case 0:
-                    "No data collection active"
-                case let count:
-                    "Data collection enabled for \(count, format: .number) sensors"
-                }
-                LabeledButton(
-                    symbol: .waveformPathEcgRectangle,
-                    title: "Manage SensorKit",
-                    subtitle: subtitle,
-                    state: $viewState
-                ) {
-                    isManageSheetPresented = true
-                }
-                .sheet(isPresented: $isManageSheetPresented) {
-                    NavigationStack {
-                        SensorKitSheet(viewState: $viewState, enable: enable)
-                    }
-                }
+                isManageSheetPresented = true
+            }
+        } label: {
+            if sensorAccessPermissions.isFullyUndetermined {
+                enableLabel
+            } else {
+                manageLabel
             }
         }
         .viewStateAlert(state: $viewState)
+        .sheet(isPresented: $isManageSheetPresented) {
+            NavigationStack {
+                SensorKitSheet(viewState: $viewState, enable: enable)
+            }
+        }
+    }
+    
+    /// The "Enable SensorKit" label
+    private var enableLabel: some View {
+        makeLabel(title: "Enable SensorKit", subtitle: "ENABLE_SENSORKIT_SUBTITLE")
+    }
+    
+    /// The "Manage SensorKit" label
+    private var manageLabel: some View {
+        let subtitle: LocalizedStringResource = switch sensorAccessPermissions.numAuthorized {
+        case 0:
+            "No data collection active"
+        case let count:
+            "Data collection enabled for \(count, format: .number) sensors"
+        }
+        return makeLabel(title: "Manage SensorKit", subtitle: subtitle)
+    }
+    
+    private func makeLabel(title: LocalizedStringResource, subtitle: LocalizedStringResource) -> some View {
+        VStack(alignment: .listRowSeparatorLeading) {
+            Text(title)
+            Text(subtitle)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .foregroundStyle(.textLabel)
     }
     
     private func enable(_ sensors: [any AnySensor]) async throws {
@@ -106,7 +118,8 @@ private struct SensorKitSheet: View {
                 }
             }
         }
-        .navigationTitle("Manage SensorKit")
+        .navigationTitle("SensorKit")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 DismissButton()

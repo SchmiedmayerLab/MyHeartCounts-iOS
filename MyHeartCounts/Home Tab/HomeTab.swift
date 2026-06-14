@@ -54,7 +54,7 @@ struct HomeTab: RootViewTab {
                 }
             }
         }
-        PromptedActionsDigest(includeRejected: false)
+        PromptedActionsDigest(context: .completePending)
     }
     
     @ViewBuilder private var missedEventsSection: some View {

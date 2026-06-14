@@ -15,7 +15,7 @@ import SwiftUI
 
 // MARK: Property Wrapper
 
-/// Enables auto-updating access to SensorKit sensor access permissions within SwiftUI views.
+/// Provides auto-updating access to SensorKit sensor access permissions within SwiftUI views.
 @propertyWrapper
 struct SensorAccessPermissions: DynamicProperty {
     @State private var authStatusObservers: [SRSensor: SensorAuthStatusObserver]
@@ -76,6 +76,10 @@ extension SensorAccessPermissions {
         
         func startUpdates() {
             sensorReader.delegate = self
+        }
+        
+        func sensorReader(_ reader: SRSensorReader, didChange authorizationStatus: SRAuthorizationStatus) {
+            self.authStatus = authorizationStatus
         }
     }
 }

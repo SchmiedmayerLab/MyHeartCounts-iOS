@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-// swiftlint:disable file_types_order line_length attributes
+// swiftlint:disable file_types_order attributes
 
 import SFSafeSymbols
 import SpeziViews
@@ -21,18 +21,37 @@ import SwiftUI
 ///
 /// If no actions are active, this resolves to an empty view.
 struct PromptedActionsDigest: View {
-    @PromptedActions private var actions
-    private let includeRejected: Bool
-
+    enum Context {
+        case completePending
+        case viewAll
+    }
+    
+    @PromptedActions(inclusionCriterion: .only(.pending, includeRejected: false))
+    private var actions: [PromptedAction]
+    
+    private let context: Context
     @State private var isPresentingChecklist = false
-
+    
     var body: some View {
-        // intentionally reads each action's observable `lastResult`, so that actions performed
-        // inside the checklist sheet re-evaluate the query out here as well.
-        let _ = actions.map { $0.lastResult != nil } // swiftlint:disable:this redundant_discardable_let
+        let hideIfEmpty = switch context {
+        case .completePending: true
+        case .viewAll: false
+        }
+        let includeRejectedInDigest = switch context {
+        case .completePending: false
+        case .viewAll: true
+        }
+        let actions = $actions.actions(matching: .only(.pending, includeRejected: includeRejectedInDigest))
         // the section stays alive while the checklist sheet is presented (even once the query turns empty),
         // so that the sheet isn't yanked away mid-animation when the last action concludes.
-        if !actions.isEmpty || isPresentingChecklist {
+        let shouldDisplay: Bool = { () -> Bool in
+            if isPresentingChecklist {
+                true
+            } else {
+                actions.isEmpty ? !hideIfEmpty : true
+            }
+        }()
+        if shouldDisplay {
             Section {
                 Button {
                     isPresentingChecklist = true
@@ -40,13 +59,19 @@ struct PromptedActionsDigest: View {
                     SetupDigestCardLabel(actions: actions)
                 }
                 .buttonStyle(.plain)
-                .disabled(actions.isEmpty)
                 .accessibilityHint(Text(.setupDigestA11yHint))
                 .sheet(isPresented: $isPresentingChecklist) {
                     PromptedActionsSheet(
-                        actions: actions,
-                        // we disable rejection if we already include rejected actions in the list.
-                        rejectAction: includeRejected ? nil : { $actions.reject($0) }
+                        context: context,
+                        // we disable rejection if we explicitly want to include rejected actions in the list.
+                        rejectAction: { () -> ((PromptedAction.ID) -> Void)? in
+                            switch context {
+                            case .viewAll:
+                                nil
+                            case .completePending:
+                                { $actions.reject($0) }
+                            }
+                        }()
                     )
                 }
             }
@@ -57,10 +82,8 @@ struct PromptedActionsDigest: View {
         }
     }
     
-    /// - parameter includeRejected: whether the digest should include user-rejected actions
-    init(includeRejected: Bool) {
-        _actions = .init(includeRejected: includeRejected)
-        self.includeRejected = includeRejected
+    init(context: Context) {
+        self.context = context
     }
 }
 
@@ -87,12 +110,10 @@ private struct SetupDigestCardLabel: View {
                 Text(title)
                     .font(.headline)
                     .fixedSize(horizontal: false, vertical: true)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if !actions.isEmpty {
@@ -106,7 +127,10 @@ private struct SetupDigestCardLabel: View {
                 .overlay {
                     // a whisper of the brand red, so the card reads as "from the study", not as a generic row.
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(.tint.opacity(colorScheme == .dark ? 0.07 : 0.04))
+                        .fill(
+                            (actions.isEmpty ? AnyShapeStyle(.green) : AnyShapeStyle(.tint))
+                                .opacity(colorScheme == .dark ? 0.07 : 0.04)
+                        )
                 }
         }
         .contentShape(.rect(cornerRadius: 12))
@@ -117,8 +141,8 @@ private struct SetupDigestCardLabel: View {
         actions.isEmpty ? .promptedActionsAllSet : .setupDigestTitle
     }
 
-    private var subtitle: LocalizedStringResource? {
-        actions.isEmpty ? nil : .setupDigestSubtitle(numSteps: actions.count)
+    private var subtitle: LocalizedStringResource {
+        .setupDigestSubtitle(numSteps: actions.count)
     }
 
     private var symbolCluster: some View {
@@ -166,32 +190,30 @@ private struct SetupDigestCardLabel: View {
 /// Sheet that displays a list of actions.
 private struct PromptedActionsSheet: View {
     @Environment(\.dismiss) private var dismiss
-
-    /// The actions.
-    let actions: [PromptedAction]
+    
+    @PromptedActions(inclusionCriterion: .all) private var actions
+    let context: PromptedActionsDigest.Context
+    
     /// Handler to reject an action. If set to `nil`, the option to reject actions is disabled.
     let rejectAction: ((PromptedAction.ID) -> Void)?
     /// The sheet owns its own view state (rather than sharing the Home tab's),
     /// so that its error alert presents within the sheet and doesn't fight the Home tab's alert.
     @State private var viewState: ViewState = .idle
-
+    
     var body: some View {
         NavigationStack {
             Form {
-                ForEach(actions) { action in
-                    Section {
-                        PromptedActionRow(
-                            action: action,
-                            viewState: $viewState,
-                            stopSuggesting: rejectAction.map { rejectAction in
-                                { withAnimation(.snappy) { rejectAction(action.id) } }
-                            }
-                        )
-                    } footer: {
-                        if action.id == actions.last?.id {
-                            Text(.setupChecklistFooter)
-                        }
-                    }
+                switch context {
+                case .completePending:
+                    section(
+                        footer: .setupChecklistFooterPendingOnly,
+                        actions: $actions.actions(matching: .only(.pending, includeRejected: false))
+                    )
+                case .viewAll:
+                    let pending = $actions.actions(matching: .only(.pending, includeRejected: true))
+                    let completed = $actions.actions(matching: .only(.completed, includeRejected: true))
+                    section(footer: .setupChecklistFooterAllActions, actions: pending)
+                    section(title: "Completed", footer: pending.isEmpty ? .setupChecklistFooterAllActions : nil, actions: completed)
                 }
             }
             .animation(.snappy, value: actions.map(\.id))
@@ -200,6 +222,7 @@ private struct PromptedActionsSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     DismissButton()
+                        .disabled(viewState != .idle)
                 }
             }
         }
@@ -216,43 +239,80 @@ private struct PromptedActionsSheet: View {
             }
         }
     }
+    
+    private func section(
+        title: LocalizedStringResource? = nil,
+        footer: LocalizedStringResource? = nil,
+        actions: some RandomAccessCollection<PromptedAction>
+    ) -> some View {
+        ForEach(actions) { action in
+            Section {
+                PromptedActionRow(
+                    action: action,
+                    viewState: $viewState,
+                    stopSuggesting: rejectAction.map { rejectAction in
+                        { withAnimation(.snappy) { rejectAction(action.id) } }
+                    }
+                )
+            } header: {
+                if let title, action.id == actions.first?.id {
+                    Text(title)
+                }
+            } footer: {
+                if let footer, action.id == actions.last?.id {
+                    Text(footer)
+                }
+            }
+        }
+    }
 }
 
 
 private struct PromptedActionRow: View {
     @Environment(MyHeartCountsStandard.self)
     private var standard
-
+    
     @ScaledMetric(relativeTo: .headline)
     private var iconBadgeSize: CGFloat = 36
-
+    
+    @PromptedActions private var promptedActions
+    
     let action: PromptedAction
     @Binding var viewState: ViewState
     let stopSuggesting: (() -> Void)?
-
+    
     @State private var isConfirmingStopSuggesting = false
     @State private var isShowingActionSheet = false
-
+    
     var body: some View {
+        let isCompleted = $promptedActions.state(of: action) == .completed
         VStack(alignment: .leading, spacing: 11) {
             HStack(spacing: 11) {
-                Image(systemSymbol: action.content.symbol)
+                Image(systemSymbol: isCompleted ? .checkmark : action.content.symbol)
                     .font(.system(size: iconBadgeSize * 0.5, weight: .medium))
                     .foregroundStyle(.white)
                     .frame(width: iconBadgeSize, height: iconBadgeSize)
-                    .background(Color.red.gradient, in: .rect(cornerRadius: 8))
+                    .background {
+                        if isCompleted {
+                            Circle().fill(.green.gradient)
+                        } else {
+                            RoundedRectangle(cornerRadius: 8).fill(.red.gradient)
+                        }
+                    }
                     .accessibilityHidden(true)
                 Text(action.content.title)
                     .font(.headline)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.trailing, 24) // keeps a long title from running underneath the dismiss badge
+            .padding(.trailing, stopSuggesting == nil ? 0 : 24) // keeps a long title from running underneath the dismiss badge
             Text(action.content.message)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            enableButton
+            if !isCompleted {
+                enableButton
+            }
         }
         // the row manages its insets itself (rather than letting the Form provide them),
         // so that the dismiss badge can sit at a fixed, equal distance from the row's top and trailing edges.
@@ -269,10 +329,7 @@ private struct PromptedActionRow: View {
         .sheet(isPresented: $isShowingActionSheet) {
             switch action.action {
             case .sheet(let makeSheet):
-                makeSheet { result in
-                    action._updateLastResult(result)
-                    isShowingActionSheet = false
-                }
+                makeSheet()
             case .closure:
                 EmptyView() // should be unreachable
             }
@@ -337,36 +394,39 @@ extension LocalizedStringResource {
         "PROMPTED_ACTIONS_ALL_SET",
         defaultValue: "You're All Set"
     )
-
+    
     fileprivate static let setupDigestTitle = LocalizedStringResource(
         "PROMPTED_ACTIONS_SETUP_DIGEST_TITLE",
         defaultValue: "Complete Your Study Setup"
     )
-
+    
     fileprivate static let setupDigestA11yHint = LocalizedStringResource(
         "PROMPTED_ACTIONS_SETUP_DIGEST_A11Y_HINT",
         defaultValue: "Opens a list of suggested setup steps."
     )
-
+    
     fileprivate static let setupChecklistTitle = LocalizedStringResource(
         "PROMPTED_ACTIONS_SETUP_CHECKLIST_TITLE",
         defaultValue: "Suggested for You"
     )
-
-    fileprivate static let setupChecklistFooter = LocalizedStringResource(
-        "PROMPTED_ACTIONS_SETUP_CHECKLIST_FOOTER"
+    
+    fileprivate static let setupChecklistFooterPendingOnly = LocalizedStringResource(
+        "PROMPTED_ACTIONS_SETUP_CHECKLIST_FOOTER_PENDING_ONLY"
     )
-
+    fileprivate static let setupChecklistFooterAllActions = LocalizedStringResource(
+        "PROMPTED_ACTIONS_SETUP_CHECKLIST_FOOTER_ALL_ACTIONS"
+    )
+    
     fileprivate static let stopSuggestingConfirmTitle = LocalizedStringResource(
         "PROMPTED_ACTIONS_STOP_SUGGESTING_CONFIRM_TITLE",
         defaultValue: "Stop Suggesting This?"
     )
-
+    
     fileprivate static let stopSuggestingConfirmMessage = LocalizedStringResource(
         "PROMPTED_ACTIONS_STOP_SUGGESTING_CONFIRM_MESSAGE",
         defaultValue: "This action remains available through the app's settings."
     )
-
+    
     fileprivate static func setupChecklistDontSuggestA11yLabel(for actionTitle: LocalizedStringResource) -> LocalizedStringResource {
         LocalizedStringResource(
             "PROMPTED_ACTIONS_SETUP_CHECKLIST_DONT_SUGGEST_A11Y",
@@ -375,9 +435,13 @@ extension LocalizedStringResource {
     }
     
     fileprivate static func setupDigestSubtitle(numSteps: Int) -> LocalizedStringResource {
-        LocalizedStringResource(
-            "PROMPTED_ACTIONS_SETUP_DIGEST_SUBTITLE",
-            defaultValue: "^[\(numSteps) recommended steps](inflect: true) to get the most out of the study"
-        )
+        if numSteps == 0 {
+            "PROMPTED_ACTIONS_SETUP_DIGEST_SUBTITLE_ALL_COMPLETED"
+        } else {
+            LocalizedStringResource(
+                "PROMPTED_ACTIONS_SETUP_DIGEST_SUBTITLE",
+                defaultValue: "^[\(numSteps) recommended steps](inflect: true) to get the most out of the study"
+            )
+        }
     }
 }

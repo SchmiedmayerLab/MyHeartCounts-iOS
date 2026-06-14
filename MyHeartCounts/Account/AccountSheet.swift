@@ -72,7 +72,7 @@ struct AccountSheet: View {
     }
     
     @ViewBuilder private var accountSheetExtraContent: some View {
-        PromptedActionsDigest(includeRejected: true)
+        PromptedActionsDigest(context: .viewAll)
         if let enrollment = enrollments.first {
             Section("Study Participation") {
                 studyParticipationSection(enrollment)
@@ -178,7 +178,9 @@ struct AccountSheet: View {
             SignedConsentForms()
         }
         if SensorKit.isAvailable && !sensorAccessPermissions.isFullyUndetermined {
-            SensorKitButton() // TODO make this more lean!
+            // if the SensorKit auth is fully undetermined (i.e., the user hasn't authorized any sensors),
+            // we skip this button, since in that case the prompted action above will kick in.
+            SensorKitButton()
         }
     }
     
