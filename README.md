@@ -126,5 +126,5 @@ Contributions to this project are welcome. Please make sure to read the [contrib
 
 This project is licensed under the MIT License. See [Licenses](https://github.com/SchmiedmayerLab/MyHeartCounts-iOS/tree/main/LICENSES) for more information.
 
-![Stanford Biodesign Footer](https://raw.githubusercontent.com/SchmiedmayerLab/.github/main/assets/biodesign-footer-light.png#gh-light-mode-only)
-![Stanford Biodesign Footer](https://raw.githubusercontent.com/SchmiedmayerLab/.github/main/assets/biodesign-footer-dark.png#gh-dark-mode-only)
+![Stanford and Stanford Medicine logos](https://raw.githubusercontent.com/SchmiedmayerLab/.github/main/assets/stanford-footer-light.png#gh-light-mode-only)
+![Stanford and Stanford Medicine logos](https://raw.githubusercontent.com/SchmiedmayerLab/.github/main/assets/stanford-footer-dark.png#gh-dark-mode-only)

@@ -16,6 +16,6 @@ on:
 jobs:
   markdown_link_check:
     name: Markdown Link Check
-    uses: SchmiedmayerLab/.github/.github/workflows/markdown-links.yml@testPR
+    uses: SchmiedmayerLab/.github/.github/workflows/markdown-links.yml@v0.2
     permissions:
       contents: read

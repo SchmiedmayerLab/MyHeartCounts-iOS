@@ -88,14 +88,14 @@ final class StudyBundleLoader: Module, Sendable {
             case (.none, _), (.some(.failure), _):
                 value = newValue
                 return .changed(newValue)
-            case (.some(.success(let oldBundle)), .success(let newBundle)):
+            case let (.some(.success(oldBundle)), .success(newBundle)):
                 if newBundle != oldBundle {
                     value = .success(newBundle)
                     return .changed(.success(newBundle))
                 } else {
                     return .unchanged(.success(oldBundle))
                 }
-            case (.some(.success(let oldBundle)), .failure):
+            case let (.some(.success(oldBundle)), .failure):
                 if preferCachedBundleOnError {
                     // in this case (we successfully obtained a study bundle before, but it now has failed),
                     // we keep the old bundle around instead of updating `_studyBundle` with the error case.
