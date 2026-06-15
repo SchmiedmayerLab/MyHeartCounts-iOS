@@ -31,13 +31,14 @@ jobs:
       artifactname: MHC-App-UnitTests.xcresult
   mhc_app_ui_tests:
     name: App UI Tests
-    uses: SchmiedmayerLab/.github/.github/workflows/firebase-emulators-exec.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/firebase-emulators-exec.yml@lukas/fix-artifacts
     permissions:
       contents: read
     with:
       runs_on_labels: '["macOS", "self-hosted"]'
       path: MyHeartCounts-Firebase
       checkout_submodules: true
+      artifactname: MHC-App-UITests.xcresult
       command: npm run prepare && cd .. && fastlane uitest
     secrets:
       GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
