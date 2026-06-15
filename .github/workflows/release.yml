@@ -19,7 +19,7 @@ concurrency:
 jobs:
   formatreleasenotes:
     name: Format Release Notes
-    uses: SchmiedmayerLab/.github/.github/workflows/format-release-notes.yml@v0.1
+    uses: SchmiedmayerLab/.github/.github/workflows/format-release-notes.yml@testPR
     permissions:
       contents: read
     with:

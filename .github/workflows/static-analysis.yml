@@ -20,17 +20,17 @@ concurrency:
 jobs:
   reuse_action:
     name: REUSE Compliance Check
-    uses: SchmiedmayerLab/.github/.github/workflows/reuse.yml@v0.1
+    uses: SchmiedmayerLab/.github/.github/workflows/reuse.yml@testPR
     permissions:
       contents: read
   swiftlint:
     name: SwiftLint
-    uses: SchmiedmayerLab/.github/.github/workflows/swiftlint.yml@v0.1
+    uses: SchmiedmayerLab/.github/.github/workflows/swiftlint.yml@testPR
     permissions:
       contents: read
   periphery:
     name: Periphery
-    uses: SchmiedmayerLab/.github/.github/workflows/periphery.yml@v0.1
+    uses: SchmiedmayerLab/.github/.github/workflows/periphery.yml@testPR
     permissions:
       contents: read
     with:
@@ -38,17 +38,18 @@ jobs:
       strict: false
   markdownlinkcheck:
     name: Markdown Link Check
-    uses: SchmiedmayerLab/.github/.github/workflows/markdown-links.yml@v0.1
+    uses: SchmiedmayerLab/.github/.github/workflows/markdown-links.yml@testPR
     permissions:
       contents: read
   codeql:
     name: CodeQL
-    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild-fastlane.yml@v0.1
+    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@testPR
     permissions:
       security-events: write
       actions: read
       contents: read
     with:
       codeql: true
-      fastlanelane: codeql
+      scheme: MyHeartCounts
+      test: false
       xcodeversion: 26.4
