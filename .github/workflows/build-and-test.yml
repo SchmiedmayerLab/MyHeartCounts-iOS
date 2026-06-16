@@ -38,7 +38,7 @@ jobs:
       runs_on_labels: '["macOS", "self-hosted"]'
       path: MyHeartCounts-Firebase
       checkout_submodules: true
-      artifactname: MHC-App-UITests.xcresult
+      artifact: MHC-App-UITests.xcresult
       command: npm run prepare && cd .. && fastlane uitest
     secrets:
       GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
@@ -55,6 +55,7 @@ jobs:
             destination: 'platform=iOS Simulator,name=iPhone 17 Pro'
           - name: macOS
             destination: 'platform=macOS,arch=arm64'
+      fail-fast: false
     with:
       runsonlabels: '["macOS", "self-hosted"]'
       path: MyHeartCountsShared
