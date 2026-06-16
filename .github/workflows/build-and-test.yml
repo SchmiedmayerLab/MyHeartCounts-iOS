@@ -38,7 +38,7 @@ jobs:
       runs_on_labels: '["macOS", "self-hosted"]'
       path: MyHeartCounts-Firebase
       checkout_submodules: true
-      artifact: MHC-App-UITests.xcresult
+      artifact: ../MHC-App-UITests.xcresult
       command: npm run prepare && cd .. && fastlane uitest
     secrets:
       GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
