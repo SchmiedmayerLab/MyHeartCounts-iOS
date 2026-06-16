@@ -21,10 +21,6 @@ extension Account {
     
     /// Waits until the account details have been fully loaded.
     ///
-    /// "Fully loaded" means ``details`` is non-`nil` and no longer flagged ``AccountDetails/isIncomplete`` —
-    /// i.e. the externally-stored values (e.g. those persisted via `FirestoreAccountStorage`) have been fetched,
-    /// not just the synchronously-available identity keys present when `.associatedAccount` first fires.
-    ///
     /// The purpose of this function is to have a client-side fix/workaround for https://github.com/SchmiedmayerLab/MyHeartCounts-iOS/issues/169
     /// i.e., the issue where writes to the account details very early into the launch of the app, before they have been fully loaded by SpeziFirebase,
     /// will somehow race with SpeziFirebase's account details loading and will leave `account.details` in an incomplete state (despite `AccountDetails.isIncomplete` being `false`).
