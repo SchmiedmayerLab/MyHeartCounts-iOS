@@ -23,7 +23,8 @@ packageDeps += [
     .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols.git", from: "7.0.0"),
     // not actually used but we need to force the version until we update SpeziStudy
     .package(url: "https://github.com/StanfordSpezi/SpeziStorage.git", from: "2.1.4"),
-    .package(url: "https://github.com/StanfordSpezi/SpeziScheduler.git", from: "1.2.20")
+    .package(url: "https://github.com/StanfordSpezi/SpeziScheduler.git", from: "1.2.20"),
+    .package(url: "https://github.com/apple/FHIRModels.git", .upToNextMinor(from: "0.8.0"))
 ]
 #endif
 

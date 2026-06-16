@@ -138,7 +138,8 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         case .disassociatingAccount:
             logger.notice("account did disassociate")
             try? await performLogoutCleanup(context: .explicitUserLogoutEvent)
-        case .detailsChanged:
+        case let .detailsChanged(old, new):
+            logger.notice("Account Details Changed:\n\(new.debugDescOfDifference(from: old))")
             break
         }
     }
