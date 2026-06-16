@@ -72,6 +72,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
         locale: Locale = .current,
         enableDebugMode: Bool = false,
         testEnvironmentConfig: SetupTestEnvironmentConfig = .init(resetExistingData: true, loginAndEnroll: true),
+        enableHealthRecords: Bool = false, // temporarily disabled
         skipHealthPermissionsHandling: Bool = false,
         skipGoingToHomeTab: Bool = false,
         heightEntryUnitOverride: LaunchOptions.HeightInputUnitOverride = .none,
@@ -88,6 +89,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
             StudyBundleSelector.atUrl(studyBundleUrl).launchOptionArgs(for: .studyBundleSelector)
             "--disableAutomaticBulkHealthExport"
             enableDebugMode.launchOptionArgs(for: .forceEnableDebugMode)
+            enableHealthRecords.launchOptionArgs(for: .enableHealthRecords)
             heightEntryUnitOverride.launchOptionArgs(for: .heightInputUnitOverride)
             weightEntryUnitOverride.launchOptionArgs(for: .weightInputUnitOverride)
         }
