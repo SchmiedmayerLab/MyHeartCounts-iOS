@@ -299,7 +299,11 @@ extension Bool: LaunchOptionDecodable, LaunchOptionEncodable {
     }
     
     public func launchOptionArgs(for launchOption: LaunchOption<Bool>) -> [String] {
-        self ? [launchOption.key] : []
+        if self {
+            [launchOption.key, "true"]
+        } else {
+            [launchOption.key, "false"]
+        }
     }
 }
 
