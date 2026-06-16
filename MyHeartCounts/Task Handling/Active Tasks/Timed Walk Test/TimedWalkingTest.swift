@@ -99,10 +99,12 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
     static let enableLiveActivities: Bool = true
     
     // swiftlint:disable attributes
+    @ObservationIgnored @Application(\.logger) private var logger
     @ObservationIgnored @StandardActor private var standard: MyHeartCountsStandard
     @ObservationIgnored @Dependency(WatchConnection.self) private var watchManager
     @ObservationIgnored @Dependency(LocalStorage.self) private var localStorage
     @ObservationIgnored @Dependency(Lifecycle.self) private var lifecycle
+    @ObservationIgnored @Dependency(AchievementsManager.self) private var achievements
     // swiftlint:enable attributes
     
     private let hapticEngine = try? CHHapticEngine()
@@ -242,7 +244,21 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
             }
             result = try await stop(inProgressTest: result, isRecoveredTest: false)
             if !discardResult {
-                try? await standard.uploadHealthObservation(result)
+                do {
+                    try await standard.uploadHealthObservation(result)
+                    Task {
+                        switch result.test {
+                        case .sixMinuteWalkTest:
+                            achievements.record(.complete6MinWalkTest, timestamp: result.endDate)
+                        case .twelveMinuteRunTest:
+                            achievements.record(.complete12MinRunTest, timestamp: result.endDate)
+                        default:
+                            break
+                        }
+                    }
+                } catch {
+                    logger.error("Uploading TimedWalkTest failed: \(error)")
+                }
                 return result
             } else {
                 return nil

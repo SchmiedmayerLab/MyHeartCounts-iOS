@@ -144,6 +144,9 @@ struct AccountSheet: View {
             .contentShape(Rectangle())
             .foregroundStyle(colorScheme.textLabelForegroundStyle)
         }
+        NavigationLink("View Participation Stats") {
+            ParticipationStatsView(enrollment: enrollment)
+        }
         PostTrialNudgesToggle()
         NavigationLink("Review Consent Forms") {
             SignedConsentForms()

@@ -181,9 +181,12 @@ struct HeartHealthDashboard: View {
         ) {
             VStack(spacing: 0) {
                 ScoreResultGauge(scoreResult: score)
-                .frame(width: 80, height: 80)
-                .padding(.top, 4)
-                .padding(.bottom, -8)
+                    .frame(width: 80, height: 80)
+                    .padding(.top, 4)
+                    .padding(.bottom, -8)
+//                Text(score.title)
+//                    .font(.footnote)
+//                    .foregroundStyle(.secondary)
                 if let timeRange = score.timeRange, score.scoreAvailable {
                     Text(timeRange.upperBound.shortDescription())
                         .font(.footnote)

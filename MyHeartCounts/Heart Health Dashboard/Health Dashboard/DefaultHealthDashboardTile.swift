@@ -132,7 +132,7 @@ private struct TileImpl: View {
     private let timeRange: HealthKitQueryTimeRange
     private let style: HealthDashboardLayout.Style
     private let accessory: DefaultHealthDashboardTile.Accessory
-    private let goal: Achievement.ResolvedGoal?
+    private let goal: LegacyAchievement.ResolvedGoal?
     
     var body: some View {
         HealthDashboardTile(title: sampleType.displayTitle) {
@@ -191,7 +191,7 @@ private struct TileImpl: View {
         timeRange: HealthKitQueryTimeRange,
         style: HealthDashboardLayout.Style,
         accessory: DefaultHealthDashboardTile.Accessory,
-        goal: Achievement.ResolvedGoal?
+        goal: LegacyAchievement.ResolvedGoal?
     ) {
         self.sampleType = sampleType
         self.samples = samples

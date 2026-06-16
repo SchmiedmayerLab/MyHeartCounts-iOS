@@ -4,6 +4,9 @@
     "" : {
       "shouldTranslate" : false
     },
+    " " : {
+      "shouldTranslate" : false
+    },
     "  0" : {
       "shouldTranslate" : false
     },
@@ -52,7 +55,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ – %2$@ (peso normal)"
+            "value" : "%1$@ – %2$@ (Peso normal)"
           }
         }
       }
@@ -162,7 +165,17 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ – %2$@ (bajo peso)"
+            "value" : "%1$@ – %2$@ (Bajo peso)"
+          }
+        }
+      }
+    },
+    "%@ / %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ / %2$@"
           }
         }
       }
@@ -181,6 +194,26 @@
     "%@ +" : {
       "shouldTranslate" : false
     },
+    "%@ laps around a running track" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ vueltas a una pista de atletismo"
+          }
+        }
+      }
+    },
+    "%@ lengths of the Golden Gate Bridge" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ veces la longitud del puente Golden Gate"
+          }
+        }
+      }
+    },
     "%@-Minute Run Test" : {
       "localizations" : {
         "en-GB" : {
@@ -192,7 +225,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prueba de Carrera de %@ Minutos"
+            "value" : "Prueba de carrera de %@ minutos"
           }
         }
       }
@@ -208,7 +241,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prueba de Caminata de %@ Minutos"
+            "value" : "Prueba de caminata de %@ minutos"
           }
         }
       }
@@ -477,7 +510,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "< %@ (delgadez severa)"
+            "value" : "< %@ (Delgadez severa)"
           }
         }
       }
@@ -792,7 +825,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aneurismo aórtico abdominal"
+            "value" : "Aneurisma aórtico abdominal"
           }
         }
       }
@@ -809,6 +842,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Acerca de %@"
+          }
+        }
+      }
+    },
+    "about %@ trips around the Earth" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unas %1$@ vueltas alrededor de la Tierra"
           }
         }
       }
@@ -895,6 +938,16 @@
         }
       }
     },
+    "Achievements" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logros"
+          }
+        }
+      }
+    },
     "Active" : {
       "localizations" : {
         "en-GB" : {
@@ -911,6 +964,16 @@
         }
       }
     },
+    "Active Energy" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energía activa"
+          }
+        }
+      }
+    },
     "Actively smoking" : {
       "localizations" : {
         "en-GB" : {
@@ -922,7 +985,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fuma frequentemente"
+            "value" : "Fuma actualmente"
           }
         }
       }
@@ -1185,7 +1248,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Tienes %lld años o más?"
+            "value" : "¿Tiene %lld años o más?"
           }
         }
       }
@@ -1201,7 +1264,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Eres hispano/latino?"
+            "value" : "¿Es usted hispano/latino?"
           }
         }
       }
@@ -1211,7 +1274,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose."
+            "value" : "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enrol later if you choose."
           }
         },
         "es" : {
@@ -1270,6 +1333,16 @@
         }
       }
     },
+    "Articles Read" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artículos leídos"
+          }
+        }
+      }
+    },
     "Atrial fibrillation (Afib)" : {
       "localizations" : {
         "en-GB" : {
@@ -1286,6 +1359,16 @@
         }
       }
     },
+    "Average" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Promedio"
+          }
+        }
+      }
+    },
     "Bachelor" : {
       "localizations" : {
         "en-GB" : {
@@ -1298,6 +1381,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Licenciatura"
+          }
+        }
+      }
+    },
+    "Best Step Day" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mejor día de pasos"
           }
         }
       }
@@ -1388,6 +1481,26 @@
         }
       }
     },
+    "bpm" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bpm"
+          }
+        }
+      }
+    },
+    "Bronze Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de bronce"
+          }
+        }
+      }
+    },
     "California" : {
       "localizations" : {
         "en-GB" : {
@@ -1432,6 +1545,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cancelar"
+          }
+        }
+      }
+    },
+    "Cardio Connoisseur" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experto del corazón"
           }
         }
       }
@@ -1606,6 +1729,16 @@
         }
       }
     },
+    "Complete your first questionnaire" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete su primer cuestionario"
+          }
+        }
+      }
+    },
     "COMPREHENSION_QUESTION_1" : {
       "localizations" : {
         "en" : {
@@ -1623,7 +1756,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Si en algún momento durante este estudio no me siento bien, debo ponerme en contacto inmediatamente con mi médico."
+            "value" : "Si en algún momento durante este estudio no me siento bien, debo ponerme en contacto inmediatamente con mi proveedor de atención médica."
           }
         }
       }
@@ -1689,7 +1822,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Por favor, responde unas preguntas para asegurarnos de que entiende el formulario de consentimiento."
+            "value" : "Por favor, responda unas preguntas para asegurarnos de que entiende el formulario de consentimiento."
           }
         }
       }
@@ -1711,7 +1844,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cuestionario de Consentimiento"
+            "value" : "Cuestionario de consentimiento"
           }
         }
       }
@@ -1860,6 +1993,36 @@
         }
       }
     },
+    "Cooper Trooper" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veterano del test de Cooper"
+          }
+        }
+      }
+    },
+    "Copper Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de cobre"
+          }
+        }
+      }
+    },
+    "Coral Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de coral"
+          }
+        }
+      }
+    },
     "Coronary Artery Disease" : {
       "localizations" : {
         "en-GB" : {
@@ -1904,6 +2067,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stent/angioplastia coronaria"
+          }
+        }
+      }
+    },
+    "Cotton Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de algodón"
+          }
+        }
+      }
+    },
+    "Cross %@ of study enrollment" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cross %@ of study enrolment"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alcance %@ de inscripción en el estudio"
+          }
+        }
+      }
+    },
+    "Crystal Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de cristal"
+          }
+        }
+      }
+    },
+    "Current Streak" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racha actual"
           }
         }
       }
@@ -2009,13 +2218,33 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Date of Enrollment"
+            "value" : "Date of Enrolment"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fecha de inscripción"
+          }
+        }
+      }
+    },
+    "day" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "día"
+          }
+        }
+      }
+    },
+    "days" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "días"
           }
         }
       }
@@ -2069,7 +2298,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Programe un recordatorio para levantarse y caminar durante cinco minutos cada hora esta mañana. El movimiento ligero puede mejorar su estado de ánimo y ayudarlo a mantenerse encaminado."
+            "value" : "Programe un recordatorio para levantarse y caminar durante cinco minutos cada hora esta mañana. El movimiento ligero puede mejorar su estado de ánimo y ayudarlo a mantenerse en el buen camino."
           }
         }
       }
@@ -2107,7 +2336,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Demografía"
+            "value" : "Datos demográficos"
           }
         }
       }
@@ -2128,6 +2357,16 @@
         }
       }
     },
+    "Diamond Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de diamante"
+          }
+        }
+      }
+    },
     "Did Opt In to Trial" : {
       "localizations" : {
         "en-GB" : {
@@ -2139,7 +2378,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se inscribió en el ensayo"
+            "value" : "Optó por participar en el ensayo"
           }
         }
       }
@@ -2187,7 +2426,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Miocardiopatía Dilatada "
+            "value" : "Miocardiopatía dilatada (MCD)"
           }
         }
       }
@@ -2315,7 +2554,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hecho"
+            "value" : "Listo"
           }
         }
       }
@@ -2353,7 +2592,17 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "## Realizar un ECG con su Apple Watch\n\nTu Apple Watch puede registrar un electrocardiograma (ECG) para verificar el ritmo de tu corazón. Esta función te ayuda a capturar la actividad eléctrica de tu corazón en solo 30 segundos.\n\nPara realizar un ECG, asegúrete de que tu reloj esté bien ajustado en tu muñeca. Abre la aplicación ECG en tu Apple Watch y descansa los brazos sobre una mesa o en tu regazo. Coloca tu dedo en la Corona Digital sin presionarla, y mantéte inmóvil durante 30 segundos mientras se completa la captura.\n\nLa aplicación clasificará tu ritmo cardíaco como Ritmo Sinusal, Fibrilación Auricular, Frecuencia Cardíaca Baja/Alta o Inconcluso. Los resultados se guardan en la aplicación Salud en su iPhone para que los revises o compartas con tu médico.\n\nRecuerde: Esta función no monitorea continuamente la Fibrilación Auricular y no puede detectar ataques cardíacos. Si experimenta dolor en el pecho, presión u otros síntomas, llame a los servicios de emergencia inmediatamente."
+            "value" : "## Realizar un ECG con su Apple Watch\n\nSu Apple Watch puede registrar un electrocardiograma (ECG) para verificar el ritmo de su corazón. Esta función le ayuda a capturar la actividad eléctrica de su corazón en solo 30 segundos.\n\nPara realizar un ECG, asegúrese de que su reloj esté bien ajustado en su muñeca. Abra la aplicación ECG en su Apple Watch y descanse los brazos sobre una mesa o en su regazo. Coloque el dedo en la Corona Digital sin presionarla y manténgase inmóvil durante 30 segundos mientras se completa la captura.\n\nLa aplicación clasificará su ritmo cardíaco como Ritmo Sinusal, Fibrilación Auricular, Frecuencia Cardíaca Baja/Alta o Inconcluso. Los resultados se guardan en la aplicación Salud en su iPhone para que los revise o los comparta con su médico.\n\nRecuerde: Esta función no monitorea continuamente la fibrilación auricular y no puede detectar ataques cardíacos. Si experimenta dolor en el pecho, presión u otros síntomas, llame a los servicios de emergencia de inmediato."
+          }
+        }
+      }
+    },
+    "ECGs Recorded" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ECG registrados"
           }
         }
       }
@@ -2423,7 +2672,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Antes de comenzar, te haremos unas preguntas rápidas para asegurarnos de que el estudio sea adecuado para tí."
+            "value" : "Antes de comenzar, le haremos unas preguntas rápidas para asegurarnos de que el estudio sea adecuado para usted."
           }
         }
       }
@@ -2462,6 +2711,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Correo electrónico…"
+          }
+        }
+      }
+    },
+    "Emerald Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de esmeralda"
           }
         }
       }
@@ -2547,7 +2806,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Al habilitar SensorKit, se obtienen datos más precisos y detallados como el electrocardiograma (ECG), contribuyéndo al avance de la investigación cardiovascular"
+            "value" : "Al habilitar SensorKit, se obtienen datos más precisos y detallados, como el electrocardiograma (ECG), para contribuir al avance de la investigación cardiovascular."
           }
         }
       }
@@ -2564,6 +2823,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Finalizar"
+          }
+        }
+      }
+    },
+    "Engagement" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Participación"
           }
         }
       }
@@ -2596,6 +2865,32 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Inscribirse"
+          }
+        }
+      }
+    },
+    "Enroll into the study" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enrol into the study"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inscríbase en el estudio"
+          }
+        }
+      }
+    },
+    "Enrolled since" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inscrito desde"
           }
         }
       }
@@ -2659,7 +2954,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ingresar IMC (Índice de Masa Corporal)"
+            "value" : "Ingresar IMC"
           }
         }
       }
@@ -2692,6 +2987,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Error"
+          }
+        }
+      }
+    },
+    "Estimate" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimación"
+          }
+        }
+      }
+    },
+    "Exercise Time" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiempo de ejercicio"
           }
         }
       }
@@ -2739,7 +3054,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Falló al Descargar Información del Estudio"
+            "value" : "No se pudo descargar la información del estudio"
           }
         }
       }
@@ -2755,7 +3070,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Falló al Cargar el Estudio en la Aplicación"
+            "value" : "No se pudo cargar el estudio en la aplicación"
           }
         }
       }
@@ -2771,7 +3086,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Falló al procesar las Sesiones de Sueño"
+            "value" : "No se pudieron procesar las sesiones de sueño"
           }
         }
       }
@@ -2835,7 +3150,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Evaluar producto"
+            "value" : "Comentarios"
           }
         }
       }
@@ -2857,7 +3172,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tus comentarios nos ayudan a mejorar My Heart Counts y te los agradecemos de corazón."
+            "value" : "Sus comentarios nos ayudan a mejorar My Heart Counts y todos los comentarios son muy apreciados.\n\nLos comentarios que comparta con nosotros se asociarán a su dirección de correo electrónico.\nEsto nos permite contactarle si es necesario."
           }
         }
       }
@@ -2873,7 +3188,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¡Chequea más tarde!"
+            "value" : "¡Puede volver a consultar más tarde!"
           }
         }
       }
@@ -2911,7 +3226,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tras la semana inicial, comenzarás un ensayo de 2 semanas de duración que compara diferentes tipos de recomendaciones. Recibirás notificaciones cuando comience esta fase."
+            "value" : "Tras la semana inicial, comenzará un ensayo de 2 semanas de duración que compara diferentes tipos de asesoramiento sobre actividad física. Recibirá notificaciones cuando comience esta fase."
           }
         }
       }
@@ -2927,13 +3242,13 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The app will begin collecting activity data from your phone and any connected wearable devices you’ve authorized."
+            "value" : "The app will begin collecting activity data from your phone and any connected wearable devices you’ve authorised."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La aplicación comenzará a recopilar datos de actividad de tu teléfono y de cualquier dispositivo conectado y autorizado."
+            "value" : "La aplicación comenzará a recopilar datos de actividad de su teléfono y de cualquier dispositivo wearable conectado que haya autorizado."
           }
         }
       }
@@ -2949,13 +3264,13 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Each day, you’ll see a personalized list of tasks in your dashboard. These typically take just 5-10 minutes to complete."
+            "value" : "Each day, you’ll see a personalised list of tasks in your dashboard. These typically take just 5-10 minutes to complete."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cada día verás una lista personalizada de tareas en su panel. Por lo general, toman solo 5 a 10 minutos en completarse."
+            "value" : "Cada día verá una lista personalizada de tareas en su panel. Por lo general, toman solo de 5 a 10 minutos en completarse."
           }
         }
       }
@@ -2977,7 +3292,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Al unirte a este estudio, estás contribuyendo a una investigación importante que puede ayudar a mejorar nuestra comprensión de la salud del corazón en personas de diversas comunidades."
+            "value" : "Al unirse a este estudio, está contribuyendo a una investigación importante que puede ayudar a mejorar nuestra comprensión de la salud del corazón en personas de diversas comunidades."
           }
         }
       }
@@ -2999,7 +3314,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Durante los próximos 7 días, se te guiará a través de varias actividades breves:\n- Completar encuestas sobre tu salud, estilo de vida y bienestar.\n- Registrar tu actividad física a través de la aplicación.\n- Realizar evaluaciones de aptitud física cuando sea apropiado para tu estado de salud."
+            "value" : "Durante los próximos 7 días, se le guiará a través de varias actividades breves:\n- Completar encuestas sobre su salud, estilo de vida y bienestar.\n- Registrar su actividad física inicial a través de la aplicación.\n- Realizar evaluaciones de aptitud física óptimas cuando sea apropiado para su estado de salud."
           }
         }
       }
@@ -3052,6 +3367,16 @@
         }
       }
     },
+    "Flights Climbed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tramos subidos"
+          }
+        }
+      }
+    },
     "Florida" : {
       "localizations" : {
         "en-GB" : {
@@ -3068,6 +3393,16 @@
         }
       }
     },
+    "Flower Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de flores"
+          }
+        }
+      }
+    },
     "For more information and updates, visit myheartcounts.stanford.edu" : {
       "localizations" : {
         "en-GB" : {
@@ -3080,6 +3415,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Para más información y actualizaciones, visite myheartcounts.stanford.edu"
+          }
+        }
+      }
+    },
+    "Fun Facts" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datos curiosos"
           }
         }
       }
@@ -3139,7 +3484,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Varón"
+            "value" : "Hombre"
           }
         }
       }
@@ -3161,7 +3506,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "De género fluído"
+            "value" : "Variante de género / no conforme"
           }
         }
       }
@@ -3232,6 +3577,16 @@
         }
       }
     },
+    "General" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        }
+      }
+    },
     "Georgia" : {
       "localizations" : {
         "en-GB" : {
@@ -3244,6 +3599,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Georgia"
+          }
+        }
+      }
+    },
+    "Giga Streaker" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racha giga"
           }
         }
       }
@@ -3276,6 +3641,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ir al campo anterior"
+          }
+        }
+      }
+    },
+    "Gold Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de oro"
           }
         }
       }
@@ -3344,6 +3719,16 @@
         }
       }
     },
+    "Health" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salud"
+          }
+        }
+      }
+    },
     "Health Records" : {
       "localizations" : {
         "en-GB" : {
@@ -3356,6 +3741,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Registros de salud"
+          }
+        }
+      }
+    },
+    "Health Totals" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Totales de salud"
           }
         }
       }
@@ -3377,7 +3772,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Permitir el acceso a datos clínicos y de historiales médicos ayuda a respaldar la investigación cardiovascular mediante información de salud más rica y longitudinal."
+            "value" : "Permitir el acceso a datos clínicos y de historiales médicos ayuda a respaldar la investigación cardiovascular mediante información de salud más completa y longitudinal."
           }
         }
       }
@@ -3387,19 +3782,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "If you agree, this study can securely access selected health information that you have already stored in Apple’s Health app through your healthcare providers. This information may include:\n- Laboratory results (for example, cholesterol, blood sugar, or other blood tests)\n- Clinical measurements such as blood pressure, heart rate, or body mass index recorded by your medical provider\n- Medications prescribed to you\nImmunizations (such as flu or COVID-19 vaccines)\n- Allergies, diagnoses, and conditions listed in your medical record\n- Procedures and clinical visits documented by your health system\n\nAccess will occur only if you grant permission in Apple Health. Your health records are encrypted and transferred securely. The research team will not receive your full medical chart, only the specific data types you approve. You may withdraw this permission at any time through the Health app settings.\nThe purpose of collecting this information is to combine it with other data you choose to share—such as physical activity, heart rate, or survey responses—to help researchers better understand how clinical history relates to heart health and to develop improved strategies for prevention and treatment."
+            "value" : "If you agree, this study can securely access selected health information that you have already stored in Apple’s Health app through your healthcare providers. This information may include:\n- Laboratory results (for example, cholesterol, blood sugar, or other blood tests)\n- Clinical measurements such as blood pressure, heart rate, or body mass index recorded by your medical provider\n- Medications prescribed to you\n- Immunizations (such as flu or COVID-19 vaccines)\n- Allergies, diagnoses, and conditions listed in your medical record\n- Procedures and clinical visits documented by your health system\n\nAccess will occur only if you grant permission in Apple Health. Your health records are encrypted and transferred securely. The research team will not receive your full medical chart, only the specific data types you approve. You may withdraw this permission at any time through the Health app settings.\n\nThe purpose of collecting this information is to combine it with other data you choose to share—such as physical activity, heart rate, or survey responses—to help researchers better understand how clinical history relates to heart health and to develop improved strategies for prevention and treatment."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "If you agree, this study can securely access selected health information that you have already stored in Apple’s Health app through your healthcare providers. This information may include:\n- Laboratory results (for example, cholesterol, blood sugar, or other blood tests)\n- Clinical measurements such as blood pressure, heart rate, or body mass index recorded by your medical provider\n- Medications prescribed to you\nImmunizations (such as flu or COVID-19 vaccines)\n- Allergies, diagnoses, and conditions listed in your medical record\n- Procedures and clinical visits documented by your health system\n\nAccess will occur only if you grant permission in Apple Health. Your health records are encrypted and transferred securely. The research team will not receive your full medical chart, only the specific data types you approve. You may withdraw this permission at any time through the Health app settings.\nThe purpose of collecting this information is to combine it with other data you choose to share—such as physical activity, heart rate, or survey responses—to help researchers better understand how clinical history relates to heart health and to develop improved strategies for prevention and treatment."
+            "value" : "If you agree, this study can securely access selected health information that you have already stored in Apple’s Health app through your healthcare providers. This information may include:\n- Laboratory results (for example, cholesterol, blood sugar, or other blood tests)\n- Clinical measurements such as blood pressure, heart rate, or body mass index recorded by your medical provider\n- Medications prescribed to you\n- Immunisations (such as flu or COVID-19 vaccines)\n- Allergies, diagnoses, and conditions listed in your medical record\n- Procedures and clinical visits documented by your health system\n\nAccess will occur only if you grant permission in Apple Health. Your health records are encrypted and transferred securely. The research team will not receive your full medical chart, only the specific data types you approve. You may withdraw this permission at any time through the Health app settings.\n\nThe purpose of collecting this information is to combine it with other data you choose to share—such as physical activity, heart rate, or survey responses—to help researchers better understand how clinical history relates to heart health and to develop improved strategies for prevention and treatment."
           }
         },
         "es" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Si estás de acuerdo, este estudio puede acceder de forma segura a determinada información de salud que ya tiene almacenada en la Health app de Apple. Esta información puede incluir:\n- Resultados de laboratorio (por ejemplo, colesterol, glucosa en sangre u otras pruebas de sangre)\n- Mediciones clínicas, como presión arterial, frecuencia cardíaca o índice de masa corporal, registradas por tu proveedor de atención médica\n- Medicamentos recetados\nInmunizaciones (como vacunas contra la gripe o la COVID-19)\n- Alergias, diagnósticos y afecciones consignados en tu expediente médico\n- Procedimientos y consultas clínicas documentados por tu sistema de salud\n \nEl acceso se realizará únicamente si otorgas el permiso. Tus registros de salud están cifrados y se transfieren de forma segura. El equipo de investigación no recibirá tu expediente médico completo, sino únicamente los tipos específicos de datos que apruebes. Puedes retirar este permiso en cualquier momento desde la configuración de la Health app.\n\nEl propósito de recopilar esta información es combinarla con otros datos que elijas compartir —como actividad física, frecuencia cardíaca o respuestas a encuestas— para ayudar a los investigadores a comprender mejor cómo el historial clínico se relaciona con la salud del corazón y desarrollar estrategias mejoradas de prevención y tratamiento."
+            "state" : "needs_review",
+            "value" : "Si estás de acuerdo, este estudio puede acceder de forma segura a determinada información de salud que ya tiene almacenada en la Health app de Apple. Esta información puede incluir:\n- Resultados de laboratorio (por ejemplo, colesterol, glucosa en sangre u otras pruebas de sangre)\n- Mediciones clínicas, como presión arterial, frecuencia cardíaca o índice de masa corporal, registradas por tu proveedor de atención médica\n- Medicamentos recetados\n- Inmunizaciones (como vacunas contra la gripe o la COVID-19)\n- Alergias, diagnósticos y afecciones consignados en tu expediente médico\n- Procedimientos y consultas clínicas documentados por tu sistema de salud\n\nEl acceso se realizará únicamente si otorgas el permiso. Tus registros de salud están cifrados y se transfieren de forma segura. El equipo de investigación no recibirá tu expediente médico completo, sino únicamente los tipos específicos de datos que apruebes. Puedes retirar este permiso en cualquier momento desde la configuración de la Health app.\n\nEl propósito de recopilar esta información es combinarla con otros datos que elijas compartir —como actividad física, frecuencia cardíaca o respuestas a encuestas— para ayudar a los investigadores a comprender mejor cómo el historial clínico se relaciona con la salud del corazón y desarrollar estrategias mejoradas de prevención y tratamiento."
           }
         }
       }
@@ -3415,13 +3810,13 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You may choose to share certain health records from your Apple Health app, such as lab results, medications, or immunizations. This information will be used for research to better understand heart health. Sharing is voluntary and can be withdrawn at any time."
+            "value" : "You may choose to share certain health records from your Apple Health app, such as lab results, medications, or immunisations. This information will be used for research to better understand heart health. Sharing is voluntary and can be withdrawn at any time."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Puedes elegir compartir ciertos registros de salud desde la app Salud de Apple, como resultados de laboratorio, medicamentos o inmunizaciones. Esta información se utilizará con fines de investigación para comprender mejor la salud del corazón. El acceso a estos datos es voluntario y puede revocarse en cualquier momento."
+            "value" : "Puede elegir compartir ciertos registros de salud desde la app Salud de Apple, como resultados de laboratorio, medicamentos o inmunizaciones. Esta información se utilizará con fines de investigación para comprender mejor la salud del corazón. Compartir es voluntario y puede revocarse en cualquier momento."
           }
         }
       }
@@ -3513,7 +3908,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Heart Counts needs read-access to automatically collect data such as heart rate, step counts, active calories, sleep durations, etc. Further, granting write-access will give the best user experience with the application for dashboard features. To enhance research and optimize user experience, select **“Turn On All”**.\n\nWe are committed to protecting your privacy. Your data will be securely shared only among the My Heart Counts Research Team and our trusted research partners. Any data shared publicly will be thoroughly de-identified to ensure it cannot be traced back to you. Additionally, we require all external researchers to prove their qualifications and obtain approval before accessing any shared data for their studies.\n\nYou can revoke this access at any time."
+            "value" : "My Heart Counts needs read-access to automatically collect data such as heart rate, step counts, active calories, sleep durations, etc. Further, granting write-access will give the best user experience with the application for dashboard features. To enhance research and optimise user experience, select **“Turn On All”**.\n\nWe are committed to protecting your privacy. Your data will be securely shared only among the My Heart Counts Research Team and our trusted research partners. Any data shared publicly will be thoroughly de-identified to ensure it cannot be traced back to you. Additionally, we require all external researchers to prove their qualifications and obtain approval before accessing any shared data for their studies.\n\nYou can revoke this access at any time."
           }
         },
         "es" : {
@@ -3637,13 +4032,23 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your personalized score reflects your overall health based on the factors listed below. Track it over time to see how lifestyle changes impact your heart health."
+            "value" : "Your personalised score reflects your overall health based on the factors listed below. Track it over time to see how lifestyle changes impact your heart health."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tu puntuación personalizada refleja tu salud general basada en los factores que se enumeran a continuación. Síguela en el tiempo para ver cómo los cambios en el estilo de vida afectan la salud de tu corazón."
+          }
+        }
+      }
+    },
+    "Heartbeats" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latidos"
           }
         }
       }
@@ -3697,7 +4102,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Calcio coronario alto"
+            "value" : "Puntuación de calcio coronario alta"
           }
         }
       }
@@ -3745,7 +4150,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Inicio\n"
+            "value" : "Inicio"
           }
         }
       }
@@ -3761,7 +4166,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ingreso Familiar"
+            "value" : "Ingresos del hogar"
           }
         }
       }
@@ -3793,7 +4198,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Miocardiopatía Hipertrófica"
+            "value" : "Miocardiopatía hipertrófica (MCH)"
           }
         }
       }
@@ -3809,7 +4214,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tengo esta enfermedad"
+            "value" : "No tengo esta comorbilidad"
           }
         }
       }
@@ -3825,7 +4230,17 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tengo esta enfermedad"
+            "value" : "Tengo esta comorbilidad"
+          }
+        }
+      }
+    },
+    "I'm walking here!" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¡Estoy caminando aquí!"
           }
         }
       }
@@ -3954,6 +4369,16 @@
         }
       }
     },
+    "Info" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Información"
+          }
+        }
+      }
+    },
     "Install on Apple Watch" : {
       "localizations" : {
         "en-GB" : {
@@ -4018,6 +4443,16 @@
         }
       }
     },
+    "Iron Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de hierro"
+          }
+        }
+      }
+    },
     "Is selected" : {
       "localizations" : {
         "en-GB" : {
@@ -4030,6 +4465,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Está seleccionado"
+          }
+        }
+      }
+    },
+    "Ivory Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de marfil"
           }
         }
       }
@@ -4062,6 +4507,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kentucky"
+          }
+        }
+      }
+    },
+    "Lace Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de encaje"
           }
         }
       }
@@ -4276,7 +4731,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Últimos %lld semanas"
+                  "value" : "Últimas %lld semanas"
                 }
               }
             }
@@ -4401,7 +4856,17 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aprender Más"
+            "value" : "Más información"
+          }
+        }
+      }
+    },
+    "Leather Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de cuero"
           }
         }
       }
@@ -4476,6 +4941,26 @@
         }
       }
     },
+    "Longest Streak" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racha más larga"
+          }
+        }
+      }
+    },
+    "Longest Workout" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento más largo"
+          }
+        }
+      }
+    },
     "Louisiana" : {
       "localizations" : {
         "en-GB" : {
@@ -4519,7 +5004,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Asegúrate de que tu dispositivo esté conectado a Internet y vuelve a intentarlo"
+            "value" : "Asegúrese de que su dispositivo esté conectado a Internet y vuelva a intentarlo"
           }
         }
       }
@@ -4551,7 +5036,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Marcar como completado"
+            "value" : "Marcar como completada"
           }
         }
       }
@@ -4620,6 +5105,26 @@
         }
       }
     },
+    "Max Heart Rate" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frecuencia cardíaca máx."
+          }
+        }
+      }
+    },
+    "Mega Streaker" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racha mega"
+          }
+        }
+      }
+    },
     "Mental Well Being" : {
       "localizations" : {
         "en-GB" : {
@@ -4647,7 +5152,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "MHC Salud cardiovascular"
+            "value" : "MHC Salud del corazón"
           }
         }
       }
@@ -4711,7 +5216,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tareas Perdidas"
+            "value" : "Tareas omitidas"
           }
         }
       }
@@ -4727,7 +5232,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tiene permiso requerido para el acceso a datos de movimiento"
+            "value" : "Falta el permiso requerido para acceder a los datos de movimiento"
           }
         }
       }
@@ -4743,7 +5248,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Respuesta nula"
+            "value" : "Falta una respuesta"
           }
         }
       }
@@ -4909,7 +5414,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Heart Counts no accede a tu Apple ID de ninguna manera; sin embargo, usar una cuenta compartida podría causar inexactitudes en la recopilación de datos de salud."
+            "value" : "My Heart Counts no accede a su Apple ID de ninguna manera; sin embargo, usar una cuenta compartida podría causar inexactitudes en la recopilación de datos de salud."
           }
         }
       }
@@ -4989,7 +5494,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nunca he fumado"
+            "value" : "Nunca ha fumado"
           }
         }
       }
@@ -5005,7 +5510,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nueva Hampshire"
+            "value" : "New Hampshire"
           }
         }
       }
@@ -5021,7 +5526,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nueva Jersey"
+            "value" : "New Jersey"
           }
         }
       }
@@ -5286,6 +5791,17 @@
         }
       }
     },
+    "Next milestone" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Próximo hito"
+          }
+        }
+      }
+    },
     "NHS Number" : {
       "localizations" : {
         "en-GB" : {
@@ -5393,7 +5909,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No hay tareas por hacer"
+            "value" : "No hay tareas omitidas"
           }
         }
       }
@@ -5553,7 +6069,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Número del NHS inválido"
+            "value" : "Número NHS no válido"
           }
         }
       }
@@ -5645,7 +6161,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hora preferida para las notificaciones de actividad. Puedes cambiarla más tarde."
+            "value" : "Hora preferida para las notificaciones de actividad. Puede cambiarla más tarde."
           }
         }
       }
@@ -5769,7 +6285,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Este estudio de investigación es llevado a cabo por investigadores de la Facultad de Medicina de la Universidad de Stanford para entender cómo la actividad física se relaciona con la salud cardiovascular. La aplicación te guiará a través de varias evaluaciones, incluyendo la prueba de caminata de 6 minutos. Tu participación es flexible, lo que significa que puedes participar en el estudio tanto como desees. El enfoque basado en teléfonos inteligentes nos permite recopilar datos en tu entorno natural en lugar de requerir visitas a una instalación clínica."
+            "value" : "Este estudio de investigación es llevado a cabo por investigadores de la Facultad de Medicina de la Universidad de Stanford para entender cómo la actividad física se relaciona con la salud cardiovascular. La aplicación lo guiará a través de varias evaluaciones, incluida la prueba de caminata de 6 minutos. Su participación es flexible, lo que significa que puede participar en el estudio tanto como desee. El enfoque basado en teléfonos inteligentes nos permite recopilar datos en su entorno natural en lugar de requerir visitas a una instalación clínica."
           }
         }
       }
@@ -5785,13 +6301,13 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You’re invited to join an Imperial research study that tracks physical activity through your smartphone to improve heart health knowledge. You’ll complete brief health surveys and perform simple fitness assessments like the 6-minute walk test using your phone."
+            "value" : "You’re invited to join a Stanford research study that tracks physical activity through your smartphone to improve heart health knowledge. You’ll complete brief health surveys and perform simple fitness assessments like the 6-minute walk test using your phone."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estás invitado a unirte a un estudio de investigación de Stanford que rastrea la actividad física a través de tu teléfono inteligente para mejorar el conocimiento sobre la salud del corazón. Completarás breves encuestas de salud y realizarás evaluaciones de condición física simples como la prueba de caminata de 6 minutos usando tu teléfono."
+            "value" : "Le invitamos a unirse a un estudio de investigación de Stanford que registra la actividad física a través de su teléfono inteligente para mejorar el conocimiento sobre la salud del corazón. Completará breves encuestas de salud y realizará evaluaciones de condición física sencillas, como la prueba de caminata de 6 minutos, usando su teléfono."
           }
         }
       }
@@ -5829,13 +6345,13 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The optional trial uses a \"randomized crossover\" design where you'll experience both types of coaching interventions - personalised activity prompts and standard activity prompts - for 7 days each (total of 14 days). This will begin after the baseline monitoring week. The order in which you receive these interventions will be randomly assigned, similar to flipping a coin. This design allows researchers to compare how the different coaching approaches affect your activity levels while controlling for individual differences, as each participant serves as their own control. You can choose not to participate in this trial component and still be part of the main My Heart Counts study."
+            "value" : "The optional trial uses a \"randomised crossover\" design where you'll experience both types of coaching interventions - personalised activity prompts and standard activity prompts - for 7 days each (total of 14 days). This will begin after the baseline monitoring week. The order in which you receive these interventions will be randomly assigned, similar to flipping a coin. This design allows researchers to compare how the different coaching approaches affect your activity levels while controlling for individual differences, as each participant serves as their own control. You can choose not to participate in this trial component and still be part of the main My Heart Counts study."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El ensayo opcional utiliza un diseño de \"cruce aleatorio\" en el que experimentarás ambos tipos de intervenciones de coaching: indicaciones de actividad personalizadas e indicaciones de actividad estándar, durante 7 días cada una (un total de 14 días). Esto comenzará después de la semana inicial. El orden en que recibas estas intervenciones se asignará de manera aleatoria, similar a lanzar una moneda. Este diseño permite a los investigadores comparar cómo los diferentes enfoques de coaching afectan tus niveles de actividad mientras controlan las diferencias individuales, ya que cada participante actúa como su propio control. Puedes optar por no participar en este componente del ensayo y seguir siendo parte del estudio principal My Heart Counts."
+            "value" : "El ensayo opcional utiliza un diseño de \"cruce aleatorio\" en el que experimentará ambos tipos de intervenciones de coaching: indicaciones de actividad personalizadas e indicaciones de actividad estándar, durante 7 días cada una (un total de 14 días). Esto comenzará después de la semana de monitorización inicial. El orden en que reciba estas intervenciones se asignará de manera aleatoria, similar a lanzar una moneda. Este diseño permite a los investigadores comparar cómo los diferentes enfoques de coaching afectan sus niveles de actividad mientras controlan las diferencias individuales, ya que cada participante actúa como su propio control. Puede optar por no participar en este componente del ensayo y seguir siendo parte del estudio principal My Heart Counts."
           }
         }
       }
@@ -5851,13 +6367,13 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You have the option to enroll in a 2-week physical activity coaching trial. If you choose to join, you’ll experience both personalised and standard coaching messages for 7 days each, helping us learn which approaches better motivate healthy behaviours."
+            "value" : "You have the option to enrol in a 2-week physical activity coaching trial. If you choose to join, you’ll experience both personalised and standard coaching messages for 7 days each, helping us learn which approaches better motivate healthy behaviours."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elige inscribirte en una prueba de entrenamiento físico de dos semanas de duración. Si decides unite, recibirás mensajes personalizados ó estándares durante 7 días cada uno. Esto nos ayuda a entender qué métodos motivan más eficientemente comportamientos saludables."
+            "value" : "Tiene la opción de inscribirse en un ensayo de entrenamiento de actividad física de dos semanas de duración. Si decide participar, recibirá tanto mensajes de entrenamiento personalizados como estándar durante 7 días cada uno, lo que nos ayuda a saber qué enfoques motivan mejor los comportamientos saludables."
           }
         }
       }
@@ -5911,19 +6427,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "We will collect data from the Health app on your iPhone which will be protected through encryption. Your personal information is stored separately from health data, and you control what sensor and health data you share with us.\n\nBy agreeing to this consent, your data will be will be combined with data from other participants for analysis by Stanford researchers and its research partners."
+            "value" : "We will collect data from the Health app on your iPhone which will be protected through encryption. Your personal information is stored separately from health data, and you control what sensor and health data you share with us.\n\nBy agreeing to this consent, your data will be combined with data from other participants for analysis by Stanford researchers and its research partners."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "We will collect data from the Health app on your iPhone which will be protected through encryption. Your personal information is stored separately from health data, and you control what sensor and health data you share with us. \n\nBy agreeing to this consent, your data will be will be combined with data from other participants for analysis by Imperial researchers and its research partners."
+            "value" : "We will collect data from the Health app on your iPhone which will be protected through encryption. Your personal information is stored separately from health data, and you control what sensor and health data you share with us.\n\nBy agreeing to this consent, your data will be combined with data from other participants for analysis by Stanford researchers and its research partners."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recopilaremos datos de la Health app en tu iPhone, los cuales estarán protegidos mediante cifrado. Tu información personal se almacena separadamente de los datos de salud, y tú controlas qué datos de sensores y salud compartes con nosotros.\n\nAl aceptar este consentimiento, tus datos se combinarán con datos de otros participantes para ser analizados por los investigadores de Stanford y sus socios de investigación."
+            "value" : "Recopilaremos datos de la Health app en su iPhone, los cuales estarán protegidos mediante cifrado. Su información personal se almacena por separado de los datos de salud, y usted controla qué datos de sensores y salud comparte con nosotros.\n\nAl aceptar este consentimiento, sus datos se combinarán con datos de otros participantes para ser analizados por los investigadores de Stanford y sus socios de investigación."
           }
         }
       }
@@ -5945,7 +6461,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recolección de Datos y Privacidad"
+            "value" : "Recopilación de Datos y Privacidad"
           }
         }
       }
@@ -5967,7 +6483,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Los riesgos físicos son mínimos, pero podrían incluir dolor o tensión muscular temporal debido a actividades físicas. También hay un pequeño riesgo relacionado con la privacidad de los datos a pesar de nuestras medidas de seguridad. Los beneficios incluyen acceso a tus propios datos de actividad y el conocimiento de que estás contribuyendo a una investigación que puede ayudar a mejorar la salud del corazón. Tu participación es completamente voluntaria, y puedes dejar de participar en cualquier momento sin penalización contactando al equipo de investigación. Esta investigación ha sido revisada por la Junta de Revisión Institucional de Stanford para garantizar la protección de los participantes."
+            "value" : "Los riesgos físicos son mínimos, pero podrían incluir dolor o tensión muscular temporal debido a actividades físicas. También hay un pequeño riesgo relacionado con la privacidad de los datos a pesar de nuestras medidas de seguridad. Los beneficios incluyen el acceso a sus propios datos de actividad y el conocimiento de que está contribuyendo a una investigación que puede ayudar a mejorar las recomendaciones de salud del corazón. Su participación es completamente voluntaria, y puede dejar de participar en cualquier momento sin penalización contactando al equipo de investigación. Esta investigación ha sido revisada por la Junta de Revisión Institucional de Stanford para garantizar la protección de los participantes."
           }
         }
       }
@@ -5983,13 +6499,13 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Participation is completely voluntary with minimal risks. Benefits include gaining insights about your heart health and contributing to cardiovascular research. You can withdraw from the study at anytime and request to have your identifying data forgotten."
+            "value" : "Participation is completely voluntary with minimal risks. Benefits include gaining insights about your heart health and contributing to cardiovascular research. You can withdraw from the study at any time and request to have your identifying data forgotten."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La participación es completamente voluntaria y con riesgos mínimos. Los beneficios incluyen obtener información sobre la salud de su corazón y contribuir a la investigación cardiovascular. Puedes retirarte del estudio en cualquier momento y solicitar que se olvide tu información."
+            "value" : "La participación es completamente voluntaria y con riesgos mínimos. Los beneficios incluyen obtener información sobre la salud de su corazón y contribuir a la investigación cardiovascular. Puede retirarse del estudio en cualquier momento y solicitar que se elimine su información identificable."
           }
         }
       }
@@ -6161,7 +6677,39 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nuestro documento de consentimiento del estudio ha sido actualizado desde la última vez que lo firmaste %@.\n\nPor favor, revisa el nuevo documento de consentimiento y fírmalo nuevamente."
+            "value" : "Nuestro documento de consentimiento del estudio ha sido actualizado desde la última vez que lo firmó%@.\n\nPor favor, revise el nuevo documento de consentimiento y fírmelo nuevamente."
+          }
+        }
+      }
+    },
+    "Paper Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de papel"
+          }
+        }
+      }
+    },
+    "PARTICIPATION_STATS_EXPLAINER(enrollmentDate: %@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Participation Stats cover all engagement and activity recorded.\n\nYour enrollment date is %1$(enrollmentDate)@."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Participation Stats cover all engagement and activity recorded.\n\nYour enrolment date is %1$(enrollmentDate)@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las estadísticas de participación abarcan toda la interacción y actividad registradas.\n\nSu fecha de inscripción es %1$(enrollmentDate)@."
           }
         }
       }
@@ -6236,6 +6784,26 @@
         }
       }
     },
+    "Pearl Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de perla"
+          }
+        }
+      }
+    },
+    "Pedestrian Pioneer" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pionero del paso"
+          }
+        }
+      }
+    },
     "Pennsylvania" : {
       "localizations" : {
         "en-GB" : {
@@ -6300,6 +6868,16 @@
         }
       }
     },
+    "Personal Bests" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récords personales"
+          }
+        }
+      }
+    },
     "Ph.D., M.D., J.D., etc." : {
       "localizations" : {
         "en-GB" : {
@@ -6327,7 +6905,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Introduce una dirección de correo electrónico válida e inténtalo de nuevo."
+            "value" : "Introduzca una dirección de correo electrónico válida e inténtelo de nuevo."
           }
         }
       }
@@ -6344,7 +6922,17 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Por favor, selecciona la opción que mejor se ajuste a lo que haces"
+            "value" : "Por favor, seleccione la opción que mejor se ajuste a lo que hace."
+          }
+        }
+      }
+    },
+    "Porcelain Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de porcelana"
           }
         }
       }
@@ -6388,7 +6976,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Incentivos para la actividad posterior al ensayo"
+            "value" : "Recordatorios de actividad posteriores al ensayo"
           }
         }
       }
@@ -6398,7 +6986,17 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Activar avisos posteriores al estudio"
+            "value" : "Activar recordatorios posteriores al ensayo"
+          }
+        }
+      }
+    },
+    "Pottery Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de cerámica"
           }
         }
       }
@@ -6563,6 +7161,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cuestionario"
+          }
+        }
+      }
+    },
+    "Questionnaire Extraordinaire" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maestro del cuestionario"
           }
         }
       }
@@ -6912,7 +7520,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Puedes seleccionar múltiples opciones."
+            "value" : "Puede seleccionar varias opciones."
           }
         }
       }
@@ -7085,6 +7693,36 @@
         }
       }
     },
+    "Record your first ECG" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registre su primer ECG"
+          }
+        }
+      }
+    },
+    "Record your first Run Test" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registre su primera prueba de carrera"
+          }
+        }
+      }
+    },
+    "Record your first Walk Test" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registre su primera prueba de caminata"
+          }
+        }
+      }
+    },
     "Region" : {
       "localizations" : {
         "en-GB" : {
@@ -7129,6 +7767,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reiniciar prueba"
+          }
+        }
+      }
+    },
+    "Resting HR" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FC en reposo"
           }
         }
       }
@@ -7197,6 +7845,26 @@
         }
       }
     },
+    "roughly %@ trips from San Francisco to New York" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aproximadamente %1$@ viajes de San Francisco a Nueva York"
+          }
+        }
+      }
+    },
+    "Ruby Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de rubí"
+          }
+        }
+      }
+    },
     "Running" : {
       "localizations" : {
         "en-GB" : {
@@ -7225,6 +7893,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tipo de Muestra"
+          }
+        }
+      }
+    },
+    "Sapphire Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de zafiro"
           }
         }
       }
@@ -7288,7 +7966,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Resultados: %lld por ciento"
+            "value" : "Resultado de la puntuación: %lld por ciento"
           }
         }
       }
@@ -7320,7 +7998,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Selecciona una Región"
+            "value" : "Seleccione una región"
           }
         }
       }
@@ -7368,7 +8046,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Selecciona tu Estado o Territorio"
+            "value" : "Seleccione su Estado o Territorio"
           }
         }
       }
@@ -7605,6 +8283,36 @@
         }
       }
     },
+    "Silk Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de seda"
+          }
+        }
+      }
+    },
+    "Silver Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de plata"
+          }
+        }
+      }
+    },
+    "Sleep" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sueño"
+          }
+        }
+      }
+    },
     "Some College" : {
       "localizations" : {
         "en-GB" : {
@@ -7756,7 +8464,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Participo regularmente en actividad física planificada por motivos de salud, deporte o fitness (por ejemplo, al menos 3 veces por semana, 30 minutos por día); Es parte de mi vida rutinaria."
+            "value" : "Participo regularmente en actividad física planificada por motivos de salud, deporte o fitness (por ejemplo, al menos 3 veces por semana, 30 minutos por día); es parte de mi vida rutinaria."
           }
         }
       }
@@ -7910,7 +8618,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Desde hace varios años practico deporte o realizo actividad física recreativa de forma rutinaria, es parte de mi estilo de vida."
+            "value" : "Desde hace varios años he realizado de forma rutinaria actividad física planificada por motivos de salud, deporte o fitness con regularidad (al menos 3 veces por semana, 30 minutos por día); es parte de mi estilo de vida."
           }
         }
       }
@@ -7943,6 +8651,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Iniciar Prueba"
+          }
+        }
+      }
+    },
+    "Stats and Achievements" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estadísticas y logros"
+          }
+        }
+      }
+    },
+    "Steel Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de acero"
           }
         }
       }
@@ -8059,6 +8787,26 @@
         }
       }
     },
+    "Super Streaker" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racha súper"
+          }
+        }
+      }
+    },
+    "Surveys Answered" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encuestas respondidas"
+          }
+        }
+      }
+    },
     "Swimming" : {
       "localizations" : {
         "en-GB" : {
@@ -8150,7 +8898,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toque para obtener más información..."
+            "value" : "Toque para obtener más información…"
           }
         }
       }
@@ -8167,6 +8915,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tareas"
+          }
+        }
+      }
+    },
+    "Tasks Done" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tareas completadas"
           }
         }
       }
@@ -8261,6 +9019,26 @@
         }
       }
     },
+    "the distance of %@ marathons" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la distancia de %1$@ maratones"
+          }
+        }
+      }
+    },
+    "The Humble Walker" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El caminante humilde"
+          }
+        }
+      }
+    },
     "The My Heart Counts study isn't yet available in %@.\n\nAdd your email below and we'll update you when it launches in your region." : {
       "localizations" : {
         "en-GB" : {
@@ -8272,7 +9050,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El estudio My Heart Counts aún no está disponible en %@.\n\nIntroduce tu correo electrónico y te avisaremos cuando esté disponible en tu región."
+            "value" : "El estudio My Heart Counts aún no está disponible en %@.\n\nIntroduzca su correo electrónico y le avisaremos cuando esté disponible en su región."
           }
         }
       }
@@ -8374,7 +9152,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Esta prueba mide tu capacidad funcional de ejercicio al registrar la distancia que recorres caminando en 6 minutos sobre una superficie plana. (Para rangos de referencia, consulta [aquí](https://mhc-6mwts.streamlit.app).)\n\n**Cómo hacerlo:** Busqua un trayecto plano y libre de obstáculos. Usa calzado cómodo. Toqua \"Iniciar\" y camina a un ritmo constante que te resulte retador pero cómodo para cubrir la mayor distancia posible. Mantén tu teléfono en la mano hasta que vibre."
+            "value" : "Esta prueba mide su capacidad funcional de ejercicio al registrar la distancia que recorre caminando en 6 minutos sobre una superficie plana. (Para conocer los rangos de referencia, consulte [aquí](https://mhc-6mwts.streamlit.app).)\n\n**Cómo hacerlo:** Busque un trayecto plano y libre de obstáculos. Use calzado cómodo. Toque \"Iniciar\" y camine a un ritmo constante que le resulte exigente pero cómodo para cubrir la mayor distancia posible. Mantenga su teléfono en la mano hasta que vibre."
           }
         }
       }
@@ -8418,7 +9196,17 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "**Advertencia:** Detente de inmediato si presentas dolor en el pecho, falta de aire intensa, mareo o fatiga inusual."
+            "value" : "**Advertencia:** Deténgase de inmediato si presenta dolor en el pecho, falta de aire intensa, mareo o fatiga inusual."
+          }
+        }
+      }
+    },
+    "Tin Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de estaño"
           }
         }
       }
@@ -8466,7 +9254,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ingreso Total del Hogar"
+            "value" : "Ingreso total del hogar"
           }
         }
       }
@@ -8476,7 +9264,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Transient Ischemic Attack (TIA)"
+            "value" : "Transient Ischaemic Attack (TIA)"
           }
         },
         "es" : {
@@ -8514,7 +9302,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Territorios de los Trusts"
+            "value" : "Territorios en Fideicomiso"
           }
         }
       }
@@ -8525,6 +9313,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reintentar"
+          }
+        }
+      }
+    },
+    "Uber Streaker" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racha über"
           }
         }
       }
@@ -8572,7 +9370,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudo cargar los datos"
+            "value" : "No se pudieron cargar los datos"
           }
         }
       }
@@ -8621,6 +9419,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Darse de baja"
+          }
+        }
+      }
+    },
+    "Upcoming Achievements" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Próximos logros"
           }
         }
       }
@@ -8721,6 +9529,9 @@
         }
       }
     },
+    "View Participation Stats" : {
+
+    },
     "Virgin Islands" : {
       "localizations" : {
         "en-GB" : {
@@ -8780,7 +9591,17 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Formación profesional / aprendiz "
+            "value" : "Formación profesional / aprendizaje / diploma"
+          }
+        }
+      }
+    },
+    "w" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sem"
           }
         }
       }
@@ -8797,6 +9618,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gales (%@)"
+          }
+        }
+      }
+    },
+    "Walk / Run Tests" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pruebas de caminata / carrera"
+          }
+        }
+      }
+    },
+    "Walk %@ steps in a day" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camine %@ pasos en un día"
           }
         }
       }
@@ -8844,7 +9685,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Washington "
+            "value" : "Washington"
           }
         }
       }
@@ -8897,6 +9738,16 @@
         }
       }
     },
+    "Welcome to the fold" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bienvenido al grupo"
+          }
+        }
+      }
+    },
     "WELCOME_AREA1_DESCRIPTION" : {
       "localizations" : {
         "en" : {
@@ -8908,7 +9759,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your involvement helps Imperial researchers understand how personalised digital coaching can improve physical activity and your overall health today and in the future."
+            "value" : "Your involvement helps Stanford researchers understand how personalised digital coaching can improve physical activity and your overall health today and in the future."
           }
         },
         "es" : {
@@ -8958,7 +9809,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Participa completamente en línea, compartiendo de manera segura tus datos de actividad directamente desde su iPhone y Apple Watch."
+            "value" : "Participe completamente en línea, compartiendo de manera segura sus datos de actividad directamente desde su iPhone y su Apple Watch."
           }
         }
       }
@@ -9081,6 +9932,16 @@
         }
       }
     },
+    "Wood Anniversary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aniversario de madera"
+          }
+        }
+      }
+    },
     "Workout Preference" : {
       "localizations" : {
         "en-GB" : {
@@ -9108,13 +9969,1978 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Heart Counts will send you personalized notifications to help you stay active. Tell us which workouts you prefer and when during the day you’d like to receive reminders. This helps us tailor your experience to your schedule and goals."
+            "value" : "My Heart Counts will send you personalised notifications to help you stay active. Tell us which workouts you prefer and when during the day you’d like to receive reminders. This helps us tailor your experience to your schedule and goals."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Heart Counts te enviará notificaciones personalizadas para ayudarte a mantenerte activo/a. Indícanos qué entrenamientos prefieres y cuándo durante el día desea recibir recordatorios. Esto nos ayuda a adaptar tu experiencia a tu horario y objetivos."
+            "value" : "My Heart Counts le enviará notificaciones personalizadas para ayudarle a mantenerse activo/a. Indíquenos qué entrenamientos prefiere y a qué hora del día desea recibir recordatorios. Esto nos ayuda a adaptar su experiencia a su horario y objetivos."
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_AMERICAN_FOOTBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "American Football"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "American Football"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fútbol americano"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_ARCHERY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Archery"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archery"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiro con arco"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_AUSTRALIAN_FOOTBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Australian Football"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Australian Football"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fútbol australiano"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BADMINTON" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Badminton"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Badminton"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bádminton"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BARRE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Barre"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barre"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barre"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BASEBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Baseball"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baseball"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Béisbol"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BASKETBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Basketball"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basketball"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baloncesto"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BOWLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Bowling"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bowling"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bolos"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_BOXING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Boxing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boxing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boxeo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CARDIO_DANCE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cardio Dance"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio Dance"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baile cardio"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CLIMBING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Climbing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Climbing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escalada"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_COOLDOWN" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cooldown"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cooldown"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enfriamiento"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CORE_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Core Training"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core Training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento del core"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CRICKET" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cricket"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cricket"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Críquet"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CROSS_COUNTRY_SKIING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cross Country Skiing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cross Country Skiing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esquí de fondo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CROSS_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cross Training"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cross Training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento combinado"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CURLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Curling"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Curling"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Curling"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_CYCLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cycling"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cycling"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ciclismo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_DANCE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dance"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dance"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baile"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_DANCE_INSPIRED_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dance Inspired Training"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dance Inspired Training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento inspirado en el baile"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_DISC_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Disc Sports"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disc Sports"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deportes de disco"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_DOWNHILL_SKIING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Downhill Skiing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downhill Skiing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esquí alpino"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_ELLIPTICAL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Elliptical"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elliptical"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elíptica"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_EQUESTRIAN_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Equestrian Sports"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equestrian Sports"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deportes ecuestres"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FENCING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fencing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fencing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esgrima"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FISHING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fishing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fishing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pesca"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FITNESS_GAMING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fitness Gaming"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fitness Gaming"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Videojuegos de fitness"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FLEXIBILITY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flexibility"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flexibility"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flexibilidad"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_FUNCTIONAL_STRENGTH_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Functional Strength Training"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Functional Strength Training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento de fuerza funcional"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_GOLF" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Golf"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Golf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Golf"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_GYMNASTICS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Gymnastics"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gymnastics"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gimnasia"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HAND_CYCLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hand Cycling"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hand Cycling"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ciclismo de brazos"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HANDBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Handball"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handball"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balonmano"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "High Intensity Interval Training"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "High Intensity Interval Training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento de intervalos de alta intensidad"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HIKING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hiking"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiking"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senderismo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HOCKEY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hockey"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hockey"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hockey"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_HUNTING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hunting"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hunting"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caza"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_JUMP_ROPE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Jump Rope"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump Rope"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saltar a la comba"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_KICKBOXING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Kickboxing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kickboxing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kickboxing"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_LACROSSE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Lacrosse"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lacrosse"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lacrosse"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_MARTIAL_ARTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Martial Arts"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Martial Arts"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artes marciales"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_MIND_AND_BODY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mind and Body"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mind and Body"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuerpo y mente"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_MIXED_CARDIO" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mixed Cardio"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mixed Cardio"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio combinado"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_MIXED_METABOLIC_CARDIO_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mixed Metabolic Cardio Training"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mixed Metabolic Cardio Training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento cardiometabólico combinado"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_OTHER" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Other"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otro"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PADDLE_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Paddle Sports"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paddle Sports"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deportes de remo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PICKLEBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pickleball"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pickleball"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pickleball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PILATES" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pilates"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pilates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pilates"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PLAY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Play"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Juego"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_PREPARATION_AND_RECOVERY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Preparation and Recovery"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparation and Recovery"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparación y recuperación"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_RACQUETBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Racquetball"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racquetball"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racquetball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_ROWING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rowing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rowing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_RUGBY" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rugby"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rugby"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rugby"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_RUNNING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Running"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correr"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SAILING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Sailing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sailing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vela"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SKATING_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Skating Sports"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skating Sports"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patinaje"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SNOW_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Snow Sports"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snow Sports"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deportes de nieve"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SNOWBOARDING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Snowboarding"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snowboarding"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snowboard"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SOCCER" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Soccer"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Football"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fútbol"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SOCIAL_DANCE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Social Dance"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Social Dance"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baile de salón"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SOFTBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Softball"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Softball"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Softball"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SQUASH" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Squash"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squash"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squash"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_STAIR_CLIMBING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Stair Climbing"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stair Climbing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subir escaleras"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_STAIRS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Stairs"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stairs"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escaleras"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_STEP_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step Training"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step Training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento de step"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SURFING_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Surfing Sports"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surfing Sports"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surf"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SWIM_BIKE_RUN" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Swim Bike Run"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swim Bike Run"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Natación, ciclismo y carrera"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_SWIMMING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Swimming"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swimming"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Natación"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TABLE_TENNIS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Table Tennis"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Table Tennis"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tenis de mesa"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TAI_CHI" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Tai Chi"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tai Chi"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taichí"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TENNIS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Tennis"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tennis"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tenis"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TRACK_AND_FIELD" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Track and Field"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Track and Field"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atletismo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TRADITIONAL_STRENGTH_TRAINING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Traditional Strength Training"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traditional Strength Training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento de fuerza tradicional"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_TRANSITION" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Transition"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transition"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transición"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_UNDERWATER_DIVING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Underwater Diving"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Underwater Diving"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buceo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_UNKNOWN" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Workout"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workout"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_VOLLEYBALL" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Volleyball"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volleyball"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voleibol"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WALKING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Walking"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Walking"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caminar"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WATER_FITNESS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Water Fitness"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Water Fitness"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fitness acuático"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WATER_POLO" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Water Polo"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Water Polo"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waterpolo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WATER_SPORTS" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Water Sports"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Water Sports"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deportes acuáticos"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WHEELCHAIR_RUN_PACE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Wheelchair Run Pace"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wheelchair Run Pace"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silla de ruedas a ritmo de carrera"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WHEELCHAIR_WALK_PACE" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Wheelchair Walk Pace"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wheelchair Walk Pace"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silla de ruedas a ritmo de paseo"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_WRESTLING" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Wrestling"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wrestling"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lucha"
+          }
+        }
+      }
+    },
+    "WORKOUT_TYPE_YOGA" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Yoga"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yoga"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yoga"
+          }
+        }
+      }
+    },
+    "Workouts" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamientos"
           }
         }
       }
@@ -9162,7 +11988,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sí, Hispano del Caribe, incluyendo Cubano y Puertorriqueño"
+            "value" : "Sí, hispano del Caribe, incluyendo cubano y puertorriqueño"
           }
         }
       }
@@ -9178,7 +12004,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sí, Hispano Europeo, incluyendo Español y Portugués, Hispano, Latina"
+            "value" : "Sí, hispano europeo, incluyendo español y portugués, hispano, latina"
           }
         }
       }
@@ -9194,7 +12020,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sí, Mexicano, Mexicano Americano, o Chicano"
+            "value" : "Sí, mexicano, mexicano-americano o chicano"
           }
         }
       }
@@ -9210,7 +12036,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sí, otro Hispano, Latino"
+            "value" : "Sí, otro hispano, latino"
           }
         }
       }
@@ -9226,7 +12052,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sí, Hispano Sudamericano"
+            "value" : "Sí, hispano sudamericano"
           }
         }
       }
@@ -9274,7 +12100,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Puedes cambiar esto en la app Configuración de iOS, en Privacidad y seguridad → Salud → My Heart Counts"
+            "value" : "Puede cambiar esto en la app Configuración de iOS, en Privacidad y seguridad → Salud → My Heart Counts"
           }
         }
       }
@@ -9290,7 +12116,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Puedes habilitar o deshabilitar sensores individuales en la app Configuración de iOS.\n"
+            "value" : "Puede habilitar o deshabilitar sensores individuales en la app Configuración de iOS.\n"
           }
         }
       }
@@ -9306,7 +12132,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No has otorgado a My Heart Counts permiso para agregar datos a HealthKit para los siguientes tipos de datos:\n%@"
+            "value" : "No ha otorgado a My Heart Counts permiso para agregar datos a HealthKit para los siguientes tipos de datos:\n%@"
           }
         }
       }
@@ -9322,7 +12148,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¡Estás listo/a!"
+            "value" : "¡Todo listo!"
           }
         }
       }
@@ -9338,7 +12164,33 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estás en la lista"
+            "value" : "Está en la lista"
+          }
+        }
+      }
+    },
+    "You've burned %@ active calories — the equivalent of %@ slices of pizza." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "You've burned %1$@ active calories — the equivalent of %2$@ slices of pizza."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ha quemado %1$@ calorías activas, el equivalente a %2$@ porciones de pizza."
+          }
+        }
+      }
+    },
+    "You've spent about %@ full days asleep since enrolling. Rest is part of the work." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ha pasado unos %1$@ días completos durmiendo desde que se inscribió. El descanso también forma parte del trabajo."
           }
         }
       }
@@ -9354,7 +12206,39 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tu %@ está en progreso."
+            "value" : "Su %@ está en progreso."
+          }
+        }
+      }
+    },
+    "Your %@ steps cover about %@ — that's %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your %1$@ steps cover about %2$@ — that's %3$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sus %1$@ pasos recorren aproximadamente %2$@ — eso equivale a %3$@."
+          }
+        }
+      }
+    },
+    "Your %@ steps cover roughly %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your %1$@ steps cover roughly %2$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sus %1$@ pasos recorren aproximadamente %2$@."
           }
         }
       }
@@ -9370,7 +12254,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tu Cuenta"
+            "value" : "Su cuenta"
           }
         }
       }
@@ -9386,7 +12270,23 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tu ECG se ha registrado correctamente."
+            "value" : "Su ECG se ha registrado correctamente"
+          }
+        }
+      }
+    },
+    "Your heart has beaten about %@ times since you enrolled — roughly %@ of an average lifetime." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your heart has beaten about %1$@ times since you enrolled — roughly %2$@ of an average lifetime."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su corazón ha latido unas %1$@ veces desde que se inscribió, aproximadamente el %2$@ de una vida promedio."
           }
         }
       }
