@@ -15,7 +15,7 @@ import SFSafeSymbols
 import SpeziFoundation
 import SpeziHealthKit
 import SpeziHealthKitUI
-import SpeziQuestionnaire
+import SpeziQuestionnaireLegacy
 import SpeziStudy
 import SpeziViews
 import SwiftUI
@@ -260,7 +260,7 @@ private struct HealthDashboardQuestionnaireView: View {
     private var dismiss
     
     let questionnaireName: String
-    @State private var questionnaire: Questionnaire?
+    @State private var questionnaire: ModelsR4::Questionnaire?
     
     var body: some View {
         Group {

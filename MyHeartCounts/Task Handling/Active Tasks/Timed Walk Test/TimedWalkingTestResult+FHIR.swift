@@ -7,6 +7,7 @@
 //
 
 import CoreMotion
+import FHIRModelsExtensions
 import Foundation
 import HealthKitOnFHIR
 import ModelsR4

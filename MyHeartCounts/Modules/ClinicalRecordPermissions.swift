@@ -26,7 +26,7 @@ final class ClinicalRecordPermissions: Module, EnvironmentAccessible, Sendable {
     }
     
     /// Whether clinical records are available.
-    static let isAvailable: Bool = !FeatureFlags.disableHealthRecords && HKHealthStore().supportsHealthRecords()
+    static let isAvailable: Bool = FeatureFlags.enableHealthRecords && HKHealthStore().supportsHealthRecords()
     
     // swiftlint:disable attributes
     @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
