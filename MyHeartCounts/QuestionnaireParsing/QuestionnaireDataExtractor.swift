@@ -8,6 +8,7 @@
 
 // swiftlint:disable file_types_order
 
+import FHIRModelsExtensions
 import Foundation
 import ModelsR4
 import SpeziHealthKit

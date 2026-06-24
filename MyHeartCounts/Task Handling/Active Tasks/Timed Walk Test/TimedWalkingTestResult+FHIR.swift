@@ -174,8 +174,4 @@ extension Decimal {
     var intValue: Int {
         Int(self)
     }
-    
-    var doubleValue: Double {
-        Double(self)
-    }
 }

@@ -7,6 +7,7 @@
 //
 
 import AsyncAlgorithms
+import FHIRModelsExtensions
 import Foundation
 import HealthKit
 import HealthKitOnFHIR
