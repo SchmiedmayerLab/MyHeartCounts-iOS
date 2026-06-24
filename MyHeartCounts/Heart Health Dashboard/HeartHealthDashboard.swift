@@ -29,8 +29,6 @@ struct HeartHealthDashboard: View {
     
     // swiftlint:disable attributes
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.locale) private var locale
-    @Environment(\.calendar) private var cal
     @Environment(StudyManager.self) private var studyManager
     // swiftlint:enable attributes
     
