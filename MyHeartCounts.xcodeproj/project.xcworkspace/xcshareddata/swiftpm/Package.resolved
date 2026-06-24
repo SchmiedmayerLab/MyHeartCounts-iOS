@@ -1,5 +1,5 @@
 {
-  "originHash" : "ab4bffcbc68597fe96650b11fd144f3eb213563d85fd3c02b75c58121dee08cd",
+  "originHash" : "534b872f99ff522d7abfdbc07b04ca301bd5273cced8bc3435bf78149ce1bba2",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -159,7 +159,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git",
       "state" : {
-        "revision" : "08d8df59db886a69df38c4be6251a2e28e93d814"
+        "revision" : "0dd1f59051c447ecbff4d21e936c801d48b0e530"
       }
     },
     {
@@ -230,7 +230,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/Spezi.git",
       "state" : {
-        "revision" : "d0f1e1cee93392ee7a0d64849a8dbf107d98a39e"
+        "revision" : "881dcc9abecec72168140e59db5683ddc716a009"
       }
     },
     {
@@ -445,8 +445,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gonzalezreal/textual.git",
       "state" : {
-        "revision" : "01b51875a5406eefc95f52a058cb059e7bc94dc4",
-        "version" : "0.5.0"
+        "revision" : "5b06b811c0f5313b6b84bbef98c635a630638c38",
+        "version" : "0.3.1"
+      }
+    },
+    {
+      "identity" : "threadlocal",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SchmiedmayerLab/ThreadLocal.git",
+      "state" : {
+        "revision" : "7295e0c1042bb01e72db75b073ebdacb2e50fd41",
+        "version" : "0.1.4"
       }
     },
     {
