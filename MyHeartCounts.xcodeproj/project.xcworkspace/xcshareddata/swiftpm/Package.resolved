@@ -230,7 +230,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/Spezi.git",
       "state" : {
-        "revision" : "881dcc9abecec72168140e59db5683ddc716a009"
+        "revision" : "9d546b21e6cfca1ae63dcb7c2a329e1537b569a9"
       }
     },
     {
