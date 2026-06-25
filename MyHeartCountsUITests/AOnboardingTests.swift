@@ -339,9 +339,11 @@ struct OnboardingNavigator { // swiftlint:disable:this type_body_length
     
     
     private func navigateHealthRecords() {
-        XCTAssert(app.staticTexts["Health Records"].waitForExistence(timeout: 2))
+        let title = app.staticTexts["Health Records"]
+        XCTAssert(title.waitForExistence(timeout: 2))
         app.buttons["Review Permissions"].tap()
         testCase.handleHealthRecordsAuthorization()
+        XCTAssert(title.waitForNonExistence(timeout: 10)) // give it some time to complete the auth
     }
     
     

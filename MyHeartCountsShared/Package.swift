@@ -12,31 +12,27 @@ import PackageDescription
 
 
 var packageDeps: [Package.Dependency] = [
-    .package(url: "https://github.com/StanfordSpezi/SpeziFoundation.git", from: "2.5.0"),
+    .package(url: "https://github.com/SchmiedmayerLab/Spezi.git", .upToNextMinor(from: "0.1.1")),
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.93.0"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0")
 ]
 
 #if !os(Linux)
 packageDeps += [
-    .package(url: "https://github.com/StanfordSpezi/SpeziStudy.git", .upToNextMinor(from: "0.1.20")),
-    .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols.git", from: "7.0.0"),
-    // not actually used but we need to force the version until we update SpeziStudy
-    .package(url: "https://github.com/StanfordSpezi/SpeziStorage.git", from: "2.1.4"),
-    .package(url: "https://github.com/StanfordSpezi/SpeziScheduler.git", from: "1.2.20")
+    .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols.git", from: "7.0.0")
 ]
 #endif
 
 /// dependencies of the `MyHeartCountsShared` target
 var mhcSharedTargetDeps: [Target.Dependency] = [
-    .product(name: "SpeziFoundation", package: "SpeziFoundation"),
+    .product(name: "SpeziFoundation", package: "Spezi"),
     .product(name: "NIOCore", package: "swift-nio"),
     .product(name: "NIOFoundationCompat", package: "swift-nio")
 ]
 
 #if !os(Linux)
 mhcSharedTargetDeps += [
-    .product(name: "SpeziStudyDefinition", package: "SpeziStudy"),
+    .product(name: "SpeziStudyDefinition", package: "Spezi"),
     .product(name: "SFSafeSymbols", package: "SFSafeSymbols")
 ]
 #endif

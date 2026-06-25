@@ -139,6 +139,7 @@ final class TaskHandlingTests: MHCTestCase, @unchecked Sendable {
     func testHomeTabTaskSheetLifetime() throws {
         try launchAppAndEnrollIntoStudy()
         goToTab(.home)
+        app.swipeUp()
         app.buttons["Answer Survey: Diet"].firstMatch.tap()
         let dietIntroTextElement = app.staticTexts.element(
             matching: "label BEGINSWITH %@", "This questionnaire is designed to allow you to assess the nutritional value of your diet."
