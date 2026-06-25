@@ -19,7 +19,9 @@ concurrency:
 jobs:
   formatreleasenotes:
     name: Format Release Notes
-    uses: StanfordBDHG/.github/.github/workflows/format-release-notes.yml@v2
+    uses: SchmiedmayerLab/.github/.github/workflows/format-release-notes.yml@v0.2
+    permissions:
+      contents: read
     with:
       release-tag: ${{ github.event.release.tag_name }}
       repository: ${{ github.repository }}

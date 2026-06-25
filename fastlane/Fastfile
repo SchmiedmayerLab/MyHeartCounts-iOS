@@ -12,8 +12,8 @@ APP_CONFIG = {
   default_environment: "staging",
   default_app_identifier: "edu.stanford.MyHeartCounts",
   default_secondary_app_identifier: "edu.stanford.MyHeartCounts.watchkitapp",
-  default_provisioningProfile: "My Heart Counts - Biodesign Digital Health",
-  default_secondary_provisioningProfile: "My Heart Counts - Biodesign Digital Health - Watch",
+  default_provisioningProfile: "My Heart Counts",
+  default_secondary_provisioningProfile: "My Heart Counts - Watch",
   default_version_name: "4.0.0",
   default_release_notes: "Bug fixes and performance improvements.",
   scheme: "MyHeartCounts",
@@ -85,21 +85,6 @@ platform :ios do
     Dir.glob("./screenshots/**/iPhone 17 Pro Max-*.png").each do |file|
       sh("sips --resampleHeightWidth 2796 1290 '#{file}'")
     end
-  end
-
-  desc "CodeQL"
-  lane :codeql do
-    ENV["FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT"] = "320" # CodeQL runs on GitHub CI. We need much higher timeout here.
-    build_app(
-      scheme: APP_CONFIG[:scheme],
-      skip_archive: true,
-      skip_codesigning: true,
-      derived_data_path: ".derivedData",
-      xcargs: [
-        "-skipPackagePluginValidation",
-        "-skipMacroValidation"
-      ]
-    )
   end
 
   desc "Build app"

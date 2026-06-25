@@ -7,6 +7,7 @@
 //
 
 import CoreMotion
+import FHIRModelsExtensions
 import Foundation
 import HealthKitOnFHIR
 import ModelsR4
@@ -172,9 +173,5 @@ extension TimedWalkingTestConfiguration.Kind {
 extension Decimal {
     var intValue: Int {
         Int(self)
-    }
-    
-    var doubleValue: Double {
-        Double(self)
     }
 }

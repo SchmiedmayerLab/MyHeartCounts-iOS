@@ -7,6 +7,8 @@
 //
 
 import MyHeartCountsShared
+@_spi(TestingSupport)
+import SpeziHealthKit
 import XCTest
 import XCTestExtensions
 import XCTHealthKit
@@ -162,6 +164,10 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     
     @MainActor
     func testBloodPressureDataEntry() throws {
+        guard !HealthKit.needsBloodPressureAuthFlowFix else {
+            throw XCTSkip("Skipping bc of iOS 26.5.x Blood Pressure auth issue")
+        }
+            
         let systolic = Int.random(in: 100...140)
         let diastolic = Int.random(in: 60...90)
         

@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import FHIRModelsExtensions
 import Foundation
 import HealthKitOnFHIR
 import ModelsR4
