@@ -129,7 +129,7 @@ jobs:
   testflight:
     name: iOS App TestFlight Deployment
     needs: [determineenvironment, vars, test]
-    uses: SchmiedmayerLab/.github/.github/workflows/xcode-deploy.yml@lukas/fix-artifacts
+    uses: SchmiedmayerLab/.github/.github/workflows/xcode-deploy.yml@v0.2
     permissions:
       contents: read
     with:
