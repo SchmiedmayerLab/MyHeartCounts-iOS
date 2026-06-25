@@ -31,7 +31,15 @@ struct MHCTodaysEventsQuery: DynamicProperty {
             } else if event.occurrence.schedule.recurrence == nil {
                 // if the schedule is a one-off thing, we also always include it.
                 // this is intended to catch initial one-off study components that haven't been completed.
-                return true
+                // exception here is if the event is already completed, and the completion is outside of the primaryTimeRange.
+                // ie, we always show the one-off events if they are still open, and once they are completed we continue showing them until the end of the day.
+                if let completionDate = event.outcome?.completionDate {
+                    // show the event if it was completed recently (w/in the primaryTimeRange)
+                    return primaryTimeRange.contains(completionDate)
+                } else { // !event.isCompleted
+                    // always show yet-to-be-completed events
+                    return true
+                }
             } else {
                 return false
             }
