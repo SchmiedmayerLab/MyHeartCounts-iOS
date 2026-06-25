@@ -39,7 +39,7 @@ jobs:
       artifactname: MHC-App-UITests.xcresult
       setupfirebaseemulator: true
       checkout_submodules: true
-      customcommand: "cd ./MyHeartCounts-Firebase && npm install && npm run prepare && firebase emulators:exec 'cd .. && fastlane uitest'"
+      customcommand: "cd ./MyHeartCounts-Firebase && npm install && npm run prepare && npx --yes firebase-tools@15.22.2 emulators:exec 'cd .. && fastlane uitest'"
     secrets:
       GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
 
