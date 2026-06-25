@@ -3783,6 +3783,9 @@
         }
       }
     },
+    "How did you hear about the study?" : {
+
+    },
     "How to Manage SensorKit" : {
       "localizations" : {
         "en-GB" : {
@@ -7356,6 +7359,185 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Leer desde la Health app"
+          }
+        }
+      }
+    },
+    "Referral Source" : {
+
+    },
+    "REFERRAL_OPTION_1" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Healthcare provider (doctor, cardiologist, nurse)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Healthcare provider (doctor, cardiologist, nurse)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_2" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hospital or clinic"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hospital or clinic"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_3" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Friend or family member"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Friend or family member"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_4" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heart health organization or support group"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heart health organization or support group"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_5" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Research or clinical trial website (ClinicalTrials.gov, ResearchMatch, etc.)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Research or clinical trial website (ClinicalTrials.gov, ResearchMatch, etc.)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_6" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online ad (Google, Facebook, Instagram, Reddit, etc.)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online ad (Google, Facebook, Instagram, Reddit, etc.)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_7" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online search or social media (not an ad)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online search or social media (not an ad)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_8" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email invitation or newsletter"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email invitation or newsletter"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_9" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "News media (article, TV, radio, podcast)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "News media (article, TV, radio, podcast)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_10" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyer or poster"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyer or poster"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_11" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
           }
         }
       }

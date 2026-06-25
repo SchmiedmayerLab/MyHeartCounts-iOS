@@ -20,7 +20,7 @@ struct HouseholdIncomeUS: DemographicsSelectableSimpleValue {
 
 extension HouseholdIncomeUS {
     static let notSet = Self(rawValue: 0, displayTitle: "Not Set")
-    static let preferNotToState = Self(rawValue: .max, displayTitle: "Prefer not to state")
+    static let preferNotToState: Self? = Self(rawValue: .max, displayTitle: "Prefer not to state")
     
     static let options: [Self] = [
         Self(rawValue: 1, displayTitle: "Less than $15,000"),
@@ -44,7 +44,7 @@ struct HouseholdIncomeUK: DemographicsSelectableSimpleValue {
 
 extension HouseholdIncomeUK {
     static let notSet = Self(rawValue: 0, displayTitle: "Not Set")
-    static let preferNotToState = Self(rawValue: .max, displayTitle: "Prefer not to state")
+    static let preferNotToState: Self? = Self(rawValue: .max, displayTitle: "Prefer not to state")
     
     static let options: [Self] = [
         Self(rawValue: 1, displayTitle: "Less than £15,000"),

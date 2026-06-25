@@ -149,9 +149,7 @@ private struct DebugFormImpl: View {
             HStack {
                 Text("Answer Questionnaire" as String)
                 Spacer()
-                Image(systemSymbol: .chevronUpChevronDown)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
+                MenuIndicator()
             }
             .contentShape(Rectangle())
         }

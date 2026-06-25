@@ -167,6 +167,16 @@ extension AccountDetails {
         initial: .empty(.notSet)
     )
     var stageOfChange: StageOfChangeOption?
+    
+    @AccountKey(
+        id: "referralSource",
+        name: "Referral Source",
+        category: .demographics,
+        options: .mutable,
+        as: ReferralSource.self,
+        initial: .empty(.notSet)
+    )
+    var referralSource: ReferralSource?
 }
 
 
@@ -175,7 +185,7 @@ extension AccountDetails {
     \.ukRegion, \.ukPostcode, \.householdIncomeUK, \.educationUK,
     \.heightInCM, \.weightInKG, \.bloodType, \.nhsNumber, \.mhcGenderIdentity,
     \.raceEthnicity, \.latinoStatus,
-    \.biologicalSexAtBirth, \.comorbidities, \.futureStudies, \.stageOfChange
+    \.biologicalSexAtBirth, \.comorbidities, \.futureStudies, \.stageOfChange, \.referralSource
 )
 extension AccountKeys {}
 

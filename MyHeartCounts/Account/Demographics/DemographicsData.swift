@@ -108,6 +108,9 @@ final class DemographicsData {
     var stageOfChange = Field<StageOfChangeOption>() {
         didSet { onChange() }
     }
+    var referralSource = Field<ReferralSource>() {
+        didSet { onChange() }
+    }
     
     
     init() {
@@ -143,6 +146,7 @@ final class DemographicsData {
         self[\.nhsNumber] = details.nhsNumber
         self[\.futureStudiesOptIn] = details.futureStudies
         self[\.stageOfChange] = details.stageOfChange
+        self[\.referralSource] = details.referralSource
     }
     
     fileprivate func onChange() {
@@ -210,6 +214,7 @@ final class DemographicsData {
         write(\.nhsNumber, to: \.nhsNumber)
         write(\.futureStudiesOptIn, to: \.futureStudies)
         write(\.stageOfChange, to: \.stageOfChange)
+        write(\.referralSource, to: \.referralSource)
         let modifications = try AccountModifications(modifiedDetails: updated, removedAccountDetails: removed)
         try await account.accountService.updateAccountDetails(modifications)
     }

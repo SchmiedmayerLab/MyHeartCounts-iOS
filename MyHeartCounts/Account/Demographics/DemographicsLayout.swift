@@ -71,7 +71,7 @@ enum DemographicsComponentCompletionState: Hashable {
         }
     }
     
-    fileprivate var suggestedForegroundColor: Color {
+    var suggestedForegroundColor: Color {
         switch self {
         case .completed:
             .secondary
@@ -150,8 +150,12 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
             }
         }
         if region == .unitedStates {
-            LeafComponent(\.latinoStatus) { binding, _ in
-                makeSimpleValuePickerRow("Are you Hispanic/Latino?", binding: binding.withDefault(.notSet))
+            LeafComponent(\.latinoStatus) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Are you Hispanic/Latino?",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
         }
     }
@@ -191,11 +195,19 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                     )
                 }
             }
-            LeafComponent(\.usEducationLevel, isRequired: didOptInToTrial) { binding, _ in
-                makeSimpleValuePickerRow("Education Level", binding: binding.withDefault(.notSet))
+            LeafComponent(\.usEducationLevel, isRequired: didOptInToTrial) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Education Level",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
-            LeafComponent(\.usHouseholdIncome, isRequired: false) { binding, _ in
-                makeSimpleValuePickerRow("Total Household Income", binding: binding.withDefault(.notSet))
+            LeafComponent(\.usHouseholdIncome, isRequired: false) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Total Household Income",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
         case .unitedKingdom:
             LeafComponent(\.ukRegion, isRequired: false) { binding, completionState in
@@ -210,11 +222,19 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                 }
             }
             // UK postcode will be asked here
-            LeafComponent(\.ukEducationLevel, isRequired: didOptInToTrial) { binding, _ in
-                makeSimpleValuePickerRow("Education Level", binding: binding.withDefault(.notSet))
+            LeafComponent(\.ukEducationLevel, isRequired: didOptInToTrial) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Education Level",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
-            LeafComponent(\.ukHouseholdIncome, isRequired: false) { binding, _ in
-                makeSimpleValuePickerRow("Total Household Income", binding: binding.withDefault(.notSet))
+            LeafComponent(\.ukHouseholdIncome, isRequired: false) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Total Household Income",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
         default:
             _EmptyComponent()
@@ -247,21 +267,41 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
             }
         }
     }
+    Section {
+        LeafComponent(\.referralSource, isRequired: false) { binding, completionState in
+            makeSimpleValuePickerRow(
+                "Referral Source",
+                headerPrompt: "How did you hear about the study?",
+                binding: binding.withDefault(.notSet),
+                completionState: completionState
+            )
+        }
+    }
 }
 
 
 // MARK: Supporting Views
 
+
 @MainActor
 @ViewBuilder
-private func makeSimpleValuePickerRow(_ title: LocalizedStringResource, binding: Binding<some DemographicsSelectableSimpleValue>) -> some View {
+private func makeSimpleValuePickerRow(
+    _ title: LocalizedStringResource,
+    headerPrompt: LocalizedStringResource? = nil,
+    binding: Binding<some DemographicsSelectableSimpleValue>,
+    completionState: DemographicsComponentCompletionState
+) -> some View {
     NavigationLink {
-        DemographicsSingleSelectionPicker(selection: binding)
-            .navigationTitle(title)
+        DemographicsSingleSelectionPicker(selection: binding) {
+            if let headerPrompt {
+                Text(headerPrompt)
+            }
+        }
+        .navigationTitle(title)
     } label: {
         NavigationLinkLabel(
             title,
-            isEmpty: binding.wrappedValue == .notSet,
+            completionState: completionState,
             value: binding.wrappedValue.displayTitle
         )
     }

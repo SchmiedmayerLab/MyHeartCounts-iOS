@@ -29,7 +29,7 @@ struct EducationStatusUS: DemographicsSelectableSimpleValue {
 
 extension EducationStatusUS {
     static let notSet = Self(id: "notSet", title: "Not Set")
-    static let preferNotToState = Self(id: "preferNotToState", title: "Prefer not to state")
+    static let preferNotToState: Self? = Self(id: "preferNotToState", title: "Prefer not to state")
     
     static let options: [Self] = [
         Self(id: "didNotAttendSchool", title: "Didn't attend school"),
@@ -61,7 +61,7 @@ struct EducationStatusUK: DemographicsSelectableSimpleValue {
 
 extension EducationStatusUK {
     static let notSet = Self(id: "notSet", title: "Not Set")
-    static let preferNotToState = Self(id: "preferNotToState", title: "Prefer not to state")
+    static let preferNotToState: Self? = Self(id: "preferNotToState", title: "Prefer not to state")
     
     static let options: [Self] = [
         Self(id: "didNotAttendSchool", title: "Didn't attend school"),
