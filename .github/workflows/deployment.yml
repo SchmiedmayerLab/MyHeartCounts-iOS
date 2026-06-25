@@ -77,15 +77,15 @@ jobs:
       environment: ${{ steps.determineenvironment.outputs.environment }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Determine Environment
         id: determineenvironment
         run: |
           if [[ -z "${{ inputs.environment }}" ]]; then
-            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "environment=staging" >> "$GITHUB_OUTPUT"
             echo "environment: staging"
           else
-            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
             echo "environment: ${{ inputs.environment }}"
           fi
   vars:
@@ -96,7 +96,7 @@ jobs:
       version: ${{ steps.script.outputs.version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - uses: actions-ecosystem/action-get-latest-tag@v1
         id: get-latest-tag
         with:
@@ -111,10 +111,10 @@ jobs:
             PATCH=$((PATCH + 1))
             NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
-            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
             echo "version: $NEW_VERSION"
           else
-            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
             echo "version: ${{ inputs.version }}"
           fi
           echo "buildnumber: ${{ inputs.buildnumber }}"
@@ -125,17 +125,31 @@ jobs:
     uses: ./.github/workflows/build-and-test.yml
     permissions:
       contents: read
+      actions: read
     secrets: inherit
   testflight:
     name: iOS App TestFlight Deployment
     needs: [determineenvironment, vars, test]
-    uses: StanfordBDHG/.github/.github/workflows/xcodebuild-or-fastlane.yml@v2
+    uses: SchmiedmayerLab/.github/.github/workflows/xcode-deploy.yml@v0.2
     permissions:
       contents: read
     with:
-      runsonlabels: '["macOS", "self-hosted"]'
+      runs_on_labels: '["macOS", "self-hosted"]'
       environment: ${{ needs.determineenvironment.outputs.environment }}
-      googleserviceinfoplistpath: 'MyHeartCounts/Supporting Files/GoogleService-Info.plist'
-      setupsigning: true
-      fastlanelane: deploy environment:"${{ needs.determineenvironment.outputs.environment }}" versionname:"${{ needs.vars.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}" ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }} strip_sensorkit_entitlement:false
-    secrets: inherit
+      injected_secret_file_path: 'MyHeartCounts/Supporting Files/GoogleService-Info.plist'
+      setup_signing: true
+      command: >-
+        fastlane deploy environment:"${{ needs.determineenvironment.outputs.environment }}"
+        versionname:"${{ needs.vars.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
+        ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
+        strip_sensorkit_entitlement:false
+    secrets:
+      APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+      BUILD_SECONDARY_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_SECONDARY_PROVISION_PROFILE_BASE64 }}
+      INJECTED_SECRET_FILE_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}

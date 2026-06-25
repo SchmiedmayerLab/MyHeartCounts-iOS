@@ -15,7 +15,7 @@ import SFSafeSymbols
 import SpeziFoundation
 import SpeziHealthKit
 import SpeziHealthKitUI
-import SpeziQuestionnaire
+import SpeziQuestionnaireLegacy
 import SpeziStudy
 import SpeziViews
 import SwiftUI
@@ -28,8 +28,6 @@ struct HeartHealthDashboard: View {
     }
     
     // swiftlint:disable attributes
-    @Environment(\.locale) private var locale
-    @Environment(\.calendar) private var cal
     @Environment(StudyManager.self) private var studyManager
     // swiftlint:enable attributes
     
@@ -263,7 +261,7 @@ private struct HealthDashboardQuestionnaireView: View {
     private var dismiss
     
     let questionnaireName: String
-    @State private var questionnaire: Questionnaire?
+    @State private var questionnaire: ModelsR4::Questionnaire?
     
     var body: some View {
         Group {

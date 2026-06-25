@@ -8,6 +8,7 @@
 
 import Algorithms
 import AsyncAlgorithms
+import FHIRModelsExtensions
 import FirebaseFirestore
 import Foundation
 import HealthKit

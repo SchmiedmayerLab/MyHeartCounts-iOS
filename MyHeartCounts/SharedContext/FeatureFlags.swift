@@ -40,9 +40,14 @@ enum FeatureFlags {
         LaunchOptions.launchOptions[.overrideFirebaseConfig]
     }
     
-    /// Whether Health-Record-related functionality should be disabled.
+    /// Whether Health-Record-related functionality should be enabled.
+    static var enableHealthRecords: Bool {
+        LaunchOptions.launchOptions[.enableHealthRecords]
+    }
+    
+    @available(*, deprecated, renamed: "enableHealthRecords")
     static var disableHealthRecords: Bool {
-        LaunchOptions.launchOptions[.disableHealthRecords]
+        !enableHealthRecords
     }
 }
 
@@ -55,6 +60,4 @@ extension LaunchOptions {
     static let disableAutomaticBulkHealthExport = LaunchOption<Bool>("--disableAutomaticBulkHealthExport", default: false)
     
     static let disableSensorKitUpload = LaunchOption<Bool>("--disableSensorKitUpload", default: false)
-    
-    static let disableHealthRecords = LaunchOption<Bool>("--disableHealthRecords", default: false)
 }

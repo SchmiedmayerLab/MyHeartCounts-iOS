@@ -13,7 +13,7 @@ import Foundation
 public import NIOCore
 
 
-extension BinaryEncoder { // swiftlint:disable:this file_types_order
+extension BinaryEncoder {
     @inlinable
     public static func encode(_ value: some BinaryEncodable) throws -> ByteBuffer {
         var buffer = ByteBuffer()
