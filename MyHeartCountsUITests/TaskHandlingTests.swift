@@ -160,7 +160,11 @@ extension MHCTestCase {
         let app = XCUIApplication.springboard
         let alert = app.alerts.element(matching: "label LIKE %@", "“*” would like to access your Motion & Fitness activity.")
         if alert.waitForExistence(timeout: timeout.timeInterval) {
-            alert.buttons["Allow"].tap()
+            // wait a little longer. sometimes the "exists" above resolves to true while the alert is still being presented,
+            // in which case the tap is a little too early and doesn't actually get registered.
+            let allowButton = alert.buttons["Allow"]
+            XCTAssert(allowButton.wait(for: \.isHittable, toEqual: true, timeout: 5))
+            allowButton.tap()
         }
     }
 }
