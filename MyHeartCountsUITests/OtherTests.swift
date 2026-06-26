@@ -16,6 +16,9 @@ import XCTHealthKit
 final class OtherTests: MHCTestCase, @unchecked Sendable {
     @MainActor
     func testSkippingClinicalRecordsAuthorization() throws {
+        guard MHCTestCase.enableHealthRecords else {
+            throw XCTSkip("Health Records Testing disabled")
+        }
         app.resetAuthorizationStatus(for: .health)
         app.delete(app: "My Heart Counts")
         try launchAppAndEnrollIntoStudy(

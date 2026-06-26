@@ -13,6 +13,10 @@ extension LaunchOptions {
     ///
     /// - Note: Specifying `false` for this option when the account key is `true` will not force-disable the debug mode.
     public static let forceEnableDebugMode = LaunchOption<Bool>("--forceEnableDebugMode", default: false)
+    
+    
+    /// Whether the app should enable its HealthKit Clinical Records integration
+    public static let enableHealthRecords = LaunchOption<Bool>("--enableHealthRecords", default: true)
 }
 
 #endif

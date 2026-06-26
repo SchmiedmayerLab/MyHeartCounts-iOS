@@ -7,6 +7,7 @@
 //
 
 import CryptoKit
+import FHIRModelsExtensions
 @preconcurrency import FirebaseFirestore
 import Foundation
 import HealthKitOnFHIR

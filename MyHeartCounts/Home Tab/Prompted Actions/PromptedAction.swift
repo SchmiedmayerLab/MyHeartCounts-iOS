@@ -73,7 +73,7 @@ extension HomeTab {
             lastResult = await Result {
                 try await handler(spezi)
             }
-            return try lastResult!.get() // swiftlint:disable:this force_unwrapping return_value_from_void_function
+            try lastResult!.get() // swiftlint:disable:this force_unwrapping
         }
     }
 }

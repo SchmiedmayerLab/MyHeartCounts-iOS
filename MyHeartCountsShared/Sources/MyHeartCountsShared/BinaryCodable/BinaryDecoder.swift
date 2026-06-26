@@ -14,7 +14,7 @@ public import NIOCore
 public import NIOFoundationCompat
 
 
-extension BinaryDecoder { // swiftlint:disable:this file_types_order
+extension BinaryDecoder {
     /// Decodes an instance of `type` from `buffer`.
     @inlinable
     public static func decode<T: BinaryDecodable>(_ type: T.Type, from buffer: ByteBuffer) throws -> T {

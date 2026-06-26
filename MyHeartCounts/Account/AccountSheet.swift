@@ -185,11 +185,15 @@ struct AccountSheet: View {
     private func makeEnrolledStudyRow(for enrollment: StudyEnrollment) -> some View {
         if let studyInfo = enrollment.studyBundle?.studyDefinition.metadata {
             VStack(alignment: .leading) {
-                Text(studyInfo.title)
-                    .font(.headline)
-                Text(studyInfo.shortExplanationText)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(.secondary)
+                if let title = studyInfo.title[.current] {
+                    Text(title)
+                        .font(.headline)
+                }
+                if let explainer = studyInfo.shortExplanationText[.current] {
+                    Text(explainer)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
                 Text("Enrolled since: \(enrollment.enrollmentDate, format: .dateTime)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -308,4 +312,12 @@ extension AccountOverviewOperationLabels {
         confirmationAlertMessage: "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose.",
         confirmationAlertSubmitButton: "Withdraw"
     )
+}
+
+
+extension LocalizationKey {
+    static var current: Self {
+        let locale = Locale.current
+        return LocalizationKey(language: locale.language, region: locale.region ?? .unitedStates)
+    }
 }
