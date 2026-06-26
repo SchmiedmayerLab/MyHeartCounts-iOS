@@ -343,7 +343,6 @@ private struct MostRecentValue: View {
 
 private struct FurtherReadingSection: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.openURL) private var openURL
     
     private let title: LocalizedStringResource
     private let document: MarkdownDocument
@@ -356,7 +355,7 @@ private struct FurtherReadingSection: View {
                     .padding(.vertical, 5)
             }
             ForEach(Array(links.indices), id: \.self) { idx in
-                makeLinkButton("Learn More", for: links[idx])
+                makeLinkButton(idx == links.startIndex ? "Learn More" : nil, for: links[idx])
             }
         }
     }
@@ -371,9 +370,7 @@ private struct FurtherReadingSection: View {
     }
     
     private func makeLinkButton(_ title: LocalizedStringResource?, for url: URL) -> some View {
-        Button {
-            openURL(url)
-        } label: {
+        Link2(url) {
             HStack {
                 if let title {
                     Text(title)

@@ -47,6 +47,9 @@ struct SensorKitControlView: View {
         Form {
             Section {
                 Toggle("Background Upload Notifications" as String, isOn: $sendSensorKitNotifications)
+                NavigationLink("Sample Summaries" as String) {
+                    SensorKitSampleSummaries()
+                }
             }
             Section {
                 AsyncButton("Start Recording Data" as String, state: $viewState) {

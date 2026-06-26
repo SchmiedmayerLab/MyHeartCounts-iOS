@@ -7,12 +7,12 @@
 //
 
 import Algorithms
+import AsyncAlgorithms
+import FHIRModelsExtensions
 import FirebaseFirestore
-import FirebaseFunctions
 import Foundation
 import HealthKit
 import HealthKitOnFHIR
-@preconcurrency import ModelsDSTU2
 @preconcurrency import ModelsR4
 import MyHeartCountsShared
 import OSLog
@@ -65,112 +65,127 @@ extension MyHeartCountsStandard: HealthKitConstraint {
             return
         }
         do {
-            try await uploadHealthObservations(addedSamples, batchSize: 100)
+            try await self.uploadHealthObservations(addedSamples)
         } catch {
             logger.error("Error uploading HealthKit samples: \(error)")
         }
     }
-    
-    
+
+
     func handleDeletedObjects<Sample>(_ deletedObjects: some Collection<HKDeletedObject> & Sendable, ofType sampleType: SampleType<Sample>) async {
         guard await shouldCollectHealthData else {
             return
         }
-        let deletedObjects = Array(deletedObjects)
-        logger.notice("\(#function) \(deletedObjects.count) deleted HKObjects for \(sampleType.mhcDisplayTitle)")
-        let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
-            for: .deleted(sampleTypeTitle: sampleType.mhcDisplayTitle, count: deletedObjects.count)
-        )
-        guard let accountId = await account?.details?.accountId else {
-            return
-        }
         do {
-            let collection = "HealthObservations_\(sampleType.id)"
-            logger.notice("Will use bulk-delete function to delete \(deletedObjects.count) HealthKit object(s) for \(sampleType.id)")
-            _ = try await Functions.functions()
-                .httpsCallable("deleteHealthSamples")
-                .call([
-                    "userId": accountId,
-                    "collection": collection,
-                    "documentIds": deletedObjects.map(\.uuid.uuidString)
-                ])
+            try self.healthUploadStaging.add(deletedObjects, ofType: sampleType)
         } catch {
-            logger.notice("Error calling bulk-delete function: \(error)")
+            logger.error("Error adding deletion records to staged health upload: \(error)")
         }
-        await triggerDidUploadNotification()
     }
 }
 
 
 extension MyHeartCountsStandard {
+    enum HealthObservationUploadStrategy {
+        case queueLocally
+        case directFirestore
+        case firebaseStorage
+    }
+    
+    
+    // NOTE: This is in fact concurrency-safe; we're just missing a `FHIRExtensionBuilderProtocol: Sendable` requirement in HKoF.
+    nonisolated(unsafe) static let defaultHealthObservationFHIRExtensions: [any FHIRExtensionBuilderProtocol] = [
+        .sampleUploadTimeZone, .mhcStudyRevision
+    ]
+    
+    nonisolated private static let directFirestoreUploadDefaultBatchSize = 100
+    
+    /// Determines how a health observation / resource should be persisted when uploading it to firebase.
+    private static func uploadStrategy(forSampleType identifier: String) -> HealthObservationUploadStrategy {
+        if identifier == TimedWalkingTestResult.sampleTypeIdentifier {
+            return .directFirestore
+        }
+        return switch MHCSampleType(sampleTypeIdentifier: identifier) {
+        case nil:
+            .firebaseStorage
+        case .healthKit:
+            .queueLocally
+        case .custom:
+            .directFirestore
+        }
+    }
+    
     func uploadHealthObservation(
         _ observation: some HealthObservation & Sendable,
-        postprocessResource: @Sendable (FHIRResource) throws -> Void = { _ in }
+        postprocessResource: @escaping @Sendable (FHIRResource) throws -> Void = { _ in }
     ) async throws {
         try await uploadHealthObservations(
             CollectionOfOne(observation),
-            batchSize: 1,
             postprocessResource: postprocessResource
         )
     }
     
-    func uploadHealthObservations( // swiftlint:disable:this function_body_length
+    /// Uploads ``HealthObservation``s to the backend.
+    ///
+    /// - parameter observations: The health observations that should be uploaded.
+    /// - parameter uploadStrategy: How the observations should be uploaded. Specify `nil` (the default) to have the function determine a suitable upload destination.
+    /// - parameter postprocessResource: Closure that is invoked with each observation's resulting ``FHIRResource``, giving the caller the opportunity to make final adjustments at FHIR-level before the resource is being persisted.
+    func uploadHealthObservations( // swiftlint:disable:this function_body_length cyclomatic_complexity
         _ observations: consuming some Collection<some HealthObservation & Sendable> & Sendable,
-        batchSize: Int = 100,
-        postprocessResource: @Sendable (FHIRResource) throws -> Void = { _ in }
+        uploadStrategy: HealthObservationUploadStrategy? = nil,
+        postprocessResource: @escaping @Sendable (FHIRResource) throws -> Void = { _ in }
     ) async throws {
         guard !observations.isEmpty, let sampleTypeIdentifier = observations.first?.sampleTypeIdentifier else {
+            return
+        }
+        guard observations.allSatisfy({ $0.sampleTypeIdentifier == sampleTypeIdentifier }) else {
+            // in the unlikely case of the caller passing in heterogeneous health observations, we process each sample type individually
+            try await withThrowingDiscardingTaskGroup { taskGroup in
+                let bySampleType = observations.grouped(by: \.sampleTypeIdentifier)
+                for (_, observations) in bySampleType {
+                    taskGroup.addTask {
+                        try await self.uploadHealthObservations(
+                            observations,
+                            uploadStrategy: uploadStrategy,
+                            postprocessResource: postprocessResource
+                        )
+                    }
+                }
+            }
             return
         }
         let issuedDate = FHIRPrimitive<ModelsR4.Instant>(try .init(date: .now))
         @concurrent
         func turnIntoFHIRResource(_ observation: some HealthObservation) async throws -> AnyEncodable? {
-            switch observation {
-            case let sample as HKElectrocardiogram:
-                let symptoms = try await sample.symptoms(from: healthKit)
-                let voltages = try await sample.voltageMeasurements(from: healthKit.healthStore)
-                let observation = try sample.observation(
-                    symptoms: symptoms,
-                    voltageMeasurements: voltages.map { (time: $0.timeOffset, value: $0.voltage) },
-                    withMapping: .default,
-                    issuedDate: issuedDate,
-                    extensions: [.sampleUploadTimeZone]
-                )
-                try postprocessResource(FHIRResource(observation))
-                return AnyEncodable(observation)
-            case let record as HKClinicalRecord:
-                guard record.fhirResource != nil else {
-                    // just fail silently...
-                    self.logger.error("Skipping HKClinicalRecord, bc no fhirResource")
-                    return nil
-                }
-                let resource = try await FHIRResource(record, using: healthKit)
-                switch resource {
-                case .dstu2(let resource):
-                    (resource as? ModelsDSTU2.DomainResource)?.addSourceRevisionExtensions(for: record.sourceRevision)
-                case .r4(let resource):
-                    (resource as? ModelsR4.DomainResource)?.addSourceRevisionExtensions(for: record.sourceRevision)
-                }
-                try postprocessResource(resource)
-                return AnyEncodable(resource)
-            default:
-                let resource = try observation.resource(withMapping: .default, issuedDate: issuedDate, extensions: [.sampleUploadTimeZone])
-                try postprocessResource(FHIRResource(resource.get()))
-                return AnyEncodable(resource)
-            }
+            try await observation.turnIntoFHIRResource(
+                issuedDate: issuedDate,
+                using: healthKit,
+                postprocess: postprocessResource
+            )
         }
-        let supportsZstdUpload = !HKClinicalType.allKnownClinicalRecords.contains { $0.identifier == sampleTypeIdentifier }
-        if supportsZstdUpload && observations.count >= 100 && observations.allSatisfy({ $0.sampleTypeIdentifier == sampleTypeIdentifier }) {
+        let uploadStrategy = uploadStrategy ?? Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
+        switch uploadStrategy {
+        case .queueLocally:
+            try await healthUploadStaging.add(
+                observations,
+                commonSampleType: sampleTypeIdentifier,
+                postprocessResource: postprocessResource
+            )
+        case .firebaseStorage:
             let numObservations = observations.count
             logger.notice("Uploading \(numObservations) observations of type '\(sampleTypeIdentifier)' via zstd upload")
             let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
-                for: .new(sampleTypeTitle: sampleTypeIdentifier, count: numObservations, uploadMode: .compressed)
+                for: .new(sampleTypeTitle: sampleTypeIdentifier, count: numObservations, uploadStrategy: uploadStrategy)
             )
-            let resources = try await (consume observations).compactMapAsync(turnIntoFHIRResource)
+            let resources: [AnyEncodable] = try await (consume observations).async.reduce(into: []) { resources, observation in
+                if let resource = try await turnIntoFHIRResource(observation) {
+                    resources.append(resource)
+                }
+            }
             guard !resources.isEmpty else {
                 return
             }
-            let encoded = try JSONEncoder().encode(resources)
+            let encoded = try JSONEncoder().encode(consume resources)
             let compressed = try (consume encoded).compressed(using: Zstd.self)
             let url = URL.temporaryDirectory.appending(path: "\(sampleTypeIdentifier)_\(UUID().uuidString).json.zstd", directoryHint: .notDirectory)
             try (consume compressed).write(to: url)
@@ -178,10 +193,10 @@ extension MyHeartCountsStandard {
                 try await managedFileUpload.upload(url, category: .liveHealthUpload)
                 await triggerDidUploadNotification()
             }
-        } else {
-            for chunk in observations.chunks(ofCount: batchSize) {
+        case .directFirestore:
+            for chunk in (consume observations).chunks(ofCount: Self.directFirestoreUploadDefaultBatchSize) {
                 let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
-                    for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadMode: .direct)
+                    for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadStrategy: uploadStrategy)
                 )
                 let batch = Firestore.firestore().batch()
                 for observation in chunk {
@@ -190,7 +205,7 @@ extension MyHeartCountsStandard {
                         let path = document.path
                         logger.notice("Uploading Health Resource to \(path)")
                         if let resource = try await turnIntoFHIRResource(observation) {
-                            try batch.setData(from: resource, forDocument: document)
+                            try batch.setData(from: consume resource, forDocument: document)
                         }
                     } catch {
                         logger.error("Error saving health observation to Firebase: \(error); input: \(String(describing: observation))")
@@ -220,13 +235,19 @@ extension MyHeartCountsStandard {
 
 extension MyHeartCountsStandard {
     private enum HealthDocumentChange {
-        case new(sampleTypeTitle: String, count: Int, uploadMode: UploadMode)
+        case new(sampleTypeTitle: String, count: Int, uploadStrategy: HealthObservationUploadStrategy)
         case deleted(sampleTypeTitle: String, count: Int)
     }
     
-    private enum UploadMode: String {
-        case direct
-        case compressed
+    private static func notificationLabel(for uploadStrategy: HealthObservationUploadStrategy) -> String {
+        switch uploadStrategy {
+        case .queueLocally:
+            "queueLocally"
+        case .directFirestore:
+            "direct"
+        case .firebaseStorage:
+            "storage"
+        }
     }
     
     /// - returns: A closure that should be called upon completion of the uploads, and will replaces the "will upload" notifications with "did upload" notifications.
@@ -241,9 +262,9 @@ extension MyHeartCountsStandard {
             let notificationCenter = UNUserNotificationCenter.current()
             let content = UNMutableNotificationContent()
             switch change {
-            case let .new(sampleTypeTitle, count, uploadMode):
+            case let .new(sampleTypeTitle, count, uploadStrategy):
                 content.title = "\(stage) upload new health observations"
-                content.body = "\(count) new observations for \(sampleTypeTitle). mode: \(uploadMode.rawValue)"
+                content.body = "\(count) new observations for \(sampleTypeTitle). mode: \(Self.notificationLabel(for: uploadStrategy))"
             case let .deleted(sampleTypeTitle, count):
                 content.title = "\(stage) delete health observations"
                 content.body = "\(count) deleted observations for \(sampleTypeTitle)"
@@ -272,6 +293,13 @@ extension FHIRExtensionUrls {
     /// Url of a FHIR Extension containing the user's time zone when uploading a FHIR `Observation`.
     nonisolated(unsafe) static let sampleUploadTimeZone: ModelsR4.FHIRPrimitive<_> = "https://bdh.stanford.edu/fhir/defs/sampleUploadTimeZone".asFHIRURIPrimitive()!
     // swiftlint:disable:previous force_unwrapping
+    
+    // SAFETY: this is in fact safe, since the FHIRPrimitive's `extension` property is empty.
+    // As a result, the actual instance doesn't contain any mutable state, and since this is a let,
+    // it also never can be mutated to contain any.
+    /// Url of a FHIR Extension containing the user's enrollment info uploading a FHIR `Observation`.
+    nonisolated(unsafe) static let mhcStudyEnrollmentInfo: ModelsR4.FHIRPrimitive<_> = "https://myheartcounts.stanford.edu/fhir/StructureDefinition/study-enrollment".asFHIRURIPrimitive()!
+    // swiftlint:disable:previous force_unwrapping
 }
 
 extension FHIRExtensionBuilderProtocol where Self == FHIRExtensionBuilder<Void> {
@@ -281,6 +309,28 @@ extension FHIRExtensionBuilderProtocol where Self == FHIRExtensionBuilder<Void> 
                 url: FHIRExtensionUrls.sampleUploadTimeZone,
                 value: .string(TimeZone.current.identifier.asFHIRStringPrimitive())
             )
+            observation.appendExtension(ext, replaceAllExistingWithSameUrl: true)
+        }
+    }
+    
+    
+    static var mhcStudyRevision: Self {
+        .init { observation in
+            guard let enrollmentInfo = MyHeartCountsStandard.currentEnrollmentInfo else {
+                return
+            }
+            let extUrl = FHIRExtensionUrls.mhcStudyEnrollmentInfo
+            let ext = Extension(url: extUrl)
+            ext.extension = [
+                Extension(
+                    url: extUrl.appending(component: "study-id"),
+                    value: .string(enrollmentInfo.studyId.asFHIRStringPrimitive())
+                ),
+                Extension(
+                    url: extUrl.appending(component: "study-revision"),
+                    value: .integer(Int(enrollmentInfo.studyRevision).asFHIRIntegerPrimitive())
+                )
+            ]
             observation.appendExtension(ext, replaceAllExistingWithSameUrl: true)
         }
     }

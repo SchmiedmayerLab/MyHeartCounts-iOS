@@ -18,7 +18,6 @@ extension MyHeartCounts {
         FirebaseConfiguration()
         AccountConfiguration(service: InMemoryAccountService(), configuration: .default)
         StudyBundleLoader.shared
-        TimeZoneTracking()
         AccountFeatureFlags()
         SetupTestEnvironment()
     }

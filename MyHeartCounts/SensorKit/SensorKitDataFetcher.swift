@@ -70,6 +70,9 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
                 guard let self else {
                     return
                 }
+                guard !LaunchOptions.launchOptions[.disableSensorKitUpload] else {
+                    return
+                }
                 if await standard.enableDebugSensorKitNotifications {
                     try? await self.localNotifications.send(title: "SensorKit Background Processing", body: "Task started")
                 }
@@ -242,10 +245,10 @@ extension SensorKit {
             return []
         }
         return [
-            MHCSensorUploadDefinition(sensor: .visits, strategy: UploadStrategyFHIRObservations()),
-            MHCSensorUploadDefinition(sensor: .onWrist, strategy: UploadStrategyFHIRObservations()),
-            MHCSensorUploadDefinition(sensor: .deviceUsage, strategy: UploadStrategyFHIRObservations()),
-            MHCSensorUploadDefinition(sensor: .ecg, strategy: UploadStrategyFHIRObservations()),
+            MHCSensorUploadDefinition(sensor: .visits, strategy: UploadStrategyJSONFile()),
+            MHCSensorUploadDefinition(sensor: .onWrist, strategy: UploadStrategyJSONFile()),
+            MHCSensorUploadDefinition(sensor: .deviceUsage, strategy: UploadStrategyJSONFile()),
+            MHCSensorUploadDefinition(sensor: .ecg, strategy: UploadStrategyJSONFile()),
             MHCSensorUploadDefinition(sensor: .wristTemperature, strategy: UploadStrategyCSVFile2()),
             MHCSensorUploadDefinition(sensor: .heartRate, strategy: UploadStrategyCSVFile()),
             MHCSensorUploadDefinition(sensor: .pedometer, strategy: UploadStrategyCSVFile()),

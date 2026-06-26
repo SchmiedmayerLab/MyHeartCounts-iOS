@@ -262,23 +262,20 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
             result.numberOfSteps = 624
             result.distanceCovered = 842
         } else {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-                pedometer.queryPedometerData(from: result.startDate, to: result.endDate) { @Sendable data, error in
+            result = try await withCheckedThrowingContinuation { [result] continuation in
+                pedometer.queryPedometerData(from: result.startDate, to: result.endDate) { @Sendable [result] data, error in
+                    var result = result
                     guard let data else {
                         if let error {
                             continuation.resume(throwing: error)
                         } else {
-                            continuation.resume() // hmmm
+                            continuation.resume(returning: result) // hmmm
                         }
                         return
                     }
-                    let numSteps = data.numberOfSteps.intValue
-                    let distance = data.distance?.doubleValue ?? 0
-                    Task { @MainActor in
-                        result.numberOfSteps = numSteps
-                        result.distanceCovered = distance
-                    }
-                    continuation.resume()
+                    result.numberOfSteps = data.numberOfSteps.intValue
+                    result.distanceCovered = data.distance?.doubleValue ?? 0
+                    continuation.resume(returning: result)
                 }
             }
         }

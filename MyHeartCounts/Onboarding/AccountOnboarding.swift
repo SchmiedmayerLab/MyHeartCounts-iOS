@@ -24,19 +24,27 @@ struct AccountOnboarding: View {
     private var standard
     
     var body: some View {
-        AccountSetup { details in
-            Task {
-                // Placing the nextStep() call inside this task will ensure that the sheet dismiss animation is
-                // played till the end before we navigate to the next step.
-                advance(details)
+        VStack {
+            AccountSetup { details in
+                Task {
+                    // Placing the nextStep() call inside this task will ensure that the sheet dismiss animation is
+                    // played till the end before we navigate to the next step.
+                    advance(details)
+                }
+            } header: {
+                AccountSetupHeader()
+            } continue: {
+                // action if the user already is logged in
+                OnboardingActionsView("Next") {
+                    await advance(standard.account?.details ?? AccountDetails())
+                }
             }
-        } header: {
-            AccountSetupHeader()
-        } continue: {
-            // action if the user already is logged in
-            OnboardingActionsView("Next") {
-                await advance(standard.account?.details ?? AccountDetails())
-            }
+            // NOTE: ideally we'd have this be semantically part of the AccountSetup (pushed all the way to the bottom),
+            // but since that is a ScrollView er have no easy way to achieve this, so we put it here instead, for the time being.
+            Spacer()
+            Link2("Privacy Policy", MyHeartCounts.website(.privacyPolicy))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
         .navigationTitle(Text(verbatim: ""))
         .toolbar(.visible)

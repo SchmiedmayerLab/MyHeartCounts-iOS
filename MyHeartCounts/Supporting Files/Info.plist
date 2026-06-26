@@ -4,8 +4,9 @@
 <dict>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>edu.stanford.MyHeartCounts.SensorKitProcessing</string>
 		<string>edu.stanford.MyHeartCounts.AppRefresh</string>
+		<string>edu.stanford.MyHeartCounts.stagedHealthSamplesUpload</string>
+		<string>edu.stanford.MyHeartCounts.SensorKitProcessing</string>
 		<string>edu.stanford.spezi.scheduler.notifications-scheduling</string>
 	</array>
 	<key>CFBundleAllowMixedLocalizations</key>
@@ -62,7 +63,7 @@
 	<key>NSMotionUsageDescription</key>
 	<string>My Heart Counts uses motion data to conduct a timed walking test</string>
 	<key>NSSensorKitPrivacyPolicyURL</key>
-	<string>https://myheartcounts.su.domains/privacy-policy/</string>
+	<string>https://myheartcounts.stanford.edu/privacy</string>
 	<key>NSSensorKitUsageDetail</key>
 	<dict>
 		<key>SRSensorUsageAmbientLightSensor</key>

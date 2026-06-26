@@ -45,7 +45,7 @@ private struct DebugFormImpl: View {
                 DemographicsButton(allowDragToDismiss: false)
             }
             Section {
-                MemoryUsageIndicator()
+                MemoryUsageIndicator(style: .labeledContent)
             }
             Section("Notifications") {
                 Toggle(isOn: $healthUploadNotifications) {
@@ -76,6 +76,9 @@ private struct DebugFormImpl: View {
                 NavigationLink(symbol: .calendar, "Health Data Bulk Upload" as String) {
                     HealthImporterControlView()
                 }
+                NavigationLink("Health Observations Local Persistence" as String) {
+                    HealthObservationsLocalPersistenceLayerDebugView()
+                }
                 NavigationLink("SensorKit" as String) {
                     SensorKitControlView()
                 }
@@ -85,8 +88,22 @@ private struct DebugFormImpl: View {
                 NavigationLink("File Upload Queue" as String) {
                     FileUploadInsights()
                 }
+                NavigationLink("Scheduler Stats" as String) {
+                    SchedulerStats()
+                }
+                NavigationLink("File Browser" as String) {
+                    FileBrowser(url: .documentsDirectory)
+                }
             }
             Section("Other" as String) {
+                LabeledContent("size(AS/firestore)" as String, value: { () -> String in
+                    let url = URL.applicationSupportDirectory.appendingPathComponent("firestore", isDirectory: true)
+                    if let size = try? FileManager.default.directorySize(at: url) {
+                        return size.formatted(.byteCount(style: .file))
+                    } else {
+                        return "n/a"
+                    }
+                }())
                 Button("Reset rejected HomeTab actions" as String) {
                     rejectedHomeTabActions = []
                 }
@@ -100,6 +117,9 @@ private struct DebugFormImpl: View {
                 answerQuestionnaireRow
                 AsyncButton("Add Demo Data" as String, state: $viewState) {
                     try await demoSetup.addDemoData()
+                }
+                CheckForUpdateButton {
+                    Text(verbatim: "Check for App Update")
                 }
             }
             Section {

@@ -23,7 +23,6 @@ struct AccountSheet: View {
     // swiftlint:disable attributes
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.openURL) private var openUrl
     @Environment(\.openSettingsApp) private var openSettingsApp
     @Environment(Account.self) private var account
     @Environment(HistoricalHealthSamplesExportManager.self) private var historicalDataExportMgr
@@ -79,48 +78,8 @@ struct AccountSheet: View {
             }
         }
         if let enrollment = enrollments.first {
-            Section("Study Participation") { // swiftlint:disable:this closure_body_length
-                Button {
-                    openUrl(MyHeartCounts.website())
-                } label: {
-                    HStack {
-                        makeEnrolledStudyRow(for: enrollment)
-                        Spacer()
-                        DisclosureIndicator()
-                    }
-                    .contentShape(Rectangle())
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
-                }
-                NavigationLink("Review Consent Forms") {
-                    SignedConsentForms()
-                }
-                if let text = { () -> LocalizedStringResource? in
-                    switch (isProcessingHealthData, isProcessingSensorKitData) {
-                    case (true, true):
-                        "Processing Health and SensorKit Data…"
-                    case (true, false):
-                        "Processing Health Data…"
-                    case (false, true):
-                        "Processing SensorKit Data…"
-                    case (false, false):
-                        nil
-                    }
-                }() {
-                    let label = HStack {
-                        Text(text)
-                        Spacer()
-                        ProgressView()
-                    }
-                    if debugModeEnabled {
-                        NavigationLink {
-                            DataProcessingDebugView()
-                        } label: {
-                            label
-                        }
-                    } else {
-                        label
-                    }
-                }
+            Section("Study Participation") {
+                studyParticipationSection(enrollment)
             }
         }
         Section {
@@ -137,6 +96,10 @@ struct AccountSheet: View {
         }
         Section {
             AboutRow()
+            Link2(MyHeartCounts.website(.privacyPolicy)) {
+                Label("Privacy Policy", systemSymbol: .lockShield)
+                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+            }
             NavigationLink {
                 ContributionsList(projectLicense: .mit)
             } label: {
@@ -171,14 +134,62 @@ struct AccountSheet: View {
     
     
     @ViewBuilder
+    private func studyParticipationSection(_ enrollment: StudyEnrollment) -> some View {
+        Link2(MyHeartCounts.website(.homepage)) {
+            HStack {
+                makeEnrolledStudyRow(for: enrollment)
+                Spacer()
+                DisclosureIndicator()
+            }
+            .contentShape(Rectangle())
+            .foregroundStyle(colorScheme.textLabelForegroundStyle)
+        }
+        PostTrialNudgesToggle()
+        NavigationLink("Review Consent Forms") {
+            SignedConsentForms()
+        }
+        if let text = { () -> LocalizedStringResource? in
+            switch (isProcessingHealthData, isProcessingSensorKitData) {
+            case (true, true):
+                "Processing Health and SensorKit Data…"
+            case (true, false):
+                "Processing Health Data…"
+            case (false, true):
+                "Processing SensorKit Data…"
+            case (false, false):
+                nil
+            }
+        }() {
+            let label = HStack {
+                Text(text)
+                Spacer()
+                ProgressView()
+            }
+            if debugModeEnabled {
+                NavigationLink {
+                    DataProcessingDebugView()
+                } label: {
+                    label
+                }
+            } else {
+                label
+            }
+        }
+    }
+    
+    @ViewBuilder
     private func makeEnrolledStudyRow(for enrollment: StudyEnrollment) -> some View {
         if let studyInfo = enrollment.studyBundle?.studyDefinition.metadata {
             VStack(alignment: .leading) {
-                Text(studyInfo.title)
-                    .font(.headline)
-                Text(studyInfo.shortExplanationText)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(.secondary)
+                if let title = studyInfo.title[.current] {
+                    Text(title)
+                        .font(.headline)
+                }
+                if let explainer = studyInfo.shortExplanationText[.current] {
+                    Text(explainer)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
                 Text("Enrolled since: \(enrollment.enrollmentDate, format: .dateTime)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -197,6 +208,49 @@ struct AccountSheet: View {
     }
 }
 
+
+extension AccountSheet {
+    private struct PostTrialNudgesToggle: View {
+        @Environment(Account.self)
+        private var account
+        
+        @State private var value = false
+        @State private var updateTask: Task<Void, Never>?
+        @State private var shouldHandleUpdates = true
+        
+        var body: some View {
+            Toggle(isOn: $value) {
+                VStack(alignment: .leading) {
+                    Text("POST_TRIAL_ACTIVITY_NUDGES_TOGGLE_TITLE")
+                    Text("POST_TRIAL_ACTIVITY_NUDGES_TOGGLE_SUBTITLE")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .onChange(of: account.details?.postTrialNudgesOptIn ?? false, initial: true) { _, newValue in
+                shouldHandleUpdates = false
+                value = newValue
+                shouldHandleUpdates = true
+            }
+            .onChange(of: value) { _, newValue in
+                updateTask?.cancel()
+                guard shouldHandleUpdates else {
+                    return
+                }
+                updateTask = Task {
+                    do {
+                        try await Task.sleep(for: .seconds(0.25))
+                        var details = AccountDetails()
+                        details.postTrialNudgesOptIn = newValue
+                        try await account.accountService.updateAccountDetails(AccountModifications(modifiedDetails: details))
+                    } catch {
+                        // we silently ignore the error here
+                    }
+                }
+            }
+        }
+    }
+}
 
 extension AccountSheet {
     private struct AboutRow: View {
@@ -225,7 +279,7 @@ extension AccountSheet {
                         Section {
                             let bundle = Bundle.main
                             LabeledContent("Version" as String, value: bundle.appVersion)
-                            LabeledContent("Build" as String, value: bundle.appBuildNumber ?? -1, format: .number)
+                            LabeledContent("Build" as String, value: bundle.appBuildNumber?.description ?? "n/a")
                         }
                         Section {
                             LabeledContent("Study Revision" as String, value: enrollments.first?.studyRevision.description ?? "n/a")
@@ -254,4 +308,12 @@ extension AccountOverviewOperationLabels {
         confirmationAlertMessage: "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose.",
         confirmationAlertSubmitButton: "Withdraw"
     )
+}
+
+
+extension LocalizationKey {
+    static var current: Self {
+        let locale = Locale.current
+        return LocalizationKey(language: locale.language, region: locale.region ?? .unitedStates)
+    }
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "2600"
+   LastUpgradeVersion = "2640"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -66,7 +66,6 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      region = "US"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
@@ -98,15 +97,15 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--setupTestEnvironment reset"
-            isEnabled = "YES">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "--setupTestEnvironment reset login-and-enroll"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--forceEnableDebugMode"
+            argument = "--setupTestEnvironment reset login-and-enroll"
             isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--forceEnableDebugMode"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--useFirebaseEmulator"
@@ -118,10 +117,14 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--overrideFirebaseConfig plist=GoogleService-Info-Override"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--studyBundle &apos;/Users/lukas/Desktop/MHC StudyDefs/mhcStudyBundle.spezistudybundle.aar&apos;"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--overrideStudyBundleLocation &apos;/Users/lukas/Desktop/MHC StudyDefs/mhcStudyBundle.spezistudybundle.aar&apos;"
+            argument = "--studyBundle bundledWithApp"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

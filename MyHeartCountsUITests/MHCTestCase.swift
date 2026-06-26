@@ -29,6 +29,8 @@ import XCTHealthKit
 class MHCTestCase: XCTestCase, @unchecked Sendable {
     static let loginCredentials = (email: "leland@stanford.edu", password: "StanfordRocks!")
     
+    static let enableHealthRecords = false // temporarily disabled
+    
     private static let tempDir = URL.temporaryDirectory.appending(component: "edu.stanford.MyHeartCounts.UITests", directoryHint: .isDirectory)
     
     @MainActor private(set) var app: XCUIApplication!
@@ -72,6 +74,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
         locale: Locale = .current,
         enableDebugMode: Bool = false,
         testEnvironmentConfig: SetupTestEnvironmentConfig = .init(resetExistingData: true, loginAndEnroll: true),
+        enableHealthRecords: Bool = MHCTestCase.enableHealthRecords,
         skipHealthPermissionsHandling: Bool = false,
         skipGoingToHomeTab: Bool = false,
         heightEntryUnitOverride: LaunchOptions.HeightInputUnitOverride = .none,
@@ -85,9 +88,10 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
         app.launchArguments = Array {
             "--useFirebaseEmulator"
             testEnvironmentConfig.launchOptionArgs(for: .setupTestEnvironment)
-            studyBundleUrl.launchOptionArgs(for: .overrideStudyBundleLocation)
+            StudyBundleSelector.atUrl(studyBundleUrl).launchOptionArgs(for: .studyBundleSelector)
             "--disableAutomaticBulkHealthExport"
             enableDebugMode.launchOptionArgs(for: .forceEnableDebugMode)
+            enableHealthRecords.launchOptionArgs(for: .enableHealthRecords)
             heightEntryUnitOverride.launchOptionArgs(for: .heightInputUnitOverride)
             weightEntryUnitOverride.launchOptionArgs(for: .weightInputUnitOverride)
         }
@@ -152,6 +156,7 @@ extension MHCTestCase {
         XCTAssert(button.isEnabled)
         XCTAssert(button.isHittable)
         button.tap()
+        sleep(for: .seconds(0.5))
     }
     
     @MainActor

@@ -83,14 +83,13 @@ struct RegionComingSoon: View {
                 .buttonStyleGlassProminent()
             }
             Spacer(minLength: 24)
-            Link(destination: MyHeartCounts.website(for: selectedRegion)) {
+            Link2(MyHeartCounts.website(.homepage, for: selectedRegion)) {
                 HStack {
                     Text("INELIGIBLE_LEARN_MORE")
                     Spacer()
                     Image(systemSymbol: .arrowUpRight)
                         .accessibilityHidden(true)
                 }
-                .buttonStyleGlass()
             }
         }
         .viewStateAlert(state: $viewState)

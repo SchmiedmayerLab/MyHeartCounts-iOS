@@ -6,11 +6,13 @@
 // SPDX-License-Identifier: MIT
 //
 
+import FHIRModelsExtensions
 import HealthKitOnFHIR
 import ModelsR4
 import SpeziSensorKit
 
 
+// periphery:ignore - retained for future use; live SensorKit upload uses ``UploadStrategyJSONFile``.
 /// An upload strategy that uploads each sample as a FHIR observation.
 struct UploadStrategyFHIRObservations<Sample: SensorKitSampleProtocol>: MHCSensorSampleUploadStrategy
 where Sample.SafeRepresentation: HealthObservation {

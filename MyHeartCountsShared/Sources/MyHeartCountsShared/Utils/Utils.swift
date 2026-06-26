@@ -109,29 +109,6 @@ extension Double {
 
 
 extension Sequence {
-    /// Maps the elements of the sequence, using an asynchronous function.
-    public func mapAsync<Result, E>(_ transform: (Element) async throws(E) -> Result) async throws(E) -> [Result] {
-        var results: [Result] = []
-        results.reserveCapacity(underestimatedCount)
-        for element in self {
-            results.append(try await transform(element))
-        }
-        return results
-    }
-    
-    /// Compact-maps the elements of the sequence, using an asynchronous function.
-    public func compactMapAsync<Result, E>(_ transform: (Element) async throws(E) -> Result?) async throws(E) -> [Result] {
-        var results: [Result] = []
-        results.reserveCapacity(underestimatedCount)
-        for element in self {
-            if let transformed = try await transform(element) {
-                results.append(transformed)
-            }
-        }
-        return results
-    }
-    
-    
     /// Calculates the mean (average) over all elements in the Sequence.
     public func mean() -> Element? where Element: BinaryFloatingPoint {
         var iterator = self.makeIterator()

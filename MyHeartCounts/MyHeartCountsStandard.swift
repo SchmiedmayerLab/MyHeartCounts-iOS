@@ -38,13 +38,14 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(Account.self) var account: Account?
     @Dependency(LocalStorage.self) private var localStorage
     @Dependency(StudyBundleLoader.self) private var studyLoader
-    @Dependency(TimeZoneTracking.self) private var timeZoneTracking: TimeZoneTracking?
+    @Dependency(EnvironmentTracking.self) private var environmentTracking: EnvironmentTracking?
     @Dependency(ManagedFileUpload.self) var managedFileUpload
     @Dependency(SetupTestEnvironment.self) private var setupTestEnvironment
     @Dependency(HistoricalHealthSamplesExportManager.self) private var historicalUploadManager
     @Dependency(NotificationTracking.self) var notificationTracking
     @Dependency(Scheduler.self) var scheduler
     @Dependency(SensorKitDataFetcher.self) private var sensorKitFetcher
+    @Dependency(HealthUploadStaging.self) var healthUploadStaging
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
     @Dependency(AppState.self) private var appState
@@ -57,7 +58,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     func configure() {
         _Concurrency.Task {
             await handleIsLoggedOut()
-            await updateStudyDefinition()
+            await handleStudyBundleUpdates()
         }
     }
     
@@ -75,18 +76,6 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             } catch {
                 await logger.error("\(#function): \(error)")
             }
-        }
-    }
-    
-    func updateStudyDefinition() async {
-        guard let studyManager, let studyBundle = try? await studyLoader.update() else {
-            return
-        }
-        logger.notice("Informing StudyManager about v\(studyBundle.studyDefinition.studyRevision) of MHC studyBundle")
-        do {
-            try await studyManager.informAboutStudies([studyBundle])
-        } catch {
-            logger.error("\(error)")
         }
     }
     
@@ -116,6 +105,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             _Concurrency.Task(priority: .background) {
                 historicalUploadManager.startAutomaticExportingIfNeeded()
             }
+            await Self._updateCurrentEnrollmentInfo(studyManager)
         } catch StudyManager.StudyEnrollmentError.alreadyEnrolledInNewerStudyRevision {
             // should be unreachable, but we'll handle this as a non-error just to be safe.
         } catch {
@@ -131,7 +121,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         case .associatedAccount(let details):
             logger.notice("account was associated (account id: \(details.accountId))")
             _Concurrency.Task {
-                try? await timeZoneTracking?.updateTimeZoneInfo()
+                await environmentTracking?.triggerAll()
                 _ = try? await registerRemoteNotifications()
             }
         case .deletingAccount:
@@ -147,6 +137,42 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     func willLogOut(_ details: AccountDetails) async {
         logger.notice("account is being logged out")
         try? await notificationsManager.setFCMToken(nil)
+    }
+}
+
+
+extension MyHeartCountsStandard {
+    func updateStudyDefinition() async {
+        // if this ends up updating the StudyBundle, it will trigger the observation tracking in the function below
+        _ = try? await studyLoader.update()
+    }
+    
+    private func handleStudyBundleUpdates() async {
+        let studyBundle = withObservationTracking {
+            studyLoader.studyBundle?.value
+        } onChange: { [weak self] in
+            Swift::Task { [weak self] in
+                await self?.handleStudyBundleUpdates()
+            }
+        }
+        guard let studyManager else {
+            return
+        }
+        defer {
+            // we still want this to happen if the study bundle loading below failed
+            _Concurrency.Task {
+                await Self._updateCurrentEnrollmentInfo(studyManager)
+            }
+        }
+        guard let studyBundle else {
+            return
+        }
+        do {
+            logger.notice("Informing StudyManager about v\(studyBundle.studyDefinition.studyRevision) of MHC studyBundle")
+            try await studyManager.informAboutStudies([studyBundle])
+        } catch {
+            logger.error("Error informing StudyManager about study bundle: \(error)")
+        }
     }
 }
 
@@ -179,6 +205,7 @@ extension MyHeartCountsStandard {
         // if the user wants to switch to a different region, the easiest approach currently is to just kill and relaunch the app.
         try? await managedFileUpload.clearPendingUploads()
         try? await historicalUploadManager.fullyResetSession(restart: false)
+        try? await healthUploadStaging.clear()
         await sensorKitFetcher.resetAllQueryAnchors()
         await clinicalRecordPermissions.resetTracking()
         LocalPreferencesStore.standard[.rejectedHomeTabPromptedActions] = nil
@@ -202,7 +229,9 @@ extension MyHeartCountsStandard {
         case .onLaunchCleanupBcNoUser:
             return
         case .explicitUserLogoutEvent:
-            break
+            // Schedule a firestore persistence cleanup for the nect launch.
+            // Ideally we'd have this run immediately, but it only works directly after firebase was loaded.
+            LocalPreferencesStore.standard[.shouldClearFirestoreCacheOnNextLaunch] = true
         }
         let isInTestEnvSetup = await setupTestEnvironment.isInSetup
         _Concurrency.Task {

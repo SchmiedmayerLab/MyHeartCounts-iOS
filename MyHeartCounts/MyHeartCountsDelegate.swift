@@ -27,13 +27,19 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
         if let selector = FeatureFlags.overrideFirebaseConfig {
             LocalPreferencesStore.standard[.lastUsedFirebaseConfig] = selector
         }
-        return Configuration(standard: MyHeartCountsStandard()) {
+        return Configuration(standard: MyHeartCountsStandard()) { // swiftlint:disable:this closure_body_length
             FirebaseConfiguration()
             SetupTestEnvironment()
             DeferredConfigLoading.initialAppLaunchConfig
             HealthKit()
+            HealthUploadStaging(
+                persistence: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .onDisk
+            )
+            HealthUploadStagingUploader()
             ClinicalRecordPermissions()
-            Scheduler()
+            Scheduler(
+                persistence: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .onDisk
+            )
             Notifications()
             BulkHealthExporter()
             HistoricalHealthSamplesExportManager()
@@ -45,11 +51,13 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             SensorKitDataFetcher()
             LocalNotifications()
             Lifecycle()
+            AppState()
             AppRefresh()
             MHCBackgroundTasks()
             ManagedFileUpload {
                 ManagedFileUpload.Category.liveHealthUpload
                 ManagedFileUpload.Category.historicalHealthUpload
+                ManagedFileUpload.Category.healthDeletions
                 for sensor in SensorKit.mhcSensors {
                     ManagedFileUpload.Category(sensor)
                 }
@@ -67,5 +75,12 @@ extension ModuleBuilder {
     // periphery:ignore - implicitly called
     static func buildExpression(_ modules: some Sequence<any Module>) -> [any Module] {
         Array(modules)
+    }
+}
+
+
+extension ProcessInfo {
+    static var isReallyRunningInXCTest: Bool {
+        Self.isRunningInXCTest && Self.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 }

@@ -1,1 +1,1 @@
-http://myheartcounts.stanford.edu/privacy.html
+https://myheartcounts.stanford.edu/privacy
