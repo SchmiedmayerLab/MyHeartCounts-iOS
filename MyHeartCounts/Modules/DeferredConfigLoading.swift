@@ -249,7 +249,7 @@ enum DeferredConfigLoading {
                         .manual(\.usZipCodePrefix),
                         .manual(\.householdIncomeUS),
                         .manual(\.ukRegion),
-                        .manual(\.ukPostcodePrefix),
+                        .manual(\.ukPostcode),
                         .manual(\.householdIncomeUK),
                         .manual(\.heightInCM),
                         .manual(\.weightInKG),

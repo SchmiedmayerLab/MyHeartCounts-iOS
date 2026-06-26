@@ -23,7 +23,7 @@ struct LatinoStatusOption: RawRepresentableAccountKey, DemographicsSelectableSim
     }
     
     init?(rawValue: UInt8) {
-        let allOptions = Self.options + [.notSet, .preferNotToState]
+        let allOptions: [Self] = Self.options + [.notSet, .preferNotToState].compactMap(\.self)
         guard let option = allOptions.first(where: { $0.rawValue == rawValue }) else {
             return nil
         }
@@ -33,7 +33,7 @@ struct LatinoStatusOption: RawRepresentableAccountKey, DemographicsSelectableSim
 
 extension LatinoStatusOption {
     static let notSet = Self(rawValue: 0, displayTitle: "Not Set")
-    static let preferNotToState = Self(rawValue: .max, displayTitle: "Prefer not to state")
+    static let preferNotToState: Self? = Self(rawValue: .max, displayTitle: "Prefer not to state")
     
     static let options: [Self] = [
         Self(rawValue: 1, displayTitle: "No"),

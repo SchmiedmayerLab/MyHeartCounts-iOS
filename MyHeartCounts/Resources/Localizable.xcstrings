@@ -1494,6 +1494,9 @@
         }
       }
     },
+    "Check your inbox and click the confirmation link to verify your account." : {
+
+    },
     "Chronic kidney disease" : {
       "localizations" : {
         "en-GB" : {
@@ -1605,6 +1608,15 @@
           }
         }
       }
+    },
+    "Complete" : {
+
+    },
+    "Complete Demographics" : {
+
+    },
+    "Completed" : {
+
     },
     "COMPREHENSION_QUESTION_1" : {
       "localizations" : {
@@ -1940,7 +1952,11 @@
         }
       }
     },
+    "Data collection enabled for %@ sensors" : {
+
+    },
     "Data collection enabled for %lld sensors" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -3037,6 +3053,7 @@
       }
     },
     "First half of Postcode" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -3765,6 +3782,9 @@
           }
         }
       }
+    },
+    "How did you hear about the study?" : {
+
     },
     "How to Manage SensorKit" : {
       "localizations" : {
@@ -6054,6 +6074,9 @@
         }
       }
     },
+    "Open Mail App" : {
+
+    },
     "Open Settings" : {
       "localizations" : {
         "en-GB" : {
@@ -6403,6 +6426,9 @@
         }
       }
     },
+    "Postcode (UK)" : {
+
+    },
     "Prefer not to state" : {
       "localizations" : {
         "en-GB" : {
@@ -6499,6 +6525,258 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Procesando datos de sueño..."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTION_COMPLETE_DEMOGRAPHICS_MESSAGE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Providing demographic information such as age, sex, and background helps researchers understand how heart health varies across different groups."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Providing demographic information such as age, sex, and background helps researchers understand how heart health varies across different groups."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_ALL_SET" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You're All Set"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You're All Set"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo listo"
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_CHECKLIST_DONT_SUGGEST_A11Y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don't suggest “%@” again"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don't suggest “%@” again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No volver a sugerir “%@”"
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_CHECKLIST_FOOTER_ALL_ACTIONS" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These optional steps help My Heart Counts gather richer data for cardiovascular research."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These optional steps help My Heart Counts gather richer data for cardiovascular research."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_CHECKLIST_FOOTER_PENDING_ONLY" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These optional steps help My Heart Counts gather richer data for cardiovascular research. Suggestions you decline won't be shown again."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These optional steps help My Heart Counts gather richer data for cardiovascular research. Suggestions you decline won't be shown again."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_CHECKLIST_TITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggested for You"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggested for You"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sugerencias para usted"
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_DIGEST_A11Y_HINT" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens a list of suggested setup steps."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens a list of suggested setup steps."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre una lista de pasos de configuración sugeridos."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_DIGEST_SUBTITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld recommended steps](inflect: true) to get the most out of the study"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld recommended steps](inflect: true) to get the most out of the study"
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld paso recomendado para aprovechar al máximo el estudio"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pasos recomendados para aprovechar al máximo el estudio"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_DIGEST_SUBTITLE_ALL_COMPLETED" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’ve completed all recommended setup steps."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’ve completed all recommended setup steps."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_SETUP_DIGEST_TITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete Your Study Setup"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete Your Study Setup"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete la configuración del estudio"
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_STOP_SUGGESTING_CONFIRM_MESSAGE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This action remains available through the app's settings."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This action remains available through the app's settings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta acción seguirá estando disponible en los ajustes de la aplicación."
+          }
+        }
+      }
+    },
+    "PROMPTED_ACTIONS_STOP_SUGGESTING_CONFIRM_TITLE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Suggesting This?"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Suggesting This?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Dejar de sugerir esto?"
           }
         }
       }
@@ -7085,6 +7363,185 @@
         }
       }
     },
+    "Referral Source" : {
+
+    },
+    "REFERRAL_OPTION_1" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Healthcare provider (doctor, cardiologist, nurse)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Healthcare provider (doctor, cardiologist, nurse)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_2" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hospital or clinic"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hospital or clinic"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_3" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Friend or family member"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Friend or family member"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_4" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heart health organization or support group"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heart health organization or support group"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_5" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Research or clinical trial website (ClinicalTrials.gov, ResearchMatch, etc.)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Research or clinical trial website (ClinicalTrials.gov, ResearchMatch, etc.)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_6" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online ad (Google, Facebook, Instagram, Reddit, etc.)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online ad (Google, Facebook, Instagram, Reddit, etc.)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_7" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online search or social media (not an ad)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online search or social media (not an ad)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_8" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email invitation or newsletter"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email invitation or newsletter"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_9" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "News media (article, TV, radio, podcast)"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "News media (article, TV, radio, podcast)"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_10" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyer or poster"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyer or poster"
+          }
+        }
+      }
+    },
+    "REFERRAL_OPTION_11" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        }
+      }
+    },
     "Region" : {
       "localizations" : {
         "en-GB" : {
@@ -7452,6 +7909,9 @@
           }
         }
       }
+    },
+    "SensorKit" : {
+
     },
     "SensorKit %@" : {
       "localizations" : {
@@ -8704,6 +9164,9 @@
           }
         }
       }
+    },
+    "Verify Account Email" : {
+
     },
     "Vermont" : {
       "localizations" : {

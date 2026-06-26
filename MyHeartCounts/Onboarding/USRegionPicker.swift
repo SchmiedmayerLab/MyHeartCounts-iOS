@@ -12,9 +12,6 @@ import SwiftUI
 
 
 struct USRegionPicker: View {
-    @Environment(\.colorScheme)
-    private var colorScheme
-    
     @Binding var selection: USRegion?
     
     var body: some View {
@@ -54,7 +51,7 @@ struct USRegionPicker: View {
                     Text(region.abbreviation)
                         .foregroundStyle(.secondary)
                 }
-                .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                .foregroundStyle(.textLabel)
             }
         }
     }

@@ -6,6 +6,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+// swiftlint:disable type_contents_order
+
 import Foundation
 import MyHeartCountsShared
 import SFSafeSymbols
@@ -13,120 +15,114 @@ import SFSafeSymbols
 import Spezi
 import SpeziHealthKit
 import SpeziSensorKit
+import SwiftUI
 
 
-extension HomeTab {
-    @Observable
-    @MainActor
-    final class PromptedAction: nonisolated Identifiable, Sendable {
-        typealias Handler = @Sendable @MainActor (Spezi) async throws -> Void
+/// An action that is presented to the user at the top of the ``HomeTab``.
+///
+/// - Note: All actions are automatically considered disabled when MHC's automated screenshot flow is running.
+@Observable
+@MainActor
+final class PromptedAction: nonisolated Identifiable, Sendable {
+    struct ID: Hashable, Codable, Sendable {
+        private let value: String
         
-        struct ID: Hashable, Codable, Sendable {
-            private let value: String
-            
-            init(_ value: String) {
-                self.value = value
-            }
-            
-            init(from decoder: any Decoder) throws {
-                let container = try decoder.singleValueContainer()
-                self.value = try container.decode(String.self)
-            }
-            
-            func encode(to encoder: any Encoder) throws {
-                var container = encoder.singleValueContainer()
-                try container.encode(self.value)
-            }
+        init(_ value: String) {
+            self.value = value
         }
         
-        enum Condition {
-            /// A condition that evaluates to true, if the number of days that have passed since the study enrollment falls within the specified range.
-            case daysSinceEnrollment(ClosedRange<Int>)
-            /// A condition that uses a custom closure.
-            case custom(@MainActor @Sendable (Spezi) -> Bool)
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            self.value = try container.decode(String.self)
         }
         
-        struct Content: Hashable {
-            let symbol: SFSymbol
-            let title: LocalizedStringResource
-            let message: LocalizedStringResource
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.singleValueContainer()
+            try container.encode(self.value)
         }
-        
-        nonisolated let id: ID
-        /// The action's condition.
+    }
+    
+    enum State: Hashable, Sendable {
+        case pending
+        case completed
+        case unavailable
+    }
+    
+    struct CurrentStateContext: Sendable {
+        /// When the participant first enrolled into the study.
+        let enrollmentDate: Date
+        /// When the participant activated the current local study enrollment within the on-device context of the My Heart Counts app.
         ///
-        /// The action will only be prompted to the user if all condutions evaluate to true.
-        let conditions: [Condition]
-        let content: Content
-        private let handler: Handler
-        // intended for observing when the action was performed, and the UI needs to be updated.
-        @MainActor private(set) var lastResult: Result<Void, any Error>?
+        /// - Note: This is not necessarily equivalent to the ``enrollmentDate``.
+        ///     For example, if the user deletes the app, re-installs it, and logs back in to their old account, the enrollment date would remain the same, but the activation date would get reset to when they completed the onboarding again as part of the reinstall.
+        let studyActivationDate: Date
+        /// Spezi
+        let spezi: Spezi
         
-        nonisolated init(id: ID, conditions: [Condition], content: Content, handler: @escaping Handler) {
-            self.id = id
-            self.conditions = conditions
-            self.content = content
-            self.handler = handler
-        }
-        
-        func callAsFunction(_ spezi: Spezi) async throws {
-            lastResult = await Result {
-                try await handler(spezi)
-            }
-            try lastResult!.get() // swiftlint:disable:this force_unwrapping
-        }
-    }
-}
-
-
-extension HomeTab.PromptedAction.ID {
-    static let sensorKit = Self("edu.stanford.MyHeartCounts.HomeTabAction.EnableSensorKit")
-    static let clinicalRecords = Self("edu.stanford.MyHeartCounts.HomeTabAction.EnableClinicalRecords")
-}
-
-
-extension HomeTab.PromptedAction {
-    static let allActions: [HomeTab.PromptedAction] = [.enableSensorKit]
-    
-    static let enableSensorKit = HomeTab.PromptedAction(
-        id: .sensorKit,
-        conditions: [
-            .daysSinceEnrollment(0...21),
-            .custom { _ in
-                   SensorKit.isAvailable
-                && !FeatureFlags.isTakingDemoScreenshots
-                && SensorKit.mhcSensors.contains { $0.authorizationStatus == .notDetermined }
-            }
-        ],
-        content: .init(
-            symbol: .waveformPathEcgRectangle,
-            title: "Enable SensorKit",
-            message: "ENABLE_SENSORKIT_SUBTITLE"
-        )
-    ) { spezi in
-        guard let sensorKit = spezi.module(SensorKit.self) else {
-            return
-        }
-        let result = try await sensorKit.requestAccess(to: SensorKit.mhcSensors)
-        for sensor in result.authorized {
-            try? await sensor.startRecording()
+        var daysSinceActivation: Int {
+            Calendar.current.offsetInDays(from: studyActivationDate, to: .now)
         }
     }
     
-    static let enableClinicalRecords = HomeTab.PromptedAction(
-        id: .clinicalRecords,
-        conditions: [
-            .daysSinceEnrollment(0...21),
-            .custom { spezi in
-                spezi.module(ClinicalRecordPermissions.self)?.authorizationState == .cancelled
-            }
-        ],
-        content: .init(
-            symbol: HealthRecords.symbol,
-            title: "Enable Clinical Records",
-            message: "HEALTH_RECORDS_NUDGE_SUBTITLE"
+    typealias CurrentState = @Sendable @MainActor (_ context: CurrentStateContext) -> State
+    
+    
+    struct Content: Hashable {
+        let symbol: SFSymbol
+        let title: LocalizedStringResource
+        let message: LocalizedStringResource
+        /// Title of the button that actually performs the action
+        let performActionButtonTitle: LocalizedStringResource
+    }
+    
+    enum Action: Sendable {
+        case closure(@Sendable @MainActor (Spezi) async throws -> Void)
+        /// - Important: The sheet is responsible for dismissing itself!
+        case sheet(@Sendable @MainActor () -> AnyView)
+    }
+    
+    nonisolated let id: ID
+    /// The action's condition.
+    ///
+    /// The action will only be prompted to the user if all condutions evaluate to true.
+    private let currentState: CurrentState
+    let content: Content
+    let action: Action
+    
+    nonisolated private init(id: ID, currentState: @escaping CurrentState, content: Content, action: Action) {
+        self.id = id
+        self.currentState = currentState
+        self.content = content
+        self.action = action
+    }
+    
+    nonisolated convenience init(
+        id: ID,
+        state: @escaping CurrentState,
+        content: Content,
+        handler: @escaping @Sendable @MainActor (Spezi) async throws -> Void
+    ) {
+        self.init(id: id, currentState: state, content: content, action: .closure(handler))
+    }
+    
+    nonisolated convenience init(
+        id: ID,
+        state: @escaping CurrentState,
+        content: Content,
+        @ViewBuilder sheetContent: @escaping @Sendable @MainActor () -> some View
+    ) {
+        self.init(
+            id: id,
+            currentState: state,
+            content: content,
+            action: .sheet { AnyView(sheetContent()) }
         )
-    ) { spezi in
-        try await spezi.module(ClinicalRecordPermissions.self)?.askForAuthorization(askAgainIfCancelledPreviously: true)
+    }
+    
+    func state(context: CurrentStateContext) -> State {
+        guard !FeatureFlags.isTakingDemoScreenshots else {
+            return .unavailable
+        }
+        return currentState(context)
     }
 }

@@ -17,7 +17,6 @@ struct IsFromRegion: ScreeningComponent {
     let title: LocalizedStringResource = "Region"
     // swiftlint:disable attributes
     @Environment(\.locale) private var locale
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(OnboardingDataCollection.self) private var data
     // swiftlint:enable attributes
     
@@ -45,11 +44,11 @@ struct IsFromRegion: ScreeningComponent {
             HStack {
                 Text("What country do you currently live in?")
                     .fontWeight(.medium)
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                    .foregroundStyle(.textLabel)
                 Spacer()
                 if let region = data.screening.region {
                     Text(region.localizedName(in: locale, includeEmoji: .none))
-                        .foregroundStyle(colorScheme.textLabelForegroundStyle.secondary)
+                        .foregroundStyle(.textLabel.secondary)
                 }
                 DisclosureIndicator()
                     .accessibilityHidden(true)

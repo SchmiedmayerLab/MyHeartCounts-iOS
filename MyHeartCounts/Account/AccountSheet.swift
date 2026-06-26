@@ -22,7 +22,6 @@ struct AccountSheet: View {
     private let dismissAfterSignIn: Bool
     // swiftlint:disable attributes
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openSettingsApp) private var openSettingsApp
     @Environment(Account.self) private var account
     @Environment(HistoricalHealthSamplesExportManager.self) private var historicalDataExportMgr
@@ -36,6 +35,7 @@ struct AccountSheet: View {
     @AccountFeatureFlagQuery(.isDebugModeEnabled)
     private var debugModeEnabled
     
+    @SensorAccessPermissions private var sensorAccessPermissions
     @StudyManagerQuery private var enrollments: [StudyEnrollment]
     
     var body: some View {
@@ -72,14 +72,13 @@ struct AccountSheet: View {
     }
     
     @ViewBuilder private var accountSheetExtraContent: some View {
-        if SensorKit.isAvailable {
-            Section {
-                SensorKitButton()
-            }
-        }
+        PromptedActionsDigest(context: .viewAll)
         if let enrollment = enrollments.first {
             Section("Study Participation") {
                 studyParticipationSection(enrollment)
+            }
+            Section {
+                dataProcessingRow
             }
         }
         Section {
@@ -98,20 +97,20 @@ struct AccountSheet: View {
             AboutRow()
             Link2(MyHeartCounts.website(.privacyPolicy)) {
                 Label("Privacy Policy", systemSymbol: .lockShield)
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                    .foregroundStyle(.textLabel)
             }
             NavigationLink {
                 ContributionsList(projectLicense: .mit)
             } label: {
                 Label("License Information", systemSymbol: .buildingColumns)
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                    .foregroundStyle(.textLabel)
             }
             if debugModeEnabled || FeatureFlags.isTakingDemoScreenshots {
                 NavigationLink {
                     DebugForm()
                 } label: {
                     Label("Debug", systemSymbol: .wrenchAdjustable)
-                        .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                        .foregroundStyle(.textLabel)
                 }
             }
         }
@@ -128,26 +127,7 @@ struct AccountSheet: View {
             || !sensorKitDataFetcher.activeActivities.isEmpty
     }
     
-    init(dismissAfterSignIn: Bool = true) {
-        self.dismissAfterSignIn = dismissAfterSignIn
-    }
-    
-    
-    @ViewBuilder
-    private func studyParticipationSection(_ enrollment: StudyEnrollment) -> some View {
-        Link2(MyHeartCounts.website(.homepage)) {
-            HStack {
-                makeEnrolledStudyRow(for: enrollment)
-                Spacer()
-                DisclosureIndicator()
-            }
-            .contentShape(Rectangle())
-            .foregroundStyle(colorScheme.textLabelForegroundStyle)
-        }
-        PostTrialNudgesToggle()
-        NavigationLink("Review Consent Forms") {
-            SignedConsentForms()
-        }
+    @ViewBuilder private var dataProcessingRow: some View {
         if let text = { () -> LocalizedStringResource? in
             switch (isProcessingHealthData, isProcessingSensorKitData) {
             case (true, true):
@@ -174,6 +154,33 @@ struct AccountSheet: View {
             } else {
                 label
             }
+        }
+    }
+    
+    init(dismissAfterSignIn: Bool = true) {
+        self.dismissAfterSignIn = dismissAfterSignIn
+    }
+    
+    
+    @ViewBuilder
+    private func studyParticipationSection(_ enrollment: StudyEnrollment) -> some View {
+        Link2(MyHeartCounts.website(.homepage)) {
+            HStack {
+                makeEnrolledStudyRow(for: enrollment)
+                Spacer()
+                DisclosureIndicator()
+            }
+            .contentShape(Rectangle())
+            .foregroundStyle(.textLabel)
+        }
+        PostTrialNudgesToggle()
+        NavigationLink("Review Consent Forms") {
+            SignedConsentForms()
+        }
+        if SensorKit.isAvailable && !sensorAccessPermissions.isFullyUndetermined {
+            // if the SensorKit auth is fully undetermined (i.e., the user hasn't authorized any sensors),
+            // we skip this button, since in that case the prompted action above will kick in.
+            SensorKitButton()
         }
     }
     
@@ -255,7 +262,6 @@ extension AccountSheet {
 extension AccountSheet {
     private struct AboutRow: View {
         // swiftlint:disable attributes
-        @Environment(\.colorScheme) private var colorScheme
         @Environment(Account.self) private var account
         // swiftlint:enable attributes
         @StudyManagerQuery private var enrollments: [StudyEnrollment]
@@ -268,7 +274,7 @@ extension AccountSheet {
                 Text(bundle.appVersion)
             } label: {
                 Label("My Heart Counts", systemSymbol: .infoCircle)
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                    .foregroundStyle(.textLabel)
             }
             .onTapGesture(count: 5) {
                 showExtendedInfo = true
@@ -290,7 +296,7 @@ extension AccountSheet {
                         }
                     }
                     .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
+                        ToolbarItem(placement: .cancellationAction) {
                             DismissButton()
                         }
                     }

@@ -12,9 +12,6 @@ import SwiftUI
 
 
 struct RaceEthnicityPicker: View {
-    @Environment(\.colorScheme)
-    private var colorScheme
-    
     @Binding var selection: RaceEthnicity
     
     var body: some View {
@@ -51,7 +48,7 @@ struct RaceEthnicityPicker: View {
         } label: {
             HStack {
                 Text(option.localizedDisplayTitle)
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                    .foregroundStyle(.textLabel)
                 Spacer()
                 if selection.contains(option) {
                     Image(systemSymbol: .checkmark)

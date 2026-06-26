@@ -15,7 +15,7 @@ import SwiftUI
 
 protocol DemographicsSelectableSimpleValue: Identifiable, RawRepresentableAccountKey, Hashable {
     static var notSet: Self { get }
-    static var preferNotToState: Self { get }
+    static var preferNotToState: Self? { get }
     
     /// all options, except for ``notSet`` and ``preferNotToState``.
     static var options: [Self] { get }
@@ -35,7 +35,7 @@ extension DemographicsSelectableSimpleValue {
     }
     
     init?(rawValue: RawValue) {
-        let allOptions = Self.options + [.notSet, .preferNotToState]
+        let allOptions: [Self] = Self.options + [.notSet, .preferNotToState].compactMap(\.self)
         if let option = allOptions.first(where: { $0.rawValue == rawValue }) {
             self = option
         } else {
@@ -56,23 +56,33 @@ extension DemographicsSelectableSimpleValue {
 }
 
 
-struct DemographicsSingleSelectionPicker<Value: DemographicsSelectableSimpleValue>: View {
-    @Environment(\.colorScheme)
-    private var colorScheme
-    
-    @Binding var selection: Value
+struct DemographicsSingleSelectionPicker<Value: DemographicsSelectableSimpleValue, Header: View>: View {
+    private let header: Header
+    @Binding private var selection: Value
     
     var body: some View {
         Form {
+            if !(header is EmptyView) {
+                Section {
+                    header
+                }
+            }
             Section {
                 ForEach(Value.options) { option in
                     makeRow(for: option)
                 }
             }
-            Section {
-                makeRow(for: .preferNotToState)
+            if let preferNotToState = Value.preferNotToState {
+                Section {
+                    makeRow(for: preferNotToState)
+                }
             }
         }
+    }
+    
+    init(selection: Binding<Value>, @ViewBuilder header: () -> Header = { EmptyView() }) {
+        self._selection = selection
+        self.header = header()
     }
     
     @ViewBuilder
@@ -88,7 +98,7 @@ struct DemographicsSingleSelectionPicker<Value: DemographicsSelectableSimpleValu
                             .foregroundStyle(.secondary)
                     }
                 }
-                .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                .foregroundStyle(.textLabel)
                 Spacer()
                 if option == selection {
                     Image(systemSymbol: .checkmark)

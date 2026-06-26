@@ -342,8 +342,6 @@ private struct MostRecentValue: View {
 
 
 private struct FurtherReadingSection: View {
-    @Environment(\.colorScheme) private var colorScheme
-    
     private let title: LocalizedStringResource
     private let document: MarkdownDocument
     private let links: [URL]
@@ -384,7 +382,7 @@ private struct FurtherReadingSection: View {
                         host
                     }
                     Text(host)
-                        .foregroundStyle(colorScheme.textLabelForegroundStyle.secondary)
+                        .foregroundStyle(.textLabel.secondary)
                 }
                 Image(systemSymbol: .safari)
                     .accessibilityLabel("Open In Browser")

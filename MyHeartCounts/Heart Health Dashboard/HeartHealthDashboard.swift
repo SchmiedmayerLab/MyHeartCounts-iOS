@@ -28,7 +28,6 @@ struct HeartHealthDashboard: View {
     }
     
     // swiftlint:disable attributes
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(StudyManager.self) private var studyManager
     // swiftlint:enable attributes
     
@@ -160,7 +159,7 @@ struct HeartHealthDashboard: View {
             } label: {
                 HStack {
                     Text("PAST_TIMED_WALKING_RUNNING_TEST_RESULTS_BUTTON_TITLE")
-                        .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                        .foregroundStyle(.textLabel)
                     Spacer()
                     DisclosureIndicator()
                 }
@@ -183,6 +182,10 @@ struct HeartHealthDashboard: View {
                 .padding(.top, 4)
                 .padding(.bottom, -8)
                 if let timeRange = score.timeRange, score.scoreAvailable {
+                    // - For e.g. Sleep, we might prefer this saying "Today, 7:00" instead of just "7:00" which it would show currently
+                    //   (if today's sleep session ended at 07AM), the reason being that the user might confuse the label with meaning that they slept for 7 hours.
+                    // - For midnight, we might want to just have "Today" instead of "0:00"?
+                    // - For the exersice tile, we might want to have "Last 7 days" instead of "0:00" (which is the end of the range)
                     Text(timeRange.upperBound.shortDescription())
                         .font(.footnote)
                         .foregroundStyle(.secondary)

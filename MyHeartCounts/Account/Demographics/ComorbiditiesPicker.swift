@@ -16,8 +16,6 @@ struct ComorbiditiesPicker: View {
     
     @Environment(\.dismiss)
     private var dismiss
-    @Environment(\.colorScheme)
-    private var colorScheme
     
     @Binding private var comorbidities: Comorbidities
     @State private var highlightedOption: Comorbidity?
@@ -73,7 +71,7 @@ struct ComorbiditiesPicker: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                .foregroundStyle(.textLabel)
                 Spacer()
                 switch comorbidities[option] {
                 case .notSelected:
