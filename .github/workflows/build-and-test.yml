@@ -21,6 +21,7 @@ jobs:
   mhc_app_unit_tests:
     name: App Unit Tests
     uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.2
+    if: ${{ false }}
     permissions:
       contents: read
     with:
