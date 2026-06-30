@@ -110,6 +110,10 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
         try localStorage.deleteAll()
         try await bulkHealthExporter.deleteSessionRestorationInfo(for: .mhcHistoricalDataExport)
         try fileUploader.clearPendingUploads()
+        LocalPreferencesStore.standard.removeAllEntries(in: .app)
+        // we set this to true immediataly after having cleared all of our entries, so that the onboarding sheet doesn't
+        // cover the "Setting up Test Environment" full-screen thing.
+        LocalPreferencesStore.standard[.onboardingFlowComplete] = true
         if let studyManager {
             for enrollment in studyManager.studyEnrollments {
                 try await studyManager.unenroll(from: enrollment)
