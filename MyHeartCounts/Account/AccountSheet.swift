@@ -8,6 +8,7 @@
 
 import FirebaseCore
 import FirebaseFunctions
+import MyHeartCountsShared
 import SFSafeSymbols
 import SpeziAccount
 import SpeziHealthKitBulkExport
@@ -100,7 +101,10 @@ struct AccountSheet: View {
                     .foregroundStyle(.textLabel)
             }
             NavigationLink {
-                ContributionsList(projectLicense: .mit)
+                ContributionsList(
+                    projectLicense: .mit,
+                    projectUrl: "https://github.com/SchmiedmayerLab/MyHeartCounts-iOS/"
+                )
             } label: {
                 Label("License Information", systemSymbol: .buildingColumns)
                     .foregroundStyle(.textLabel)
