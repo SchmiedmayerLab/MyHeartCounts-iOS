@@ -10,6 +10,7 @@
 
 import Foundation
 import MHCStudyDefinition
+import class ModelsR4.Questionnaire
 import MyHeartCountsShared
 import SFSafeSymbols
 import SpeziFoundation
