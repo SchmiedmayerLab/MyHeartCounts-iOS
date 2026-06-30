@@ -27,10 +27,23 @@ extension PromptedAction.ID {
 }
 
 
+extension LaunchOptions {
+    /// Comma-separated list of ``PromptedAction/ID``s. If speciified, the app will consider only these actions.
+    static let promptedActionsFilter = LaunchOption<String?>("--only-prompted-actions", default: nil)
+}
+
+
 extension PromptedAction {
-    static let allActions: [PromptedAction] = [
-        .completeDemographics, .enableClinicalRecords, .enableSensorKit, .verifyAccountEmail
-    ]
+    static let allActions: [PromptedAction] = {
+        let all: [PromptedAction] = [
+            .completeDemographics, .enableClinicalRecords, .enableSensorKit, .verifyAccountEmail
+        ]
+        return if let enabledIds = LaunchOptions[.promptedActionsFilter]?.split(separator: ",").mapIntoSet({ PromptedAction.ID(String($0)) }) {
+            all.filter { enabledIds.contains($0.id) }
+        } else {
+            all
+        }
+    }()
     
     private static let enableSensorKit = PromptedAction(
         id: .sensorKit,

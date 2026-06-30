@@ -73,6 +73,13 @@ struct PromptedActionsDigest: View {
                             }
                         }()
                     )
+                    .accessibilityIdentifier("PromptedActionsDigestSheet")
+                }
+                .onChange(of: actions.map(\.id)) { oldValue, newValue in
+                    if !oldValue.isEmpty && newValue.isEmpty {
+                        // dismiss the sheet if the there are no more actions to display
+                        isPresentingChecklist = false
+                    }
                 }
             }
             .listRowBackground(Color.clear)
@@ -254,6 +261,7 @@ private struct PromptedActionsSheet: View {
                         { withAnimation(.snappy) { rejectAction(action.id) } }
                     }
                 )
+                .accessibilityIdentifier("PromptedActionRow:\(action.id)")
             } header: {
                 if let title, action.id == actions.first?.id {
                     Text(title)

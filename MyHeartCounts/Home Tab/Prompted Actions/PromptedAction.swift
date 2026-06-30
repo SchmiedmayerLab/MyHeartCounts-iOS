@@ -24,8 +24,12 @@ import SwiftUI
 @Observable
 @MainActor
 final class PromptedAction: nonisolated Identifiable, Sendable {
-    struct ID: Hashable, Codable, Sendable {
+    struct ID: Hashable, Codable, CustomStringConvertible, Sendable {
         private let value: String
+        
+        var description: String {
+            value
+        }
         
         init(_ value: String) {
             self.value = value

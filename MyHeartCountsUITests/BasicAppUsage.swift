@@ -62,25 +62,6 @@ final class BasicAppUsage: MHCTestCase, @unchecked Sendable {
     
     
     @MainActor
-    func testSensorKitNudgeDismissal() throws {
-        try launchAppAndEnrollIntoStudy()
-        goToTab(.home)
-        XCTAssert(app.staticTexts["Enable SensorKit"].waitForExistence(timeout: 2))
-        app.staticTexts["Enable SensorKit"].press(forDuration: 2)
-        XCTAssert(app.buttons["Stop Suggesting This"].waitForExistence(timeout: 2))
-        app.buttons["Stop Suggesting This"].tap()
-        XCTAssert(app.staticTexts["Enable SensorKit"].waitForNonExistence(timeout: 2))
-        app.terminate()
-        try launchAppAndEnrollIntoStudy(
-            testEnvironmentConfig: .init(resetExistingData: false, loginAndEnroll: false),
-            // no idea why but this sometimes isn't able to find the home tab item's accessibility id (is empty for some reason...)
-            skipGoingToHomeTab: true
-        )
-        XCTAssert(app.staticTexts["Enable SensorKit"].waitForNonExistence(timeout: 5))
-    }
-    
-    
-    @MainActor
     func testLogout() throws {
         try launchAppAndEnrollIntoStudy()
         openAccountSheet()
