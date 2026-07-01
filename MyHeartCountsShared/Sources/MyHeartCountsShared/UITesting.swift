@@ -8,7 +8,7 @@
 
 #if canImport(Darwin)
 
-public enum TestingConstants {
+public enum TestingConstants { // swiftlint:disable:this missing_docs
     /// The login credentials used when running UI tests, and when setting up other test environments.
     public static let loginCredentials = (email: "leland@stanford.edu", password: "StanfordRocks!")
 }
