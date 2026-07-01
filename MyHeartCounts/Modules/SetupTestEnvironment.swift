@@ -42,6 +42,7 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
     // swiftlint:disable attributes
     @ObservationIgnored @Application(\.logger) private var logger
     @ObservationIgnored @StandardActor private var standard: MyHeartCountsStandard
+    @ObservationIgnored @Dependency(Account.self) private var account: Account?
     @ObservationIgnored @Dependency(FirebaseAccountService.self) private var accountService: FirebaseAccountService?
     @ObservationIgnored @Dependency(StudyBundleLoader.self) private var studyBundleLoader
     @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
@@ -110,6 +111,11 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
         try localStorage.deleteAll()
         try await bulkHealthExporter.deleteSessionRestorationInfo(for: .mhcHistoricalDataExport)
         try fileUploader.clearPendingUploads()
+        LocalPreferencesStore.standard.removeAllEntries(in: .app)
+        if config.loginAndEnroll {
+            // we set this here already to prevent the onboarding sheet from popping up
+            LocalPreferencesStore.standard[.onboardingFlowComplete] = true
+        }
         if let studyManager {
             for enrollment in studyManager.studyEnrollments {
                 try await studyManager.unenroll(from: enrollment)
@@ -127,8 +133,12 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
     
     private func loginAndEnroll() async throws {
         logger.notice("Logging in and enrolling into Study")
-        guard let accountService else {
-            logger.error("Unable to log in and enroll: no AccountService!")
+        // we set this immediately at the beginning, since the value will likely have been cleared in
+        // the `resetExistingData()` call preceding this `loginAndEnroll()` call, and we don't want the
+        // onboarding sheet covering the "Setting up Test Environment" full-screen thing.
+        LocalPreferencesStore.standard[.onboardingFlowComplete] = true
+        guard let accountService, let account else {
+            logger.error("Unable to log in and enroll: no AccountService and/or Account!")
             return
         }
         guard studyManager != nil else {
@@ -136,7 +146,14 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
             return
         }
         do {
-            try await accountService.login(userId: "leland@stanford.edu", password: "StanfordRocks!")
+            let credentials = TestingConstants.loginCredentials
+            // FirebaseAccountService's `login(userId:password:)` will unconditionally log the user out,
+            // even if it is the same user the function is asked to log in to.
+            // we need to prevent this, since the logout would trigger all of the local data to get reset,
+            // which might be at odds with our config here.
+            if !account.signedIn || account.details?.userId != credentials.email {
+                try await accountService.login(userId: credentials.email, password: credentials.password)
+            }
         } catch FirebaseAccountError.invalidCredentials {
             // account doesn't exist yet, signup
             var details = AccountDetails()

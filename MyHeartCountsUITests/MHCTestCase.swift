@@ -26,18 +26,20 @@ import XCTHealthKit
 /// The base class for all MHC UI tests.
 ///
 /// This class sets up the ``app`` property, and provides the ``launchAppAndEnrollIntoStudy`` function.
-class MHCTestCase: XCTestCase, @unchecked Sendable {
-    static let loginCredentials = (email: "leland@stanford.edu", password: "StanfordRocks!")
-    
+/// It does not contain any actual tests itself. All UI test classes should inherit from `MHCTestCase`.
+@MainActor
+class MHCTestCase: XCTestCase, Sendable {
     static let enableHealthRecords = false // temporarily disabled
     
-    private static let tempDir = URL.temporaryDirectory.appending(component: "edu.stanford.MyHeartCounts.UITests", directoryHint: .isDirectory)
+    nonisolated private static let tempDir = URL.temporaryDirectory.appending(
+        component: "edu.stanford.MyHeartCounts.UITests",
+        directoryHint: .isDirectory
+    )
     
-    @MainActor private(set) var app: XCUIApplication!
-    @MainActor private(set) var studyBundleUrl: URL!
-    @MainActor private(set) var appLocale: Locale!
+    private(set) var app: XCUIApplication!
+    private(set) var studyBundleUrl: URL!
+    private(set) var appLocale: Locale!
     
-    @MainActor
     override func setUp() async throws {
         try await super.setUp()
         continueAfterFailure = false
@@ -48,7 +50,6 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
         }
     }
     
-    @MainActor
     override func tearDown() async throws {
         try await super.tearDown()
         app.terminate()
@@ -57,18 +58,19 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
     }
     
     override class func tearDown() {
+        super.tearDown()
         try? FileManager.default.removeItem(at: Self.tempDir)
     }
     
     /// Launches the app and puts it in a state where the participant is logged in and enrolled into the study.
     ///
     /// - parameter enableDebugMode: Whether the app should force-enable its debug mode for this launch. Defaults to `false`.
+    /// - parameter promptedActionsFilter: which prompted actions should be considered for display on the home tab, if any. defaults to not showing any prompted actions.
     /// - parameter heightEntryUnitOverride: Allows overriding the unit the app will use when manually entering a height quantity.
     ///     Allowed values are `cm`, `feet`, or `nil` (the default).
     /// - parameter weightEntryUnitOverride: Allows overriding the unit the app will use when manually entering a weight quantity.
     ///     Allowed values are `kg`, `lbs`, or `nil` (the default).
     /// - parameter extraLaunchArgs: Additional arguments that will be appended to the app's launch arguments. `nil` values will be skipped.
-    @MainActor
     func launchAppAndEnrollIntoStudy( // swiftlint:disable:this function_body_length
         skip: Bool = false,
         locale: Locale = .current,
@@ -77,6 +79,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
         enableHealthRecords: Bool = MHCTestCase.enableHealthRecords,
         skipHealthPermissionsHandling: Bool = false,
         skipGoingToHomeTab: Bool = false,
+        promptedActionsFilter: PromptedActionsFilter = .only([]),
         heightEntryUnitOverride: LaunchOptions.HeightInputUnitOverride = .none,
         weightEntryUnitOverride: LaunchOptions.WeightInputUnitOverride = .none,
         extraLaunchArgs: [String?] = [],
@@ -94,6 +97,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
             enableHealthRecords.launchOptionArgs(for: .enableHealthRecords)
             heightEntryUnitOverride.launchOptionArgs(for: .heightInputUnitOverride)
             weightEntryUnitOverride.launchOptionArgs(for: .weightInputUnitOverride)
+            promptedActionsFilter.launchOptionArgs(for: .promptedActionsFilter)
         }
         app.launchArguments += extraLaunchArgs.compactMap(\.self)
         appLocale = locale
@@ -149,7 +153,6 @@ extension MHCTestCase {
         case heartHealth = "Heart Health"
     }
     
-    @MainActor
     func goToTab(_ tab: RootLevelTab, timeout: TimeInterval = 2) {
         let button = app.tabBars.buttons["MHC:Tab:\(tab.rawValue)"]
         XCTAssert(button.waitForExistence(timeout: timeout))
@@ -159,7 +162,6 @@ extension MHCTestCase {
         sleep(for: .seconds(0.5))
     }
     
-    @MainActor
     func openAccountSheet() {
         let button = app.navigationBars.buttons["MHC:YourAccount"]
         XCTAssert(button.waitForExistence(timeout: 1))

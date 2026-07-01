@@ -15,8 +15,7 @@ import XCTest
 import XCTestExtensions
 
 
-final class ScheduledTaskTests: MHCTestCase, @unchecked Sendable {
-    @MainActor
+final class ScheduledTaskTests: MHCTestCase, Sendable {
     func testSurveyHealthDataExtraction() throws {
         try launchAppAndEnrollIntoStudy(enableDebugMode: true)
         openAccountSheet()
@@ -134,7 +133,6 @@ extension MHCTestCase {
     }
     
     
-    @MainActor
     func navigateResearchKitQuestionnaire( // swiftlint:disable:this cyclomatic_complexity
         title: String?,
         steps: [ResearchKitQuestionnaireStep]

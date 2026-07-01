@@ -19,8 +19,8 @@ struct NewsTab: RootViewTab {
     static var tabTitle: LocalizedStringResource { "News" }
     static var tabSymbol: SFSymbol { .newspaper }
     
-    @Environment(\.colorScheme)
-    private var colorScheme
+    @Environment(\.self)
+    private var environment
     
     @Environment(NewsManager.self)
     private var newsManager
@@ -92,7 +92,7 @@ struct NewsTab: RootViewTab {
                 Link2(MyHeartCounts.website(.homepage)) {
                     Text({ () -> AttributedString in
                         var str = AttributedString(localized: "For more information and updates, visit myheartcounts.stanford.edu")
-                        str.setAttributes(AttributeContainer().foregroundColor(colorScheme.textLabelForegroundStyle))
+                        str.setAttributes(AttributeContainer().foregroundColor(TextLabelForegroundColor.textLabel.resolve(in: environment)))
                         if let range = str.range(of: "myheartcounts.stanford.edu") {
                             str[range].setAttributes(
                                 AttributeContainer().foregroundColor(Color.blue)

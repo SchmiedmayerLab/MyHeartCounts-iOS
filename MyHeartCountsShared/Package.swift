@@ -23,20 +23,6 @@ packageDeps += [
 ]
 #endif
 
-/// dependencies of the `MyHeartCountsShared` target
-var mhcSharedTargetDeps: [Target.Dependency] = [
-    .product(name: "SpeziFoundation", package: "Spezi"),
-    .product(name: "NIOCore", package: "swift-nio"),
-    .product(name: "NIOFoundationCompat", package: "swift-nio")
-]
-
-#if !os(Linux)
-mhcSharedTargetDeps += [
-    .product(name: "SpeziStudyDefinition", package: "Spezi"),
-    .product(name: "SFSafeSymbols", package: "SFSafeSymbols")
-]
-#endif
-
 let commonSwiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ExistentialAny"),
     .enableUpcomingFeature("InternalImportsByDefault")
@@ -58,7 +44,20 @@ let package = Package(
     targets: [
         .target(
             name: "MyHeartCountsShared",
-            dependencies: mhcSharedTargetDeps,
+            dependencies: { () -> [Target.Dependency] in
+                var deps: [Target.Dependency] = [
+                    .product(name: "SpeziFoundation", package: "Spezi"),
+                    .product(name: "NIOCore", package: "swift-nio"),
+                    .product(name: "NIOFoundationCompat", package: "swift-nio")
+                ]
+                #if !os(Linux)
+                deps += [
+                    .product(name: "SpeziStudyDefinition", package: "Spezi"),
+                    .product(name: "SFSafeSymbols", package: "SFSafeSymbols")
+                ]
+                #endif
+                return deps
+            }(),
             swiftSettings: commonSwiftSettings
         ),
         .executableTarget(

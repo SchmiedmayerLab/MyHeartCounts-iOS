@@ -19,7 +19,7 @@ struct NHSNumber: Codable, Hashable, Sendable {
     }
     
     init?(validating input: String) {
-        let input = input.replacing(/\ |-/, with: "")
+        let input = input.replacing(/[\s-]/, with: "") // remove all space and hyphens
         guard Self.validate(input) else {
             return nil
         }

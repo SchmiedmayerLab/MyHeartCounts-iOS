@@ -1,5 +1,5 @@
 {
-  "originHash" : "0ae85fa7b6dd4b97bf51094b347a79bc46c418ff9f26fa0d00cbb35cd76b4d53",
+  "originHash" : "2f4a1a24909ac631c7e1ea32cde1d065e09c140b9f5bcb033e128312e912f0ea",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -159,7 +159,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git",
       "state" : {
-        "revision" : "d0b87d46e5d4113be3819651fa46c41ec4e78afd"
+        "revision" : "8c0cf3691934a61ea9aa9b8365190a3f0d66cdd4",
+        "version" : "0.2.2"
       }
     },
     {
@@ -230,8 +231,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/Spezi.git",
       "state" : {
-        "revision" : "d8d2a2aa68e5d1bd086d6583e2aa3130496b4a47",
-        "version" : "0.1.1"
+        "revision" : "3191256308ca0ce14fb3edd6cbc37a6f2c6ae046",
+        "version" : "0.1.3"
       }
     },
     {

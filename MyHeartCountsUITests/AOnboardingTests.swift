@@ -18,8 +18,7 @@ import XCTSpeziNotifications
 
 
 // named like this bc tests are run based on the alpabetic ordering of the test classes, and we want this one to run first.
-final class AOnboardingTests: MHCTestCase, @unchecked Sendable {
-    @MainActor
+final class AOnboardingTests: MHCTestCase, Sendable {
     func testAOnboardingFlow() throws {
         try launchHealthAppAndEnterCharacteristics(.init(
             bloodType: .aPositive,
@@ -38,14 +37,13 @@ final class AOnboardingTests: MHCTestCase, @unchecked Sendable {
         try navigator.navigateFullOnboardingFlow(
             region: .unitedStates,
             name: .init(givenName: "Leland", familyName: "Stanford"),
-            email: Self.loginCredentials.email,
-            password: Self.loginCredentials.password,
+            email: TestingConstants.loginCredentials.email,
+            password: TestingConstants.loginCredentials.password,
             signUpForExtraTrial: true
         )
     }
     
     
-    @MainActor
     func testReviewConsentForms() throws {
         try launchAppAndEnrollIntoStudy(testEnvironmentConfig: .init(resetExistingData: true, loginAndEnroll: true))
         // check that the consent we just signed is showing up in the Account Sheet
@@ -67,7 +65,6 @@ final class AOnboardingTests: MHCTestCase, @unchecked Sendable {
     }
     
     
-    @MainActor
     func testRegionEligibilityComingSoon() throws {
         try launchAppAndEnrollIntoStudy(
             locale: .enUS,
@@ -81,7 +78,6 @@ final class AOnboardingTests: MHCTestCase, @unchecked Sendable {
         XCTAssert(app.staticTexts["Coming Soon"].waitForExistence(timeout: 5))
     }
     
-    @MainActor
     func testRegionEligibilityNotSupported() throws {
         try launchAppAndEnrollIntoStudy(
             locale: .enUS,

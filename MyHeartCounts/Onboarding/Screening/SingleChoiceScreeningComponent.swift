@@ -19,9 +19,6 @@ struct SingleChoiceScreeningComponentImpl<Option: Hashable>: View {
         case toggle
     }
     
-    @Environment(\.colorScheme)
-    private var colorScheme
-    
     private let question: LocalizedStringResource
     private let explanation: LocalizedStringResource?
     private let options: [Option]
@@ -105,7 +102,7 @@ struct SingleChoiceScreeningComponentImpl<Option: Hashable>: View {
         } label: {
             HStack {
                 Text(optionTitle(option))
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                    .foregroundStyle(.textLabel)
                 if selection == option {
                     Spacer()
                     Image(systemSymbol: .checkmark)
@@ -116,12 +113,5 @@ struct SingleChoiceScreeningComponentImpl<Option: Hashable>: View {
             }
             .contentShape(Rectangle())
         }
-    }
-}
-
-
-extension ColorScheme {
-    var textLabelForegroundStyle: Color {
-        self == .dark ? .white : .black
     }
 }

@@ -11,31 +11,34 @@ import SwiftUI
 
 
 struct DemographicsButton: View {
-    @State private var isPresentingDemographicsSheet = false
-    
     let allowDragToDismiss: Bool
+    
+    @State private var isPresentingSheet = false
+    @State private var isComplete = false
     
     var body: some View {
         Button {
-            isPresentingDemographicsSheet = true
+            isPresentingSheet = true
         } label: {
             Label("Demographics", systemSymbol: .personTextRectangle)
         }
-        .sheet(isPresented: $isPresentingDemographicsSheet) {
+        .sheet(isPresented: $isPresentingSheet) {
             NavigationStack {
-                DemographicsForm()
+                DemographicsForm(isComplete: $isComplete)
                     .interactiveDismissDisabled(!allowDragToDismiss)
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
                             if #available(iOS 26, *) {
                                 Button(role: .confirm) {
-                                    isPresentingDemographicsSheet = false
+                                    isPresentingSheet = false
                                 }
+                                .disabled(!isComplete)
                             } else {
                                 Button("Done") {
-                                    isPresentingDemographicsSheet = false
+                                    isPresentingSheet = false
                                 }
                                 .bold()
+                                .disabled(!isComplete)
                             }
                         }
                     }

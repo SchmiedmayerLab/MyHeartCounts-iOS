@@ -79,16 +79,7 @@ struct LargeSleepAnalysisTile: View {
     
     @ViewBuilder private var cellContent: some View {
         Chart {
-            switch $sleepSessions.processingState {
-            case .processing, .failed:
-                EmptyChartContent()
-            case .done(let data):
-                if !data.sessions.isEmpty {
-                    chartContent(for: data)
-                } else {
-                    // ???
-                }
-            }
+            chartContent
         }
         .chartOverlay { _ in
             switch $sleepSessions.processingState {
@@ -106,6 +97,19 @@ struct LargeSleepAnalysisTile: View {
         ])
         .configureChartXAxis(for: timeRange)
         .chartXSelection(value: $xSelection)
+    }
+    
+    @ChartContentBuilder private var chartContent: some ChartContent {
+        switch $sleepSessions.processingState {
+        case .processing, .failed:
+            EmptyChartContent()
+        case .done(let data):
+            if !data.sessions.isEmpty {
+                chartContent(for: data)
+            } else {
+                // ???
+            }
+        }
     }
     
     init(timeRange: HealthKitQueryTimeRange, accessory: Accessory) {

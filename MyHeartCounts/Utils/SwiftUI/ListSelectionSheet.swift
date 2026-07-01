@@ -16,8 +16,6 @@ import SwiftUI
 struct ListSelectionSheet<Items: RandomAccessCollection>: View where Items.Element: Hashable {
     typealias Item = Items.Element
     
-    @Environment(\.colorScheme)
-    private var colorScheme
     @Environment(\.dismiss)
     private var dismiss
     
@@ -47,7 +45,7 @@ struct ListSelectionSheet<Items: RandomAccessCollection>: View where Items.Eleme
                     } label: {
                         HStack {
                             Text(makeTitle(item))
-                                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(.textLabel)
                             if item == selection {
                                 Spacer()
                                 Image(systemSymbol: .checkmark)

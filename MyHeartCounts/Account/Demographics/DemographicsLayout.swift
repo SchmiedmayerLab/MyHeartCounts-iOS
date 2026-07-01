@@ -16,23 +16,84 @@ import SwiftUI
 
 // MARK: DemographicsLayout
 
+/// A component within a demographics layout.
+///
+/// A _demographics layout_ is a tree-like structure representing the a demographics form the user is asked to fill out.
+///
+/// There are two kinds of components:
+/// 1. Intermediate Components, which are used to structure the layout into groups and sections.
+/// 2. Leaf Components, which represent actual data entry fields the user is asked to fill out.
+///
+/// Since the list of enabled demgraphics fields, and within a single field the question of whether it should be required or optional,
+/// are non-static and depend on factors such as the user's specific enrollment region and whether the user has opted in to the trial,
+/// the demographics layout as a whole is parametrized over these conditions.
 protocol DemographicsComponent {
     associatedtype View: SwiftUI.View
     
+    /// The component's SwiftUI representation.
     @MainActor
     @ViewBuilder
     var view: View { get }
     
     @MainActor
-    func isComplete(in data: DemographicsData) -> Bool
+    func completionState(in data: DemographicsData) -> DemographicsComponentCompletionState
 }
 
 
+extension DemographicsComponent {
+    /// Checks whether the onboarding data represented by the component is currently complete, i.e., non-empty, taking into account the field's required/optional state.
+    ///
+    /// For intermediate components representing multiple fields, this function checks whether all of the individual fields within the component are complete.
+    @MainActor
+    func isComplete(in data: DemographicsData) -> Bool {
+        switch completionState(in: data) {
+        case .completed:
+            true
+        case .incomplete(let isRequired):
+            !isRequired
+        }
+    }
+}
+
+
+enum DemographicsComponentCompletionState: Hashable {
+    /// The component has been completed (i.e., the user has entered a non-empty value)
+    case completed
+    /// The component is incomplete.
+    case incomplete(isRequired: Bool)
+    
+    var isIncomplete: Bool {
+        switch self {
+        case .incomplete:
+            true
+        case .completed:
+            false
+        }
+    }
+    
+    var suggestedForegroundColor: Color {
+        switch self {
+        case .completed:
+            .secondary
+        case .incomplete(let isRequired):
+            isRequired ? .red : .orange
+        }
+    }
+}
+
+
+/// Creates a ``DemographicsComponent`` representing the demographics form as a whole.
+///
+/// - parameter region: the firebase region the user is enrolled with.
+/// - parameter didOptInToTrial: whether the user opted in to participate in the trial.
 @MainActor
 @DemographicsLayoutBuilder
-func demographicsLayout(for region: Locale.Region) -> some DemographicsComponent { // swiftlint:disable:this function_body_length
-    Section {
-        LeafComponent(\.dateOfBirth) { binding, isEmpty in
+func demographicsLayout( // swiftlint:disable:this function_body_length
+    region: Locale.Region,
+    didOptInToTrial: Bool
+) -> some DemographicsComponent {
+    Section { // swiftlint:disable:this closure_body_length
+        LeafComponent(\.dateOfBirth) { binding, completionState in
             let binding = binding.withDefault(.now)
             VStack {
                 DatePicker(
@@ -46,12 +107,15 @@ func demographicsLayout(for region: Locale.Region) -> some DemographicsComponent
                 )
                 .accessibilityLabel("Date of Birth")
                 .accessibilityValue(binding.wrappedValue.formatted(.iso8601.year().month().day()))
-                if isEmpty {
+                switch completionState {
+                case .completed:
+                    EmptyView()
+                case .incomplete:
                     HStack {
                         Spacer()
                         Text("Missing Response")
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(completionState.suggestedForegroundColor)
                             .padding(.trailing, 5)
                     }
                 }
@@ -60,10 +124,10 @@ func demographicsLayout(for region: Locale.Region) -> some DemographicsComponent
         LeafComponent(\.genderIdentity) { binding, _ in
             DemographicsPicker("Gender Identity", selection: binding, optionTitle: \.displayTitle)
         }
-        LeafComponent(\.sexAtBirth) { binding, _ in
+        LeafComponent(\.sexAtBirth, isRequired: false) { binding, _ in
             DemographicsPicker("Biological Sex at Birth", selection: binding, optionTitle: \.displayTitle)
         }
-        LeafComponent(\.bloodType) { binding, _ in
+        LeafComponent(\.bloodType, isRequired: false) { binding, _ in
             DemographicsPicker("Blood Type", selection: binding, allOptions: HKBloodType.allKnownValues, optionTitle: \.displayTitle)
         }
     }
@@ -72,7 +136,7 @@ func demographicsLayout(for region: Locale.Region) -> some DemographicsComponent
         BodyMeasurementRow(descriptor: .weight)
     }
     Section {
-        LeafComponent(\.raceEthnicity) { binding, isEmpty in
+        LeafComponent(\.raceEthnicity) { binding, completionState in
             let binding = binding.withDefault([])
             NavigationLink {
                 RaceEthnicityPicker(selection: binding)
@@ -81,18 +145,22 @@ func demographicsLayout(for region: Locale.Region) -> some DemographicsComponent
                     Text("Race / Ethnicity")
                     Spacer()
                     Text(binding.wrappedValue.localizedDisplayTitle)
-                        .foregroundStyle(isEmpty ? .red : .secondary)
+                        .foregroundStyle(completionState.suggestedForegroundColor)
                 }
             }
         }
         if region == .unitedStates {
-            LeafComponent(\.latinoStatus) { binding, _ in
-                makeSimpleValuePickerRow("Are you Hispanic/Latino?", binding: binding.withDefault(.notSet))
+            LeafComponent(\.latinoStatus) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Are you Hispanic/Latino?",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
         }
     }
     Section {
-        LeafComponent(\.comorbidities) { binding, _ in
+        LeafComponent(\.comorbidities, isRequired: didOptInToTrial) { binding, _ in
             NavigationLink {
                 ComorbiditiesPicker(selection: binding.withDefault(Comorbidities()))
                     .onAppear {
@@ -116,47 +184,64 @@ func demographicsLayout(for region: Locale.Region) -> some DemographicsComponent
     Section { // swiftlint:disable:this closure_body_length
         switch region {
         case .unitedStates:
-            LeafComponent(\.usRegion) { binding, isEmpty in
+            LeafComponent(\.usRegion, isRequired: false) { binding, completionState in
                 NavigationLink {
                     USRegionPicker(selection: binding)
                 } label: {
                     NavigationLinkLabel(
                         "US State / Territory",
-                        isEmpty: isEmpty,
+                        completionState: completionState,
                         value: (binding.wrappedValue?.abbreviation).map { "\($0)" } ?? "No Selection"
                     )
                 }
             }
-            LeafComponent(\.usEducationLevel) { binding, _ in
-                makeSimpleValuePickerRow("Education Level", binding: binding.withDefault(.notSet))
+            LeafComponent(\.usEducationLevel, isRequired: didOptInToTrial) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Education Level",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
-            LeafComponent(\.usHouseholdIncome) { binding, _ in
-                makeSimpleValuePickerRow("Total Household Income", binding: binding.withDefault(.notSet))
+            LeafComponent(\.usHouseholdIncome, isRequired: false) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Total Household Income",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
         case .unitedKingdom:
-            LeafComponent(\.ukRegion) { binding, isEmpty in
+            LeafComponent(\.ukRegion, isRequired: false) { binding, completionState in
                 NavigationLink {
                     UKRegionPicker(selection: binding)
                 } label: {
                     NavigationLinkLabel(
                         "UK Region",
-                        isEmpty: isEmpty,
+                        completionState: completionState,
                         value: binding.wrappedValue?.displayTitle ?? "Not Set"
                     )
                 }
             }
-            LeafComponent(\.ukEducationLevel) { binding, _ in
-                makeSimpleValuePickerRow("Education Level", binding: binding.withDefault(.notSet))
+            // UK postcode will be asked here
+            LeafComponent(\.ukEducationLevel, isRequired: didOptInToTrial) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Education Level",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
-            LeafComponent(\.ukHouseholdIncome) { binding, _ in
-                makeSimpleValuePickerRow("Total Household Income", binding: binding.withDefault(.notSet))
+            LeafComponent(\.ukHouseholdIncome, isRequired: false) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Total Household Income",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
             }
         default:
             _EmptyComponent()
         }
     }
     if region == .unitedKingdom {
-        LeafComponent(\.nhsNumber) { binding, _ in
+        LeafComponent(\.nhsNumber, isRequired: false) { binding, _ in
             let binding = binding.withDefault(NHSNumber(unchecked: ""))
             SwiftUI.Section {
                 NHSNumberTextField(value: binding)
@@ -170,16 +255,26 @@ func demographicsLayout(for region: Locale.Region) -> some DemographicsComponent
         }
     }
     Section {
-        LeafComponent(\.stageOfChange) { binding, isEmpty in
+        LeafComponent(\.stageOfChange, isRequired: didOptInToTrial) { binding, completionState in
             NavigationLink {
                 StageOfChangePicker(selection: binding)
             } label: {
                 NavigationLinkLabel(
                     "Stage of Change",
-                    isEmpty: isEmpty,
-                    value: isEmpty ? "No Selection" : "\(binding.withDefault(.notSet).id.uppercased())"
+                    completionState: completionState,
+                    value: completionState.isIncomplete ? "No Selection" : "\(binding.withDefault(.notSet).id.uppercased())"
                 )
             }
+        }
+    }
+    Section {
+        LeafComponent(\.referralSource, isRequired: false) { binding, completionState in
+            makeSimpleValuePickerRow(
+                "Referral Source",
+                headerPrompt: "How did you hear about the study?",
+                binding: binding.withDefault(.notSet),
+                completionState: completionState
+            )
         }
     }
 }
@@ -187,16 +282,22 @@ func demographicsLayout(for region: Locale.Region) -> some DemographicsComponent
 
 // MARK: Supporting Views
 
+
 @MainActor
 @ViewBuilder
-private func makeSimpleValuePickerRow(_ title: LocalizedStringResource, binding: Binding<some DemographicsSelectableSimpleValue>) -> some View {
+private func makeSimpleValuePickerRow(
+    _ title: LocalizedStringResource,
+    headerPrompt: LocalizedStringResource? = nil,
+    binding: Binding<some DemographicsSelectableSimpleValue>,
+    completionState: DemographicsComponentCompletionState
+) -> some View {
     NavigationLink {
-        DemographicsSingleSelectionPicker(selection: binding)
+        DemographicsSingleSelectionPicker(prompt: headerPrompt, selection: binding)
             .navigationTitle(title)
     } label: {
         NavigationLinkLabel(
             title,
-            isEmpty: binding.wrappedValue == .notSet,
+            completionState: completionState,
             value: binding.wrappedValue.displayTitle
         )
     }
@@ -208,22 +309,28 @@ private func makeSimpleValuePickerRow(_ title: LocalizedStringResource, binding:
 /// Intended for use in the ``DemographicsForm``, to highlight missing answers.
 private struct NavigationLinkLabel: View {
     private let title: LocalizedStringResource
-    private let isEmpty: Bool
     private let value: LocalizedStringResource
+    private let valueForegroundColor: Color
     
     var body: some View {
         HStack {
             Text(title)
             Spacer()
             Text(value)
-                .foregroundStyle(isEmpty ? .red : .secondary)
+                .foregroundStyle(valueForegroundColor)
         }
     }
     
     init(_ title: LocalizedStringResource, isEmpty: Bool, value: LocalizedStringResource) {
         self.title = title
-        self.isEmpty = isEmpty
         self.value = value
+        self.valueForegroundColor = isEmpty ? .red : .secondary
+    }
+    
+    init(_ title: LocalizedStringResource, completionState: DemographicsComponentCompletionState, value: LocalizedStringResource) {
+        self.title = title
+        self.value = value
+        self.valueForegroundColor = completionState.suggestedForegroundColor
     }
 }
 
@@ -231,7 +338,7 @@ private struct NavigationLinkLabel: View {
 /// A Form row view for a quantity-based body measurement, e.g. height or weight.
 private struct BodyMeasurementRow: DemographicsComponent {
     @MainActor
-    struct BodyMeasurementDescriptor {
+    struct BodyMeasurementDescriptor: Equatable {
         static var height: Self { Self(sampleType: .healthKit(.height), fieldKeyPath: \.height) }
         static var weight: Self { Self(sampleType: .healthKit(.bodyMass), fieldKeyPath: \.weight) }
         
@@ -240,11 +347,11 @@ private struct BodyMeasurementRow: DemographicsComponent {
     }
     
     struct View: SwiftUI.View {
-        @Environment(\.colorScheme) private var colorScheme
         @Environment(DemographicsData.self) private var data
         
         let descriptor: BodyMeasurementDescriptor
-        @State var isShowingDataEntry = false
+        let completionState: (DemographicsData) -> DemographicsComponentCompletionState
+        @State private var isShowingDataEntry = false
         
         var body: some SwiftUI.View {
             let sampleType = descriptor.sampleType
@@ -253,13 +360,13 @@ private struct BodyMeasurementRow: DemographicsComponent {
             } label: {
                 HStack {
                     Text(sampleType.displayTitle)
-                        .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                        .foregroundStyle(.textLabel)
                     Spacer()
-                    let sample = data[descriptor.fieldKeyPath].flatMap { quantity in
+                    let sample = data[descriptor.fieldKeyPath].map { quantity in
                         QuantitySample(id: UUID(), sampleType: descriptor.sampleType, quantity: quantity, startDate: .now, endDate: .now)
                     }
                     Text(sample?.valueAndUnitDescription(for: sampleType.displayUnit) ?? "—")
-                        .foregroundStyle(sample == nil ? .red : .secondary)
+                        .foregroundStyle(completionState(data).suggestedForegroundColor)
                 }
                 .contentShape(Rectangle())
             }
@@ -273,14 +380,26 @@ private struct BodyMeasurementRow: DemographicsComponent {
         }
     }
     
-    let descriptor: BodyMeasurementDescriptor
+    private let descriptor: BodyMeasurementDescriptor
+    private let isRequired: Bool
     
     var view: View {
-        View(descriptor: descriptor)
+        View(descriptor: descriptor) {
+            completionState(in: $0)
+        }
     }
     
-    func isComplete(in data: DemographicsData) -> Bool {
-        !data.isEmpty(descriptor.fieldKeyPath)
+    init(descriptor: BodyMeasurementDescriptor, isRequired: Bool = true) {
+        self.descriptor = descriptor
+        self.isRequired = isRequired
+    }
+    
+    func completionState(in data: DemographicsData) -> DemographicsComponentCompletionState {
+        if data.isEmpty(descriptor.fieldKeyPath) {
+            .incomplete(isRequired: isRequired)
+        } else {
+            .completed
+        }
     }
 }
 
@@ -337,38 +456,42 @@ private struct LeafComponent<Value, Content: SwiftUI.View>: DemographicsComponen
         @Environment(DemographicsData.self) private var data
         
         let fieldKeyPath: ReferenceWritableKeyPath<DemographicsData, DemographicsData.Field<Value>>
-        let content: @MainActor (Binding<Value?>, _ isEmpty: Bool) -> Content
+        let content: @MainActor (Binding<Value?>, _ state: DemographicsComponentCompletionState) -> Content
+        let completionState: (DemographicsData) -> DemographicsComponentCompletionState
         
         var body: some SwiftUI.View {
             @Bindable var data = data
-            let binding = Binding<Value?> {
-                data[fieldKeyPath]
-            } set: {
-                data[fieldKeyPath] = $0
-            }
-            let isEmpty = data[keyPath: fieldKeyPath].isEmpty
-            content(binding, isEmpty)
+            content($data[fieldKeyPath], completionState(data))
         }
     }
     
     private let fieldKeyPath: ReferenceWritableKeyPath<DemographicsData, DemographicsData.Field<Value>>
-    private let content: @MainActor (Binding<Value?>, _ isEmpty: Bool) -> Content
+    private let isRequired: Bool
+    private let content: @MainActor (Binding<Value?>, _ state: DemographicsComponentCompletionState) -> Content
     
     
     var view: View {
-        View(fieldKeyPath: fieldKeyPath, content: content)
+        View(fieldKeyPath: fieldKeyPath, content: content) {
+            completionState(in: $0)
+        }
     }
     
     init(
         _ fieldKeyPath: ReferenceWritableKeyPath<DemographicsData, DemographicsData.Field<Value>>,
-        @ViewBuilder content: @escaping @MainActor (_ binding: Binding<Value?>, _ isEmpty: Bool) -> Content
+        isRequired: Bool = true,
+        @ViewBuilder content: @escaping @MainActor (_ binding: Binding<Value?>, _ state: DemographicsComponentCompletionState) -> Content
     ) {
         self.fieldKeyPath = fieldKeyPath
+        self.isRequired = isRequired
         self.content = content
     }
     
-    func isComplete(in data: DemographicsData) -> Bool {
-        !data.isEmpty(fieldKeyPath)
+    func completionState(in data: DemographicsData) -> DemographicsComponentCompletionState {
+        if data.isEmpty(fieldKeyPath) {
+            .incomplete(isRequired: isRequired)
+        } else {
+            .completed
+        }
     }
 }
 
@@ -399,8 +522,8 @@ private struct Section<Content: DemographicsComponent, Header: View, Footer: Vie
         self.footer = footer()
     }
     
-    func isComplete(in data: DemographicsData) -> Bool {
-        content.isComplete(in: data)
+    func completionState(in data: DemographicsData) -> DemographicsComponentCompletionState {
+        content.completionState(in: data)
     }
 }
 
@@ -441,25 +564,16 @@ private enum DemographicsLayoutBuilder {
     static func buildBlock<each Component: DemographicsComponent>(
         _ component: repeat each Component
     ) -> _TupleComponent<repeat each Component> {
-        _TupleComponent((repeat each component))
+        _TupleComponent(repeat each component)
     }
 }
 
 
 /// A component that does not contain any content.
-private struct _EmptyComponent: DemographicsComponent {
-    var view: some SwiftUI.View {
-        EmptyView()
-    }
-    
-    nonisolated init() {}
-    
-    func isComplete(in data: DemographicsData) -> Bool {
-        true
-    }
-}
+private typealias _EmptyComponent = _TupleComponent<>
 
 
+/// A component that represents a tuple of components.
 private struct _TupleComponent<each Component: DemographicsComponent>: DemographicsComponent {
     private let component: (repeat each Component)
     
@@ -467,17 +581,34 @@ private struct _TupleComponent<each Component: DemographicsComponent>: Demograph
         ViewBuilder.buildBlock(repeat (each component).view)
     }
     
-    init(_ component: (repeat each Component)) {
-        self.component = component
+    init(_ component: repeat each Component) {
+        self.component = (repeat each component)
     }
     
-    func isComplete(in data: DemographicsData) -> Bool {
+    func completionState(in data: DemographicsData) -> DemographicsComponentCompletionState {
+        var state: DemographicsComponentCompletionState = .completed
         for component in repeat each component {
-            if !component.isComplete(in: data) { // swiftlint:disable:this for_where
-                return false
-            }
+            state = Self.reduce(state, component.completionState(in: data))
         }
-        return true
+        return state
+    }
+}
+
+extension _TupleComponent {
+    private static func reduce(
+        _ lhs: DemographicsComponentCompletionState,
+        _ rhs: DemographicsComponentCompletionState
+    ) -> DemographicsComponentCompletionState {
+        switch (lhs, rhs) {
+        case (.completed, .completed):
+            .completed
+        case (.completed, .incomplete):
+            rhs
+        case (.incomplete, .completed):
+            lhs
+        case let (.incomplete(isRequired: lhsIsRequired), .incomplete(isRequired: rhsIsRequired)):
+            .incomplete(isRequired: lhsIsRequired || rhsIsRequired)
+        }
     }
 }
 
@@ -499,12 +630,12 @@ private struct _ConditionalComponent<True: DemographicsComponent, False: Demogra
         }
     }
     
-    func isComplete(in data: DemographicsData) -> Bool {
+    func completionState(in data: DemographicsData) -> DemographicsComponentCompletionState {
         switch storage {
         case .true(let content):
-            content.isComplete(in: data)
+            content.completionState(in: data)
         case .false(let content):
-            content.isComplete(in: data)
+            content.completionState(in: data)
         }
     }
 }

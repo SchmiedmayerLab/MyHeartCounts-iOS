@@ -21,8 +21,6 @@ struct HomeTab: RootViewTab {
     private var missedEvents
     
     @DailyNudge private var dailyNudge
-    @PromptedActions private var promptedActions
-    @State private var viewState: ViewState = .idle
     
     var body: some View {
         NavigationStack {
@@ -56,11 +54,7 @@ struct HomeTab: RootViewTab {
                 }
             }
         }
-        ForEach(promptedActions) { action in
-            Section {
-                PromptedActionButton(action: action, viewState: $viewState)
-            }
-        }
+        PromptedActionsDigest(context: .completePending)
     }
     
     @ViewBuilder private var missedEventsSection: some View {

@@ -17,9 +17,6 @@ struct StageOfChangePicker: View {
         case separate
     }
     
-    @Environment(\.colorScheme)
-    private var colorScheme
-    
     @Binding var selection: StageOfChangeOption?
     
     var body: some View {
@@ -62,7 +59,7 @@ struct StageOfChangePicker: View {
                 HStack {
                     Text(option.id.uppercased())
                         .font(.headline)
-                        .foregroundStyle(colorScheme.textLabelForegroundStyle)
+                        .foregroundStyle(.textLabel)
                     Spacer()
                     if option == selection {
                         Image(systemSymbol: .checkmark)
@@ -71,7 +68,7 @@ struct StageOfChangePicker: View {
                 }
                 .frame(height: 30)
                 Text(option.text)
-                    .foregroundStyle(colorScheme.textLabelForegroundStyle.secondary)
+                    .foregroundStyle(.textLabel.secondary)
             }
             .contentShape(Rectangle())
         }

@@ -183,6 +183,7 @@ final class StudyBundleLoader: Module, Sendable {
             // if we failed to decode the firebase-hosted study bundle, we try to use the bundled one as a fallback.
             // (otherwise, we simply propagate the error up the call stack.)
             do {
+                logger.error("Failed to decode firebase-hosted study bundle. falling back to the one bundled with the app. (error: \(underlyingDecodeError))")
                 return try await _update(using: .bundledWithApp)
             } catch LoadError.unableToCreateLocalBundle {
                 // if the local bundle creation fails, we don't expose that error (since the local bundle thing here was an implicit fallback),

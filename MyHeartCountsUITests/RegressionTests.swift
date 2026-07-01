@@ -9,8 +9,7 @@
 import XCTest
 
 
-final class RegressionTests: MHCTestCase, @unchecked Sendable {
-    @MainActor
+final class RegressionTests: MHCTestCase, Sendable {
     func testFB22483867() throws {
         try launchAppAndEnrollIntoStudy()
         openAccountSheet()

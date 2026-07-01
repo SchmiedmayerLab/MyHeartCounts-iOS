@@ -108,6 +108,9 @@ final class DemographicsData {
     var stageOfChange = Field<StageOfChangeOption>() {
         didSet { onChange() }
     }
+    var referralSource = Field<ReferralSource>() {
+        didSet { onChange() }
+    }
     
     
     init() {
@@ -143,16 +146,17 @@ final class DemographicsData {
         self[\.nhsNumber] = details.nhsNumber
         self[\.futureStudiesOptIn] = details.futureStudies
         self[\.stageOfChange] = details.stageOfChange
+        self[\.referralSource] = details.referralSource
     }
     
-    private func onChange() {
+    fileprivate func onChange() {
         updateCounter &+= 1
         guard shouldHandleUpdates, let account else {
             return
         }
         updateTask?.cancel()
         updateTask = Task {
-            try await Task.sleep(for: .seconds(1))
+            try await Task.sleep(for: .seconds(2))
             try await write(to: account)
         }
     }
@@ -176,13 +180,13 @@ final class DemographicsData {
             }
         }
         func write<T: Equatable>(
-            _ selfKeyPath: ReferenceWritableKeyPath<DemographicsData, Field<T>>,
+            _ selfKeyPath: KeyPath<DemographicsData, Field<T>>,
             to detailsKeyPath: WritableKeyPath<AccountDetails, T?>
         ) {
             write(self[selfKeyPath], to: detailsKeyPath)
         }
         func write<T, U: Equatable>(
-            _ selfKeyPath: ReferenceWritableKeyPath<DemographicsData, Field<T>>,
+            _ selfKeyPath: KeyPath<DemographicsData, Field<T>>,
             to detailsKeyPath: WritableKeyPath<AccountDetails, U?>,
             transform: (T) -> U
         ) {
@@ -210,6 +214,7 @@ final class DemographicsData {
         write(\.nhsNumber, to: \.nhsNumber)
         write(\.futureStudiesOptIn, to: \.futureStudies)
         write(\.stageOfChange, to: \.stageOfChange)
+        write(\.referralSource, to: \.referralSource)
         let modifications = try AccountModifications(modifiedDetails: updated, removedAccountDetails: removed)
         try await account.accountService.updateAccountDetails(modifications)
     }
@@ -219,6 +224,11 @@ final class DemographicsData {
 extension DemographicsData {
     func isEmpty<Value>(_ keyPath: KeyPath<DemographicsData, Field<Value>>) -> Bool {
         self[keyPath: keyPath].isEmpty
+    }
+    
+    /// Accesses the value of a field
+    subscript<Value>(_ keyPath: KeyPath<DemographicsData, Field<Value>>) -> Value? {
+        self[keyPath: keyPath].value
     }
     
     /// Accesses the value of a field
@@ -234,7 +244,7 @@ extension DemographicsData {
 
 
 extension DemographicsData {
-    @MainActor
+    // It's important that this be a struct, since we need these values to be Observation-trackable.
     struct Field<Value> {
         private let _isEmpty: (Value) -> Bool
         fileprivate(set) var value: Value?
@@ -248,6 +258,8 @@ extension DemographicsData {
         /// - parameter isEmpty: A closure that determines whether a non-`nil` value for this field should be considered an empty value.
         ///     `nil` values are always considered empty. By default, all non-`nil` values are considered as representing non-empty values.
         fileprivate init(isEmpty: @escaping (Value) -> Bool = { _ in false }) {
+            // ^ fileprivate bc we need the properties in the DemographicsData to be mutable,
+            // but we don't want external code (outside this file) to be able to assign whole new values.
             self._isEmpty = isEmpty
         }
     }
