@@ -25,7 +25,8 @@ struct SensorKitButton: View {
     @State private var viewState: ViewState = .idle
     @State private var isManageSheetPresented = false
     
-    @SensorAccessPermissions private var sensorAccessPermissions
+    @SensorAccessPermissions(SensorKit.mhcSensors)
+    private var sensorAccessPermissions
     
     var body: some View {
         AsyncButton(state: $viewState) {
@@ -88,6 +89,9 @@ private struct SensorKitSheet: View {
     @Environment(StudyManager.self)
     private var studyManager
     
+    @SensorAccessPermissions(SensorKit.mhcSensors)
+    private var sensorAccessPermissions
+    
     @State private var presentedArticle: Article?
     
     @Binding var viewState: ViewState
@@ -132,7 +136,7 @@ private struct SensorKitSheet: View {
     
     @ViewBuilder
     private func makeRow(for sensor: any AnySensor) -> some View {
-        let authStatus = sensor.authorizationStatus
+        let authStatus = sensorAccessPermissions[sensor]
         let shouldDisplay = authStatus == .authorized || SensorKit.mhcSensors.contains { $0.srSensor == sensor.srSensor }
         if shouldDisplay {
             HStack {

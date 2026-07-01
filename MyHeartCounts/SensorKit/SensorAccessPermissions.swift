@@ -1,7 +1,7 @@
 //
 // This source file is part of the My Heart Counts iOS application based on the Stanford Spezi Template Application project
 //
-// SPDX-FileCopyrightText: 2025 Stanford University
+// SPDX-FileCopyrightText: 2026 Stanford University
 //
 // SPDX-License-Identifier: MIT
 //
@@ -26,11 +26,11 @@ struct SensorAccessPermissions: DynamicProperty {
     
     /// Creates an access permissions query observing all sensors.
     init() {
-        self.init(sensors: SensorKit.allKnownSensors)
+        self.init(SensorKit.allKnownSensors)
     }
     
     /// Creates an access permissions query observing a list of sensors.
-    init(sensors: some Collection<any AnySensor>) {
+    init(_ sensors: some Collection<any AnySensor>) {
         _authStatusObservers = .init(initialValue: sensors.reduce(into: [:]) { result, sensor in
             result[sensor.srSensor] = SensorAuthStatusObserver(sensor: sensor)
         })

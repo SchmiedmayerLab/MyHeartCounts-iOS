@@ -292,12 +292,8 @@ private func makeSimpleValuePickerRow(
     completionState: DemographicsComponentCompletionState
 ) -> some View {
     NavigationLink {
-        DemographicsSingleSelectionPicker(selection: binding) {
-            if let headerPrompt {
-                Text(headerPrompt)
-            }
-        }
-        .navigationTitle(title)
+        DemographicsSingleSelectionPicker(prompt: headerPrompt, selection: binding)
+            .navigationTitle(title)
     } label: {
         NavigationLinkLabel(
             title,

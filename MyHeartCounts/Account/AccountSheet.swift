@@ -73,8 +73,8 @@ struct AccountSheet: View {
     }
     
     @ViewBuilder private var accountSheetExtraContent: some View {
-        PromptedActionsDigest(context: .viewAll)
         if let enrollment = enrollments.first {
+            PromptedActionsDigest(context: .viewAll)
             Section("Study Participation") {
                 studyParticipationSection(enrollment)
             }

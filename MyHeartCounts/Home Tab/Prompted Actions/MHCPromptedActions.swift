@@ -1,7 +1,7 @@
 //
 // This source file is part of the My Heart Counts iOS application based on the Stanford Spezi Template Application project
 //
-// SPDX-FileCopyrightText: 2025 Stanford University
+// SPDX-FileCopyrightText: 2026 Stanford University
 //
 // SPDX-License-Identifier: MIT
 //
@@ -34,13 +34,7 @@ extension PromptedAction {
                 return .unavailable
             }
             let sensorAuthStates = SensorKit.mhcSensors.mapIntoSet(\.authorizationStatus)
-            return if sensorAuthStates.contains(.notDetermined) {
-                .pending
-            } else if sensorAuthStates == [.authorized] {
-                .completed
-            } else {
-                .pending
-            }
+            return sensorAuthStates.contains(.notDetermined) ? .pending : .completed
         },
         content: .init(
             symbol: .waveformPathEcgRectangle,

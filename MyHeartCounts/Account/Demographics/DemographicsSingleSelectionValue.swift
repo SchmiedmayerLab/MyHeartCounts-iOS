@@ -56,15 +56,15 @@ extension DemographicsSelectableSimpleValue {
 }
 
 
-struct DemographicsSingleSelectionPicker<Value: DemographicsSelectableSimpleValue, Header: View>: View {
-    private let header: Header
+struct DemographicsSingleSelectionPicker<Value: DemographicsSelectableSimpleValue>: View {
+    private let prompt: LocalizedStringResource?
     @Binding private var selection: Value
     
     var body: some View {
         Form {
-            if !(header is EmptyView) {
+            if let prompt {
                 Section {
-                    header
+                    Text(prompt)
                 }
             }
             Section {
@@ -80,9 +80,9 @@ struct DemographicsSingleSelectionPicker<Value: DemographicsSelectableSimpleValu
         }
     }
     
-    init(selection: Binding<Value>, @ViewBuilder header: () -> Header = { EmptyView() }) {
+    init(prompt: LocalizedStringResource? = nil, selection: Binding<Value>) {
         self._selection = selection
-        self.header = header()
+        self.prompt = prompt
     }
     
     @ViewBuilder

@@ -39,6 +39,7 @@ public struct PromptedActionID: Hashable, Codable, CustomStringConvertible, Send
 }
 
 extension PromptedActionID {
+    // swiftlint:disable missing_docs
     public static let sensorKit = Self("edu.stanford.MyHeartCounts.HomeTabAction.EnableSensorKit")
     public static let clinicalRecords = Self("edu.stanford.MyHeartCounts.HomeTabAction.EnableClinicalRecords")
     public static let verifyAccountEmail = Self("edu.stanford.MyHeartCounts.HomeTabAction.verifyAccountEmail")
