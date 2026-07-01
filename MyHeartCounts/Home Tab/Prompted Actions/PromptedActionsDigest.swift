@@ -8,6 +8,7 @@
 
 // swiftlint:disable file_types_order attributes
 
+import MyHeartCountsShared
 import SFSafeSymbols
 import SpeziViews
 import SwiftUI
@@ -24,6 +25,15 @@ struct PromptedActionsDigest: View {
     enum Context {
         case completePending
         case viewAll
+        
+        var filter: PromptedActionsFilter {
+            switch self {
+            case .completePending:
+                LaunchOptions[.promptedActionsFilter]
+            case .viewAll:
+                .none
+            }
+        }
     }
     
     @PromptedActions(inclusionCriterion: .only(.pending, includeRejected: false))
@@ -41,7 +51,10 @@ struct PromptedActionsDigest: View {
         case .completePending: false
         case .viewAll: true
         }
-        let actions = $actions.actions(matching: .only(.pending, includeRejected: includeRejectedInDigest))
+        let actions = $actions.actions(
+            filter: context.filter,
+            matching: .only(.pending, includeRejected: includeRejectedInDigest)
+        )
         // the section stays alive while the checklist sheet is presented (even once the query turns empty),
         // so that the sheet isn't yanked away mid-animation when the last action concludes.
         let shouldDisplay: Bool = { () -> Bool in
@@ -214,11 +227,11 @@ private struct PromptedActionsSheet: View {
                 case .completePending:
                     section(
                         footer: .setupChecklistFooterPendingOnly,
-                        actions: $actions.actions(matching: .only(.pending, includeRejected: false))
+                        actions: $actions.actions(filter: context.filter, matching: .only(.pending, includeRejected: false))
                     )
                 case .viewAll:
-                    let pending = $actions.actions(matching: .only(.pending, includeRejected: true))
-                    let completed = $actions.actions(matching: .only(.completed, includeRejected: true))
+                    let pending = $actions.actions(filter: context.filter, matching: .only(.pending, includeRejected: true))
+                    let completed = $actions.actions(filter: context.filter, matching: .only(.completed, includeRejected: true))
                     section(footer: .setupChecklistFooterAllActions, actions: pending)
                     section(title: "Completed", footer: pending.isEmpty ? .setupChecklistFooterAllActions : nil, actions: completed)
                 }

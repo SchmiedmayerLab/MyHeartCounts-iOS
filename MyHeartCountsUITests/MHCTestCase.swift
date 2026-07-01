@@ -63,6 +63,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
     /// Launches the app and puts it in a state where the participant is logged in and enrolled into the study.
     ///
     /// - parameter enableDebugMode: Whether the app should force-enable its debug mode for this launch. Defaults to `false`.
+    /// - parameter promptedActionsFilter: which prompted actions should be considered for display on the home tab, if any. defaults to not showing any prompted actions.
     /// - parameter heightEntryUnitOverride: Allows overriding the unit the app will use when manually entering a height quantity.
     ///     Allowed values are `cm`, `feet`, or `nil` (the default).
     /// - parameter weightEntryUnitOverride: Allows overriding the unit the app will use when manually entering a weight quantity.
@@ -77,6 +78,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
         enableHealthRecords: Bool = MHCTestCase.enableHealthRecords,
         skipHealthPermissionsHandling: Bool = false,
         skipGoingToHomeTab: Bool = false,
+        promptedActionsFilter: PromptedActionsFilter = .only([]),
         heightEntryUnitOverride: LaunchOptions.HeightInputUnitOverride = .none,
         weightEntryUnitOverride: LaunchOptions.WeightInputUnitOverride = .none,
         extraLaunchArgs: [String?] = [],
@@ -94,6 +96,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
             enableHealthRecords.launchOptionArgs(for: .enableHealthRecords)
             heightEntryUnitOverride.launchOptionArgs(for: .heightInputUnitOverride)
             weightEntryUnitOverride.launchOptionArgs(for: .weightInputUnitOverride)
+            promptedActionsFilter.launchOptionArgs(for: .promptedActionsFilter)
         }
         app.launchArguments += extraLaunchArgs.compactMap(\.self)
         appLocale = locale

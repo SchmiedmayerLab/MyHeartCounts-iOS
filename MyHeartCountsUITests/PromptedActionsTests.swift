@@ -12,33 +12,10 @@ import XCTestExtensions
 
 
 final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
-//    @MainActor
-//    func testSensorKitNudgeDismissal() throws {
-//        try launchAppAndEnrollIntoStudy()
-//        goToTab(.home)
-//        XCTAssert(app.staticTexts["Enable SensorKit"].waitForExistence(timeout: 2))
-//        app.staticTexts["Enable SensorKit"].press(forDuration: 2)
-//        XCTAssert(app.buttons["Stop Suggesting This"].waitForExistence(timeout: 2))
-//        app.buttons["Stop Suggesting This"].tap()
-//        XCTAssert(app.staticTexts["Enable SensorKit"].waitForNonExistence(timeout: 2))
-//        app.terminate()
-//        try launchAppAndEnrollIntoStudy(
-//            testEnvironmentConfig: .init(resetExistingData: false, loginAndEnroll: false),
-//            // no idea why but this sometimes isn't able to find the home tab item's accessibility id (is empty for some reason...)
-//            skipGoingToHomeTab: true
-//        )
-//        XCTAssert(app.staticTexts["Enable SensorKit"].waitForNonExistence(timeout: 5))
-//    }
-    
-    
     @MainActor
     func testSensorKitPrompedAction() throws {
-        let extraArgs = [
-            "--only-prompted-actions", "edu.stanford.MyHeartCounts.HomeTabAction.EnableSensorKit"
-        ]
         try launchAppAndEnrollIntoStudy(
-            skipHealthPermissionsHandling: true,
-            extraLaunchArgs: extraArgs
+            promptedActionsFilter: .only([.sensorKit])
         )
         goToTab(.home)
         XCTAssert(app.staticTexts["Complete Your Study Setup"].waitForExistence(timeout: 5))
@@ -59,12 +36,11 @@ final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
         sleep(for: .seconds(2))
         
         try launchAppAndEnrollIntoStudy(
-            testEnvironmentConfig: .init(resetExistingData: false, loginAndEnroll: false),
+            testEnvironmentConfig: .init(resetExistingData: false, loginAndEnroll: true),
             skipHealthPermissionsHandling: true,
             skipGoingToHomeTab: true,
-            extraLaunchArgs: extraArgs
+            promptedActionsFilter: .only([.sensorKit])
         )
-        goToTab(.home)
         XCTAssert(app.staticTexts["Complete Your Study Setup"].waitForNonExistence(timeout: 5))
     }
 }

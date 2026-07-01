@@ -13,8 +13,7 @@ import MyHeartCountsShared
 import SFSafeSymbols
 @_spi(APISupport)
 import Spezi
-import SpeziHealthKit
-import SpeziSensorKit
+import SpeziFoundation
 import SwiftUI
 
 
@@ -24,27 +23,7 @@ import SwiftUI
 @Observable
 @MainActor
 final class PromptedAction: nonisolated Identifiable, Sendable {
-    struct ID: Hashable, Codable, CustomStringConvertible, Sendable {
-        private let value: String
-        
-        var description: String {
-            value
-        }
-        
-        init(_ value: String) {
-            self.value = value
-        }
-        
-        init(from decoder: any Decoder) throws {
-            let container = try decoder.singleValueContainer()
-            self.value = try container.decode(String.self)
-        }
-        
-        func encode(to encoder: any Encoder) throws {
-            var container = encoder.singleValueContainer()
-            try container.encode(self.value)
-        }
-    }
+    typealias ID = PromptedActionID
     
     enum State: Hashable, Sendable {
         case pending

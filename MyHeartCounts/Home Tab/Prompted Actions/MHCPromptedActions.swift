@@ -19,31 +19,10 @@ import SpeziStudy
 import SwiftUI
 
 
-extension PromptedAction.ID {
-    fileprivate static let sensorKit = Self("edu.stanford.MyHeartCounts.HomeTabAction.EnableSensorKit")
-    fileprivate static let clinicalRecords = Self("edu.stanford.MyHeartCounts.HomeTabAction.EnableClinicalRecords")
-    fileprivate static let verifyAccountEmail = Self("edu.stanford.MyHeartCounts.HomeTabAction.verifyAccountEmail")
-    fileprivate static let completeDemographics = Self("edu.stanford.MyHeartCounts.HomeTabAction.completeDemographics")
-}
-
-
-extension LaunchOptions {
-    /// Comma-separated list of ``PromptedAction/ID``s. If speciified, the app will consider only these actions.
-    static let promptedActionsFilter = LaunchOption<String?>("--only-prompted-actions", default: nil)
-}
-
-
 extension PromptedAction {
-    static let allActions: [PromptedAction] = {
-        let all: [PromptedAction] = [
-            .completeDemographics, .enableClinicalRecords, .enableSensorKit, .verifyAccountEmail
-        ]
-        return if let enabledIds = LaunchOptions[.promptedActionsFilter]?.split(separator: ",").mapIntoSet({ PromptedAction.ID(String($0)) }) {
-            all.filter { enabledIds.contains($0.id) }
-        } else {
-            all
-        }
-    }()
+    static let allActions: [PromptedAction] = [
+        .completeDemographics, .enableClinicalRecords, .enableSensorKit, .verifyAccountEmail
+    ]
     
     private static let enableSensorKit = PromptedAction(
         id: .sensorKit,

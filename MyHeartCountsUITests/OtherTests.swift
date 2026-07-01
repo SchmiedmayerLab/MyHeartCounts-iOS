@@ -40,4 +40,25 @@ final class OtherTests: MHCTestCase, @unchecked Sendable {
         XCTAssert(app.staticTexts["How Sharing Health Records Works"].waitForNonExistence(timeout: 20))
         XCTAssert(app.staticTexts["Welcome to My Heart Counts"].waitForExistence(timeout: 20))
     }
+    
+    
+    /// Tests that passing `testEnvironmentConfig: .init(resetExistingData: false, loginAndEnroll: true)` to
+    /// `launchAppAndEnrollIntoStudy` behaves properly (ie, we are logged in and the data from the previous launch remains).
+    @MainActor
+    func testLaunchKeepingData() throws {
+        try launchAppAndEnrollIntoStudy()
+        XCTAssert(app.staticTexts["Completed"].waitForNonExistence(timeout: 2))
+        app.buttons["Read Article: Welcome to My Heart Counts"].tap()
+        app.navigationBars.buttons["Close"].tap()
+        XCTAssert(app.staticTexts["Completed"].waitForExistence(timeout: 2))
+        app.terminate()
+        
+        try launchAppAndEnrollIntoStudy(
+            testEnvironmentConfig: .init(resetExistingData: false, loginAndEnroll: true),
+            skipHealthPermissionsHandling: true,
+            skipGoingToHomeTab: true
+        )
+        sleep(for: .seconds(100))
+        XCTAssert(app.staticTexts["Completed"].waitForExistence(timeout: 5))
+    }
 }

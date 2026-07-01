@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import MyHeartCountsShared
 @_spi(APISupport)
 import Spezi
 import SpeziFoundation
@@ -36,7 +37,7 @@ struct PromptedActions: DynamicProperty {
     private let inclusionCriterion: InclusionCriterion
     
     @MainActor var wrappedValue: [PromptedAction] {
-        actions(matching: inclusionCriterion)
+        actions(filter: .none, matching: inclusionCriterion)
     }
     
     var projectedValue: Self {
@@ -52,12 +53,15 @@ struct PromptedActions: DynamicProperty {
         rejectedActionIds.insert(actionId)
     }
     
-    func actions(matching inclusionCriterion: InclusionCriterion) -> [PromptedAction] {
+    func actions(filter: PromptedActionsFilter, matching inclusionCriterion: InclusionCriterion) -> [PromptedAction] {
         switch inclusionCriterion {
         case .all:
-            PromptedAction.allActions
+            PromptedAction.allActions.filter(filter)
         case let .only(state, includeRejected):
             PromptedAction.allActions.filter { action in
+                guard filter.evaluate(action) else {
+                    return false
+                }
                 guard includeRejected || !rejectedActionIds.contains(action.id) else {
                     return false
                 }
@@ -86,4 +90,26 @@ extension LocalPreferenceKeys {
         "rejectedHomeTabPromptedActions",
         default: []
     )
+}
+
+
+extension Collection where Element == PromptedAction {
+    func filter(_ filter: PromptedActionsFilter) -> [PromptedAction] {
+        self.filter { filter.evaluate($0) }
+    }
+}
+
+
+extension PromptedActionsFilter {
+    /// Evaluates the filter against the action, returning `true` if it matched, and `false` otherwise.
+    func evaluate(_ action: PromptedAction) -> Bool {
+        switch self {
+        case .none:
+            true
+        case .only(let ids):
+            ids.contains(action.id)
+        case .except(let ids):
+            !ids.contains(action.id)
+        }
+    }
 }
