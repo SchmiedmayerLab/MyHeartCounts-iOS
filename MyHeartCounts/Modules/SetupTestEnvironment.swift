@@ -146,12 +146,13 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
             return
         }
         do {
+            let credentials = TestingConstants.loginCredentials
             // FirebaseAccountService's `login(userId:password:)` will unconditionally log the user out,
             // even if it is the same user the function is asked to log in to.
             // we need to prevent this, since the logout would trigger all of the local data to get reset,
             // which might be at odds with our config here.
-            if !account.signedIn || account.details?.userId != "leland@stanford.edu" {
-                try await accountService.login(userId: "leland@stanford.edu", password: "StanfordRocks!")
+            if !account.signedIn || account.details?.userId != credentials.email {
+                try await accountService.login(userId: credentials.email, password: credentials.password)
             }
         } catch FirebaseAccountError.invalidCredentials {
             // account doesn't exist yet, signup

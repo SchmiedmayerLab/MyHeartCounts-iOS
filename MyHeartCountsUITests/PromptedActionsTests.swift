@@ -11,9 +11,9 @@ import XCTest
 import XCTestExtensions
 
 
-final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
+final class PromptedActionsTests: MHCTestCase, Sendable {
     // Tests that dismissing a prompted action makes it disappear from the home tab
-    @MainActor
+    // (but that it still shows up via the Account Sheet)
     func testPromptedActionDismissal() throws {
         try launchAppAndEnrollIntoStudy(
             promptedActionsFilter: .only([.sensorKit])
@@ -27,7 +27,7 @@ final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
         XCTAssert(app.navigationBars["Suggested for You"].waitForExistence(timeout: 2))
         let sheet = app.otherElements["PromptedActionsDigestSheet"]
         XCTAssert(sheet.exists)
-        let sensorKitRow = sheet.otherElements["PromptedActionRow:edu.stanford.MyHeartCounts.HomeTabAction.EnableSensorKit"]
+        let sensorKitRow = sheet.otherElements["PromptedActionRow:\(PromptedActionID.sensorKit.value)"]
         XCTAssert(sensorKitRow.exists)
         sensorKitRow.buttons["Don't suggest “Enable SensorKit” again"].tap()
         sleep(for: .seconds(1))
@@ -40,6 +40,7 @@ final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
         XCTAssert(digestButton.waitForExistence(timeout: 2))
         digestButton.tap()
         XCTAssert(sheet.waitForExistence(timeout: 2))
+        sheet.navigationBars.element.swipeUp()
         XCTAssert(sensorKitRow.waitForExistence(timeout: 2))
         
         app.terminate()
@@ -58,6 +59,7 @@ final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
         XCTAssert(digestButton.waitForExistence(timeout: 2))
         digestButton.tap()
         XCTAssert(sheet.waitForExistence(timeout: 2))
+        sheet.navigationBars.element.swipeUp()
         XCTAssert(sensorKitRow.waitForExistence(timeout: 2))
     }
 }

@@ -13,8 +13,7 @@ import XCTestExtensions
 import XCTHealthKit
 
 
-final class OtherTests: MHCTestCase, @unchecked Sendable {
-    @MainActor
+final class OtherTests: MHCTestCase, Sendable {
     func testSkippingClinicalRecordsAuthorization() throws {
         guard MHCTestCase.enableHealthRecords else {
             throw XCTSkip("Health Records Testing disabled")
@@ -44,7 +43,6 @@ final class OtherTests: MHCTestCase, @unchecked Sendable {
     
     /// Tests that passing `testEnvironmentConfig: .init(resetExistingData: false, loginAndEnroll: true)` to
     /// `launchAppAndEnrollIntoStudy` behaves properly (ie, we are logged in and the data from the previous launch remains).
-    @MainActor
     func testLaunchKeepingData() throws {
         try launchAppAndEnrollIntoStudy()
         XCTAssert(app.staticTexts["Completed"].waitForNonExistence(timeout: 2))

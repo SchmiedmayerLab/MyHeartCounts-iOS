@@ -25,7 +25,7 @@ public struct PromptedActionID: Hashable, Codable, CustomStringConvertible, Send
     /// We enforce this in order to be able to express a list of IDs as a comma-separated list without needing to worry about a comma potentially being part of an ID.
     nonisolated(unsafe) private static let pattern = /^[A-Za-z0-9]+(\.[A-Za-z0-9]+)*$/
     
-    package let value: String
+    public let value: String
     
     public var description: String {
         value

@@ -13,12 +13,11 @@ import XCTest
 import XCTHealthKit
 
 
-final class MHCScreenshotting: MHCTestCase, @unchecked Sendable {
+final class MHCScreenshotting: MHCTestCase, Sendable {
     private var screenshotsDir: URL! // swiftlint:disable:this implicitly_unwrapped_optional
     
-    @MainActor private var screenshotIdx = 0
+    private var screenshotIdx = 0
     
-    @MainActor
     override func setUp() async throws {
         try await super.setUp()
         /// The URL of the `MyHeartCounts-iOS` repository.
@@ -32,7 +31,6 @@ final class MHCScreenshotting: MHCTestCase, @unchecked Sendable {
             .appending(path: "fastlane/screenshots", directoryHint: .isDirectory)
     }
     
-    @MainActor
     func recordScreenshot(_ name: String? = nil) throws {
         defer {
             screenshotIdx += 1
@@ -50,7 +48,6 @@ final class MHCScreenshotting: MHCTestCase, @unchecked Sendable {
 
 
 extension MHCScreenshotting {
-    @MainActor
     func testTakeAppStoreScreenshots() throws {
         try runScreenshotsFlow(for: .enUS)
         try runScreenshotsFlow(for: .esES)
@@ -58,7 +55,6 @@ extension MHCScreenshotting {
     }
     
     
-    @MainActor
     private func runScreenshotsFlow(for locale: Locale) throws { // swiftlint:disable:this function_body_length
         screenshotIdx = 0 // reset at begin
         let isFirstRun = locale == .enUS
@@ -175,7 +171,6 @@ extension MHCTestCase {
     /// Looks up the localized string `key` in the main app's localization catalogue, for app's current language.
     ///
     /// If no entry exists for the key, the key itself is returned.
-    @MainActor
     func lookupLocalizedString(_ key: String) throws -> String {
         try XCTUnwrap(app.mainBundle).localizedString(forKey: key, tables: [.default], localizations: [appLocale.language]) ?? key
     }

@@ -14,8 +14,7 @@ import XCTestExtensions
 import XCTHealthKit
 
 
-class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
-    @MainActor
+class HealthDashboardTests: MHCTestCase, Sendable {
     func testHealthDashboardDataEntryBMIDirect() throws {
         let value = Int.random(in: 20...50)
         try launchAppAndEnrollIntoStudy()
@@ -41,7 +40,6 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     }
     
     
-    @MainActor
     func testHealthDashboardDataEntryBMIIndirectMetric() throws {
         try launchAppAndEnrollIntoStudy(
             heightEntryUnitOverride: .cm,
@@ -64,7 +62,6 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     }
     
     
-    @MainActor
     func testHealthDashboardDataEntryBMIIndirectUSUnits() throws {
         try launchAppAndEnrollIntoStudy(
             heightEntryUnitOverride: .feet,
@@ -101,7 +98,6 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     }
     
     
-    @MainActor
     func testBloodLipidsEntry() throws {
         let value = Int.random(in: 30..<400)
         
@@ -119,7 +115,6 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     }
     
     
-    @MainActor
     func testNicotineExposureProcessing() throws {
         try launchAppAndEnrollIntoStudy()
         goToTab(.heartHealth)
@@ -143,7 +138,6 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     }
     
     
-    @MainActor
     func testDietScoreProcessing() throws {
         // not trivial bc the survey contains mutiple questions on a single page, and it's not easy to differentiate between them.
         throw XCTSkip("TODO")
@@ -162,7 +156,6 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     }
     
     
-    @MainActor
     func testBloodPressureDataEntry() throws {
         guard !HealthKit.needsBloodPressureAuthFlowFix else {
             throw XCTSkip("Skipping bc of iOS 26.5.x Blood Pressure auth issue")
@@ -193,7 +186,6 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     }
     
     
-    @MainActor
     func testQuantityInputBounds() throws {
         try launchAppAndEnrollIntoStudy()
         goToTab(.heartHealth)
@@ -252,7 +244,6 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     }
     
     
-    @MainActor
     func testSleepSessionsSheet() throws {
         try launchAppAndEnrollIntoStudy(enableDebugMode: true, extraLaunchArgs: [
             "--dashboardConsiderAllSleepData"
