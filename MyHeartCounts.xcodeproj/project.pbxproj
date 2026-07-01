@@ -1234,8 +1234,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git";
 			requirement = {
-				kind = revision;
-				revision = d0b87d46e5d4113be3819651fa46c41ec4e78afd;
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.2.2;
 			};
 		};
 		805363752DB6997600D7E8A3 /* XCRemoteSwiftPackageReference "SpeziHealthKit" */ = {
@@ -1307,7 +1307,7 @@
 			repositoryURL = "https://github.com/SchmiedmayerLab/Spezi.git";
 			requirement = {
 				kind = upToNextMinorVersion;
-				minimumVersion = 0.1.2;
+				minimumVersion = 0.1.3;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
