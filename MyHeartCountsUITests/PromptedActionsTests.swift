@@ -40,11 +40,12 @@ final class PromptedActionsTests: MHCTestCase, Sendable {
         XCTAssert(digestButton.waitForExistence(timeout: 2))
         digestButton.tap()
         XCTAssert(sheet.waitForExistence(timeout: 2))
-        sheet.navigationBars.element.swipeUp()
+        sheet.navigationBars.element
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)))
         XCTAssert(sensorKitRow.waitForExistence(timeout: 2))
         
         app.terminate()
-        sleep(for: .seconds(2))
         
         try launchAppAndEnrollIntoStudy(
             testEnvironmentConfig: .init(resetExistingData: false, loginAndEnroll: true),
@@ -59,7 +60,9 @@ final class PromptedActionsTests: MHCTestCase, Sendable {
         XCTAssert(digestButton.waitForExistence(timeout: 2))
         digestButton.tap()
         XCTAssert(sheet.waitForExistence(timeout: 2))
-        sheet.navigationBars.element.swipeUp()
+        sheet.navigationBars.element
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)))
         XCTAssert(sensorKitRow.waitForExistence(timeout: 2))
     }
 }
