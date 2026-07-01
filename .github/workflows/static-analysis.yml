@@ -31,7 +31,6 @@ jobs:
   periphery:
     name: Periphery
     uses: SchmiedmayerLab/.github/.github/workflows/periphery.yml@v0.2
-    if: ${{ false }}
     permissions:
       contents: read
     with:
@@ -45,7 +44,6 @@ jobs:
   codeql:
     name: CodeQL
     uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.2
-    if: ${{ false }}
     permissions:
       security-events: write
       actions: read

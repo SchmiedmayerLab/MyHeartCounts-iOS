@@ -99,6 +99,7 @@ struct PromptedActionsDigest: View {
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
             .listSectionSpacing(.compact)
+            .accessibilityIdentifier("PromptedActionsDigest")
         }
     }
     

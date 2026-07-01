@@ -12,15 +12,18 @@ import XCTestExtensions
 
 
 final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
+    // Tests that dismissing a prompted action makes it disappear from the home tab
     @MainActor
-    func testSensorKitPrompedAction() throws {
+    func testPromptedActionDismissal() throws {
         try launchAppAndEnrollIntoStudy(
             promptedActionsFilter: .only([.sensorKit])
         )
         goToTab(.home)
-        XCTAssert(app.staticTexts["Complete Your Study Setup"].waitForExistence(timeout: 5))
+        let digestButton = app.buttons["PromptedActionsDigest"]
+        XCTAssert(digestButton.waitForExistence(timeout: 2))
+        XCTAssert(app.staticTexts["Complete Your Study Setup"].waitForExistence(timeout: 2))
         XCTAssert(app.staticTexts["1 recommended step to get the most out of the study"].waitForExistence(timeout: 2))
-        app.staticTexts["Complete Your Study Setup"].tap()
+        digestButton.tap()
         XCTAssert(app.navigationBars["Suggested for You"].waitForExistence(timeout: 2))
         let sheet = app.otherElements["PromptedActionsDigestSheet"]
         XCTAssert(sheet.exists)
@@ -31,6 +34,13 @@ final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
         app.buttons["Stop Suggesting This"].tap()
         XCTAssert(sensorKitRow.waitForNonExistence(timeout: 2))
         XCTAssert(sheet.waitForNonExistence(timeout: 2))
+        XCTAssert(digestButton.waitForNonExistence(timeout: 2))
+        
+        openAccountSheet()
+        XCTAssert(digestButton.waitForExistence(timeout: 2))
+        digestButton.tap()
+        XCTAssert(sheet.waitForExistence(timeout: 2))
+        XCTAssert(sensorKitRow.waitForExistence(timeout: 2))
         
         app.terminate()
         sleep(for: .seconds(2))
@@ -41,6 +51,13 @@ final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
             skipGoingToHomeTab: true,
             promptedActionsFilter: .only([.sensorKit])
         )
-        XCTAssert(app.staticTexts["Complete Your Study Setup"].waitForNonExistence(timeout: 5))
+        XCTAssert(digestButton.waitForNonExistence(timeout: 2))
+        XCTAssert(app.staticTexts["Complete Your Study Setup"].waitForNonExistence(timeout: 2))
+        
+        openAccountSheet()
+        XCTAssert(digestButton.waitForExistence(timeout: 2))
+        digestButton.tap()
+        XCTAssert(sheet.waitForExistence(timeout: 2))
+        XCTAssert(sensorKitRow.waitForExistence(timeout: 2))
     }
 }

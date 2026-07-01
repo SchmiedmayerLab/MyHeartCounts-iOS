@@ -21,7 +21,6 @@ jobs:
   mhc_app_unit_tests:
     name: App Unit Tests
     uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.2
-    if: ${{ false }}
     permissions:
       contents: read
     with:
@@ -60,7 +59,6 @@ jobs:
   mhc_utils_unit_tests:
     name: Utils Unit Tests (${{ matrix.platform.name }} ${{ matrix.config }})
     uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.2
-    if: ${{ false }}
     permissions:
       contents: read
     strategy:
@@ -82,7 +80,6 @@ jobs:
   mhc_utils_unit_tests_linux:
     name: Utils Unit Tests (Linux ${{ matrix.config }})
     uses: SchmiedmayerLab/.github/.github/workflows/swift-test.yml@v0.2
-    if: ${{ false }}
     permissions:
       contents: read
     strategy:
