@@ -150,7 +150,7 @@ extension Impl {
                     """,
                 state: $viewState
             ) {
-                // this likely isn't necessary
+                // this likely isn't necessary but we wanna be safe.
                 try await healthKit.askForAuthorization(for: .init(read: [
                     HealthKitCharacteristic.dateOfBirth.hkType,
                     HealthKitCharacteristic.bloodType.hkType,

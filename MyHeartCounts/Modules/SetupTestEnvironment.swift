@@ -111,9 +111,6 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
         try await bulkHealthExporter.deleteSessionRestorationInfo(for: .mhcHistoricalDataExport)
         try fileUploader.clearPendingUploads()
         LocalPreferencesStore.standard.removeAllEntries(in: .app)
-        // we set this to true immediataly after having cleared all of our entries, so that the onboarding sheet doesn't
-        // cover the "Setting up Test Environment" full-screen thing.
-        LocalPreferencesStore.standard[.onboardingFlowComplete] = true
         if let studyManager {
             for enrollment in studyManager.studyEnrollments {
                 try await studyManager.unenroll(from: enrollment)
@@ -131,6 +128,10 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
     
     private func loginAndEnroll() async throws {
         logger.notice("Logging in and enrolling into Study")
+        // we set this immediately at the beginning, since the value will likely have been cleared in
+        // the `resetExistingData()` call preceding this `loginAndEnroll()` call, and we don't want the
+        // onboarding sheet covering the "Setting up Test Environment" full-screen thing.
+        LocalPreferencesStore.standard[.onboardingFlowComplete] = true
         guard let accountService else {
             logger.error("Unable to log in and enroll: no AccountService!")
             return
