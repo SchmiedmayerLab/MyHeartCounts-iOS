@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+#if !os(Linux)
 
 public enum PromptedActionsFilter: LaunchOptionDecodable, LaunchOptionEncodable, Sendable {
     /// No filter should be applied
@@ -58,3 +59,5 @@ extension LaunchOptions {
     /// Comma-separated list of ``PromptedAction/ID``s. If speciified, the app will consider only these actions.
     public static let promptedActionsFilter = LaunchOption<PromptedActionsFilter>("--prompted-actions-filter", default: .none)
 }
+
+#endif

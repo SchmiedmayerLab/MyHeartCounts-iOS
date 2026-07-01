@@ -6,8 +6,20 @@
 // SPDX-License-Identifier: MIT
 //
 
+#if !os(Linux)
+
+private import Foundation
+
 
 public struct PromptedActionID: Hashable, Codable, CustomStringConvertible, Sendable {
+    private struct InvalidFormatError: LocalizedError {
+        let input: String
+        
+        var errorDescription: String? {
+            "PromptedActionID must match \(PromptedActionID.pattern._literalPattern ?? "simple reverse DNS notation"). Input value: '\(input)'"
+        }
+    }
+    
     /// The pattern all `PromptedAction` IDs must match. Simple reverse DNS notation.
     ///
     /// We enforce this in order to be able to express a list of IDs as a comma-separated list without needing to worry about a comma potentially being part of an ID.
@@ -20,16 +32,19 @@ public struct PromptedActionID: Hashable, Codable, CustomStringConvertible, Send
     }
     
     public init<S: StringProtocol>(_ value: S) where S.SubSequence == Substring {
-        precondition(
-            value.wholeMatch(of: Self.pattern) != nil,
-            "PromptedAction.ID must match \(Self.pattern._literalPattern ?? "simple reverse DNS notation"). Input value: '\(value)'"
-        )
+        try! self.init(validating: value) // swiftlint:disable:this force_try
+    }
+    
+    private init<S: StringProtocol>(validating value: S) throws where S.SubSequence == Substring {
+        guard value.wholeMatch(of: Self.pattern) != nil else {
+            throw InvalidFormatError(input: String(value))
+        }
         self.value = String(value)
     }
     
     public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
-        self.init(try container.decode(String.self))
+        try self.init(validating: try container.decode(String.self))
     }
     
     public func encode(to encoder: any Encoder) throws {
@@ -45,3 +60,5 @@ extension PromptedActionID {
     public static let verifyAccountEmail = Self("edu.stanford.MyHeartCounts.HomeTabAction.verifyAccountEmail")
     public static let completeDemographics = Self("edu.stanford.MyHeartCounts.HomeTabAction.completeDemographics")
 }
+
+#endif
