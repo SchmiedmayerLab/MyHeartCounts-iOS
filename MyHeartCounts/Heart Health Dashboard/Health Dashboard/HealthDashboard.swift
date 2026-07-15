@@ -22,7 +22,7 @@ extension Gradient {
 
 enum HealthDashboardConstants {}
 
-typealias HealthDashboardGoalProvider = @Sendable @MainActor (QuantitySample.SampleType) -> Achievement.ResolvedGoal?
+typealias HealthDashboardGoalProvider = @Sendable @MainActor (QuantitySample.SampleType) -> LegacyAchievement.ResolvedGoal?
 
 extension EnvironmentValues {
     @Entry var healthDashboardGoalProvider: HealthDashboardGoalProvider?

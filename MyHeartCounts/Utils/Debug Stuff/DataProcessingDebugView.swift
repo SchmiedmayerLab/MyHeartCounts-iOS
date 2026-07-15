@@ -68,5 +68,10 @@ struct DataProcessingDebugView: View {
                 }
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                MemoryUsageIndicator(style: .toolbarItem)
+            }
+        }
     }
 }

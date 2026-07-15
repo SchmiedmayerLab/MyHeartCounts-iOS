@@ -53,7 +53,7 @@ struct HealthDashboardTile<Content: View, Accessory: View>: View {
         .if(!isRecentValuesViewInDetailedStatsSheet) {
             $0
                 .padding(EdgeInsets(top: 0, leading: Self.insets.leading, bottom: Self.insets.bottom, trailing: Self.insets.trailing))
-                .background(.background)
+                .background(.dashboardTile)
         }
         .frame(minHeight: 129)
     }

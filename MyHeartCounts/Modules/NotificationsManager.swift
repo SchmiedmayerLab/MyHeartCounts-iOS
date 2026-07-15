@@ -115,6 +115,10 @@ extension NotificationsManager: NotificationTokenHandler {
         guard let account else {
             return
         }
+        // since these updates typically happen very early into the launch of the app, the account details
+        // might not be fully populated & available yet; we need to wait until they are available in order
+        // to work around https://github.com/SchmiedmayerLab/MyHeartCounts-iOS/issues/169
+        await account.waitForAccountDetailsReady()
         var updatedDetails = AccountDetails()
         var removedDetails = AccountDetails()
         switch (account.details?.fcmToken, newToken) {

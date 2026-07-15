@@ -13,6 +13,8 @@ import SpeziFoundation
 
 /// A collection of feature flags for My Heart Counts.
 enum FeatureFlags {
+    static let enableStatsAndAchievements = true
+    
     /// Disables the Firebase interactions, including the login/sign-up step and the Firebase Firestore upload.
     ///
     /// - Note: This takes precedence over all other firebase-related flags.

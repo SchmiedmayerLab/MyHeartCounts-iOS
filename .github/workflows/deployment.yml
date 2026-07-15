@@ -12,6 +12,7 @@ on:
   push:
     branches:
       - main
+      - lukas/stats-and-achievements
   workflow_dispatch:
     inputs:
       environment:

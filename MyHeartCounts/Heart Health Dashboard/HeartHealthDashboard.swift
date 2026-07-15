@@ -175,9 +175,12 @@ struct HeartHealthDashboard: View {
         ) {
             VStack(spacing: 0) {
                 ScoreResultGauge(scoreResult: score)
-                .frame(width: 80, height: 80)
-                .padding(.top, 4)
-                .padding(.bottom, -8)
+                    .frame(width: 80, height: 80)
+                    .padding(.top, 4)
+                    .padding(.bottom, -8)
+//                Text(score.title)
+//                    .font(.footnote)
+//                    .foregroundStyle(.secondary)
                 if let timeRange = score.timeRange, score.scoreAvailable {
                     // - For e.g. Sleep, we might prefer this saying "Today, 7:00" instead of just "7:00" which it would show currently
                     //   (if today's sleep session ended at 07AM), the reason being that the user might confuse the label with meaning that they slept for 7 hours.
