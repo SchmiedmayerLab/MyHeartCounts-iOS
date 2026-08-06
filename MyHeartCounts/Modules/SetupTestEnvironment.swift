@@ -128,7 +128,7 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
     private func resetExistingData() async throws {
         logger.notice("Resetting existing data")
         try await bulkHealthExporter.deleteSessionRestorationInfo(for: .mhcHistoricalDataExport)
-        try fileUploader.clearPendingUploads()
+        try await fileUploader.clearPendingUploads()
         if let studyManager {
             for enrollment in studyManager.studyEnrollments {
                 try await studyManager.unenroll(from: enrollment)

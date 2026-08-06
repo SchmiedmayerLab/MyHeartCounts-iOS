@@ -33,7 +33,26 @@ final class MHCBackgroundTasks: Module, EnvironmentAccessible, @unchecked Sendab
     private var lifecycle
     
     private let registeredTasks = Mutex<[TaskIdentifier: TaskDefinition]>([:])
-    
+
+    @concurrent
+    static func execute(
+        handler: @escaping TaskDefinition.Handler,
+        completion: @escaping @Sendable (Bool) -> Void,
+        reschedule: @escaping @Sendable () -> Void
+    ) async {
+        let success: Bool
+        do {
+            try Task.checkCancellation()
+            try await handler()
+            try Task.checkCancellation()
+            success = true
+        } catch {
+            success = false
+        }
+        reschedule()
+        completion(success)
+    }
+
     func configure() {
         lifecycle.onChange(of: \.scenePhase) { _, newValue in
             if newValue == .background {
@@ -56,29 +75,26 @@ final class MHCBackgroundTasks: Module, EnvironmentAccessible, @unchecked Sendab
                 throw TaskHandlingError.alreadyRegistered
             }
             let didRegister = BGTaskScheduler.shared.register(forTaskWithIdentifier: definition.id.rawValue, using: nil) { task in
-                let asyncTask = Task {
-                    defer {
-                        Task {
-                            try? self.schedule(definition.id)
+                let asyncTask = Task { @concurrent in
+                    MHCBackgroundTasks.track(.start, for: definition.id)
+                    await Self.execute(
+                        handler: definition.handler,
+                        completion: { success in
+                            MHCBackgroundTasks.track(.stop, for: definition.id)
+                            task.setTaskCompleted(success: success)
+                        },
+                        reschedule: {
+                            do {
+                                try self.schedule(definition.id)
+                            } catch {
+                                self.logger.error("Failed rescheduling task '\(definition.id)': \(error)")
+                            }
                         }
-                    }
-                    do {
-                        MHCBackgroundTasks.track(.start, for: definition.id)
-                        try await definition.handler()
-                        MHCBackgroundTasks.track(.stop, for: definition.id)
-                        task.setTaskCompleted(success: true)
-                    } catch is CancellationError {
-                        // the task was cancelled by us below, in response to the background task expiring.
-                        // we ignore this; no need to do anything.
-                    } catch {
-                        MHCBackgroundTasks.track(.stop, for: definition.id)
-                        task.setTaskCompleted(success: false)
-                    }
+                    )
                 }
                 task.expirationHandler = {
-                    asyncTask.cancel()
                     MHCBackgroundTasks.track(.expiration, for: definition.id)
-                    try? self.schedule(definition.id)
+                    asyncTask.cancel()
                 }
             }
             if didRegister {
@@ -134,19 +150,34 @@ extension MHCBackgroundTasks {
         
         struct NextTriggerDate {
             static var earliestPossible: Self {
-                Self(date: nil)
+                Self { _ in nil }
             }
-            
-            fileprivate let date: Date?
+
+            private let resolveDate: @Sendable (Date) -> Date?
+
+            private init(resolveDate: @escaping @Sendable (Date) -> Date?) {
+                self.resolveDate = resolveDate
+            }
             
             static func absolute(_ date: Date) -> Self {
-                Self(date: date)
+                Self { _ in date }
+            }
+            static func after(_ timeInterval: TimeInterval) -> Self {
+                Self { $0.addingTimeInterval(timeInterval) }
             }
             static func next(_ components: DateComponents) -> Self {
-                Self(date: Calendar.current.nextDate(after: .now, matching: components, matchingPolicy: .nextTime))
+                Self {
+                    Calendar.current.nextDate(after: $0, matching: components, matchingPolicy: .nextTime)
+                }
             }
             static func next(_ rule: Calendar.RecurrenceRule) -> Self {
-                Self(date: rule.recurrences(of: .now).first { _ in true })
+                Self { date in
+                    rule.recurrences(of: date).first { _ in true }
+                }
+            }
+
+            func resolve(relativeTo date: Date = .now) -> Date? {
+                resolveDate(date)
             }
         }
         
@@ -167,7 +198,7 @@ extension MHCBackgroundTasks {
         ) -> Self {
             Self(id: id, handler: handler) {
                 let request = BGAppRefreshTaskRequest(identifier: id.rawValue)
-                request.earliestBeginDate = nextTriggerDate.date
+                request.earliestBeginDate = nextTriggerDate.resolve()
                 return request
             }
         }
@@ -180,7 +211,7 @@ extension MHCBackgroundTasks {
         ) -> Self {
             Self(id: id, handler: handler) {
                 let request = BGProcessingTaskRequest(identifier: id.rawValue)
-                request.earliestBeginDate = nextTriggerDate.date
+                request.earliestBeginDate = nextTriggerDate.resolve()
                 if options.contains(.requiresExternalPower) {
                     request.requiresExternalPower = true
                 }
@@ -200,7 +231,7 @@ extension MHCBackgroundTasks {
         ) -> Self {
             Self(id: id, handler: handler) {
                 let request = BGHealthResearchTaskRequest(identifier: id.rawValue)
-                request.earliestBeginDate = nextTriggerDate.date
+                request.earliestBeginDate = nextTriggerDate.resolve()
                 if options.contains(.requiresExternalPower) {
                     request.requiresExternalPower = true
                 }

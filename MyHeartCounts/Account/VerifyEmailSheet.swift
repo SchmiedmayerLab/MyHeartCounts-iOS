@@ -59,16 +59,14 @@ struct VerifyEmailSheet: View {
             }
             .interactiveDismissDisabled(viewState != .idle)
             .task {
-                // not ideal but as there is no way for firebase to notify us when the user verifies their email,
-                // we instead set up a loop that just continuously refreshes the account (which in turn will update
-                // account.details.isVerified).
-                while !Task.isCancelled {
+                // Firebase does not notify us when verification finishes, so poll while this sheet is open.
+                while !Task.isCancelled, account.details?.isVerified != true {
                     do {
                         try await accountService.refresh()
                     } catch {
                         logger.error("Error refreshing user: \(error)")
                     }
-                    try? await Task.sleep(for: .seconds(2))
+                    try? await Task.sleep(for: .seconds(5))
                 }
             }
         }

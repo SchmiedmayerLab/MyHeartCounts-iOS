@@ -1152,6 +1152,22 @@
         }
       }
     },
+    "Another test is already active" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another test is already active"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya hay otra prueba en curso"
+          }
+        }
+      }
+    },
     "Answer Questionnaire" : {
       "localizations" : {
         "en-GB" : {
@@ -1181,6 +1197,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Responder al cuestionario"
+          }
+        }
+      }
+    },
+    "Answer Survey Again" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Answer Survey Again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a responder al cuestionario"
           }
         }
       }
@@ -1293,6 +1325,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arkansas"
+          }
+        }
+      }
+    },
+    "Article" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Article"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artículo"
           }
         }
       }
@@ -6697,6 +6745,38 @@
         }
       }
     },
+    "Processing Health Data…" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processing Health Data…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Procesando datos de salud..."
+          }
+        }
+      }
+    },
+    "Processing SensorKit Data…" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processing SensorKit Data…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Procesando datos de SensorKit..."
+          }
+        }
+      }
+    },
     "Processing Sleep Data…" : {
       "localizations" : {
         "en-GB" : {
@@ -7551,6 +7631,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Leer artículo"
+          }
+        }
+      }
+    },
+    "Read Article Again" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read Article Again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a leer el artículo"
           }
         }
       }
@@ -8883,6 +8979,22 @@
         }
       }
     },
+    "Take Test Again" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take Test Again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a realizar la prueba"
+          }
+        }
+      }
+    },
     "Tap the link in the email to complete the verification, then return here." : {
       "localizations" : {
         "es" : {
@@ -9059,6 +9171,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La Prueba de Caminata cronometrada requiere acceso de lectura a los Datos de Movimiento y Fitness."
+          }
+        }
+      }
+    },
+    "There are missing Motion Sensor permissions" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are missing Motion Sensor permissions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faltan permisos para acceder a los sensores de movimiento"
           }
         }
       }

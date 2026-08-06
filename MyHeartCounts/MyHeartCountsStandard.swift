@@ -46,6 +46,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(Scheduler.self) var scheduler
     @Dependency(SensorKitDataFetcher.self) private var sensorKitFetcher
     @Dependency(HealthUploadStaging.self) var healthUploadStaging
+    @Dependency(HealthUploadStagingUploader.self) private var healthUploadStagingUploader
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
     @Dependency(AppState.self) private var appState
@@ -120,6 +121,15 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         switch event {
         case .associatedAccount(let details):
             logger.notice("account was associated (account id: \(details.accountId))")
+            if LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] {
+                do {
+                    try await clearPendingAccountData()
+                } catch {
+                    logger.error("Unable to finish cleanup from the previous account: \(error)")
+                    return
+                }
+            }
+            await managedFileUpload.resumePendingUploads()
             _Concurrency.Task {
                 await environmentTracking?.triggerAll()
                 _ = try? await registerRemoteNotifications()
@@ -128,7 +138,11 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             logger.notice("account is being deleted")
         case .disassociatingAccount:
             logger.notice("account did disassociate")
-            try? await performLogoutCleanup(context: .explicitUserLogoutEvent)
+            do {
+                try await performLogoutCleanup(context: .explicitUserLogoutEvent)
+            } catch {
+                logger.error("Unable to clear all local account data during logout: \(error)")
+            }
         case .detailsChanged:
             break
         }
@@ -136,6 +150,8 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     
     func willLogOut(_ details: AccountDetails) async {
         logger.notice("account is being logged out")
+        LocalPreferencesStore.standard[.accountDataGeneration] += 1
+        LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
         try? await notificationsManager.setFCMToken(nil)
     }
 }
@@ -178,6 +194,10 @@ extension MyHeartCountsStandard {
 
 
 extension MyHeartCountsStandard {
+    private enum PendingAccountDataCleanupError: Error {
+        case failed
+    }
+
     private enum LogoutCleanupContext {
         /// The cleanup is triggered as part of the app's internal on-launch cleanup handling, bc the app noticed that no user is logged in.
         case onLaunchCleanupBcNoUser
@@ -186,16 +206,12 @@ extension MyHeartCountsStandard {
     }
     
     
-    /// - parameter isInternalCleanup: Whether this call is part of the app's internal on-lauch cleanup routine (for the event that no user is logged in),
-    ///     as opposed to in response to the user explicitly logging out of the app.
     @MainActor
     private func performLogoutCleanup(context: LogoutCleanupContext) async throws {
         await logger.notice("performing logout cleanup")
-        switch context {
-        case .explicitUserLogoutEvent:
+        LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
+        if case .explicitUserLogoutEvent = context {
             await appState.setIsLoggingOut(true)
-        case .onLaunchCleanupBcNoUser:
-            break
         }
         // upon logging out, we want to throw the user back to the onboarding.
         // note that the onboarding flow, in this context, won't work 100% identical to when you've just launched the app in a non-logged-in state,
@@ -203,11 +219,24 @@ extension MyHeartCountsStandard {
         // we could look into using the `FirebaseApp.deleteApp(_:)` API in combination with attempting to unload the related Spezi modules, but that
         // would be anything but trivial.
         // if the user wants to switch to a different region, the easiest approach currently is to just kill and relaunch the app.
-        try? await managedFileUpload.clearPendingUploads()
-        try? await historicalUploadManager.fullyResetSession(restart: false)
-        try? await healthUploadStaging.clear()
-        await sensorKitFetcher.resetAllQueryAnchors()
-        await clinicalRecordPermissions.resetTracking()
+        var cleanupFailed = false
+        do {
+            try await clearPendingAccountData()
+        } catch {
+            cleanupFailed = true
+            await logger.error("Local account-data cleanup remains pending: \(error)")
+        }
+        await resetLocalStudyState()
+        if case .explicitUserLogoutEvent = context {
+            await finishExplicitLogout()
+        }
+        guard !cleanupFailed else {
+            throw PendingAccountDataCleanupError.failed
+        }
+    }
+
+    @MainActor
+    private func resetLocalStudyState() async {
         LocalPreferencesStore.standard[.rejectedHomeTabPromptedActions] = nil
         LocalPreferencesStore.standard[.studyActivationDate] = nil
         let studyManager = await studyManager
@@ -225,14 +254,11 @@ extension MyHeartCountsStandard {
                 }
             }
         }.result
-        switch context {
-        case .onLaunchCleanupBcNoUser:
-            return
-        case .explicitUserLogoutEvent:
-            // Schedule a firestore persistence cleanup for the nect launch.
-            // Ideally we'd have this run immediately, but it only works directly after firebase was loaded.
-            LocalPreferencesStore.standard[.shouldClearFirestoreCacheOnNextLaunch] = true
-        }
+    }
+
+    @MainActor
+    private func finishExplicitLogout() async {
+        LocalPreferencesStore.standard[.shouldClearFirestoreCacheOnNextLaunch] = true
         let isInTestEnvSetup = await setupTestEnvironment.isInSetup
         _Concurrency.Task {
             guard /*!ProcessInfo.isBeingUITested,*/ !isInTestEnvSetup else {
@@ -251,11 +277,50 @@ extension MyHeartCountsStandard {
             await appState.setIsLoggingOut(false)
         }
     }
+
+    private func clearPendingAccountData() async throws {
+        await healthUploadStagingUploader.cancelAndWaitForQuiescence()
+        await sensorKitFetcher.cancelAllActiveCollection()
+
+        let historicalDataCleared = await attemptAccountDataCleanup("historical HealthKit export state") {
+            try await historicalUploadManager.fullyResetSession(restart: false, clearPendingUploads: false)
+        }
+        let stagedFilesCleared = await attemptAccountDataCleanup("staged upload files") {
+            try await managedFileUpload.clearPendingUploads()
+        }
+        let stagedHealthDataCleared = await attemptAccountDataCleanup("staged health observations") {
+            try healthUploadStaging.clear()
+        }
+        sensorKitFetcher.resetAllQueryAnchors()
+        await clinicalRecordPermissions.resetTracking()
+
+        guard historicalDataCleared, stagedFilesCleared, stagedHealthDataCleared else {
+            throw PendingAccountDataCleanupError.failed
+        }
+        LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = false
+    }
+
+    private func attemptAccountDataCleanup(
+        _ description: String,
+        operation: () async throws -> Void
+    ) async -> Bool {
+        do {
+            try await operation()
+            return true
+        } catch {
+            logger.error("Unable to clear \(description): \(error)")
+            return false
+        }
+    }
 }
 
 
 extension MyHeartCountsStandard {
-    func uploadSensorKitFile(at url: URL, for sensor: Sensor<some Any>) {
-        managedFileUpload.scheduleForUpload(url, category: ManagedFileUpload.Category(sensor))
+    func stageHistoricalHealthKitFile(at url: URL) async throws {
+        try await managedFileUpload.stage(url, category: .historicalHealthUpload)
+    }
+
+    func uploadSensorKitFile(at url: URL, for sensor: Sensor<some Any>) async throws {
+        try await managedFileUpload.stage(url, category: ManagedFileUpload.Category(sensor))
     }
 }

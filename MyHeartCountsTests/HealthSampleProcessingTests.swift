@@ -48,7 +48,10 @@ struct HealthSampleProcessingTests {
             makeSample(numSteps: 9, startOffset: 27, duration: 12)
         ]
         let processor = HealthKitSamplesFHIRUploader(standard: nil)
-        let compressedUrl = try #require(await processor.process(samples, of: .stepCount))
+        let compressedUrl = try processor.encodeSamples(samples, of: .stepCount)
+        defer {
+            try? FileManager.default.removeItem(at: compressedUrl)
+        }
         let decompressed = try Data(contentsOf: compressedUrl).decompressed(using: Zstd.self)
         let observations = try JSONDecoder().decode([Observation].self, from: decompressed)
         #expect(observations.count == 3)
@@ -137,7 +140,6 @@ struct HealthSampleProcessingTests {
         let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
         let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
         
-        #expect(try healthUploadStaging.isEmpty == true)
         let newSamples: [HKQuantitySample] = [
             HKQuantitySample(
                 type: .init(.stepCount),
@@ -164,20 +166,21 @@ struct HealthSampleProcessingTests {
     
     
     @Test
-    func healthUploadStagingSanpleElision() async throws {
-        let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
+    func healthUploadStagingBacklogElision() async throws {
+        let healthUploadStaging = HealthUploadStaging(
+            persistence: .inMemory,
+            autoElideUploadsWhenInsertingDeletions: false
+        )
         await withDependencyResolution(standard: FakeStandard()) {
             healthUploadStaging
             HealthKit()
         }
-        #expect(try healthUploadStaging.isEmpty)
         #expect(try healthUploadStaging.isEmpty)
         
         let cal = Calendar.current
         let samplesStartDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 52)))
         let samplesEndDate = try #require(cal.date(from: .init(year: 2026, month: 5, day: 9, hour: 17, minute: 57)))
         
-        #expect(try healthUploadStaging.isEmpty == true)
         let newSamples: [HKQuantitySample] = [
             HKQuantitySample(
                 type: .init(.stepCount),
@@ -195,22 +198,36 @@ struct HealthSampleProcessingTests {
         
         try await healthUploadStaging.add(newSamples)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
-        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
         
-        try healthUploadStaging.add([try HKDeletedObject.make(uuid: newSamples[0].uuid)], ofType: .stepCount)
-        try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: false)
-        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 1)
-        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
-        
-        try healthUploadStaging.add([try HKDeletedObject.make(uuid: UUID())], ofType: .bodyMass)
-        try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: false)
+        let unmatchedDeletionId = UUID()
+        try healthUploadStaging.add(
+            [
+                try HKDeletedObject.make(uuid: newSamples[0].uuid),
+                try HKDeletedObject.make(uuid: unmatchedDeletionId)
+            ],
+            ofType: .stepCount
+        )
+
+        let expectedSummary = [SampleType.stepCount.id: 1]
+        #expect(try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: true) == expectedSummary)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
+        #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 2)
+
+        #expect(try healthUploadStaging.elidePendingUploadsWherePossible(dryRun: false) == expectedSummary)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 1)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 1)
+        let deletionChunk = try #require(try healthUploadStaging.fetchNextDrainChunk(
+            of: HealthUploadStaging.PendingDeletionRecord.self,
+            before: .now,
+            limit: 10
+        ))
+        #expect(deletionChunk.sampleType == SampleType.stepCount.id)
+        #expect(deletionChunk.rows.map(\.sampleId) == [unmatchedDeletionId])
     }
     
     
     @Test
-    func healthUploadStagingJSONPersistence() async throws {
+    func healthUploadStagingJSONPersistence() async throws { // swiftlint:disable:this function_body_length
         let healthKit = HealthKit()
         let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
         await withDependencyResolution(standard: FakeStandard()) {
@@ -250,16 +267,27 @@ struct HealthSampleProcessingTests {
         try await healthUploadStaging.add(newSamples, ingestionTimestamp: timestamp)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
-        let drainFetchResult = try healthUploadStaging.drainData(in: ..<(.now))
-        #expect(drainFetchResult.deletions.isEmpty)
-        #expect(drainFetchResult.samples.count == 2)
-        #expect(drainFetchResult.samples.mapIntoSet(\.sampleType) == [SampleType.stepCount.id, SampleType.heartRate.id])
-        let allDecodedSamples: Set<ModelsR4.ResourceProxy> = try drainFetchResult.samples.reduce(into: []) { result, batch in
-            let jsonArray = try batch.rows.jsonArray()
+        var drainedSampleTypes: Set<String> = []
+        var allDecodedSamples: Set<ModelsR4.ResourceProxy> = []
+        while let chunk = try healthUploadStaging.fetchNextDrainChunk(
+            of: HealthUploadStaging.PendingSampleRecord.self,
+            before: .now,
+            limit: 100
+        ) {
+            drainedSampleTypes.insert(chunk.sampleType)
+            let jsonArray = try chunk.rows.jsonArrayData()
             let resources = try JSONDecoder().decode(Set<ModelsR4.ResourceProxy>.self, from: jsonArray)
-            result.formUnion(resources)
+            allDecodedSamples.formUnion(resources)
+            try healthUploadStaging.remove(chunk)
         }
+        #expect(try healthUploadStaging.fetchNextDrainChunk(
+            of: HealthUploadStaging.PendingDeletionRecord.self,
+            before: .now,
+            limit: 100
+        ) == nil)
+        #expect(drainedSampleTypes == [SampleType.stepCount.id, SampleType.heartRate.id])
         #expect(allDecodedSamples == samplesAsFHIR)
+        #expect(try healthUploadStaging.isEmpty)
     }
 }
 

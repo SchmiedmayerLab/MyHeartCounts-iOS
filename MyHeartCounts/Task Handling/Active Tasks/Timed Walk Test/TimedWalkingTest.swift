@@ -45,6 +45,7 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
         private(set) var inProgressResult: TimedWalkingTestResult
         /// The `Task` that waits for the session's duration to pass, and then ends the session
         fileprivate var completeSessionTask: Task<TimedWalkingTestResult?, any Error>?
+        fileprivate var finalizationTask: Task<TimedWalkingTestResult?, any Error>?
         
         var startDate: Date {
             inProgressResult.startDate
@@ -195,6 +196,7 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
             #else
             try await Task.sleep(until: startInstant.advanced(by: inProgressTest.test.duration))
             #endif
+            session.completeSessionTask = nil
             return try await stop()
         }
         session.completeSessionTask = sessionTask
@@ -230,24 +232,37 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
         case .idle:
             return nil
         case .testActive(let session):
-            try? localStorage.delete(.inProgressTimedWalkTest)
-            defer {
-                state = .idle
+            if let finalizationTask = session.finalizationTask {
+                return try await finalizationTask.value
             }
-            var result = session.inProgressResult
             session.completeSessionTask?.cancel()
-            stopPhoneSensorDataCollection()
-            if !discardResult {
-                try? vibrate()
+            session.completeSessionTask = nil
+            let finalizationTask = Task {
+                try await finalize(session, discardResult: discardResult)
             }
-            result = try await stop(inProgressTest: result, isRecoveredTest: false)
-            if !discardResult {
-                try? await standard.uploadHealthObservation(result)
-                return result
-            } else {
-                return nil
-            }
+            session.finalizationTask = finalizationTask
+            return try await finalizationTask.value
         }
+    }
+
+
+    private func finalize(_ session: ActiveSession, discardResult: Bool) async throws -> TimedWalkingTestResult? {
+        try? localStorage.delete(.inProgressTimedWalkTest)
+        defer {
+            state = .idle
+            session.finalizationTask = nil
+        }
+        var result = session.inProgressResult
+        stopPhoneSensorDataCollection()
+        if !discardResult {
+            try? vibrate()
+        }
+        result = try await stop(inProgressTest: result, isRecoveredTest: false)
+        if !discardResult {
+            try? await standard.uploadHealthObservation(result)
+            return result
+        }
+        return nil
     }
     
     
