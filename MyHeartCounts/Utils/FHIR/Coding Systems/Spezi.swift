@@ -11,10 +11,10 @@ import ModelsR4
 
 
 struct SpeziCodingSystem: CodingProtocol {
-    nonisolated(unsafe) static let system: FHIRPrimitive<FHIRURI> = "https://spezi.stanford.edu"
+    static let system: FHIRPrimitive<FHIRURI> = "https://spezi.stanford.edu"
     
-    nonisolated(unsafe) let code: FHIRPrimitive<FHIRString>
-    nonisolated(unsafe) let display: FHIRPrimitive<FHIRString>?
+    let code: FHIRPrimitive<FHIRString>
+    let display: FHIRPrimitive<FHIRString>?
     
     init(_ code: FHIRPrimitive<FHIRString>, display: FHIRPrimitive<FHIRString>? = nil) {
         self.code = code

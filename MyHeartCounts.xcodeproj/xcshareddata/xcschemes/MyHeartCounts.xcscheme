@@ -98,11 +98,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--disableSensorKitUpload"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--setupTestEnvironment reset"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--setupTestEnvironment login-and-enroll"
@@ -110,11 +110,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--setupTestEnvironment reset login-and-enroll"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--forceEnableDebugMode"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--useFirebaseEmulator"

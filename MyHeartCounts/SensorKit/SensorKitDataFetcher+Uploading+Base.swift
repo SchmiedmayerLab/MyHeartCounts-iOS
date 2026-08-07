@@ -10,10 +10,11 @@ import CryptoKit
 import FHIRModelsExtensions
 @preconcurrency import FirebaseFirestore
 import Foundation
-import HealthKitOnFHIR
 import ModelsR4
+import SpeziFHIR
 import SpeziFirestore
 import SpeziFoundation
+import SpeziHealthKitFHIR
 import SpeziSensorKit
 
 
@@ -27,7 +28,7 @@ extension MHCSensorSampleUploadStrategy {
         to standard: MyHeartCountsStandard,
         observationDocName: String,
         activity: SensorKitDataFetcher.InProgressActivity,
-        postprocessObservation: (Observation) throws -> Void
+        postprocessObservation: (inout Observation) throws -> Void
     ) async throws {
         activity.updateMessage("Compressing Data")
         let data = shouldCompress ? try (consume data).compressed(using: Zstd.self) : consume data
@@ -56,22 +57,20 @@ extension MHCSensorSampleUploadStrategy {
             // for anything above that, we set the size to nil.
             size: Int32(exactly: size).map { FHIRPrimitive(FHIRUnsignedInteger($0)) },
             // NOTE: we use a path relative to this user's storage directory here!
-            url: ManagedFileUpload.Category(sensor).firebasePath.asFHIRURIPrimitive()!.appending(component: url.lastPathComponent)
-            // swiftlint:disable:previous force_unwrapping
+            url: FHIRExtensionURL(ManagedFileUpload.Category(sensor).firebasePath).appending(component: url.lastPathComponent).r4
         )
         let reference = DocumentReference(
             content: [.init(attachment: attachment)],
             status: FHIRPrimitive(.current)
         )
-        
-        let observation = Observation(
+        var observation = Observation(
             code: CodeableConcept(),
             status: FHIRPrimitive(.final)
         )
         observation.id = observationDocName.asFHIRStringPrimitive()
-        observation.appendCoding(Coding(code: SensorKitCodingSystem(sensor)))
+        observation.append(coding: Coding(code: SensorKitCodingSystem(sensor)))
         try observation.setIssued(on: .now)
-        observation.appendElement(
+        observation.append(
             // Note: the value here has to match the firestore document used to upload the reference!
             Reference(reference: "HealthObservations_\(sensor.id)/\(referenceDocName)".asFHIRStringPrimitive()),
             to: \.derivedFrom
@@ -80,9 +79,9 @@ extension MHCSensorSampleUploadStrategy {
         observation.addMHCAppAsSource()
         try observation.apply(.sensorKitSourceDevice, input: deviceInfo)
         for builder in MyHeartCountsStandard.defaultHealthObservationFHIRExtensions {
-            try builder.apply(typeErasedInput: self, to: observation)
+            try builder.apply(typeErasedInput: self, to: &observation)
         }
-        try postprocessObservation(observation)
+        try postprocessObservation(&observation)
         
         let sensorCollection = try await standard.firebaseConfiguration.userDocumentReference
             .collection("HealthObservations_\(sensor.id)")

@@ -53,7 +53,7 @@ extension CodingProtocol {
 
 extension Coding {
     // periphery:ignore:parameters system
-    convenience init<C: CodingProtocol>(system: C.Type = C.self, code: C) {
+    init<C: CodingProtocol>(system: C.Type = C.self, code: C) {
         self.init(
             code: code.code,
             display: code.display,
@@ -64,14 +64,14 @@ extension Coding {
 }
 
 extension CodeableConcept {
-    convenience init<C: CodingProtocol>(system: C.Type = C.self, code: C) {
+    init<C: CodingProtocol>(system: C.Type = C.self, code: C) {
         self.init(coding: [Coding(system: system, code: code)])
     }
 }
 
 
 extension ObservationComponent {
-    convenience init<C: CodingProtocol>(
+    init<C: CodingProtocol>(
         system: C.Type = C.self,
         code: C,
         value: ObservationComponent.ValueX?
@@ -82,7 +82,7 @@ extension ObservationComponent {
         )
     }
     
-    convenience init<C: CodingProtocol>(
+    init<C: CodingProtocol>(
         system: C.Type = C.self,
         code: C,
         quantityUnit: String,
@@ -103,7 +103,7 @@ extension ObservationComponent {
 
 extension Quantity {
     // periphery:ignore:parameters system
-    convenience init<C: CodingProtocol>(system: C.Type = C.self, code: C, unit: String, value: Double) {
+    init<C: CodingProtocol>(system: C.Type = C.self, code: C, unit: String, value: Double) {
         self.init(
             code: code.code,
             system: code.system,

@@ -13,7 +13,7 @@ import ModelsR4
 
 
 struct LOINC: CodingProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static let system: FHIRPrimitive<FHIRURI> = "http://loinc.org"
+    static let system: FHIRPrimitive<FHIRURI> = "http://loinc.org"
     
     let code: FHIRPrimitive<FHIRString>
     let display: FHIRPrimitive<FHIRString>?

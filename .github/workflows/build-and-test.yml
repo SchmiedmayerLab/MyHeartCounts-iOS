@@ -17,10 +17,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  UI_TEST_DESTINATION: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
+  UI_TEST_PRODUCTS_PATH: .ci-cache/MHC-App-UITests.xctestproducts
+  UI_TEST_XCODE_VERSION: '26.6'
+
 jobs:
   mhc_app_unit_tests:
     name: App Unit Tests
-    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.3
     permissions:
       contents: read
     with:
@@ -29,36 +34,169 @@ jobs:
       testplan: MyHeartCounts Unit Tests
       resultBundle: MHC-App-UnitTests.xcresult
       artifactname: MHC-App-UnitTests.xcresult
-  mhc_app_ui_tests:
-    name: App UI Tests
-    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild-or-fastlane.yml@v0.2
+  
+  mhc_app_ui_test_build:
+    name: App UI Tests (Build)
+    runs-on: [macOS, self-hosted]
     permissions:
       contents: read
-    with:
-      runsonlabels: '["macOS", "self-hosted"]'
-      artifactname: MHC-App-UITests.xcresult
-      setupfirebaseemulator: true
-      checkout_submodules: true
-      customcommand: "cd ./MyHeartCounts-Firebase && npm install && npm run prepare && npx --yes firebase-tools@15.22.2 emulators:exec 'cd .. && fastlane uitest'"
-    secrets:
-      GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
+    outputs:
+      matrix: ${{ steps.shards.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
+      - name: Resolve test products cache key
+        id: toolchain
+        run: |
+          xcode_version="$(xcodebuild -version | awk 'NR == 1 { version = $2 } NR == 2 { build = $3 } END { print version "-" build }')"
+          echo "Using Xcode $xcode_version on $RUNNER_OS/$RUNNER_ARCH"
+          echo "cache-key=mhc-ui-test-products-v1-$RUNNER_OS-$RUNNER_ARCH-xcode-$xcode_version-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - name: Restore test products
+        id: restore-test-products
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.UI_TEST_PRODUCTS_PATH }}
+          key: ${{ steps.toolchain.outputs.cache-key }}
+      - name: Build for testing
+        if: steps.restore-test-products.outputs.cache-hit != 'true'
+        run: |
+          set -o pipefail
+          mkdir -p "$(dirname "$UI_TEST_PRODUCTS_PATH")"
+          xcodebuild \
+            -scheme MyHeartCounts \
+            -configuration Debug \
+            -destination "$UI_TEST_DESTINATION" \
+            -testPlan 'MyHeartCounts UI Tests' \
+            -enableCodeCoverage YES \
+            -testProductsPath "$UI_TEST_PRODUCTS_PATH" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            build-for-testing \
+          | xcbeautify
+      - name: Validate test products
+        run: |
+          test -f "$UI_TEST_PRODUCTS_PATH/Info.plist"
+          test -d "$UI_TEST_PRODUCTS_PATH/Binaries"
+          plutil -lint "$UI_TEST_PRODUCTS_PATH/Info.plist"
+      - name: Verify every UI test belongs to exactly one shard
+        run: |
+          .github/scripts/validate-ui-test-shards.sh \
+            .github/ui-test-shards.json \
+            "$UI_TEST_PRODUCTS_PATH" \
+            "$UI_TEST_DESTINATION"
+      - name: Resolve UI test shard matrix
+        id: shards
+        run: |
+          matrix="$(jq -c '{include: [.shards[] | {name, shard, tests: (.tests | join("\n"))}]}' .github/ui-test-shards.json)"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+      - name: Save test products
+        if: steps.restore-test-products.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.UI_TEST_PRODUCTS_PATH }}
+          key: ${{ steps.toolchain.outputs.cache-key }}
 
-  # mhc_app_ui_tests:
-  #   name: App UI Tests
-  #   uses: SchmiedmayerLab/.github/.github/workflows/firebase-emulators-exec.yml@v0.2
-  #   permissions:
-  #     contents: read
-  #   with:
-  #     runs_on_labels: '["macOS", "self-hosted"]'
-  #     path: MyHeartCounts-Firebase
-  #     checkout_submodules: true
-  #     artifact: ../MHC-App-UITests.xcresult
-  #     command: npm run prepare && cd .. && fastlane uitest
-  #   secrets:
-  #     GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
+  mhc_app_ui_test_run:
+    name: App UI Tests (Run; ${{ matrix.name }})
+    needs: mhc_app_ui_test_build
+    runs-on: [macOS, self-hosted]
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.mhc_app_ui_test_build.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
+      - name: Resolve test products cache key
+        id: toolchain
+        run: |
+          xcode_version="$(xcodebuild -version | awk 'NR == 1 { version = $2 } NR == 2 { build = $3 } END { print version "-" build }')"
+          echo "Using Xcode $xcode_version on $RUNNER_OS/$RUNNER_ARCH"
+          echo "cache-key=mhc-ui-test-products-v1-$RUNNER_OS-$RUNNER_ARCH-xcode-$xcode_version-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - name: Restore test products
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.UI_TEST_PRODUCTS_PATH }}
+          key: ${{ steps.toolchain.outputs.cache-key }}
+          fail-on-cache-miss: true
+      - name: Validate test products
+        run: |
+          test -f "$UI_TEST_PRODUCTS_PATH/Info.plist"
+          test -d "$UI_TEST_PRODUCTS_PATH/Binaries"
+          plutil -lint "$UI_TEST_PRODUCTS_PATH/Info.plist"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            MyHeartCounts-Firebase/package-lock.json
+            MyHeartCounts-Firebase/functions/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: microsoft
+          java-version: '21'
+      - name: Prepare Firebase functions
+        run: |
+          npm --prefix MyHeartCounts-Firebase/functions run clean
+          npm --prefix MyHeartCounts-Firebase/functions ci
+          npm --prefix MyHeartCounts-Firebase/functions run build
+      - name: Run UI test shard
+        env:
+          DESTINATION: ${{ env.UI_TEST_DESTINATION }}
+          ONLY_TESTING: ${{ matrix.tests }}
+          RESULT_BUNDLE_PATH: ${{ runner.temp }}/MHC-App-UITests-${{ matrix.shard }}-${{ github.run_attempt }}.xcresult
+          TEST_PRODUCTS_PATH: ${{ github.workspace }}/${{ env.UI_TEST_PRODUCTS_PATH }}
+        run: |
+          cd MyHeartCounts-Firebase
+          npx --yes firebase-tools@15.22.2 emulators:exec \
+            --only auth,firestore,functions,storage \
+            '../.github/scripts/run-ui-test-shard.sh'
+      - name: Upload test result
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: MHC-App-UITests-${{ matrix.shard }}.xcresult
+          path: ${{ runner.temp }}/MHC-App-UITests-${{ matrix.shard }}-${{ github.run_attempt }}.xcresult
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 7
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: diagnostics-ui-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}.xcresult
+          path: ${{ runner.temp }}/MHC-App-UITests-${{ matrix.shard }}-${{ github.run_attempt }}.xcresult
+          if-no-files-found: warn
+          retention-days: 7
+
+  mhc_app_ui_tests:
+    name: App UI Tests / Test using xcodebuild or run fastlane
+    if: always()
+    needs: mhc_app_ui_test_run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check UI test shards
+        env:
+          SHARD_RESULT: ${{ needs.mhc_app_ui_test_run.result }}
+        run: test "$SHARD_RESULT" = "success"
+
   mhc_utils_unit_tests:
     name: Utils Unit Tests (${{ matrix.platform.name }} ${{ matrix.config }})
-    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.3
     permissions:
       contents: read
     strategy:
@@ -74,12 +212,13 @@ jobs:
       runsonlabels: '["macOS", "self-hosted"]'
       path: MyHeartCountsShared
       scheme: MyHeartCountsShared-Package
+      buildConfig: ${{ matrix.config }}
       destination: ${{ matrix.platform.destination }}
       resultBundle: ${{ format('MHC-Shared-UnitTests-{0}-{1}.xcresult', matrix.platform.name, matrix.config) }}
       artifactname: ${{ format('MHC-Shared-UnitTests-{0}-{1}.xcresult', matrix.platform.name, matrix.config) }}
   mhc_utils_unit_tests_linux:
     name: Utils Unit Tests (Linux ${{ matrix.config }})
-    uses: SchmiedmayerLab/.github/.github/workflows/swift-test.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/swift-test.yml@v0.3
     permissions:
       contents: read
     strategy:
@@ -89,12 +228,12 @@ jobs:
     with:
       path: MyHeartCountsShared
       build_configuration: ${{ matrix.config }}
-      runs_on_labels: '["blacksmith-4vcpu-ubuntu-2404"]'
+      runs_on_labels: ${{ matrix.config == 'Release' && '["blacksmith-4vcpu-ubuntu-2404"]' || '["ubuntu-latest"]' }}
       artifact_name: ${{ format('MHC-Shared-UnitTests-Linux-{0}.lcov', matrix.config) }}
   uploadcoveragereport:
     name: Upload Coverage Report
     needs: [mhc_app_unit_tests, mhc_app_ui_tests, mhc_utils_unit_tests, mhc_utils_unit_tests_linux]
-    uses: SchmiedmayerLab/.github/.github/workflows/coverage.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/coverage.yml@v0.3
     permissions:
       actions: read
       contents: read

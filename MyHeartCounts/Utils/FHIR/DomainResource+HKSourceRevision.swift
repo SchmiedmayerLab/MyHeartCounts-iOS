@@ -25,23 +25,23 @@ extension HKSourceRevision {
 
 extension ModelsDSTU2.DomainResource {
     // periphery:ignore - API
-    func addMHCAppAsSource() {
+    mutating func addMHCAppAsSource() {
         addSourceRevisionExtensions(for: .mhc)
     }
 }
 
 extension ModelsR4.DomainResource {
-    func addMHCAppAsSource() {
+    mutating func addMHCAppAsSource() {
         addSourceRevisionExtensions(for: .mhc)
     }
 }
 
 
 extension ModelsDSTU2.DomainResource {
-    func addSourceRevisionExtensions(for sourceRevision: HKSourceRevision) {
+    mutating func addSourceRevisionExtensions(for sourceRevision: HKSourceRevision) {
         // swiftlint:disable:next force_unwrapping
         let baseUrl: ModelsDSTU2.FHIRPrimitive<ModelsDSTU2.FHIRURI> = "https://bdh.stanford.edu/fhir/defs/sourceRevision".asFHIRURIPrimitive()!
-        let deviceInfo = ModelsDSTU2.Extension(url: baseUrl)
+        var deviceInfo = ModelsDSTU2.Extension(url: baseUrl)
         deviceInfo.extension = []
         let fieldUrl = { (components: String...) -> ModelsDSTU2.FHIRPrimitive<ModelsDSTU2.FHIRURI> in
             // swiftlint:disable:next force_unwrapping
@@ -93,10 +93,10 @@ extension ModelsDSTU2.DomainResource {
 
 
 extension ModelsR4.DomainResource {
-    func addSourceRevisionExtensions(for sourceRevision: HKSourceRevision) {
+    mutating func addSourceRevisionExtensions(for sourceRevision: HKSourceRevision) {
         // swiftlint:disable:next force_unwrapping
         let baseUrl: ModelsR4.FHIRPrimitive<ModelsR4.FHIRURI> = "https://bdh.stanford.edu/fhir/defs/sourceRevision".asFHIRURIPrimitive()!
-        let deviceInfo = ModelsR4.Extension(url: baseUrl)
+        var deviceInfo = ModelsR4.Extension(url: baseUrl)
         deviceInfo.extension = []
         let fieldUrl = { (components: String...) -> ModelsR4.FHIRPrimitive<ModelsR4.FHIRURI> in
             // swiftlint:disable:next force_unwrapping

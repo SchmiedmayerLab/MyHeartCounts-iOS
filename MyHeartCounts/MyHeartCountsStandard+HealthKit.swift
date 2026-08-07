@@ -12,8 +12,7 @@ import FHIRModelsExtensions
 import FirebaseFirestore
 import Foundation
 import HealthKit
-import HealthKitOnFHIR
-@preconcurrency import ModelsR4
+import ModelsR4
 import MyHeartCountsShared
 import OSLog
 import SpeziAccount
@@ -117,7 +116,7 @@ extension MyHeartCountsStandard {
     
     func uploadHealthObservation(
         _ observation: some HealthObservation & Sendable,
-        postprocessResource: @escaping @Sendable (FHIRResource) throws -> Void = { _ in }
+        postprocessResource: @escaping @Sendable (inout FHIRResource) throws -> Void = { _ in }
     ) async throws {
         try await uploadHealthObservations(
             CollectionOfOne(observation),
@@ -133,7 +132,7 @@ extension MyHeartCountsStandard {
     func uploadHealthObservations( // swiftlint:disable:this function_body_length cyclomatic_complexity
         _ observations: consuming some Collection<some HealthObservation & Sendable> & Sendable,
         uploadStrategy: HealthObservationUploadStrategy? = nil,
-        postprocessResource: @escaping @Sendable (FHIRResource) throws -> Void = { _ in }
+        postprocessResource: @escaping @Sendable (inout FHIRResource) throws -> Void = { _ in }
     ) async throws {
         guard !observations.isEmpty, let sampleTypeIdentifier = observations.first?.sampleTypeIdentifier else {
             return
@@ -286,52 +285,46 @@ extension MyHeartCountsStandard {
 
 // MARK: FHIR Observation Metadata
 
-extension FHIRExtensionUrls {
-    // SAFETY: this is in fact safe, since the FHIRPrimitive's `extension` property is empty.
-    // As a result, the actual instance doesn't contain any mutable state, and since this is a let,
-    // it also never can be mutated to contain any.
+extension FHIRExtensionURL {
     /// Url of a FHIR Extension containing the user's time zone when uploading a FHIR `Observation`.
-    nonisolated(unsafe) static let sampleUploadTimeZone: ModelsR4.FHIRPrimitive<_> = "https://bdh.stanford.edu/fhir/defs/sampleUploadTimeZone".asFHIRURIPrimitive()!
-    // swiftlint:disable:previous force_unwrapping
+    static let sampleUploadTimeZone = Self("https://bdh.stanford.edu/fhir/defs/sampleUploadTimeZone")
     
-    // SAFETY: this is in fact safe, since the FHIRPrimitive's `extension` property is empty.
-    // As a result, the actual instance doesn't contain any mutable state, and since this is a let,
-    // it also never can be mutated to contain any.
     /// Url of a FHIR Extension containing the user's enrollment info uploading a FHIR `Observation`.
-    nonisolated(unsafe) static let mhcStudyEnrollmentInfo: ModelsR4.FHIRPrimitive<_> = "https://myheartcounts.stanford.edu/fhir/StructureDefinition/study-enrollment".asFHIRURIPrimitive()!
-    // swiftlint:disable:previous force_unwrapping
+    static let mhcStudyEnrollmentInfo = Self("https://myheartcounts.stanford.edu/fhir/StructureDefinition/study-enrollment")
 }
+
 
 extension FHIRExtensionBuilderProtocol where Self == FHIRExtensionBuilder<Void> {
     static var sampleUploadTimeZone: Self {
         .init { observation in
             let ext = Extension(
-                url: FHIRExtensionUrls.sampleUploadTimeZone,
+                url: FHIRExtensionURL.sampleUploadTimeZone,
                 value: .string(TimeZone.current.identifier.asFHIRStringPrimitive())
             )
-            observation.appendExtension(ext, replaceAllExistingWithSameUrl: true)
+            observation.append(extension: ext, behaviour: .replace)
         }
     }
-    
     
     static var mhcStudyRevision: Self {
         .init { observation in
             guard let enrollmentInfo = MyHeartCountsStandard.currentEnrollmentInfo else {
                 return
             }
-            let extUrl = FHIRExtensionUrls.mhcStudyEnrollmentInfo
-            let ext = Extension(url: extUrl)
-            ext.extension = [
-                Extension(
-                    url: extUrl.appending(component: "study-id"),
-                    value: .string(enrollmentInfo.studyId.asFHIRStringPrimitive())
-                ),
-                Extension(
-                    url: extUrl.appending(component: "study-revision"),
-                    value: .integer(Int(enrollmentInfo.studyRevision).asFHIRIntegerPrimitive())
-                )
-            ]
-            observation.appendExtension(ext, replaceAllExistingWithSameUrl: true)
+            let extUrl = FHIRExtensionURL.mhcStudyEnrollmentInfo
+            let ext = Extension(
+                extension: [
+                    Extension(
+                        url: extUrl.appending(component: "study-id"),
+                        value: .string(enrollmentInfo.studyId.asFHIRStringPrimitive())
+                    ),
+                    Extension(
+                        url: extUrl.appending(component: "study-revision"),
+                        value: .integer(Int(enrollmentInfo.studyRevision).asFHIRIntegerPrimitive())
+                    )
+                ],
+                url: extUrl
+            )
+            observation.append(extension: ext, behaviour: .replace)
         }
     }
 }

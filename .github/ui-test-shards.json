@@ -1,0 +1,43 @@
+{
+  "shards": [
+    {
+      "name": "Consent Review and Patch, Prompted Actions, Tasks",
+      "shard": "01",
+      "tests": [
+        "MyHeartCountsUITests/ConsentTests/testReviewConsentForms",
+        "MyHeartCountsUITests/ConsentTests/testConsentRenewalNewPatch",
+        "MyHeartCountsUITests/PromptedActionsTests",
+        "MyHeartCountsUITests/TaskHandlingTests",
+        "MyHeartCountsUITests/StudyParticipationTests"
+      ]
+    },
+    {
+      "name": "Consent Major, Other, Timed Walk, Regression",
+      "shard": "02",
+      "tests": [
+        "MyHeartCountsUITests/ConsentTests/testConsentRenewalNewMajor",
+        "MyHeartCountsUITests/OtherTests",
+        "MyHeartCountsUITests/TimedWalkTestTests",
+        "MyHeartCountsUITests/RegressionTests"
+      ]
+    },
+    {
+      "name": "Consent Skip, Health Dashboard, Scheduled",
+      "shard": "03",
+      "tests": [
+        "MyHeartCountsUITests/ConsentTests/testSkipDuringOnboardingIfAlreadySupplied",
+        "MyHeartCountsUITests/HealthDashboardTests",
+        "MyHeartCountsUITests/ScheduledTaskTests"
+      ]
+    },
+    {
+      "name": "Consent Minor, Onboarding, Basic Usage",
+      "shard": "04",
+      "tests": [
+        "MyHeartCountsUITests/ConsentTests/testConsentRenewalNewMinor",
+        "MyHeartCountsUITests/OnboardingTests",
+        "MyHeartCountsUITests/BasicAppUsage"
+      ]
+    }
+  ]
+}

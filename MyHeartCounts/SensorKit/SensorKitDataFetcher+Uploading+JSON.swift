@@ -8,9 +8,9 @@
 
 import FHIRModelsExtensions
 import Foundation
-import HealthKitOnFHIR
 import ModelsR4
 import MyHeartCountsShared
+import SpeziHealthKitFHIR
 import SpeziSensorKit
 
 
@@ -30,13 +30,14 @@ where Sample.SafeRepresentation: HealthObservation {
         activity.updateMessage("Encoding FHIR resources to JSON")
         let issuedDate = FHIRPrimitive<ModelsR4.Instant>(try .init(date: .now))
         let resources: [AnyEncodable] = try samples.map { sample in
-            let resource = try sample.resource(
+            var resource = try sample.resource(
                 withMapping: .default,
                 issuedDate: issuedDate,
                 extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions
             )
-            if case .observation(let observation) = resource {
+            if case .observation(var observation) = resource {
                 try observation.apply(.sensorKitSourceDevice, input: batchInfo.device)
+                resource = .observation(observation)
             }
             return AnyEncodable(resource)
         }

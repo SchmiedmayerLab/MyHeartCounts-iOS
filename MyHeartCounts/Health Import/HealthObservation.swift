@@ -9,11 +9,11 @@
 import FHIRModelsExtensions
 import Foundation
 import HealthKit
-import HealthKitOnFHIR
 import ModelsDSTU2
 import ModelsR4
 import MyHeartCountsShared
 import SpeziHealthKit
+import SpeziHealthKitFHIR
 
 
 protocol HealthObservation: Sendable { // might want to rename this (@lukas); the resulting ResourceProxy is not necessarily an Observation...)
@@ -21,7 +21,7 @@ protocol HealthObservation: Sendable { // might want to rename this (@lukas); th
     var sampleTypeIdentifier: String { get }
     
     func resource(
-        withMapping mapping: HKSampleMapping,
+        withMapping mapping: SampleTypesFHIRMapping,
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ModelsR4.ResourceProxy
@@ -54,7 +54,7 @@ extension HealthObservation {
     func turnIntoFHIRResource(
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>,
         using healthKit: HealthKit,
-        postprocess: @Sendable (FHIRResource) throws -> Void = { _ in }
+        postprocess: @Sendable (inout FHIRResource) throws -> Void = { _ in }
     ) async throws -> AnyEncodable {
         switch self {
         case let sample as HKElectrocardiogram:
@@ -67,29 +67,49 @@ extension HealthObservation {
                 issuedDate: issuedDate,
                 extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions
             )
-            try postprocess(FHIRResource(observation))
-            return AnyEncodable(observation)
+            var resource = FHIRResource(observation)
+            try postprocess(&resource)
+            return AnyEncodable(resource.encodableUnderlyingResource)
         case let record as HKClinicalRecord:
             guard record.fhirResource != nil else {
                 throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing FHIR Resource")
             }
-            let resource = try await FHIRResource(record, using: healthKit)
+            var resource = try await FHIRResource(record, using: healthKit)
             switch resource {
-            case .dstu2(let resource):
-                (resource as? ModelsDSTU2.DomainResource)?.addSourceRevisionExtensions(for: record.sourceRevision)
-            case .r4(let resource):
-                (resource as? ModelsR4.DomainResource)?.addSourceRevisionExtensions(for: record.sourceRevision)
+            case .r4(let inner):
+                if var inner = inner as? any ModelsR4.DomainResource {
+                    inner.addSourceRevisionExtensions(for: record.sourceRevision)
+                    resource = .r4(inner)
+                }
+            case .dstu2(let inner):
+                if var inner = inner as? any ModelsDSTU2.DomainResource {
+                    inner.addSourceRevisionExtensions(for: record.sourceRevision)
+                    resource = .dstu2(inner)
+                }
             }
-            try postprocess(resource)
+            try postprocess(&resource)
             return AnyEncodable(resource)
         default:
-            let resource = try self.resource(
+            let resourceProxy = try self.resource(
                 withMapping: .default,
                 issuedDate: issuedDate,
                 extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions
             )
-            try postprocess(FHIRResource(resource.get()))
-            return AnyEncodable(resource)
+            var resource = FHIRResource(resourceProxy.get())
+            try postprocess(&resource)
+            return AnyEncodable(resource.encodableUnderlyingResource)
+        }
+    }
+}
+
+
+extension FHIRResource {
+    var encodableUnderlyingResource: any Encodable {
+        switch self {
+        case .r4(let resource):
+            resource
+        case .dstu2(let resource):
+            resource
         }
     }
 }

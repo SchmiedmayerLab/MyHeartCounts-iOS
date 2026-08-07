@@ -8,9 +8,9 @@
 
 import FHIRModelsExtensions
 import Foundation
-import HealthKitOnFHIR
 import ModelsR4
 import SensorKit
+import SpeziHealthKitFHIR
 import SpeziSensorKit
 
 
@@ -33,18 +33,18 @@ extension SRVisit.SafeRepresentation: HealthObservation {
     }
     
     func resource( // swiftlint:disable:this function_body_length
-        withMapping mapping: HKSampleMapping,
+        withMapping mapping: SampleTypesFHIRMapping,
         issuedDate: FHIRPrimitive<Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ResourceProxy {
-        let observation = Observation(
+        var observation = Observation(
             code: CodeableConcept(),
             status: FHIRPrimitive(.final)
         )
         let sensorCoding = SensorKitCodingSystem(.visits)
         observation.id = self.id.uuidString.asFHIRStringPrimitive()
-        observation.appendIdentifier(Identifier(id: observation.id))
-        observation.appendCoding(Coding(code: sensorCoding))
+        observation.append(identifier: Identifier(id: observation.id))
+        observation.append(coding: Coding(code: sensorCoding))
         if let issuedDate {
             observation.issued = issuedDate
         } else {
@@ -59,8 +59,8 @@ extension SRVisit.SafeRepresentation: HealthObservation {
             start: FHIRPrimitive(DateTime(date: self.arrivalDateInterval.start))
         ))
         observation.value = .string(self.locationId.uuidString.asFHIRStringPrimitive())
-        let sensorDomainUrl = FHIRExtensionUrls.sensorKitDomain.appending(component: "Visits")
-        observation.appendExtensions([
+        let sensorDomainUrl = FHIRExtensionURL.sensorKitDomain.appending(component: "Visits")
+        observation.append(extensions: [
             Extension(
                 url: sensorDomainUrl.appending(component: "sensorKitTimestamp"),
                 value: .dateTime(try FHIRPrimitive(DateTime(date: self.timestamp)))
@@ -93,9 +93,9 @@ extension SRVisit.SafeRepresentation: HealthObservation {
                 url: sensorDomainUrl.appending(component: "locationCategory"),
                 value: .string(self.locationCategory.stringRepresentation.asFHIRStringPrimitive())
             )
-        ], replaceAllExistingWithSameUrl: true)
+        ], behaviour: .replace)
         for builder in extensions {
-            try builder.apply(typeErasedInput: self, to: observation)
+            try builder.apply(typeErasedInput: self, to: &observation)
         }
         observation.addMHCAppAsSource()
         return .observation(observation)

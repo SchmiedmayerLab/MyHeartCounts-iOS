@@ -8,8 +8,8 @@
 
 import FHIRModelsExtensions
 import Foundation
-import HealthKitOnFHIR
 import ModelsR4
+import SpeziHealthKitFHIR
 import SpeziSensorKit
 
 
@@ -31,17 +31,17 @@ extension SensorKitOnWristEventSample: HealthObservation {
     }
     
     func resource(
-        withMapping mapping: HKSampleMapping,
+        withMapping mapping: SampleTypesFHIRMapping,
         issuedDate: FHIRPrimitive<Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ResourceProxy {
-        let observation = Observation(
+        var observation = Observation(
             code: CodeableConcept(),
             status: FHIRPrimitive(.final)
         )
-        observation.appendCoding(Coding(code: SensorKitCodingSystem(.onWrist)))
+        observation.append(coding: Coding(code: SensorKitCodingSystem(.onWrist)))
         observation.id = self.id.uuidString.asFHIRStringPrimitive()
-        observation.appendIdentifier(Identifier(id: observation.id))
+        observation.append(identifier: Identifier(id: observation.id))
         switch (onWristDate, offWristDate) {
         case (.none, .none):
             break
@@ -59,16 +59,16 @@ extension SensorKitOnWristEventSample: HealthObservation {
             try observation.setIssued(on: .now)
         }
         observation.value = .boolean(.init(.init(onWrist)))
-        observation.appendComponent(ObservationComponent(
+        observation.append(component: ObservationComponent(
             code: SpeziCodingSystem.watchWristLocation,
             value: wristLocation.observationValue
         ))
-        observation.appendComponent(ObservationComponent(
+        observation.append(component: ObservationComponent(
             code: SpeziCodingSystem.watchCrownOrientation,
             value: crownOrientation.observationValue
         ))
         for builder in extensions {
-            try builder.apply(typeErasedInput: self, to: observation)
+            try builder.apply(typeErasedInput: self, to: &observation)
         }
         observation.addMHCAppAsSource()
         return .observation(observation)

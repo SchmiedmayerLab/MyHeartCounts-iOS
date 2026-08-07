@@ -8,11 +8,10 @@
 
 import FirebaseFirestore
 import Foundation
-import HealthKitOnFHIR
 import struct ModelsR4.DateTime
 import struct ModelsR4.FHIRPrimitive
 import struct ModelsR4.FHIRURI
-import class ModelsR4.Period
+import struct ModelsR4.Period
 import enum ModelsR4.ResourceProxy
 import MyHeartCountsShared
 import OSLog

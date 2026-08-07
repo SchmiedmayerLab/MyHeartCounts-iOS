@@ -8,7 +8,6 @@
 
 import FHIRModelsExtensions
 import Foundation
-import HealthKitOnFHIR
 import ModelsR4
 import MyHeartCountsShared
 import SensorKit
@@ -30,14 +29,14 @@ extension SRWristTemperatureSession: CSVConvertibleSensorSample {
         return writer.data()
     }
     
-    func finalize(_ observation: Observation) throws {
+    func finalize(_ observation: inout Observation) throws {
         observation.id = self.id.uuidString.asFHIRStringPrimitive()
-        observation.appendExtensions([
+        observation.append(extensions: [
             Extension(
-                url: FHIRExtensionUrls.sensorKitWristTempAlgorithmVersion,
+                url: FHIRExtensionURL.sensorKitWristTempAlgorithmVersion,
                 value: .string(self.version.asFHIRStringPrimitive())
             )
-        ], replaceAllExistingWithSameUrl: true)
+        ], behaviour: .replace)
     }
 }
 
@@ -61,6 +60,6 @@ extension SRWristTemperature.Condition {
 }
 
 
-extension FHIRExtensionUrls {
-    nonisolated(unsafe) static let sensorKitWristTempAlgorithmVersion = Self.sensorKitDomain.appending(component: "WristTemp/algorithmVersion")
+extension FHIRExtensionURL {
+    static let sensorKitWristTempAlgorithmVersion = Self.sensorKitDomain.appending(component: "WristTemp/algorithmVersion")
 }

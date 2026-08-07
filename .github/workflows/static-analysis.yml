@@ -20,30 +20,34 @@ concurrency:
 jobs:
   reuse_action:
     name: REUSE Compliance Check
-    uses: SchmiedmayerLab/.github/.github/workflows/reuse.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/reuse.yml@v0.3
     permissions:
       contents: read
   swiftlint:
     name: SwiftLint
-    uses: SchmiedmayerLab/.github/.github/workflows/swiftlint.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/swiftlint.yml@v0.3
     permissions:
       contents: read
   periphery:
     name: Periphery
-    uses: SchmiedmayerLab/.github/.github/workflows/periphery.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/periphery.yml@v0.3
     permissions:
       contents: read
     with:
       runsonlabels: '["macOS", "self-hosted"]'
       strict: false
+      # we need to exclude this bc FHIRModels doesn't compile for older watch models (pre series 4).
+      # not a problem for MHC, since our iOS 18 / watchOS 11 deployment target means that we don't
+      # support any of these models in the first place...
+      extra-build-args: EXCLUDED_ARCHS=armv7k
   markdownlinkcheck:
     name: Markdown Link Check
-    uses: SchmiedmayerLab/.github/.github/workflows/markdown-links.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/markdown-links.yml@v0.3
     permissions:
       contents: read
   codeql:
     name: CodeQL
-    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.2
+    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.3
     permissions:
       security-events: write
       actions: read

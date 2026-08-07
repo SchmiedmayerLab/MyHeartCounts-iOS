@@ -42,6 +42,13 @@ struct MyHeartCounts: App {
         // This needs to run before *any* Spezi-related code is executed,
         // i.e. before the AppDelegate's `willFinishLaunchingWithOptions`
         // method gets called. Hence why we put it in here.
+        //
+        // The early reset deletes all locally persisted state (SwiftData stores, LocalStorage, staged
+        // uploads, the Firebase Auth keychain session). It has to happen here rather than in
+        // SetupTestEnvironment.configure(): modules act on their persisted state as soon as they are
+        // configured, and SetupTestEnvironment's own reset runs behind `Spezi.loadFirebase` + a 1s sleep,
+        // by which point StudyManager has already requested HealthKit authorization for a stale enrollment.
+        SetupTestEnvironment.performEarlyResetIfNeeded()
         let prefs = LocalPreferencesStore.standard
         if LaunchOptions.launchOptions[.setupTestEnvironment].resetExistingData {
             prefs[.lastUsedFirebaseConfig] = nil

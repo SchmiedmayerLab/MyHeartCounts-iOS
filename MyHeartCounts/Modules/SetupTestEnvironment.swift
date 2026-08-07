@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import HealthKitOnFHIR
 import MyHeartCountsShared
 import OSLog
 import Spezi
@@ -125,6 +124,17 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
     }
     
     
+    /// Finalizes the reset of existing data.
+    ///
+    /// The destructive part of the reset will already have happened by the time this function is called.
+    /// In order to preempt various Spezi modules from performing on-load setup work (in their `configure()` functions),
+    /// the app runs ``SetupTestEnvironment/performEarlyResetIfNeeded()`` directly on launch, which deletes all
+    /// on-disk data and resets as much other stuff as it can get its hands on.
+    ///
+    /// This function merely will clean up any remaining state that somehow still exists, or somehow got recreated, or needs live
+    /// Spezi modules to run.
+    /// It also ensures the user is fully logged out, an operation we cannot achieve in ``performEarlyResetIfNeeded()``
+    /// as it requires Firebase being loaded.
     private func resetExistingData() async throws {
         logger.notice("Resetting existing data")
         try await bulkHealthExporter.deleteSessionRestorationInfo(for: .mhcHistoricalDataExport)
@@ -150,11 +160,19 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
             LocalPreferencesStore.standard[.onboardingFlowComplete] = true
         }
         try await Task.sleep(for: .seconds(0.5))
-        do {
-            try localStorage.deleteAll()
-        } catch {
-            try await Task.sleep(for: .seconds(2))
-            try localStorage.deleteAll()
+        // Failure here is non-fatal: `deleteAll()` is documented as not being synchronized against reads or
+        // writes on individual storage keys, so it can lose a race with launch-time module work. Previously an
+        // unrecoverable failure propagated out of `setUp()` and aborted the entire test-environment setup
+        // (including login-and-enroll) -- which is far worse than leaving a stale key behind, especially now
+        // that the directory was already deleted wholesale before any module was initialized.
+        for attempt in 1...3 {
+            do {
+                try localStorage.deleteAll()
+                break
+            } catch {
+                logger.error("localStorage.deleteAll() failed (attempt \(attempt)/3): \(error)")
+                try? await Task.sleep(for: .seconds(2))
+            }
         }
     }
     

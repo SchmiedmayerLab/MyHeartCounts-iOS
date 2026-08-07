@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 70;
+	objectVersion = 100;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -50,6 +50,7 @@
 		801A66132FEC47BD009182AD /* SpeziHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80E08A752DD32D9F00E80C11 /* SpeziHealthKitUI */; };
 		801A66142FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1D2E144A180049798B /* SpeziStudyDefinition */; };
 		801A66152FEC47BD009182AD /* SpeziSensorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80E0E3152EB27C4A00F445B6 /* SpeziSensorKit */; };
+		802118D1301663AA0088582C /* SpeziHealthKitFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 802118D0301663AA0088582C /* SpeziHealthKitFHIR */; };
 		802CB63F2F85177A0011907F /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 802CB63E2F85177A0011907F /* AsyncAlgorithms */; };
 		8034CBE22DE6514700E7F9F6 /* SpeziHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8034CBE12DE6514700E7F9F6 /* SpeziHealthKit */; };
 		80404B0A2EDC635900DEA429 /* MyHeartCountsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 80404B092EDC635900DEA429 /* MyHeartCountsShared */; };
@@ -83,12 +84,10 @@
 		80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2352EC1336F00F0E453 /* ModelsDSTU2 */; };
 		80B8A2382EC1336F00F0E453 /* ModelsR4 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2372EC1336F00F0E453 /* ModelsR4 */; };
 		80BE06542DCF3A6D00171114 /* SwiftPackageList in Frameworks */ = {isa = PBXBuildFile; productRef = 80BE06532DCF3A6D00171114 /* SwiftPackageList */; };
-		80D031F92FE52D3D0090B041 /* HealthKitOnFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031F82FE52D3D0090B041 /* HealthKitOnFHIR */; };
 		80D031FB2FE52D3D0090B041 /* ResearchKitOnFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FA2FE52D3D0090B041 /* ResearchKitOnFHIR */; };
 		80D031FD2FE52D3D0090B041 /* Spezi in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FC2FE52D3D0090B041 /* Spezi */; };
 		80D031FF2FE52D3D0090B041 /* SpeziAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FE2FE52D3D0090B041 /* SpeziAccount */; };
 		80D032032FE52D3D0090B041 /* SpeziFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032022FE52D3D0090B041 /* SpeziFHIR */; };
-		80D032052FE52D3D0090B041 /* SpeziFHIRHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032042FE52D3D0090B041 /* SpeziFHIRHealthKit */; };
 		80D032072FE52D3D0090B041 /* SpeziFirebaseAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032062FE52D3D0090B041 /* SpeziFirebaseAccount */; };
 		80D032092FE52D3D0090B041 /* SpeziFirebaseAccountStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032082FE52D3D0090B041 /* SpeziFirebaseAccountStorage */; };
 		80D0320B2FE52D3D0090B041 /* SpeziFirebaseConfiguration in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0320A2FE52D3D0090B041 /* SpeziFirebaseConfiguration */; };
@@ -142,44 +141,36 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		8052BB202EBA2AE1005E2D8C /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "";
-			dstSubfolderSpec = 13;
+			dstSubfolder = PlugIns;
 			files = (
 			);
 			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		8054D98F2DE54F8900458CD9 /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
+			dstSubfolder = Product;
 			files = (
 				8054D98E2DE54F8900458CD9 /* MyHeartCountsWatchApp.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		80FB17072DE67523000F2C8A /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "";
-			dstSubfolderSpec = 10;
+			dstSubfolder = Frameworks;
 			files = (
 			);
 			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		80FB170D2DE67534000F2C8A /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "";
-			dstSubfolderSpec = 10;
+			dstSubfolder = Frameworks;
 			files = (
 			);
 			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -198,21 +189,21 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		8034CC092DE65C3000E7F9F6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		8034CC092DE65C3000E7F9F6 /* Exceptions for "MyHeartCountsWatchApp" folder in "MyHeartCountsWatchApp" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Supporting Files/Info.plist",
 			);
 			target = 8054D9832DE54F8800458CD9 /* MyHeartCountsWatchApp */;
 		};
-		80932E572F2F9BE900C123C8 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		80932E572F2F9BE900C123C8 /* Exceptions for "MyHeartCountsTests" folder in "MyHeartCountsTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"MyHeartCounts Unit Tests.xctestplan",
 			);
 			target = 653A255C28338800005D4D48 /* MyHeartCountsTests */;
 		};
-		80932E582F2F9BF000C123C8 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		80932E582F2F9BF000C123C8 /* Exceptions for "MyHeartCountsUITests" folder in "MyHeartCountsUITests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"MyHeartCounts Screenshots.xctestplan",
@@ -220,7 +211,7 @@
 			);
 			target = 653A256628338800005D4D48 /* MyHeartCountsUITests */;
 		};
-		80F72BD72D7E008E00150FE3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		80F72BD72D7E008E00150FE3 /* Exceptions for "MyHeartCounts" folder in "MyHeartCounts" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Supporting Files/Info.plist",
@@ -230,16 +221,43 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8054D9852DE54F8800458CD9 /* MyHeartCountsWatchApp */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (8034CC092DE65C3000E7F9F6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = MyHeartCountsWatchApp; sourceTree = "<group>"; };
-		80F72BA52D7E008E00150FE3 /* MyHeartCounts */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (80F72BD72D7E008E00150FE3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = MyHeartCounts; sourceTree = "<group>"; };
-		80F72BD92D7E00A100150FE3 /* MyHeartCountsTests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (80932E572F2F9BE900C123C8 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = MyHeartCountsTests; sourceTree = "<group>"; };
-		80F72BDF2D7E00AA00150FE3 /* MyHeartCountsUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (80932E582F2F9BF000C123C8 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = MyHeartCountsUITests; sourceTree = "<group>"; };
+		8054D9852DE54F8800458CD9 /* MyHeartCountsWatchApp */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8034CC092DE65C3000E7F9F6 /* Exceptions for "MyHeartCountsWatchApp" folder in "MyHeartCountsWatchApp" target */,
+			);
+			path = MyHeartCountsWatchApp;
+			sourceTree = "<group>";
+		};
+		80F72BA52D7E008E00150FE3 /* MyHeartCounts */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				80F72BD72D7E008E00150FE3 /* Exceptions for "MyHeartCounts" folder in "MyHeartCounts" target */,
+			);
+			path = MyHeartCounts;
+			sourceTree = "<group>";
+		};
+		80F72BD92D7E00A100150FE3 /* MyHeartCountsTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				80932E572F2F9BE900C123C8 /* Exceptions for "MyHeartCountsTests" folder in "MyHeartCountsTests" target */,
+			);
+			path = MyHeartCountsTests;
+			sourceTree = "<group>";
+		};
+		80F72BDF2D7E00AA00150FE3 /* MyHeartCountsUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				80932E582F2F9BF000C123C8 /* Exceptions for "MyHeartCountsUITests" folder in "MyHeartCountsUITests" target */,
+			);
+			path = MyHeartCountsUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		653A254A283387FE005D4D48 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				801A66152FEC47BD009182AD /* SpeziSensorKit in Frameworks */,
 				801A66142FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */,
@@ -281,10 +299,8 @@
 				80A72D7D2F377E90006B6EAD /* SensorKit.framework in Frameworks */,
 				80E982FB2EBA463500202499 /* SpeziConsent in Frameworks */,
 				804C11E42ECA380D004783C3 /* MHCStudyDefinition in Frameworks */,
-				80D031F92FE52D3D0090B041 /* HealthKitOnFHIR in Frameworks */,
 				80D032312FE52D3D0090B041 /* SpeziTesting in Frameworks */,
 				8052B87E2EB9FFDF005E2D8C /* SpeziStudy in Frameworks */,
-				80D032052FE52D3D0090B041 /* SpeziFHIRHealthKit in Frameworks */,
 				80D032072FE52D3D0090B041 /* SpeziFirebaseAccount in Frameworks */,
 				8052B87B2EB9FFDF005E2D8C /* SpeziOnboarding in Frameworks */,
 				8052B8782EB9FFDF005E2D8C /* SpeziHealthKit in Frameworks */,
@@ -313,6 +329,7 @@
 				2FB099AF2A875DF100B20952 /* FirebaseAuth in Frameworks */,
 				807669732D772C40001B980B /* Collections in Frameworks */,
 				80471E1A2E144A180049798B /* SpeziLocalization in Frameworks */,
+				802118D1301663AA0088582C /* SpeziHealthKitFHIR in Frameworks */,
 				2FB099B12A875DF100B20952 /* FirebaseFirestore in Frameworks */,
 				80D0321B2FE52D3D0090B041 /* SpeziLicense in Frameworks */,
 				80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */,
@@ -336,18 +353,14 @@
 				8015C35A2EB22EE400CA845E /* NIOCore in Frameworks */,
 				80BE06542DCF3A6D00171114 /* SwiftPackageList in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		653A255A28338800005D4D48 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		653A256428338800005D4D48 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				80404B0A2EDC635900DEA429 /* MyHeartCountsShared in Frameworks */,
 				80D0325A2FE5315D0090B041 /* XCTSpeziQuestionnaire in Frameworks */,
@@ -357,18 +370,15 @@
 				80D032562FE5315D0090B041 /* XCTSpeziAccount in Frameworks */,
 				80D032582FE5315D0090B041 /* XCTSpeziNotifications in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		8054D9812DE54F8800458CD9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				80A0083F2DEFD0B300A446BA /* Collections in Frameworks */,
 				807093742EBB48C90038A27F /* MyHeartCountsShared in Frameworks */,
 				8034CBE22DE6514700E7F9F6 /* SpeziHealthKit in Frameworks */,
 				80A008462DEFD0F900A446BA /* OrderedCollections in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -506,12 +516,10 @@
 				807423532F28E15E00113313 /* MHCStudyDefinitionExporter */,
 				802CB63E2F85177A0011907F /* AsyncAlgorithms */,
 				80B7F0632FADF2940040F247 /* GRDB */,
-				80D031F82FE52D3D0090B041 /* HealthKitOnFHIR */,
 				80D031FA2FE52D3D0090B041 /* ResearchKitOnFHIR */,
 				80D031FC2FE52D3D0090B041 /* Spezi */,
 				80D031FE2FE52D3D0090B041 /* SpeziAccount */,
 				80D032022FE52D3D0090B041 /* SpeziFHIR */,
-				80D032042FE52D3D0090B041 /* SpeziFHIRHealthKit */,
 				80D032062FE52D3D0090B041 /* SpeziFirebaseAccount */,
 				80D032082FE52D3D0090B041 /* SpeziFirebaseAccountStorage */,
 				80D0320A2FE52D3D0090B041 /* SpeziFirebaseConfiguration */,
@@ -529,6 +537,7 @@
 				80D032322FE52D3D0090B041 /* SpeziValidation */,
 				80D032342FE52D3D0090B041 /* SpeziViews */,
 				80D0323C2FE52D3D0090B041 /* XCTSpeziNotificationsUI */,
+				802118D0301663AA0088582C /* SpeziHealthKitFHIR */,
 			);
 			productName = MyHeartCounts;
 			productReference = 653A254D283387FE005D4D48 /* MyHeartCounts.app */;
@@ -643,7 +652,6 @@
 				};
 			};
 			buildConfigurationList = 653A2548283387FE005D4D48 /* Build configuration list for PBXProject "MyHeartCounts" */;
-			compatibilityVersion = "Xcode 15.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -669,6 +677,7 @@
 				80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 				80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */,
 			);
+			preferredProjectObjectVersion = 63;
 			productRefGroup = 653A254E283387FE005D4D48 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -684,62 +693,46 @@
 /* Begin PBXResourcesBuildPhase section */
 		653A254B283387FE005D4D48 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		653A255B28338800005D4D48 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		653A256528338800005D4D48 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		8054D9822DE54F8800458CD9 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		653A2549283387FE005D4D48 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		653A255928338800005D4D48 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		653A256328338800005D4D48 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		8054D9802DE54F8800458CD9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -782,7 +775,7 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		653A256F28338800005D4D48 /* Debug */ = {
+		653A256F28338800005D4D48 /* Debug configuration for PBXProject "MyHeartCounts" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -857,7 +850,7 @@
 			};
 			name = Debug;
 		};
-		653A257028338800005D4D48 /* Release */ = {
+		653A257028338800005D4D48 /* Release configuration for PBXProject "MyHeartCounts" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -926,7 +919,7 @@
 			};
 			name = Release;
 		};
-		653A257228338800005D4D48 /* Debug */ = {
+		653A257228338800005D4D48 /* Debug configuration for PBXNativeTarget "MyHeartCounts" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "My Heart Counts";
@@ -961,7 +954,7 @@
 			};
 			name = Debug;
 		};
-		653A257328338800005D4D48 /* Release */ = {
+		653A257328338800005D4D48 /* Release configuration for PBXNativeTarget "MyHeartCounts" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "My Heart Counts";
@@ -999,7 +992,7 @@
 			};
 			name = Release;
 		};
-		653A257528338800005D4D48 /* Debug */ = {
+		653A257528338800005D4D48 /* Debug configuration for PBXNativeTarget "MyHeartCountsTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -1019,7 +1012,7 @@
 			};
 			name = Debug;
 		};
-		653A257628338800005D4D48 /* Release */ = {
+		653A257628338800005D4D48 /* Release configuration for PBXNativeTarget "MyHeartCountsTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -1039,7 +1032,7 @@
 			};
 			name = Release;
 		};
-		653A257828338800005D4D48 /* Debug */ = {
+		653A257828338800005D4D48 /* Debug configuration for PBXNativeTarget "MyHeartCountsUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -1058,7 +1051,7 @@
 			};
 			name = Debug;
 		};
-		653A257928338800005D4D48 /* Release */ = {
+		653A257928338800005D4D48 /* Release configuration for PBXNativeTarget "MyHeartCountsUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -1077,7 +1070,7 @@
 			};
 			name = Release;
 		};
-		8054D9902DE54F8900458CD9 /* Debug */ = {
+		8054D9902DE54F8900458CD9 /* Debug configuration for PBXNativeTarget "MyHeartCountsWatchApp" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "My Heart Counts";
@@ -1107,7 +1100,7 @@
 			};
 			name = Debug;
 		};
-		8054D9922DE54F8900458CD9 /* Release */ = {
+		8054D9922DE54F8900458CD9 /* Release configuration for PBXNativeTarget "MyHeartCountsWatchApp" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "My Heart Counts";
@@ -1145,46 +1138,41 @@
 		653A2548283387FE005D4D48 /* Build configuration list for PBXProject "MyHeartCounts" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				653A256F28338800005D4D48 /* Debug */,
-				653A257028338800005D4D48 /* Release */,
+				653A256F28338800005D4D48 /* Debug configuration for PBXProject "MyHeartCounts" */,
+				653A257028338800005D4D48 /* Release configuration for PBXProject "MyHeartCounts" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		653A257128338800005D4D48 /* Build configuration list for PBXNativeTarget "MyHeartCounts" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				653A257228338800005D4D48 /* Debug */,
-				653A257328338800005D4D48 /* Release */,
+				653A257228338800005D4D48 /* Debug configuration for PBXNativeTarget "MyHeartCounts" */,
+				653A257328338800005D4D48 /* Release configuration for PBXNativeTarget "MyHeartCounts" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		653A257428338800005D4D48 /* Build configuration list for PBXNativeTarget "MyHeartCountsTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				653A257528338800005D4D48 /* Debug */,
-				653A257628338800005D4D48 /* Release */,
+				653A257528338800005D4D48 /* Debug configuration for PBXNativeTarget "MyHeartCountsTests" */,
+				653A257628338800005D4D48 /* Release configuration for PBXNativeTarget "MyHeartCountsTests" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		653A257728338800005D4D48 /* Build configuration list for PBXNativeTarget "MyHeartCountsUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				653A257828338800005D4D48 /* Debug */,
-				653A257928338800005D4D48 /* Release */,
+				653A257828338800005D4D48 /* Debug configuration for PBXNativeTarget "MyHeartCountsUITests" */,
+				653A257928338800005D4D48 /* Release configuration for PBXNativeTarget "MyHeartCountsUITests" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		8054D9932DE54F8900458CD9 /* Build configuration list for PBXNativeTarget "MyHeartCountsWatchApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				8054D9902DE54F8900458CD9 /* Debug */,
-				8054D9922DE54F8900458CD9 /* Release */,
+				8054D9902DE54F8900458CD9 /* Debug configuration for PBXNativeTarget "MyHeartCountsWatchApp" */,
+				8054D9922DE54F8900458CD9 /* Release configuration for PBXNativeTarget "MyHeartCountsWatchApp" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
@@ -1272,7 +1260,7 @@
 		};
 		80A3A4812E1EB270002A8515 /* XCRemoteSwiftPackageReference "ResearchKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/StanfordBDHG/ResearchKit.git";
+			repositoryURL = "https://github.com/SchmiedmayerLab/ResearchKit.git";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 3.1.4;
@@ -1291,7 +1279,7 @@
 			repositoryURL = "https://github.com/apple/FHIRModels.git";
 			requirement = {
 				kind = upToNextMinorVersion;
-				minimumVersion = 0.8.0;
+				minimumVersion = 0.9.0;
 			};
 		};
 		80BE064E2DCF3A2D00171114 /* XCRemoteSwiftPackageReference "swift-package-list" */ = {
@@ -1306,9 +1294,13 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SchmiedmayerLab/Spezi.git";
 			requirement = {
-				kind = exactVersion;
-				version = 0.1.6;
+				kind = revision;
+				revision = e7a66a44bea90bfc93ddaed5ac84cd1727fb0e56;
 			};
+			traits = (
+				ResearchKit,
+				default,
+			);
 		};
 /* End XCRemoteSwiftPackageReference section */
 
@@ -1353,6 +1345,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8015C3582EB22EE400CA845E /* XCRemoteSwiftPackageReference "swift-nio" */;
 			productName = NIOFoundationCompat;
+		};
+		802118D0301663AA0088582C /* SpeziHealthKitFHIR */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
+			productName = SpeziHealthKitFHIR;
 		};
 		802141582D81F14000BF5D35 /* SpeziOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1605,11 +1602,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SpeziOnboarding;
 		};
-		80D031F82FE52D3D0090B041 /* HealthKitOnFHIR */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = HealthKitOnFHIR;
-		};
 		80D031FA2FE52D3D0090B041 /* ResearchKitOnFHIR */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
@@ -1629,11 +1621,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
 			productName = SpeziFHIR;
-		};
-		80D032042FE52D3D0090B041 /* SpeziFHIRHealthKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziFHIRHealthKit;
 		};
 		80D032062FE52D3D0090B041 /* SpeziFirebaseAccount */ = {
 			isa = XCSwiftPackageProductDependency;

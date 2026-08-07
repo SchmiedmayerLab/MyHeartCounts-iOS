@@ -10,7 +10,6 @@
 @preconcurrency import FirebaseCore
 @preconcurrency import FirebaseFirestore
 @preconcurrency import FirebaseStorage
-import HealthKitOnFHIR
 import OSLog
 @preconcurrency import PDFKit.PDFDocument
 import Spezi
@@ -233,19 +232,26 @@ extension MyHeartCountsStandard {
             // Ideally we'd have this run immediately, but it only works directly after firebase was loaded.
             LocalPreferencesStore.standard[.shouldClearFirestoreCacheOnNextLaunch] = true
         }
-        let isInTestEnvSetup = await setupTestEnvironment.isInSetup
         _Concurrency.Task {
-            guard /*!ProcessInfo.isBeingUITested,*/ !isInTestEnvSetup else {
-                // ^we potentially log out and in as part of the test env setup; we want to skip this
-                await appState.setIsLoggingOut(false)
-                return
-            }
             // it seems that the fact that the account sheet typically is still presented while logging out causes issues with us setting the
             // `onboardingFlowComplete` UserDefaults key being set to true (likely bc the other sheet still being presented prevents SwiftUI from presenting the
             // onboarding sheet, thereby causing it to set the UserDefaults key (which, via a Binding, is used as the onboarding sheet's `isPresented` value)
             // back to false.
             // We try to work around this by waiting a bit, to give the account sheet a chance to dismiss itself.
             try await _Concurrency.Task.sleep(for: .seconds(2))
+            // NOTE: the guard is evaluated *after* the sleep, deliberately. A logout triggered at launch (from a
+            // keychain-restored Firebase session) resolves `isInSetup == false`, because SetupTestEnvironment
+            // hasn't entered `setUp()` yet -- it is still behind `Spezi.loadFirebase` + its 1s sleep. Snapshotting
+            // the guard before the sleep therefore let this task clobber `onboardingFlowComplete` two seconds
+            // later, potentially in the middle of the reset's own login-and-enroll. Re-reading it here, and
+            // bailing if somebody signed in during the window, keeps that from happening.
+            let isInTestEnvSetup = await setupTestEnvironment.isInSetup
+            let isSignedIn = (await account?.signedIn) ?? false
+            guard /*!ProcessInfo.isBeingUITested,*/ !isInTestEnvSetup, !isSignedIn else {
+                // ^we potentially log out and in as part of the test env setup; we want to skip this
+                await appState.setIsLoggingOut(false)
+                return
+            }
             await logger.notice("Triggering Onboarding Flow")
             LocalPreferencesStore.standard[.onboardingFlowComplete] = false
             await appState.setIsLoggingOut(false)

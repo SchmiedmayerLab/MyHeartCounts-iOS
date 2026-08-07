@@ -8,8 +8,8 @@
 
 import FHIRModelsExtensions
 import Foundation
-import HealthKitOnFHIR
 import ModelsR4
+import SpeziHealthKitFHIR
 import SpeziSensorKit
 
 
@@ -36,18 +36,18 @@ extension SensorKitECGSession: HealthObservation {
     }
     
     func resource( // swiftlint:disable:this function_body_length
-        withMapping mapping: HKSampleMapping,
+        withMapping mapping: SampleTypesFHIRMapping,
         issuedDate: FHIRPrimitive<Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ResourceProxy {
-        let ecgMapping = mapping.electrocardiogramMapping
-        let observation = Observation(
+        let ecgMapping = mapping.ecgTypeMapping
+        var observation = Observation(
             code: CodeableConcept(),
             status: FHIRPrimitive(.final)
         )
         observation.id = self.id.uuidString.asFHIRStringPrimitive()
-        observation.appendCoding(Coding(code: SensorKitCodingSystem(.ecg)))
-        observation.appendIdentifier(Identifier(id: observation.id))
+        observation.append(coding: Coding(code: SensorKitCodingSystem(.ecg)))
+        observation.append(identifier: Identifier(id: observation.id))
         if let issuedDate {
             observation.issued = issuedDate
         } else {
@@ -60,22 +60,22 @@ extension SensorKitECGSession: HealthObservation {
         let ecgCodableConcept = CodeableConcept(
             coding: ecgMapping.codings.map { mappedCode -> Coding in
                 Coding(
-                    code: mappedCode.code.asFHIRStringPrimitive(),
-                    display: mappedCode.display.asFHIRStringPrimitive(),
-                    system: mappedCode.system.asFHIRURIPrimitive()
+                    code: mappedCode.code,
+                    display: mappedCode.display,
+                    system: mappedCode.system
                 )
             }
         )
         for coding in ecgCodableConcept.coding ?? [] {
-            observation.appendCoding(coding)
+            observation.append(coding: coding)
         }
         for category in ecgMapping.categories {
-            observation.appendCategory(
-                CodeableConcept(coding: [
+            observation.append(
+                category: CodeableConcept(coding: [
                     Coding(
-                        code: category.code.asFHIRStringPrimitive(),
-                        display: category.display.asFHIRStringPrimitive(),
-                        system: category.system.asFHIRURIPrimitive()
+                        code: category.code,
+                        display: category.display,
+                        system: category.system
                     )
                 ])
             )
@@ -83,13 +83,13 @@ extension SensorKitECGSession: HealthObservation {
         let precision = ecgMapping.voltagePrecision
         // "zero value and unit"
         let origin = Quantity(
-            code: ecgMapping.voltageMeasurements.unit.code?.asFHIRStringPrimitive(),
-            system: ecgMapping.voltageMeasurements.unit.system?.asFHIRURIPrimitive(),
+            code: ecgMapping.voltageMeasurements.unit.code,
+            system: ecgMapping.voltageMeasurements.unit.system,
             unit: ecgMapping.voltageMeasurements.unit.unit.asFHIRStringPrimitive(),
             value: 0.asFHIRDecimalPrimitive()
         )
         for batch in batches {
-            observation.appendComponent(ObservationComponent(
+            observation.append(component: ObservationComponent(
                 code: ecgCodableConcept,
                 value: .sampledData(SampledData(
                     data: batch.samples.lazy.map { sample in
@@ -105,7 +105,7 @@ extension SensorKitECGSession: HealthObservation {
             ))
         }
         for builder in extensions {
-            try builder.apply(typeErasedInput: self, to: observation)
+            try builder.apply(typeErasedInput: self, to: &observation)
         }
         observation.addMHCAppAsSource()
         return .observation(observation)

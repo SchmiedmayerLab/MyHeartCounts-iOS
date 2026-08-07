@@ -12,6 +12,18 @@ import XCTestExtensions
 
 
 final class OnboardingTests: MHCTestCase, Sendable {
+    override func tearDown() async throws {
+        app.terminate()
+        // Reset HealthKit authorization after every test in this class.
+        //
+        // `testOnboardingDemographicsWithoutHealthKitWriteAccess` deliberately grants only a partial set of
+        // permissions; leaving that behind would make whichever test runs next (the plan uses random ordering)
+        // inherit a read-only, single-sample-type grant. Doing this in `tearDown` rather than at the end of the
+        // test body means it also happens when the test fails partway through.
+        app.resetAuthorizationStatus(for: .health)
+        try await super.tearDown()
+    }
+    
     func testOnboardingFlow() throws {
         try supplyHealthCharacteristics()
         try launchAppAndEnrollIntoStudy(
@@ -118,10 +130,5 @@ final class OnboardingTests: MHCTestCase, Sendable {
         }
         
         // thesis: if we get to this point in the onboarding, we will make it to the end
-        
-        // we need to reset the health authorization at the end here, so that subsequent tests will re-request the whole set,
-        // instead of inheriting the "only active energy and only read-only" permission granted here...
-        app.terminate()
-        app.resetAuthorizationStatus(for: .health)
     }
 }

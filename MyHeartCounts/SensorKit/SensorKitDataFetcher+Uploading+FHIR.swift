@@ -7,7 +7,6 @@
 //
 
 import FHIRModelsExtensions
-import HealthKitOnFHIR
 import ModelsR4
 import SpeziSensorKit
 
@@ -25,7 +24,15 @@ where Sample.SafeRepresentation: HealthObservation {
     ) async throws {
         activity.updateMessage("Uploading FHIR Observations")
         try await standard.uploadHealthObservations(samples) { resource in
-            try resource.get(as: ModelsR4.Observation.self)?.apply(.sensorKitSourceDevice, input: batchInfo.device)
+            switch resource {
+            case .r4(let inner):
+                if var observation = inner as? ModelsR4::Observation {
+                    try observation.apply(.sensorKitSourceDevice, input: batchInfo.device)
+                    resource = .r4(observation)
+                }
+            case .dstu2:
+                break
+            }
         }
     }
 }

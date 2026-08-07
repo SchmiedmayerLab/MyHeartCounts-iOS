@@ -9,16 +9,16 @@
 import CoreMotion
 import FHIRModelsExtensions
 import Foundation
-import HealthKitOnFHIR
 import ModelsR4
 import MyHeartCountsShared
 import SpeziFoundation
+import SpeziHealthKitFHIR
 import SpeziStudyDefinition
 
 
 extension TimedWalkingTestResult {
     func resource(
-        withMapping: HealthKitOnFHIR.HKSampleMapping,
+        withMapping: SampleTypesFHIRMapping,
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ModelsR4.ResourceProxy {
@@ -30,13 +30,13 @@ extension TimedWalkingTestResult {
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> Observation {
-        let observation = Observation(
+        var observation = Observation(
             code: CodeableConcept(),
             status: FHIRPrimitive(.final)
         )
         // Set basic elements applicable to all observations
         observation.id = self.id.uuidString.asFHIRStringPrimitive()
-        observation.appendIdentifier(Identifier(id: observation.id))
+        observation.append(identifier: Identifier(id: observation.id))
         try observation.setEffective(startDate: self.startDate, endDate: self.endDate, timeZone: .current)
         if let issuedDate {
             observation.issued = issuedDate
@@ -44,32 +44,32 @@ extension TimedWalkingTestResult {
             try observation.setIssued(on: .now)
         }
         if test == .sixMinuteWalkTest {
-            observation.appendCoding(Coding(code: LOINC.phenXSixMinuteWalkTest))
-            observation.appendComponent(.init(
+            observation.append(coding: Coding(code: LOINC.phenXSixMinuteWalkTest))
+            observation.append(component: .init(
                 code: LOINC.sixMinuteWalkTest,
                 quantityUnit: "m",
                 quantityValue: distanceCovered
             ))
         }
-        observation.appendCoding(Coding(code: LOINC.pedometerTrackingPanel))
-        observation.appendComponent(.init(
+        observation.append(coding: Coding(code: LOINC.pedometerTrackingPanel))
+        observation.append(component: .init(
             code: LOINC.pedometerNumStepsInUnspecifiedTime,
             quantityUnit: "count",
             quantityValue: Double(numberOfSteps)
         ))
-        observation.appendComponent(.init(
+        observation.append(component: .init(
             code: LOINC.pedometerWalkingDistanceInUnspecifiedTime,
             quantityUnit: "m",
             quantityValue: distanceCovered
         ))
         // we also append the duration and the activity type
         // in the case of the six-minute walk test, this is redundant, but for all other cases it's important.
-        observation.appendComponent(.init(
+        observation.append(component: .init(
             code: LOINC.exerciseDuration,
             quantityUnit: "min",
             quantityValue: test.duration.timeInterval / 60
         ))
-        observation.appendComponent(.init(
+        observation.append(component: .init(
             code: CodeableConcept(coding: [Coding(code: LOINC.exerciseActivity)]),
             value: .codeableConcept(CodeableConcept(coding: [
                 Coding(code: { () -> LOINC in
@@ -81,7 +81,7 @@ extension TimedWalkingTestResult {
             ]))
         ))
         for builder in extensions {
-            try builder.apply(typeErasedInput: self, to: observation)
+            try builder.apply(typeErasedInput: self, to: &observation)
         }
         observation.addMHCAppAsSource()
         return observation

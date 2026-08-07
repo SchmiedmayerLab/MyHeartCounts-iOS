@@ -8,9 +8,9 @@
 
 import FHIRModelsExtensions
 import Foundation
-import HealthKitOnFHIR
 import ModelsR4
 import SensorKit
+import SpeziHealthKitFHIR
 import SpeziSensorKit
 
 
@@ -34,18 +34,18 @@ extension SRDeviceUsageReport.SafeRepresentation: HealthObservation {
     }
     
     func resource( // swiftlint:disable:this function_body_length
-        withMapping mapping: HKSampleMapping,
+        withMapping mapping: SampleTypesFHIRMapping,
         issuedDate: FHIRPrimitive<Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ResourceProxy {
-        let observation = Observation(
+        var observation = Observation(
             code: CodeableConcept(),
             status: FHIRPrimitive(.final)
         )
         let sensorCoding = SensorKitCodingSystem(.deviceUsage)
         observation.id = self.id.uuidString.asFHIRStringPrimitive()
-        observation.appendIdentifier(Identifier(id: observation.id))
-        observation.appendCoding(Coding(code: sensorCoding))
+        observation.append(identifier: Identifier(id: observation.id))
+        observation.append(coding: Coding(code: sensorCoding))
         if let issuedDate {
             observation.issued = issuedDate
         } else {
@@ -57,9 +57,8 @@ extension SRDeviceUsageReport.SafeRepresentation: HealthObservation {
         ))
         observation.value = .quantity(Quantity(unit: .second, value: self.totalUnlockDuration))
         
-        let sensorDomainUrl = FHIRExtensionUrls.sensorKitDomain.appending(component: "DeviceUsage")
-        
-        observation.appendExtensions([
+        let sensorDomainUrl = FHIRExtensionURL.sensorKitDomain.appending(component: "DeviceUsage")
+        observation.append(extensions: [
             Extension(
                 url: sensorDomainUrl.appending(component: "totalScreenWakes"),
                 value: .integer(self.totalScreenWakes.asFHIRIntegerPrimitive())
@@ -76,51 +75,51 @@ extension SRDeviceUsageReport.SafeRepresentation: HealthObservation {
                 url: sensorDomainUrl.appending(component: "version"),
                 value: .string(self.version.asFHIRStringPrimitive())
             )
-        ], replaceAllExistingWithSameUrl: true)
+        ], behaviour: .replace)
         
         for (category, usages) in self.appUsageByCategory {
             let appUsageUrl = sensorDomainUrl.appending(component: "appUsage")
             for usage in usages {
-                let usageExt = Extension(url: appUsageUrl)
-                usageExt.appendExtension(
-                    Extension(
+                var usageExt = Extension(url: appUsageUrl)
+                usageExt.append(
+                    extension: Extension(
                         url: appUsageUrl.appending(component: "category"),
                         value: .string(category.rawValue.asFHIRStringPrimitive())
                     ),
-                    replaceAllExistingWithSameUrl: false
+                    behaviour: .additive
                 )
-                usageExt.appendExtension(
-                    Extension(
+                usageExt.append(
+                    extension: Extension(
                         url: appUsageUrl.appending(component: "bundleIdentifier"),
                         value: usage.bundleIdentifier.map { .string($0.asFHIRStringPrimitive()) }
                     ),
-                    replaceAllExistingWithSameUrl: false
+                    behaviour: .additive
                 )
-                usageExt.appendExtension(
-                    Extension(
+                usageExt.append(
+                    extension: Extension(
                         url: appUsageUrl.appending(component: "relativeStartTime"),
                         value: .decimal(usage.relativeStartTime.asFHIRDecimalPrimitive())
                     ),
-                    replaceAllExistingWithSameUrl: false
+                    behaviour: .additive
                 )
-                usageExt.appendExtension(
-                    Extension(
+                usageExt.append(
+                    extension: Extension(
                         url: appUsageUrl.appending(component: "usageTime"),
                         value: .quantity(Quantity(unit: .second, value: usage.usageTime))
                     ),
-                    replaceAllExistingWithSameUrl: false
+                    behaviour: .additive
                 )
-                usageExt.appendExtension(
-                    Extension(
+                usageExt.append(
+                    extension: Extension(
                         url: appUsageUrl.appending(component: "reportApplicationIdentifier"),
                         value: .string(usage.reportApplicationIdentifier.asFHIRStringPrimitive())
                     ),
-                    replaceAllExistingWithSameUrl: false
+                    behaviour: .additive
                 )
                 for session in usage.textInputSessions {
                     let sessionUrl = appUsageUrl.appending(component: "textInputSession")
-                    usageExt.appendExtension(
-                        Extension(
+                    usageExt.append(
+                        extension: Extension(
                             extension: [
                                 Extension(
                                     url: sessionUrl.appending(component: "identifier"),
@@ -137,27 +136,27 @@ extension SRDeviceUsageReport.SafeRepresentation: HealthObservation {
                             ],
                             url: sessionUrl
                         ),
-                        replaceAllExistingWithSameUrl: false
+                        behaviour: .additive
                     )
                 }
                 for category in usage.supplementalCategories {
-                    usageExt.appendExtension(
-                        Extension(
+                    usageExt.append(
+                        extension: Extension(
                             url: appUsageUrl.appending(component: "supplementalCategory"),
                             value: .string(category.identifier.asFHIRStringPrimitive())
                         ),
-                        replaceAllExistingWithSameUrl: false
+                        behaviour: .additive
                     )
                 }
-                observation.appendExtension(usageExt, replaceAllExistingWithSameUrl: false)
+                observation.append(extension: usageExt, behaviour: .additive)
             }
         }
         
         for (category, usages) in self.notificationUsageByCategory {
             let usageUrl = sensorDomainUrl.appending(component: "notificationUsage")
             for usage in usages {
-                observation.appendExtension(
-                    Extension(
+                observation.append(
+                    extension: Extension(
                         extension: [
                             Extension(
                                 url: usageUrl.appending(component: "category"),
@@ -174,7 +173,7 @@ extension SRDeviceUsageReport.SafeRepresentation: HealthObservation {
                         ],
                         url: usageUrl
                     ),
-                    replaceAllExistingWithSameUrl: false
+                    behaviour: .additive
                 )
             }
         }
@@ -182,8 +181,8 @@ extension SRDeviceUsageReport.SafeRepresentation: HealthObservation {
         for (category, webUsages) in self.webUsageByCategory {
             let webUsageUrl = sensorDomainUrl.appending(component: "webUsage")
             for webUsage in webUsages {
-                observation.appendExtension(
-                    Extension(
+                observation.append(
+                    extension: Extension(
                         extension: [
                             Extension(
                                 url: webUsageUrl.appending(component: "category"),
@@ -196,13 +195,13 @@ extension SRDeviceUsageReport.SafeRepresentation: HealthObservation {
                         ],
                         url: webUsageUrl
                     ),
-                    replaceAllExistingWithSameUrl: false
+                    behaviour: .additive
                 )
             }
         }
         
         for builder in extensions {
-            try builder.apply(typeErasedInput: self, to: observation)
+            try builder.apply(typeErasedInput: self, to: &observation)
         }
         observation.addMHCAppAsSource()
         return .observation(observation)

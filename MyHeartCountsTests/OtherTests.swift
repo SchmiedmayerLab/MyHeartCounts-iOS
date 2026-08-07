@@ -10,6 +10,7 @@ import Foundation
 import MHCStudyDefinitionExporter
 import ModelsR4
 @testable import MyHeartCounts
+import ResearchKit
 import ResearchKitOnFHIR
 import SpeziStudyDefinition
 import Testing
