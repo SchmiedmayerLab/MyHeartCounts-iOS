@@ -63,6 +63,7 @@ final class MyHeartCountsDelegate: GroveAppDelegate {
                 ManagedFileUpload.Category.liveHealthUpload
                 ManagedFileUpload.Category.historicalHealthUpload
                 ManagedFileUpload.Category.healthDeletions
+                ManagedFileUpload.Category.clinicalAttachments
                 for sensor in SensorKit.mhcSensors {
                     ManagedFileUpload.Category(sensor)
                 }

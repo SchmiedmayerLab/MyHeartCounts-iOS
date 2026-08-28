@@ -6,21 +6,31 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Algorithms
 import Foundation
+import GroveFHIRContract
 import GroveFoundation
 import GroveSensorKit
+import GroveSensorKitFHIR
 import ModelsR4
 import MyHeartCountsShared
 
 
-/// A SensorKit sample that can be appended to a CSV file containing a collection of samples of this type.
+/// A SensorKit sample that can be appended to a tabular recording.
+///
+/// Columns come from the registry format the stream declares; the app chooses neither.
+/// Why a tabular upload could not be written.
+enum SensorKitUploadError: Error {
+    /// The stream declares a registry format that publishes no column set.
+    case formatIsNotTabular(RegisteredRecordingFormat)
+}
+
+
 protocol CSVAppendableSensorSample: Sendable {
-    /// The CSV columns required to CSV-encode an instance of this type.
-    static var csvColumns: [String] { get }
-    
-    /// This sample's values for the columns defined in ``csvColumns``
-    var csvFieldValues: [any CSVWriter.FieldValue] { get }
+    /// The registry format this stream writes; its published columns are the ones emitted.
+    static var recordingFormat: RegisteredRecordingFormat { get }
+
+    /// This sample's values for every column but the trailing device column.
+    var recordingFields: [RecordingCSVWriter.Field] { get }
 }
 
 
@@ -37,34 +47,27 @@ where Sample.SafeRepresentation: CSVAppendableSensorSample {
         guard let firstSample = samples.first else {
             return
         }
-        let writer = try CSVWriter(columns: Sample.SafeRepresentation.csvColumns + ["device"])
+        guard let columns = Sample.SafeRepresentation.recordingFormat.csvColumns else {
+            throw SensorKitUploadError.formatIsNotTabular(Sample.SafeRepresentation.recordingFormat)
+        }
+        var writer = RecordingCSVWriter(columns: columns)
         activity.updateMessage("Writing to CSV")
-        let deviceInfoCol = CollectionOfOne<any CSVWriter.FieldValue>(batchInfo.device.description)
+        let device = RecordingCSVWriter.Field.text(batchInfo.device.description)
+        var minDate = firstSample.timeRange.lowerBound
+        var maxDate = firstSample.timeRange.upperBound
         for sample in samples {
-            try writer.appendRow(fields: chain(sample.csvFieldValues, deviceInfoCol))
+            try writer.append(sample.recordingFields + [device])
+            minDate = min(minDate, sample.timeRange.lowerBound)
+            maxDate = max(maxDate, sample.timeRange.upperBound)
         }
         try await upload(
             data: writer.data(),
-            fileExtension: "csv",
             for: sensor,
             deviceInfo: batchInfo.device,
+            effectiveTimeRange: minDate..<maxDate,
             to: standard,
-            observationDocName: "\(batchInfo.timeRange.lowerBound.ISO8601Format())_\(batchInfo.timeRange.upperBound.ISO8601Format())",
+            documentName: "\(batchInfo.timeRange.lowerBound.ISO8601Format())_\(batchInfo.timeRange.upperBound.ISO8601Format())",
             activity: activity
-        ) { observation in
-            let (minDate, maxDate) = {
-                var minDate = firstSample.timeRange.lowerBound
-                var maxDate = firstSample.timeRange.upperBound
-                for sample in samples {
-                    minDate = min(minDate, sample.timeRange.lowerBound)
-                    maxDate = max(maxDate, sample.timeRange.upperBound)
-                }
-                return (minDate, maxDate)
-            }()
-            observation.effective = try .period(Period(
-                end: FHIRPrimitive(DateTime(date: maxDate)),
-                start: FHIRPrimitive(DateTime(date: minDate))
-            ))
-        }
+        )
     }
 }

@@ -15,51 +15,75 @@ import GroveHealthKitFHIR
 
 struct HealthKitSamplesFHIRUploader: BatchProcessor {
     typealias Output = Void
-    
+
     enum ProcessingError: Error {
         case missingStandard
     }
-    
+
     let standard: MyHeartCountsStandard?
-    
+
     func process<Sample>(_ samples: consuming [Sample], of sampleType: SampleType<Sample>) async throws {
         guard !samples.isEmpty else {
             return
         }
-        if let samples = samples as? [HKClinicalRecord] {
-            try await storeSamples(samples)
-        } else {
-            guard let standard else {
-                throw ProcessingError.missingStandard
-            }
-            let url = try encodeSamples(samples, of: sampleType)
-            defer {
-                try? FileManager.default.removeItem(at: url)
-            }
-            try await standard.stageHistoricalHealthKitFile(at: url)
-        }
+        try await storeSamples(samples, of: sampleType)
     }
-    
-    func encodeSamples<Sample>(_ samples: consuming [Sample], of sampleType: SampleType<Sample>) throws -> URL {
-        let fileManager = FileManager.default
-        let resources = try (consume samples).mapIntoResourceProxies(
-            extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions
-        )
-        let encoded = try JSONEncoder().encode(consume resources)
-        
-        let compressed = try (consume encoded).compressed(using: Zstd.self)
-        let compressedUrl = fileManager.temporaryDirectory.appendingPathComponent("\(sampleType.id)_\(UUID().uuidString).json.zstd")
-        try (consume compressed).write(to: compressedUrl)
-        return compressedUrl
-    }
-    
-    private func storeSamples(_ samples: consuming [HKClinicalRecord]) async throws {
+
+    private func storeSamples<Sample>(_ samples: consuming [Sample], of sampleType: SampleType<Sample>) async throws {
         guard let standard else {
             throw ProcessingError.missingStandard
         }
-        for sample in samples {
+        let subject = try await standard.firebaseConfiguration.fhirExchangeSubject
+        let healthKit = await standard.healthKit
+        let conversionInstant = Date.now
+        let stateStore = await standard.fhirExchangeStateStore
+        var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+        for sample in consume samples {
             try Task.checkCancellation()
-            try await standard.uploadHealthObservation(sample)
+            let healthSample = sample as HKSample
+            do {
+                let payload = try await healthSample.prepareFHIRPayload(
+                    conversionInstant: conversionInstant,
+                    subject: subject,
+                    stateStore: stateStore,
+                    using: healthKit
+                )
+                entries.append(contentsOf: payload.entries)
+            } catch {
+                await standard.logger.warning(
+                    "Failed \(healthSample.sampleType.identifier) \(healthSample.uuid): \(String(describing: error))"
+                )
+                throw error
+            }
+        }
+        guard !entries.isEmpty else {
+            return
+        }
+        entries.sort(by: healthUploadEntryPrecedes)
+        let sourceIDs = entries.map(\.sourceID)
+        let eventKeys = entries.compactMap(\.eventKey)
+        let resources = entries.map(\.resource)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let encoded = try encoder.encode(resources)
+        let compressed = try (consume encoded).compressed(using: Zstd.self)
+        let filename = HealthUploadBatchFilename.make(
+            typePrefix: sampleType.id,
+            identifiers: sourceIDs,
+            fileExtension: "json.zstd"
+        )
+        let compressedUrl = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+        try (consume compressed).write(to: compressedUrl, options: .atomic)
+        defer {
+            try? FileManager.default.removeItem(at: compressedUrl)
+        }
+
+        // Staging is durable and cancellation-safe; the event ledger is completed only afterwards.
+        try await standard.stageHistoricalHealthKitFile(at: compressedUrl)
+        do {
+            try stateStore.completeHealthKitEvents(eventKeys)
+        } catch {
+            await standard.logger.error("Could not clean durable HealthKit FHIR event state: \(error)")
         }
     }
 }

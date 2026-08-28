@@ -8,35 +8,44 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveFHIRContract
 import GroveFoundation
 import GroveSensorKit
+import GroveSensorKitFHIR
 import ModelsR4
 import MyHeartCountsShared
 import SensorKit
 
 
 extension SRWristTemperatureSession: CSVConvertibleSensorSample {
+    // Wrist temperature has no structured Grove contract, so the algorithm version stays app-defined.
+    private static let algorithmVersionExtension: FHIRPrimitive<FHIRURI> =
+        "https://myheartcounts.stanford.edu/fhir/sensorkit/wristTemperature/algorithmVersion"
+
     func csvData() throws -> Data {
-        let writer = try CSVWriter(columns: ["timestamp", "value", "errorEstimate", "condition"])
+        guard let columns = RegisteredRecordingFormat.wristTemperatureSamples.csvColumns else {
+            throw SensorKitUploadError.formatIsNotTabular(.wristTemperatureSamples)
+        }
+        var writer = RecordingCSVWriter(columns: columns)
         for temp in self.temperatures {
-            try writer.appendRow(fields: [
-                temp.timestamp,
-                temp.value.converted(to: .celsius).value,
-                temp.errorEstimate.converted(to: .celsius).value,
-                temp.condition.stringValue
-            ] as [any CSVWriter.FieldValue])
+            try writer.append([
+                .timestamp(temp.timestamp),
+                .number(temp.value.converted(to: .celsius).value),
+                .number(temp.errorEstimate.converted(to: .celsius).value),
+                .text(temp.condition.stringValue)
+            ])
         }
         return writer.data()
     }
     
-    func finalize(_ observation: inout Observation) throws {
-        observation.id = self.id.uuidString.asFHIRStringPrimitive()
-        observation.append(extensions: [
-            Extension(
-                url: FHIRExtensionURL.sensorKitWristTempAlgorithmVersion,
+    func finalize(_ document: inout ModelsR4.DocumentReference) throws {
+        document.append(
+            extension: Extension(
+                url: Self.algorithmVersionExtension,
                 value: .string(self.version.asFHIRStringPrimitive())
-            )
-        ], behaviour: .replace)
+            ),
+            behaviour: .replace
+        )
     }
 }
 
@@ -57,9 +66,4 @@ extension SRWristTemperature.Condition {
         }
         return values.joined(separator: ",")
     }
-}
-
-
-extension FHIRExtensionURL {
-    static let sensorKitWristTempAlgorithmVersion = Self.sensorKitDomain.appending(component: "WristTemp/algorithmVersion")
 }

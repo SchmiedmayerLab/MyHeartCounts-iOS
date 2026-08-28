@@ -7,21 +7,23 @@
 //
 
 import Foundation
+import GroveFHIRContract
 import GroveSensorKit
+import GroveSensorKitFHIR
 import MyHeartCountsShared
 import SensorKit
 
 
 extension SRAmbientLightSample.SafeRepresentation: CSVAppendableSensorSample {
-    static let csvColumns = ["timestamp", "lux", "placement", "chromacityX", "chromacityY"]
-    
-    var csvFieldValues: [any CSVWriter.FieldValue] {
+    static var recordingFormat: RegisteredRecordingFormat { RegisteredRecordingFormat.ambientLightSamples }
+
+    var recordingFields: [RecordingCSVWriter.Field] {
         [
-            timestamp,
-            lux.value,
-            placement.description,
-            chromacity.x,
-            chromacity.y
+            .timestamp(timestamp),
+            .number(lux.value),
+            .text(placement.description),
+            .number(Double(chromacity.x)),
+            .number(Double(chromacity.y))
         ]
     }
 }

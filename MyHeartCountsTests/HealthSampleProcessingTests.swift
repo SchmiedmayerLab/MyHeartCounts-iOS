@@ -47,13 +47,22 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
             makeSample(numSteps: 7, startOffset: 15, duration: 10),
             makeSample(numSteps: 9, startOffset: 27, duration: 12)
         ]
-        let processor = HealthKitSamplesFHIRUploader(standard: nil)
-        let compressedUrl = try processor.encodeSamples(samples, of: .stepCount)
-        defer {
-            try? FileManager.default.removeItem(at: compressedUrl)
+        let subject = try FHIRExchangeSubject(identity: BusinessIdentifier(
+            system: FHIRExchangeIdentifiers.participant,
+            value: "test"
+        ))
+        let stateStore = FHIRExchangeStateStore()
+        var resources: [AnyEncodable] = []
+        for sample in samples {
+            let payload = try await sample.prepareFHIRPayload(
+                conversionInstant: startDate,
+                subject: subject,
+                stateStore: stateStore,
+                using: HealthKit()
+            )
+            resources.append(contentsOf: payload.entries.map(\.resource))
         }
-        let decompressed = try Data(contentsOf: compressedUrl).decompressed(using: Zstd.self)
-        let observations = try JSONDecoder().decode([Observation].self, from: decompressed)
+        let observations = try exportedObservations(from: JSONEncoder().encode(resources))
         #expect(observations.count == 3)
         #expect(observations.map(\.quantityValue) == [
             HKQuantity(unit: .count(), doubleValue: 12),
@@ -93,7 +102,7 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
             startDate: now,
             endDate: now
         )
-        let resource = try sample.resource(withMapping: .default, issuedDate: nil, extensions: [])
+        let resource = try sample.resource(issuedDate: nil, extensions: [])
         let observation = try #require(resource.get(if: Observation.self))
         #expect(observation.quantityValue == HKQuantity(unit: .gramUnit(with: .milli) / .literUnit(with: .deci), doubleValue: 50))
         #expect(observation.id == sample.id.uuidString.asFHIRStringPrimitive())
@@ -108,16 +117,18 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
     
     
     @Test
-    func hkSampleUploadTimeZone() throws {
-        let sample = HKQuantitySample(
-            type: .init(.heartRate),
-            quantity: HKQuantity(unit: .count() / .minute(), doubleValue: 85),
-            start: .now,
-            end: .now
+    func selfModelledSampleCarriesTheUploadTimeZone() throws {
+        let sample = QuantitySample(
+            id: UUID(),
+            sampleType: .custom(.bloodLipids),
+            unit: QuantitySample.SampleType.custom(.bloodLipids).displayUnit,
+            value: 50,
+            startDate: .now,
+            endDate: .now
         )
-        let resource = try sample.resource(extensions: [.sampleUploadTimeZone])
+        let resource = try sample.resource(issuedDate: nil, extensions: [.sampleUploadTimeZone])
         let observation = try #require(resource.get(if: Observation.self))
-        let ext = try #require(observation.extensions(for: FHIRExtensionURL.sampleUploadTimeZone).first)
+        let ext = try #require(observation.extensions(for: FHIRExtensionURL.sampleUploadTimeZone.r4).first)
         switch try #require(ext.value) {
         case .string(let string):
             #expect(string.value?.string == TimeZone.current.identifier)
@@ -130,15 +141,17 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
     /// Every FHIR resource the app creates must identify the MHC build which created it.
     @Test
     func mhcAppRevisionIsPartOfTheDefaultExtensions() throws {
-        let sample = HKQuantitySample(
-            type: .init(.heartRate),
-            quantity: HKQuantity(unit: .count() / .minute(), doubleValue: 85),
-            start: .now,
-            end: .now
+        let sample = QuantitySample(
+            id: UUID(),
+            sampleType: .custom(.bloodLipids),
+            unit: QuantitySample.SampleType.custom(.bloodLipids).displayUnit,
+            value: 50,
+            startDate: .now,
+            endDate: .now
         )
-        let resource = try sample.resource(extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions)
+        let resource = try sample.resource(issuedDate: nil, extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions)
         let observation = try #require(resource.get(if: Observation.self))
-        let ext = try #require(observation.extensions(for: FHIRExtensionURL.mhcAppRevision).first)
+        let ext = try #require(observation.extensions(for: FHIRExtensionURL.mhcAppRevision.r4).first)
         func value(ofChild component: String) throws -> ModelsR4.Extension.ValueX {
             let url = FHIRExtensionURL.mhcAppRevision.appending(component: component).r4
             let child = try #require(ext.extension?.first { $0.url == url }, "missing '\(component)' child extension")
@@ -166,7 +179,7 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
 
     @Test
     func healthUploadStagingDuplicates() async throws {
-        let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
+        let healthUploadStaging = stagingForTesting()
         await withDependencyResolution(standard: FakeStandard()) {
             healthUploadStaging
             HealthKit()
@@ -204,8 +217,7 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
     
     @Test
     func healthUploadStagingBacklogElision() async throws {
-        let healthUploadStaging = HealthUploadStaging(
-            persistence: .inMemory,
+        let healthUploadStaging = stagingForTesting(
             autoElideUploadsWhenInsertingDeletions: false
         )
         await withDependencyResolution(standard: FakeStandard()) {
@@ -266,7 +278,7 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
     @Test
     func healthUploadStagingJSONPersistence() async throws { // swiftlint:disable:this function_body_length
         let healthKit = HealthKit()
-        let healthUploadStaging = HealthUploadStaging(persistence: .inMemory)
+        let healthUploadStaging = stagingForTesting()
         await withDependencyResolution(standard: FakeStandard()) {
             healthUploadStaging
             healthKit
@@ -292,20 +304,22 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
             )
         ]
         let timestamp = Date()
-        let issuedDate = try ModelsR4.FHIRPrimitive<ModelsR4.Instant>(.init(date: timestamp))
-        let samplesAsFHIR: Set<ModelsR4.ResourceProxy> = try await newSamples.async.reduce(into: []) { @Sendable result, observation in
+        let samplesAsFHIR: Set<String> = try await newSamples.async.reduce(into: []) { @Sendable result, observation in
             // ISSUE: we get back an `AnyEncodable` (bc the return type might be a ResourceProxy or an Observation or a R4/DSTU2 FHIRResource)
             // but we need these as `ModelsR4.ResourceProxy`s, so we need to do a quick JSON roundtrip to turn them into ResourceProxies (will work for everything except ClinicalRecords, but we don't have any of these anyway...
-            let encodable = try await observation.turnIntoFHIRResource(issuedDate: issuedDate, using: healthKit)
+            let encodable = try await observation.turnIntoFHIRResource(
+                conversionInstant: timestamp,
+                subject: Reference(reference: "Patient/test".asFHIRStringPrimitive()),
+                using: healthKit
+            )
             let encoded = try JSONEncoder().encode(encodable)
-            let decoded = try JSONDecoder().decode(ModelsR4.ResourceProxy.self, from: encoded)
-            result.insert(decoded)
+            result.insert(try canonicalJSON(JSONDecoder().decode(ModelsR4.ResourceProxy.self, from: encoded)))
         }
         try await healthUploadStaging.add(newSamples, ingestionTimestamp: timestamp)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 2)
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
         var drainedSampleTypes: Set<String> = []
-        var allDecodedSamples: Set<ModelsR4.ResourceProxy> = []
+        var allDecodedSamples: Set<String> = []
         while let chunk = try healthUploadStaging.fetchNextDrainChunk(
             of: HealthUploadStaging.PendingSampleRecord.self,
             before: .now,
@@ -313,8 +327,8 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
         ) {
             drainedSampleTypes.insert(chunk.sampleType)
             let jsonArray = try chunk.rows.jsonArrayData()
-            let resources = try JSONDecoder().decode(Set<ModelsR4.ResourceProxy>.self, from: jsonArray)
-            allDecodedSamples.formUnion(resources)
+            let resources = try JSONDecoder().decode([ModelsR4.ResourceProxy].self, from: jsonArray)
+            allDecodedSamples.formUnion(try resources.map(canonicalJSON))
             try healthUploadStaging.remove(chunk)
         }
         #expect(try healthUploadStaging.fetchNextDrainChunk(
@@ -341,6 +355,38 @@ extension HKDeletedObject {
     }
 }
 
+
+/// A resource as the canonical JSON it persists to.
+///
+/// The staged resources are Grove exchange Bundles, and comparing those through the derived
+/// `Equatable` walks every nested entry until the stack gives out. The round trip this asserts is
+/// about the bytes, so it compares those.
+private func canonicalJSON(_ resource: ModelsR4.ResourceProxy) throws -> String {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    return String(decoding: try encoder.encode(resource), as: UTF8.self)
+}
+
+/// Staging with the subject stated, since no signed-in account supplies one in a test.
+private func stagingForTesting(
+    autoElideUploadsWhenInsertingDeletions: Bool = true
+) -> HealthUploadStaging {
+    HealthUploadStaging.forTesting(
+        persistence: .inMemory,
+        autoElideUploadsWhenInsertingDeletions: autoElideUploadsWhenInsertingDeletions,
+        subject: Reference(reference: "Patient/test".asFHIRStringPrimitive())
+    )
+}
+
+/// The Observations a Grove export carries.
+///
+/// Grove writes one exchange Bundle per sample — the Observation beside the Device and Provenance
+/// that attribute it — rather than a bare Observation.
+private func exportedObservations(from data: Data) throws -> [Observation] {
+    try JSONDecoder().decode([ModelsR4.Bundle].self, from: data).compactMap { bundle in
+        bundle.entry?.lazy.compactMap { $0.resource?.get(if: Observation.self) }.first
+    }
+}
 
 extension Observation {
     var quantityValue: HKQuantity? {

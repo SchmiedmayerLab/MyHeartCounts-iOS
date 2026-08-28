@@ -18,7 +18,6 @@ import MyHeartCountsShared
 
 extension TimedWalkingTestResult {
     func resource(
-        withMapping: SampleTypesFHIRMapping,
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ModelsR4.ResourceProxy {

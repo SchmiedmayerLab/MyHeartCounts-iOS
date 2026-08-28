@@ -346,10 +346,10 @@ extension SensorKit {
             return []
         }
         return [
-            MHCSensorUploadDefinition(sensor: .visits, strategy: UploadStrategyJSONFile()),
-            MHCSensorUploadDefinition(sensor: .onWrist, strategy: UploadStrategyJSONFile()),
-            MHCSensorUploadDefinition(sensor: .deviceUsage, strategy: UploadStrategyJSONFile()),
-            MHCSensorUploadDefinition(sensor: .ecg, strategy: UploadStrategyJSONFile()),
+            MHCSensorUploadDefinition(sensor: .visits, strategy: UploadStrategyStructured()),
+            MHCSensorUploadDefinition(sensor: .onWrist, strategy: UploadStrategyStructured()),
+            MHCSensorUploadDefinition(sensor: .deviceUsage, strategy: UploadStrategyStructured()),
+            MHCSensorUploadDefinition(sensor: .ecg, strategy: UploadStrategyECG()),
             MHCSensorUploadDefinition(sensor: .wristTemperature, strategy: UploadStrategyCSVFile2()),
             MHCSensorUploadDefinition(sensor: .heartRate, strategy: UploadStrategyCSVFile()),
             MHCSensorUploadDefinition(sensor: .pedometer, strategy: UploadStrategyCSVFile()),

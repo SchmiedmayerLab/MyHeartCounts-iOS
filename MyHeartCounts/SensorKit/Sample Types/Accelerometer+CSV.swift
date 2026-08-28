@@ -7,20 +7,23 @@
 //
 
 import CoreMotion
+import GroveFHIRContract
 import GroveSensorKit
+import GroveSensorKitFHIR
 import MyHeartCountsShared
 
 
 extension CMRecordedAccelerometerData.SafeRepresentation: CSVAppendableSensorSample {
-    static let csvColumns = ["timestamp", "identifier", "x", "y", "z"]
-    
-    var csvFieldValues: [any CSVWriter.FieldValue] {
+    static var recordingFormat: RegisteredRecordingFormat { RegisteredRecordingFormat.triaxialAccelerationSamples }
+
+    var recordingFields: [RecordingCSVWriter.Field] {
         [
-            timestamp,
-            identifier,
-            acceleration.x,
-            acceleration.y,
-            acceleration.z
+            .timestamp(timestamp),
+            // Rendered as text: a UInt64 identifier does not fit Int on every platform.
+            .text(String(identifier)),
+            .number(acceleration.x),
+            .number(acceleration.y),
+            .number(acceleration.z)
         ]
     }
 }

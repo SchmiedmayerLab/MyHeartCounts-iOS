@@ -16,12 +16,19 @@ import ModelsR4
 import MyHeartCountsShared
 
 
+// swiftlint:disable:next file_types_order
 protocol HealthObservation: Sendable { // might want to rename this (@lukas); the resulting ResourceProxy is not necessarily an Observation...)
     var id: UUID { get }
     var sampleTypeIdentifier: String { get }
-    
+}
+
+
+/// A health observation whose FHIR representation My Heart Counts builds itself.
+///
+/// Covers only what no Grove adapter models: the app's own active-task results and the SensorKit
+/// streams Grove admits as raw recordings.
+protocol SelfModelledHealthObservation: HealthObservation {
     func resource(
-        withMapping mapping: SampleTypesFHIRMapping,
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ModelsR4.ResourceProxy
@@ -32,14 +39,14 @@ extension HKSample: HealthObservation {
     var id: UUID {
         uuid
     }
-    
+
     var sampleTypeIdentifier: String {
         sampleType.identifier
     }
 }
 
 
-extension TimedWalkingTestResult: HealthObservation {
+extension TimedWalkingTestResult: SelfModelledHealthObservation {
     static let sampleTypeIdentifier = "MHCHealthObservationTimedWalkingTestResultIdentifier"
     
     var sampleTypeIdentifier: String {
@@ -51,30 +58,22 @@ extension TimedWalkingTestResult: HealthObservation {
 // MARK: Utils
 
 extension HealthObservation {
+    /// Produces the FHIR payload persisted for this observation.
+    ///
+    /// A HealthKit sample converts through the Grove HealthKit adapter, which yields a transaction
+    /// Bundle holding the Observation, the recording and converting Devices, and the conversion
+    /// Provenance. Clinical records already are FHIR and are passed through. Everything else is
+    /// modelled by the app itself.
     func turnIntoFHIRResource(
-        issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>,
+        conversionInstant: Date,
+        subject: ModelsR4.Reference,
         using healthKit: HealthKit,
         postprocess: @Sendable (inout FHIRResource) throws -> Void = { _ in }
     ) async throws -> AnyEncodable {
+        var resource: FHIRResource
         switch self {
-        case let sample as HKElectrocardiogram:
-            let symptoms = try await sample.symptoms(from: healthKit)
-            let voltages = try await sample.voltageMeasurements(from: healthKit.healthStore)
-            let observation = try sample.observation(
-                symptoms: symptoms,
-                voltageMeasurements: voltages.map { (time: $0.timeOffset, value: $0.voltage) },
-                withMapping: .default,
-                issuedDate: issuedDate,
-                extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions
-            )
-            var resource = FHIRResource(observation)
-            try postprocess(&resource)
-            return AnyEncodable(resource.encodableUnderlyingResource)
         case let record as HKClinicalRecord:
-            guard record.fhirResource != nil else {
-                throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing FHIR Resource")
-            }
-            var resource = try await FHIRResource(record, using: healthKit)
+            resource = try FHIRResource(record)
             switch resource {
             case .r4(let inner):
                 if var inner = inner as? any ModelsR4.DomainResource {
@@ -91,16 +90,27 @@ extension HealthObservation {
             }
             try postprocess(&resource)
             return AnyEncodable(resource)
-        default:
-            let resourceProxy = try self.resource(
-                withMapping: .default,
-                issuedDate: issuedDate,
+        case let sample as HKSample:
+            let conversion = try await HealthKitConverter().convert(
+                sample,
+                using: healthKit,
+                context: .mhc(subject: subject, conversionInstant: conversionInstant)
+            )
+            resource = FHIRResource(conversion.bundle)
+        case let observation as any SelfModelledHealthObservation:
+            let resourceProxy = try observation.resource(
+                issuedDate: FHIRPrimitive<ModelsR4.Instant>(try .init(date: conversionInstant)),
                 extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions
             )
-            var resource = FHIRResource(resourceProxy.get())
-            try postprocess(&resource)
-            return AnyEncodable(resource.encodableUnderlyingResource)
+            resource = FHIRResource(resourceProxy.get())
+        default:
+            throw NSError(
+                mhcErrorCode: .unspecified,
+                localizedDescription: "No FHIR representation for '\(sampleTypeIdentifier)'"
+            )
         }
+        try postprocess(&resource)
+        return AnyEncodable(resource.encodableUnderlyingResource)
     }
 }
 

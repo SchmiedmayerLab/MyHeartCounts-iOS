@@ -8,26 +8,26 @@
 
 import CoreMotion
 import Foundation
+import GroveFHIRContract
 import GroveSensorKit
+import GroveSensorKitFHIR
 import MyHeartCountsShared
 
 
 extension CMPedometerData.SafeRepresentation: CSVAppendableSensorSample {
-    static let csvColumns = [
-        "start", "end", "steps", "distance", "floorsUp", "floorsDown", "currentPace", "currentCadence", "avgActivePace"
-    ]
-    
-    var csvFieldValues: [any CSVWriter.FieldValue] {
+    static var recordingFormat: RegisteredRecordingFormat { RegisteredRecordingFormat.pedometerSamples }
+
+    var recordingFields: [RecordingCSVWriter.Field] {
         [
-            timeRange.lowerBound,
-            timeRange.upperBound,
-            numberOfSteps,
-            distance,
-            floorsAscended,
-            floorsDescended,
-            currentPace,
-            currentCadence,
-            averageActivePace
+            .timestamp(timeRange.lowerBound),
+            .timestamp(timeRange.upperBound),
+            .integer(numberOfSteps),
+            distance.map { .number($0) } ?? .absent,
+            floorsAscended.map { .integer($0) } ?? .absent,
+            floorsDescended.map { .integer($0) } ?? .absent,
+            currentPace.map { .number($0) } ?? .absent,
+            currentCadence.map { .number($0) } ?? .absent,
+            averageActivePace.map { .number($0) } ?? .absent
         ]
     }
 }

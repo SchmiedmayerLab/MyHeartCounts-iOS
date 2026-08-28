@@ -8,14 +8,16 @@
 
 import CoreMotion
 import Foundation
+import GroveFHIRContract
 import GroveSensorKit
+import GroveSensorKitFHIR
 import MyHeartCountsShared
 
 
 extension CMHighFrequencyHeartRateData.SafeRepresentation: CSVAppendableSensorSample {
-    static let csvColumns = ["timestamp", "value", "confidence"]
-    
-    var csvFieldValues: [any CSVWriter.FieldValue] {
-        [timestamp, value, confidence.rawValue]
+    static var recordingFormat: RegisteredRecordingFormat { RegisteredRecordingFormat.heartRateSamples }
+
+    var recordingFields: [RecordingCSVWriter.Field] {
+        [.timestamp(timestamp), .number(value), .integer(confidence.rawValue)]
     }
 }

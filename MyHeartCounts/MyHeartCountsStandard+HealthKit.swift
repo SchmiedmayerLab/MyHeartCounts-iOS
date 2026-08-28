@@ -176,11 +176,13 @@ extension MyHeartCountsStandard {
             }
             return
         }
-        let issuedDate = FHIRPrimitive<ModelsR4.Instant>(try .init(date: .now))
+        let conversionInstant = Date.now
+        let subject = try await firebaseConfiguration.subjectReference
         @concurrent
         func turnIntoFHIRResource(_ observation: some HealthObservation) async throws -> AnyEncodable? {
             try await observation.turnIntoFHIRResource(
-                issuedDate: issuedDate,
+                conversionInstant: conversionInstant,
+                subject: subject,
                 using: healthKit,
                 postprocess: postprocessResource
             )
@@ -330,7 +332,7 @@ extension MyHeartCountsStandard {
 
 extension FHIRExtensionURL {
     /// Url of a FHIR Extension containing the user's time zone when uploading a FHIR `Observation`.
-    static let sampleUploadTimeZone = Self("https://bdh.stanford.edu/fhir/defs/sampleUploadTimeZone")
+    static let sampleUploadTimeZone = Self("https://myheartcounts.stanford.edu/fhir/core/sampleUploadTimeZone")
     
     /// Url of a FHIR Extension containing the user's enrollment info uploading a FHIR `Observation`.
     static let mhcStudyEnrollmentInfo = Self("https://myheartcounts.stanford.edu/fhir/StructureDefinition/study-enrollment")

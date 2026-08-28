@@ -15,6 +15,7 @@ import GroveHealthKit
 import HealthKit
 import struct ModelsR4.FHIRPrimitive
 import struct ModelsR4.Instant
+import class ModelsR4.Reference
 import MyHeartCountsShared
 
 @Observable
@@ -45,12 +46,18 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     
     // swiftlint:disable attributes
     @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
+    @ObservationIgnored @Dependency(FirebaseConfiguration.self) private var firebaseConfiguration
     @ObservationIgnored private let dbQueue: DatabaseQueue?
     @ObservationIgnored private let jsonEncoder = JSONEncoder()
     /// Whether, when inserting deletions, the `HealthUploadStaging` should automatically elide (i.e., identify and delete) any matching pending samples.
     @ObservationIgnored private let autoElideUploadsWhenInsertingDeletions: Bool
     // swiftlint:enable attributes
     
+    #if DEBUG
+    /// Set only by ``forTesting(persistence:autoElideUploadsWhenInsertingDeletions:subject:)``.
+    @ObservationIgnored var testingSubject: Reference?
+    #endif
+
     nonisolated init(
         persistence: Persistence,
         autoElideUploadsWhenInsertingDeletions: Bool = true
@@ -107,6 +114,19 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
         Task(priority: .utility) {
             try? self.elidePendingUploadsWherePossible()
         }
+    }
+
+    /// The subject staged samples are attributed to.
+    ///
+    /// Kept as a branch rather than `??`: the account's reference is main-actor isolated, so only
+    /// the path that actually reads it should await it.
+    func resolvedSubject() async throws -> Reference {
+        #if DEBUG
+        if let testingSubject {
+            return testingSubject
+        }
+        #endif
+        return try await firebaseConfiguration.subjectReference
     }
 }
 
@@ -169,14 +189,15 @@ extension HealthUploadStaging {
         ingestionTimestamp: Date,
         writeContext: DatabaseWriteContext
     ) async throws {
-        let issuedDate = FHIRPrimitive<ModelsR4.Instant>(try .init(date: ingestionTimestamp))
+        let subject = try await resolvedSubject()
         var pendingSamples: [PendingSampleRecord] = []
         pendingSamples.reserveCapacity(Self.databaseWriteChunkSize)
         for observation in consume samples {
             let sampleType = commonSampleType ?? observation.sampleTypeIdentifier
             let sampleId = observation.id
             let resource = try await observation.turnIntoFHIRResource(
-                issuedDate: issuedDate,
+                conversionInstant: ingestionTimestamp,
+                subject: subject,
                 using: healthKit,
                 postprocess: postprocessResource
             )

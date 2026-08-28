@@ -140,7 +140,24 @@ extension GroveFHIR.FHIRResource {
 
 
 extension FHIRResource {
-    init(_ record: HKClinicalRecord, using healthKit: HealthKit) async throws {
-        try await self.init(GroveFHIR.FHIRResource.initialize(basedOn: record, using: healthKit, loadHealthKitAttachments: true))
+    /// Wraps the FHIR resource a clinical record already carries.
+    ///
+    /// Passed through in the release it was authored in; the Grove adapter does not convert these.
+    init(_ record: HKClinicalRecord) throws {
+        guard let fhirResource = record.fhirResource else {
+            throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing FHIR Resource")
+        }
+        let decoder = JSONDecoder()
+        switch fhirResource.fhirVersion.fhirRelease {
+        case .dstu2:
+            self = .dstu2(try decoder.decode(ModelsDSTU2.ResourceProxy.self, from: fhirResource.data).get())
+        case .r4:
+            self = .r4(try decoder.decode(ModelsR4.ResourceProxy.self, from: fhirResource.data).get())
+        default:
+            throw NSError(
+                mhcErrorCode: .unspecified,
+                localizedDescription: "Unsupported FHIR release '\(fhirResource.fhirVersion.stringRepresentation)'"
+            )
+        }
     }
 }

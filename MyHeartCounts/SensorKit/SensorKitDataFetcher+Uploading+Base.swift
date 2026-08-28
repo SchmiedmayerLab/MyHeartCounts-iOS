@@ -6,95 +6,82 @@
 // SPDX-License-Identifier: MIT
 //
 
-import CryptoKit
-import FHIRModelsExtensions
 @preconcurrency import FirebaseFirestore
 import Foundation
-import GroveFHIR
 import GroveFirestore
-import GroveFoundation
-import GroveHealthKitFHIR
 import GroveSensorKit
-import ModelsR4
+import GroveSensorKitFHIR
 
 
 extension MHCSensorSampleUploadStrategy {
     func upload( // swiftlint:disable:this function_parameter_count
         data: consuming Data,
-        fileExtension: String,
-        shouldCompress: Bool = true,
         for sensor: Sensor<Sample>,
-        deviceInfo: SensorKit.DeviceInfo,
+        effectiveTimeRange: Swift.Range<Date>,
+        publication: SensorKitBatchPublication,
         to standard: MyHeartCountsStandard,
-        observationDocName: String,
         activity: SensorKitDataFetcher.InProgressActivity,
-        postprocessObservation: (inout Observation) throws -> Void
+        recordOrdinal: Int = 0,
+        retryEvidence: Data? = nil,
+        makeStructuredRecord: (
+            (SensorKitSourceRecordID, SensorKitNativeRecording) throws -> SensorKitRecord?
+        )? = nil
     ) async throws {
-        activity.updateMessage("Compressing Data")
-        let data = shouldCompress ? try (consume data).compressed(using: Zstd.self) : consume data
-        let sha1 = Insecure.SHA1.hash(data: data)
-        let size = data.count
-        let url = URL.temporaryDirectory
-            .appending(component: UUID().uuidString)
-            .appendingPathExtension("\(fileExtension)\(shouldCompress ? ".zstd" : "")")
-        try (consume data).write(to: url)
-        defer {
-            try? FileManager.default.removeItem(at: url)
+        let reservation = try publication.reserve(
+            recordOrdinal: recordOrdinal,
+            evidence: retryEvidence ?? data
+        )
+        let filename = "\(reservation.sourceRecordID.value).\(try publication.stream.fileExtension)"
+        let title = "\(sensor.displayName) "
+            + "\(effectiveTimeRange.lowerBound.ISO8601Format())_\(effectiveTimeRange.upperBound.ISO8601Format())"
+        let sidecarPath = "\(ManagedFileUpload.Category(sensor).firebasePath)/\(filename)"
+        activity.updateMessage("Creating Recording Document")
+        let conversion: SensorKitConversion
+        if let makeStructuredRecord {
+            let recording = try SensorKitNativeRecording(
+                title: title,
+                format: try publication.stream.recordingFormat,
+                payload: .sidecar(path: sidecarPath, bytes: data),
+                admission: .callerAuthorizedOpaquePayload
+            )
+            if let record = try makeStructuredRecord(reservation.sourceRecordID, recording) {
+                conversion = try SensorKitGroveRecording.convert(record, reservation: reservation)
+            } else {
+                conversion = try SensorKitGroveRecording.raw(
+                    payload: data,
+                    reservation: reservation,
+                    stream: publication.stream,
+                    sidecarPath: sidecarPath,
+                    title: title,
+                    effectiveTimeRange: effectiveTimeRange
+                )
+            }
+        } else {
+            conversion = try SensorKitGroveRecording.raw(
+                payload: data,
+                reservation: reservation,
+                stream: publication.stream,
+                sidecarPath: sidecarPath,
+                title: title,
+                effectiveTimeRange: effectiveTimeRange
+            )
         }
-        
+
+        // Conversion validates the complete graph before its referenced exact bytes become durably staged.
+        // The registered format describes these bytes, so the sidecar remains uncompressed.
+        let url = URL.temporaryDirectory.appending(component: filename)
+        try data.write(to: url, options: .atomic)
         activity.updateMessage("Submitting for upload")
         // Note: this waits until the upload is durably scheduled (i.e., the file is in the upload module's custody),
         // not until the file has actually been uploaded. If the scheduling fails, we abort (and in particular don't
         // write the reference doc below, which would otherwise point to a file that will never exist).
         try await standard.uploadSensorKitFile(at: url, for: sensor)
-        
-        let referenceDocName = observationDocName + "_Ref"
-        
-        let attachment = Attachment(
-            contentType: "application/zstd",
-            creation: try FHIRPrimitive(DateTime(date: .now)),
-            hash: FHIRPrimitive(Base64Binary(Data(sha1).base64EncodedString())),
-            // for some reason, R4 uses a "32-bit unsigned integer"
-            // (which is what they say when they actually mean a 31-bit unsigned integer; don't ask why)
-            // to store the size of the attachment.
-            // this means, in effect, that we can provide size info for files up to 2GB.
-            // for anything above that, we set the size to nil.
-            size: Int32(exactly: size).map { FHIRPrimitive(FHIRUnsignedInteger($0)) },
-            // NOTE: we use a path relative to this user's storage directory here!
-            url: ManagedFileUpload.Category(sensor).firebasePath.appending("/\(url.lastPathComponent)").asFHIRURIPrimitive()
-        )
-        let reference = DocumentReference(
-            content: [.init(attachment: attachment)],
-            extension: [.mhcAppRevision],
-            status: FHIRPrimitive(.current)
-        )
-        var observation = Observation(
-            code: CodeableConcept(),
-            status: FHIRPrimitive(.final)
-        )
-        observation.id = observationDocName.asFHIRStringPrimitive()
-        observation.append(coding: Coding(code: SensorKitCodingSystem(sensor)))
-        try observation.setIssued(on: .now)
-        observation.append(
-            // Note: the value here has to match the firestore document used to upload the reference!
-            Reference(reference: "HealthObservations_\(sensor.id)/\(referenceDocName)".asFHIRStringPrimitive()),
-            to: \.derivedFrom
-        )
-        
-        observation.addMHCAppAsSource()
-        try observation.apply(.sensorKitSourceDevice, input: deviceInfo)
-        for builder in MyHeartCountsStandard.defaultHealthObservationFHIRExtensions {
-            try builder.apply(typeErasedInput: self, to: &observation)
-        }
-        try postprocessObservation(&observation)
-        
-        let sensorCollection = try await standard.firebaseConfiguration.userDocumentReference
+
+        // Do not introduce a cancellation point here: the sidecar is now durably staged, so its one
+        // complete Bundle must be persisted before the anchored batch may be acknowledged.
+        try await standard.firebaseConfiguration.userDocumentReference
             .collection("HealthObservations_\(sensor.id)")
-        let batch = sensorCollection.firestore.batch()
-        try batch.setData(from: reference, forDocument: sensorCollection.document(referenceDocName))
-        try batch.setData(from: observation, forDocument: sensorCollection.document(observationDocName))
-        // no cancellation check here: the file was durably staged above, and aborting now would
-        // permanently orphan it from its Firestore reference/observation documents.
-        try await batch.commit()
+            .document(reservation.sourceRecordID.value)
+            .setData(from: conversion.bundle)
     }
 }
