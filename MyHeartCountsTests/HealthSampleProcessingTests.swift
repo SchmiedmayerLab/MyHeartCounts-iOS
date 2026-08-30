@@ -276,7 +276,7 @@ struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 1)
         let chunk = try #require(try healthUploadStaging.fetchNextDrainChunk(
             of: HealthUploadStaging.PendingDeletionRecord.self,
-            before: .now,
+            before: .distantFuture,
             limit: 10
         ))
         #expect(chunk.rows.map(\.sampleId) == [deletedID])
