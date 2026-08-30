@@ -7,14 +7,14 @@
 //
 
 import Foundation
-import SpeziScheduler
+import GroveScheduler
 import SwiftUI
 
 
 /// Fetches past missed events.
 @propertyWrapper
 @MainActor
-struct MissedEventQuery: DynamicProperty { // Maybe donate to SpeziScheduler at some point?!
+struct MissedEventQuery: DynamicProperty { // Maybe donate to GroveScheduler at some point?!
     @EventQuery private var pastEvents: [Event]
     @EventQuery private var upcomingEvents: [Event]
     

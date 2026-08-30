@@ -7,10 +7,10 @@
 //
 
 import Foundation
+import GroveHealthKit
+import GroveViews
 import HealthKit
 import SFSafeSymbols
-import SpeziHealthKit
-import SpeziViews
 import SwiftUI
 
 

@@ -8,8 +8,8 @@
 
 import CoreMotion
 import Foundation
+import GroveSensorKit
 import MyHeartCountsShared
-import SpeziSensorKit
 
 
 extension CMRecordedPressureData.SafeRepresentation: CSVAppendableSensorSample {

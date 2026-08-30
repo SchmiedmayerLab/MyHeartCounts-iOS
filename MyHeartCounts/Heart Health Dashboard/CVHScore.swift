@@ -8,12 +8,12 @@
 
 import Algorithms
 import Foundation
+import GroveAccount
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitUI
 import HealthKit
 import MyHeartCountsShared
-import SpeziAccount
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitUI
 import SwiftUI
 
 

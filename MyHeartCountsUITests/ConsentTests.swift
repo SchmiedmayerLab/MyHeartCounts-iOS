@@ -7,10 +7,10 @@
 //
 
 import Algorithms
+import GroveFoundation
+import GroveStudyDefinition
 import HealthKit
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziStudyDefinition
 import XCTest
 import XCTestExtensions
 import XCTHealthKit
@@ -142,7 +142,7 @@ final class ConsentTests: MHCTestCase, Sendable {
             // note: having the reset here happen is important for the test below to work properly,
             // since otherwise we'd also need to increment the study bundle revision each time we launch
             // the app with a new consent version. (bc otherwise it wouldn't update the study bundle w/in
-            // SpeziStudy, but if we first reset the app it won't have a prev enrollment and will simply
+            // GroveStudy, but if we first reset the app it won't have a prev enrollment and will simply
             // ingest the new one. which is exactly what we want, since the lastSignedConsentVersion
             // is stored on the server anyway.)
             resetExistingData: true,

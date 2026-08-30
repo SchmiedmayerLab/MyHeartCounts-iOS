@@ -9,15 +9,15 @@
 // swiftlint:disable implicitly_unwrapped_optional file_types_order type_contents_order identifier_name
 
 import Foundation
+import GroveFoundation
+import GroveLocalization
 import HealthKit
 import MHCStudyDefinitionExporter
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziLocalization
 import XCTest
 import XCTestExtensions
+import XCTGroveNotifications
 import XCTHealthKit
-import XCTSpeziNotifications
 
 /*
  Ideas for additional tests:

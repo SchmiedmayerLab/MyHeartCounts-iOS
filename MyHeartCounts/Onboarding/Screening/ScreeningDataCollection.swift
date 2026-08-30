@@ -9,8 +9,8 @@
 // swiftlint:disable discouraged_optional_boolean
 
 import Foundation
-import SpeziConsent
-import SpeziFoundation
+import GroveConsent
+import GroveFoundation
 
 
 @Observable

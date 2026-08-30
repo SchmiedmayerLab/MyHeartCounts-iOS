@@ -8,7 +8,7 @@
 
 #if !os(Linux)
 
-private import SpeziFoundation
+private import GroveFoundation
 
 
 public struct SetupTestEnvironmentConfig: Hashable, Sendable {

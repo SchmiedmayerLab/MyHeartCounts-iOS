@@ -6,10 +6,10 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Grove
+import GroveFoundation
 import MyHeartCountsShared
 import OSLog
-import Spezi
-import SpeziFoundation
 import SwiftUI
 
 
@@ -30,7 +30,7 @@ struct MyHeartCounts: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .spezi(appDelegate)
+                .grove(appDelegate)
             OnboardingSheet(didComplete: $didCompleteOnboarding)
         }
         .environment(StudyBundleLoader.shared)
@@ -39,14 +39,14 @@ struct MyHeartCounts: App {
     
     init() {
         print(CommandLine.arguments)
-        // This needs to run before *any* Spezi-related code is executed,
+        // This needs to run before *any* Grove-related code is executed,
         // i.e. before the AppDelegate's `willFinishLaunchingWithOptions`
         // method gets called. Hence why we put it in here.
         //
         // The early reset deletes all locally persisted state (SwiftData stores, LocalStorage, staged
         // uploads, the Firebase Auth keychain session). It has to happen here rather than in
         // SetupTestEnvironment.configure(): modules act on their persisted state as soon as they are
-        // configured, and SetupTestEnvironment's own reset runs behind `Spezi.loadFirebase` + a 1s sleep,
+        // configured, and SetupTestEnvironment's own reset runs behind `Grove.loadFirebase` + a 1s sleep,
         // by which point StudyManager has already requested HealthKit authorization for a stale enrollment.
         SetupTestEnvironment.performEarlyResetIfNeeded()
         let prefs = LocalPreferencesStore.standard

@@ -6,10 +6,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-#if canImport(SFSafeSymbols) && canImport(SpeziStudyDefinition)
+#if canImport(SFSafeSymbols) && canImport(GroveStudyDefinition)
 
+public import GroveStudyDefinition
 public import SFSafeSymbols
-public import SpeziStudyDefinition
 
 
 extension TimedWalkingTestConfiguration.Kind {

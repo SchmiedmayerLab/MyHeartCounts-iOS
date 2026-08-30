@@ -7,7 +7,7 @@
 //
 
 @_spi(TestingSupport)
-import SpeziAccount
+import GroveAccount
 import SwiftUI
 
 

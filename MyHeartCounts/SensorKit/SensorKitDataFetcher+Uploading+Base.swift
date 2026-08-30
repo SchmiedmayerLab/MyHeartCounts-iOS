@@ -10,12 +10,12 @@ import CryptoKit
 import FHIRModelsExtensions
 @preconcurrency import FirebaseFirestore
 import Foundation
+import GroveFHIR
+import GroveFirestore
+import GroveFoundation
+import GroveHealthKitFHIR
+import GroveSensorKit
 import ModelsR4
-import SpeziFHIR
-import SpeziFirestore
-import SpeziFoundation
-import SpeziHealthKitFHIR
-import SpeziSensorKit
 
 
 extension MHCSensorSampleUploadStrategy {

@@ -7,8 +7,8 @@
 //
 
 import Foundation
+import GroveFoundation
 import MyHeartCountsShared
-import SpeziFoundation
 
 
 /// A collection of feature flags for My Heart Counts.

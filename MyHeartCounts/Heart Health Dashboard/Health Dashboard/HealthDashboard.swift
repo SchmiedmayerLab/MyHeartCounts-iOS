@@ -10,8 +10,8 @@
 
 import Charts
 import Foundation
-import SpeziHealthKit
-import SpeziHealthKitUI
+import GroveHealthKit
+import GroveHealthKitUI
 import SwiftUI
 
 
@@ -203,7 +203,7 @@ extension HealthDashboardLayout.GridComponent {
 }
 
 
-extension SpeziHealthKitUI.StatisticsAggregationOption {
+extension GroveHealthKitUI.StatisticsAggregationOption {
     init(_ other: HKQuantityAggregationStyle) {
         switch other {
         case .cumulative:

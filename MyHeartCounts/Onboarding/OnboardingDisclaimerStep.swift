@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import GroveOnboarding
+import GroveViews
 import SFSafeSymbols
-import SpeziOnboarding
-import SpeziViews
 import SwiftUI
 
 

@@ -14,7 +14,7 @@ struct EmptyChartContent: ChartContent {
 }
 
 
-struct SomeChartContent<Body: ChartContent>: ChartContent { // donate to SpeziHealthKit?
+struct SomeChartContent<Body: ChartContent>: ChartContent { // donate to GroveHealthKit?
     private let content: @MainActor () -> Body
     
     var body: some ChartContent {

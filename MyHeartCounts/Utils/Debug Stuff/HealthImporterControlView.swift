@@ -7,13 +7,13 @@
 //
 
 import Foundation
+import GroveAccount
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitBulkExport
+import GroveStudy
+import GroveViews
 import MyHeartCountsShared
-import SpeziAccount
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitBulkExport
-import SpeziStudy
-import SpeziViews
 import SwiftUI
 
 

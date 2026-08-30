@@ -7,11 +7,11 @@
 //
 
 import Foundation
+import Grove
+import GroveFoundation
+import GroveHealthKit
+import GroveStudyDefinition
 import MyHeartCountsShared
-import Spezi
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziStudyDefinition
 import Synchronization
 import WatchConnectivity
 

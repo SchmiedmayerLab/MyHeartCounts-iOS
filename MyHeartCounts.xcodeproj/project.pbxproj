@@ -13,59 +13,59 @@
 		800DF2412EBB4645001B9993 /* MyHeartCountsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 800DF2402EBB4645001B9993 /* MyHeartCountsShared */; };
 		8015C35A2EB22EE400CA845E /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8015C3592EB22EE400CA845E /* NIOCore */; };
 		8015C35C2EB22EE400CA845E /* NIOFoundationCompat in Frameworks */ = {isa = PBXBuildFile; productRef = 8015C35B2EB22EE400CA845E /* NIOFoundationCompat */; };
-		801A65F12FEC47BD009182AD /* SpeziHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 803EAC1A2D67AB5300DA6E62 /* SpeziHealthKit */; };
-		801A65F22FEC47BD009182AD /* SpeziHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 803EAC1C2D67AB5300DA6E62 /* SpeziHealthKitUI */; };
-		801A65F32FEC47BD009182AD /* SpeziOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 80C7B86B2D67D76B0016BCAF /* SpeziOnboarding */; };
-		801A65F42FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80270CFA2D67F68F0022251E /* SpeziStudy */; };
-		801A65F52FEC47BD009182AD /* SpeziOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 8004CE402D75BCAA00CC3008 /* SpeziOnboarding */; };
-		801A65F62FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 8004CE432D75BCBE00CC3008 /* SpeziStudy */; };
-		801A65F72FEC47BD009182AD /* SpeziOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 803166A22D75DE6100E9173B /* SpeziOnboarding */; };
-		801A65F82FEC47BD009182AD /* SpeziScheduler in Frameworks */ = {isa = PBXBuildFile; productRef = 803166A52D75DE7700E9173B /* SpeziScheduler */; };
-		801A65F92FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 803166AA2D75DE8B00E9173B /* SpeziStudy */; };
-		801A65FA2FEC47BD009182AD /* SpeziHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 803166B62D75E22E00E9173B /* SpeziHealthKit */; };
-		801A65FB2FEC47BD009182AD /* SpeziHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 803166B82D75E22E00E9173B /* SpeziHealthKitUI */; };
-		801A65FC2FEC47BD009182AD /* SpeziOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 8055F2332D7C4E0D00CD7884 /* SpeziOnboarding */; };
-		801A65FD2FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80A81C682D7C89D400444A17 /* SpeziStudy */; };
-		801A65FE2FEC47BD009182AD /* SpeziFirebaseAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80E7749D2D81B4B20035A0EE /* SpeziFirebaseAccount */; };
-		801A65FF2FEC47BD009182AD /* SpeziFirebaseAccountStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80E7749F2D81B4B20035A0EE /* SpeziFirebaseAccountStorage */; };
-		801A66002FEC47BD009182AD /* SpeziFirebaseConfiguration in Frameworks */ = {isa = PBXBuildFile; productRef = 80E774A12D81B4B20035A0EE /* SpeziFirebaseConfiguration */; };
-		801A66012FEC47BD009182AD /* SpeziFirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80E774A32D81B4B20035A0EE /* SpeziFirebaseStorage */; };
-		801A66022FEC47BD009182AD /* SpeziFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 80E774A52D81B4B20035A0EE /* SpeziFirestore */; };
-		801A66032FEC47BD009182AD /* SpeziOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 802141582D81F14000BF5D35 /* SpeziOnboarding */; };
-		801A66042FEC47BD009182AD /* SpeziOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 80E6EFC62D83502000D513D4 /* SpeziOnboarding */; };
-		801A66052FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 804B90212D86F10F00F9F431 /* SpeziStudy */; };
-		801A66062FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 803D2B412D8981EA00DAEF9B /* SpeziStudy */; };
-		801A66072FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 803D2B432D8981EA00DAEF9B /* SpeziStudyDefinition */; };
-		801A66082FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80E862132D8C630D0089B8E1 /* SpeziStudy */; };
-		801A66092FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80E862152D8C630D0089B8E1 /* SpeziStudyDefinition */; };
-		801A660A2FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80713BE42D93F48C00A2DB0A /* SpeziStudy */; };
-		801A660B2FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80713BE62D93F48C00A2DB0A /* SpeziStudyDefinition */; };
-		801A660C2FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 8067823A2D9AD89600B40482 /* SpeziStudy */; };
-		801A660D2FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 8067823C2D9AD89600B40482 /* SpeziStudyDefinition */; };
-		801A660E2FEC47BD009182AD /* SpeziHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 808E10042DAD48F300DB240D /* SpeziHealthKit */; };
-		801A660F2FEC47BD009182AD /* SpeziHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 808E10062DAD48F300DB240D /* SpeziHealthKitUI */; };
-		801A66102FEC47BD009182AD /* SpeziHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB94C2DB5029B000D78A5 /* SpeziHealthKit */; };
-		801A66112FEC47BD009182AD /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB9532DB502A9000D78A5 /* SpeziStudy */; };
-		801A66122FEC47BD009182AD /* SpeziHealthKitBulkExport in Frameworks */ = {isa = PBXBuildFile; productRef = 80E08A732DD32D9F00E80C11 /* SpeziHealthKitBulkExport */; };
-		801A66132FEC47BD009182AD /* SpeziHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80E08A752DD32D9F00E80C11 /* SpeziHealthKitUI */; };
-		801A66142FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1D2E144A180049798B /* SpeziStudyDefinition */; };
-		801A66152FEC47BD009182AD /* SpeziSensorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80E0E3152EB27C4A00F445B6 /* SpeziSensorKit */; };
-		802118D1301663AA0088582C /* SpeziHealthKitFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 802118D0301663AA0088582C /* SpeziHealthKitFHIR */; };
+		801A65F12FEC47BD009182AD /* GroveHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 803EAC1A2D67AB5300DA6E62 /* GroveHealthKit */; };
+		801A65F22FEC47BD009182AD /* GroveHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 803EAC1C2D67AB5300DA6E62 /* GroveHealthKitUI */; };
+		801A65F32FEC47BD009182AD /* GroveOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 80C7B86B2D67D76B0016BCAF /* GroveOnboarding */; };
+		801A65F42FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80270CFA2D67F68F0022251E /* GroveStudy */; };
+		801A65F52FEC47BD009182AD /* GroveOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 8004CE402D75BCAA00CC3008 /* GroveOnboarding */; };
+		801A65F62FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 8004CE432D75BCBE00CC3008 /* GroveStudy */; };
+		801A65F72FEC47BD009182AD /* GroveOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 803166A22D75DE6100E9173B /* GroveOnboarding */; };
+		801A65F82FEC47BD009182AD /* GroveScheduler in Frameworks */ = {isa = PBXBuildFile; productRef = 803166A52D75DE7700E9173B /* GroveScheduler */; };
+		801A65F92FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 803166AA2D75DE8B00E9173B /* GroveStudy */; };
+		801A65FA2FEC47BD009182AD /* GroveHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 803166B62D75E22E00E9173B /* GroveHealthKit */; };
+		801A65FB2FEC47BD009182AD /* GroveHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 803166B82D75E22E00E9173B /* GroveHealthKitUI */; };
+		801A65FC2FEC47BD009182AD /* GroveOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 8055F2332D7C4E0D00CD7884 /* GroveOnboarding */; };
+		801A65FD2FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80A81C682D7C89D400444A17 /* GroveStudy */; };
+		801A65FE2FEC47BD009182AD /* GroveFirebaseAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80E7749D2D81B4B20035A0EE /* GroveFirebaseAccount */; };
+		801A65FF2FEC47BD009182AD /* GroveFirebaseAccountStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80E7749F2D81B4B20035A0EE /* GroveFirebaseAccountStorage */; };
+		801A66002FEC47BD009182AD /* GroveFirebaseConfiguration in Frameworks */ = {isa = PBXBuildFile; productRef = 80E774A12D81B4B20035A0EE /* GroveFirebaseConfiguration */; };
+		801A66012FEC47BD009182AD /* GroveFirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80E774A32D81B4B20035A0EE /* GroveFirebaseStorage */; };
+		801A66022FEC47BD009182AD /* GroveFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 80E774A52D81B4B20035A0EE /* GroveFirestore */; };
+		801A66032FEC47BD009182AD /* GroveOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 802141582D81F14000BF5D35 /* GroveOnboarding */; };
+		801A66042FEC47BD009182AD /* GroveOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 80E6EFC62D83502000D513D4 /* GroveOnboarding */; };
+		801A66052FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 804B90212D86F10F00F9F431 /* GroveStudy */; };
+		801A66062FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 803D2B412D8981EA00DAEF9B /* GroveStudy */; };
+		801A66072FEC47BD009182AD /* GroveStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 803D2B432D8981EA00DAEF9B /* GroveStudyDefinition */; };
+		801A66082FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80E862132D8C630D0089B8E1 /* GroveStudy */; };
+		801A66092FEC47BD009182AD /* GroveStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80E862152D8C630D0089B8E1 /* GroveStudyDefinition */; };
+		801A660A2FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80713BE42D93F48C00A2DB0A /* GroveStudy */; };
+		801A660B2FEC47BD009182AD /* GroveStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80713BE62D93F48C00A2DB0A /* GroveStudyDefinition */; };
+		801A660C2FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 8067823A2D9AD89600B40482 /* GroveStudy */; };
+		801A660D2FEC47BD009182AD /* GroveStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 8067823C2D9AD89600B40482 /* GroveStudyDefinition */; };
+		801A660E2FEC47BD009182AD /* GroveHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 808E10042DAD48F300DB240D /* GroveHealthKit */; };
+		801A660F2FEC47BD009182AD /* GroveHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 808E10062DAD48F300DB240D /* GroveHealthKitUI */; };
+		801A66102FEC47BD009182AD /* GroveHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB94C2DB5029B000D78A5 /* GroveHealthKit */; };
+		801A66112FEC47BD009182AD /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB9532DB502A9000D78A5 /* GroveStudy */; };
+		801A66122FEC47BD009182AD /* GroveHealthKitBulkExport in Frameworks */ = {isa = PBXBuildFile; productRef = 80E08A732DD32D9F00E80C11 /* GroveHealthKitBulkExport */; };
+		801A66132FEC47BD009182AD /* GroveHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80E08A752DD32D9F00E80C11 /* GroveHealthKitUI */; };
+		801A66142FEC47BD009182AD /* GroveStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1D2E144A180049798B /* GroveStudyDefinition */; };
+		801A66152FEC47BD009182AD /* GroveSensorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80E0E3152EB27C4A00F445B6 /* GroveSensorKit */; };
+		802118D1301663AA0088582C /* GroveHealthKitFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 802118D0301663AA0088582C /* GroveHealthKitFHIR */; };
 		802CB63F2F85177A0011907F /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 802CB63E2F85177A0011907F /* AsyncAlgorithms */; };
-		8034CBE22DE6514700E7F9F6 /* SpeziHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8034CBE12DE6514700E7F9F6 /* SpeziHealthKit */; };
+		8034CBE22DE6514700E7F9F6 /* GroveHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8034CBE12DE6514700E7F9F6 /* GroveHealthKit */; };
 		80404B0A2EDC635900DEA429 /* MyHeartCountsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 80404B092EDC635900DEA429 /* MyHeartCountsShared */; };
 		8043DD7A2DC0CBE500E0DF01 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 8043DD792DC0CBE500E0DF01 /* FirebaseMessaging */; };
 		8043E00B2DC2348600E0DF01 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 8043E00A2DC2348600E0DF01 /* MarkdownUI */; };
-		80471E1A2E144A180049798B /* SpeziLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E192E144A180049798B /* SpeziLocalization */; };
+		80471E1A2E144A180049798B /* GroveLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E192E144A180049798B /* GroveLocalization */; };
 		804C11E42ECA380D004783C3 /* MHCStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 804C11E32ECA380D004783C3 /* MHCStudyDefinition */; };
-		8052B85B2EB9FFDF005E2D8C /* SpeziScheduler in Frameworks */ = {isa = PBXBuildFile; productRef = 2FBD738B2A3BD150004228E7 /* SpeziScheduler */; };
-		8052B8632EB9FFDF005E2D8C /* SpeziSchedulerUI in Frameworks */ = {isa = PBXBuildFile; productRef = 803166A72D75DE7700E9173B /* SpeziSchedulerUI */; };
-		8052B8742EB9FFDF005E2D8C /* SpeziHealthKitBulkExport in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB94E2DB5029B000D78A5 /* SpeziHealthKitBulkExport */; };
-		8052B8752EB9FFDF005E2D8C /* SpeziHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB9502DB5029B000D78A5 /* SpeziHealthKitUI */; };
-		8052B8772EB9FFDF005E2D8C /* SpeziStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB9552DB502A9000D78A5 /* SpeziStudyDefinition */; };
-		8052B8782EB9FFDF005E2D8C /* SpeziHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80E08A712DD32D9F00E80C11 /* SpeziHealthKit */; };
-		8052B87B2EB9FFDF005E2D8C /* SpeziOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 805BE3D02E060B3A001E5CA4 /* SpeziOnboarding */; };
-		8052B87E2EB9FFDF005E2D8C /* SpeziStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1B2E144A180049798B /* SpeziStudy */; };
+		8052B85B2EB9FFDF005E2D8C /* GroveScheduler in Frameworks */ = {isa = PBXBuildFile; productRef = 2FBD738B2A3BD150004228E7 /* GroveScheduler */; };
+		8052B8632EB9FFDF005E2D8C /* GroveSchedulerUI in Frameworks */ = {isa = PBXBuildFile; productRef = 803166A72D75DE7700E9173B /* GroveSchedulerUI */; };
+		8052B8742EB9FFDF005E2D8C /* GroveHealthKitBulkExport in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB94E2DB5029B000D78A5 /* GroveHealthKitBulkExport */; };
+		8052B8752EB9FFDF005E2D8C /* GroveHealthKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB9502DB5029B000D78A5 /* GroveHealthKitUI */; };
+		8052B8772EB9FFDF005E2D8C /* GroveStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 806EB9552DB502A9000D78A5 /* GroveStudyDefinition */; };
+		8052B8782EB9FFDF005E2D8C /* GroveHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80E08A712DD32D9F00E80C11 /* GroveHealthKit */; };
+		8052B87B2EB9FFDF005E2D8C /* GroveOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 805BE3D02E060B3A001E5CA4 /* GroveOnboarding */; };
+		8052B87E2EB9FFDF005E2D8C /* GroveStudy in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1B2E144A180049798B /* GroveStudy */; };
 		8054D98E2DE54F8900458CD9 /* MyHeartCountsWatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 8054D9842DE54F8800458CD9 /* MyHeartCountsWatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		807093742EBB48C90038A27F /* MyHeartCountsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 807093732EBB48C90038A27F /* MyHeartCountsShared */; };
 		807423542F28E15E00113313 /* MHCStudyDefinitionExporter in Frameworks */ = {isa = PBXBuildFile; productRef = 807423532F28E15E00113313 /* MHCStudyDefinitionExporter */; };
@@ -85,34 +85,34 @@
 		80B8A2382EC1336F00F0E453 /* ModelsR4 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2372EC1336F00F0E453 /* ModelsR4 */; };
 		80BE06542DCF3A6D00171114 /* SwiftPackageList in Frameworks */ = {isa = PBXBuildFile; productRef = 80BE06532DCF3A6D00171114 /* SwiftPackageList */; };
 		80D031FB2FE52D3D0090B041 /* ResearchKitOnFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FA2FE52D3D0090B041 /* ResearchKitOnFHIR */; };
-		80D031FD2FE52D3D0090B041 /* Spezi in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FC2FE52D3D0090B041 /* Spezi */; };
-		80D031FF2FE52D3D0090B041 /* SpeziAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FE2FE52D3D0090B041 /* SpeziAccount */; };
-		80D032032FE52D3D0090B041 /* SpeziFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032022FE52D3D0090B041 /* SpeziFHIR */; };
-		80D032072FE52D3D0090B041 /* SpeziFirebaseAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032062FE52D3D0090B041 /* SpeziFirebaseAccount */; };
-		80D032092FE52D3D0090B041 /* SpeziFirebaseAccountStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032082FE52D3D0090B041 /* SpeziFirebaseAccountStorage */; };
-		80D0320B2FE52D3D0090B041 /* SpeziFirebaseConfiguration in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0320A2FE52D3D0090B041 /* SpeziFirebaseConfiguration */; };
-		80D0320D2FE52D3D0090B041 /* SpeziFirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0320C2FE52D3D0090B041 /* SpeziFirebaseStorage */; };
-		80D0320F2FE52D3D0090B041 /* SpeziFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0320E2FE52D3D0090B041 /* SpeziFirestore */; };
-		80D032112FE52D3D0090B041 /* SpeziFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032102FE52D3D0090B041 /* SpeziFoundation */; };
-		80D032192FE52D3D0090B041 /* SpeziKeychainStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032182FE52D3D0090B041 /* SpeziKeychainStorage */; };
-		80D0321B2FE52D3D0090B041 /* SpeziLicense in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0321A2FE52D3D0090B041 /* SpeziLicense */; };
-		80D0321D2FE52D3D0090B041 /* SpeziLocalStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0321C2FE52D3D0090B041 /* SpeziLocalStorage */; };
-		80D032212FE52D3D0090B041 /* SpeziNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032202FE52D3D0090B041 /* SpeziNotifications */; };
-		80D032232FE52D3D0090B041 /* SpeziQuestionnaire in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032222FE52D3D0090B041 /* SpeziQuestionnaire */; };
-		80D032252FE52D3D0090B041 /* SpeziQuestionnaireFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032242FE52D3D0090B041 /* SpeziQuestionnaireFHIR */; };
-		80D0322B2FE52D3D0090B041 /* SpeziSensorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0322A2FE52D3D0090B041 /* SpeziSensorKit */; };
-		80D032312FE52D3D0090B041 /* SpeziTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032302FE52D3D0090B041 /* SpeziTesting */; };
-		80D032332FE52D3D0090B041 /* SpeziValidation in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032322FE52D3D0090B041 /* SpeziValidation */; };
-		80D032352FE52D3D0090B041 /* SpeziViews in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032342FE52D3D0090B041 /* SpeziViews */; };
-		80D0323D2FE52D3D0090B041 /* XCTSpeziNotificationsUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0323C2FE52D3D0090B041 /* XCTSpeziNotificationsUI */; };
+		80D031FD2FE52D3D0090B041 /* Grove in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FC2FE52D3D0090B041 /* Grove */; };
+		80D031FF2FE52D3D0090B041 /* GroveAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FE2FE52D3D0090B041 /* GroveAccount */; };
+		80D032032FE52D3D0090B041 /* GroveFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032022FE52D3D0090B041 /* GroveFHIR */; };
+		80D032072FE52D3D0090B041 /* GroveFirebaseAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032062FE52D3D0090B041 /* GroveFirebaseAccount */; };
+		80D032092FE52D3D0090B041 /* GroveFirebaseAccountStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032082FE52D3D0090B041 /* GroveFirebaseAccountStorage */; };
+		80D0320B2FE52D3D0090B041 /* GroveFirebaseConfiguration in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0320A2FE52D3D0090B041 /* GroveFirebaseConfiguration */; };
+		80D0320D2FE52D3D0090B041 /* GroveFirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0320C2FE52D3D0090B041 /* GroveFirebaseStorage */; };
+		80D0320F2FE52D3D0090B041 /* GroveFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0320E2FE52D3D0090B041 /* GroveFirestore */; };
+		80D032112FE52D3D0090B041 /* GroveFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032102FE52D3D0090B041 /* GroveFoundation */; };
+		80D032192FE52D3D0090B041 /* GroveKeychainStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032182FE52D3D0090B041 /* GroveKeychainStorage */; };
+		80D0321B2FE52D3D0090B041 /* GroveLicense in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0321A2FE52D3D0090B041 /* GroveLicense */; };
+		80D0321D2FE52D3D0090B041 /* GroveLocalStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0321C2FE52D3D0090B041 /* GroveLocalStorage */; };
+		80D032212FE52D3D0090B041 /* GroveNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032202FE52D3D0090B041 /* GroveNotifications */; };
+		80D032232FE52D3D0090B041 /* GroveQuestionnaire in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032222FE52D3D0090B041 /* GroveQuestionnaire */; };
+		80D032252FE52D3D0090B041 /* GroveQuestionnaireFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032242FE52D3D0090B041 /* GroveQuestionnaireFHIR */; };
+		80D0322B2FE52D3D0090B041 /* GroveSensorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0322A2FE52D3D0090B041 /* GroveSensorKit */; };
+		80D032312FE52D3D0090B041 /* GroveTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032302FE52D3D0090B041 /* GroveTesting */; };
+		80D032332FE52D3D0090B041 /* GroveValidation in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032322FE52D3D0090B041 /* GroveValidation */; };
+		80D032352FE52D3D0090B041 /* GroveViews in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032342FE52D3D0090B041 /* GroveViews */; };
+		80D0323D2FE52D3D0090B041 /* XCTGroveNotificationsUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0323C2FE52D3D0090B041 /* XCTGroveNotificationsUI */; };
 		80D032522FE5315D0090B041 /* XCTestExtensions in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032512FE5315D0090B041 /* XCTestExtensions */; };
 		80D032542FE5315D0090B041 /* XCTHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032532FE5315D0090B041 /* XCTHealthKit */; };
-		80D032562FE5315D0090B041 /* XCTSpeziAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032552FE5315D0090B041 /* XCTSpeziAccount */; };
-		80D032582FE5315D0090B041 /* XCTSpeziNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032572FE5315D0090B041 /* XCTSpeziNotifications */; };
-		80D0325A2FE5315D0090B041 /* XCTSpeziQuestionnaire in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032592FE5315D0090B041 /* XCTSpeziQuestionnaire */; };
-		80D8EE1A3027BA2800A76707 /* SpeziQuestionnaireLegacy in Frameworks */ = {isa = PBXBuildFile; productRef = 80D8EE193027BA2800A76707 /* SpeziQuestionnaireLegacy */; };
+		80D032562FE5315D0090B041 /* XCTGroveAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032552FE5315D0090B041 /* XCTGroveAccount */; };
+		80D032582FE5315D0090B041 /* XCTGroveNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032572FE5315D0090B041 /* XCTGroveNotifications */; };
+		80D0325A2FE5315D0090B041 /* XCTGroveQuestionnaire in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032592FE5315D0090B041 /* XCTGroveQuestionnaire */; };
+		80D8EE1A3027BA2800A76707 /* GroveQuestionnaireLegacy in Frameworks */ = {isa = PBXBuildFile; productRef = 80D8EE193027BA2800A76707 /* GroveQuestionnaireLegacy */; };
 		80D8EE1E3027BA3D00A76707 /* ResearchKitSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */; };
-		80E982FB2EBA463500202499 /* SpeziConsent in Frameworks */ = {isa = PBXBuildFile; productRef = 805BE3CE2E060B3A001E5CA4 /* SpeziConsent */; };
+		80E982FB2EBA463500202499 /* GroveConsent in Frameworks */ = {isa = PBXBuildFile; productRef = 805BE3CE2E060B3A001E5CA4 /* GroveConsent */; };
 		9739A0C62AD7B5730084BEA5 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 9739A0C52AD7B5730084BEA5 /* FirebaseStorage */; };
 /* End PBXBuildFile section */
 
@@ -261,92 +261,92 @@
 		653A254A283387FE005D4D48 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
-				801A66152FEC47BD009182AD /* SpeziSensorKit in Frameworks */,
-				801A66142FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */,
-				801A66132FEC47BD009182AD /* SpeziHealthKitUI in Frameworks */,
-				801A66122FEC47BD009182AD /* SpeziHealthKitBulkExport in Frameworks */,
-				801A66112FEC47BD009182AD /* SpeziStudy in Frameworks */,
-				801A66102FEC47BD009182AD /* SpeziHealthKit in Frameworks */,
-				801A660F2FEC47BD009182AD /* SpeziHealthKitUI in Frameworks */,
-				801A660E2FEC47BD009182AD /* SpeziHealthKit in Frameworks */,
-				801A660D2FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */,
-				801A660C2FEC47BD009182AD /* SpeziStudy in Frameworks */,
-				801A660B2FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */,
-				801A660A2FEC47BD009182AD /* SpeziStudy in Frameworks */,
-				801A66092FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */,
-				801A66082FEC47BD009182AD /* SpeziStudy in Frameworks */,
-				801A66072FEC47BD009182AD /* SpeziStudyDefinition in Frameworks */,
-				801A66062FEC47BD009182AD /* SpeziStudy in Frameworks */,
-				801A66052FEC47BD009182AD /* SpeziStudy in Frameworks */,
-				801A66042FEC47BD009182AD /* SpeziOnboarding in Frameworks */,
-				801A66032FEC47BD009182AD /* SpeziOnboarding in Frameworks */,
-				801A66022FEC47BD009182AD /* SpeziFirestore in Frameworks */,
-				801A66012FEC47BD009182AD /* SpeziFirebaseStorage in Frameworks */,
-				80D8EE1A3027BA2800A76707 /* SpeziQuestionnaireLegacy in Frameworks */,
-				801A66002FEC47BD009182AD /* SpeziFirebaseConfiguration in Frameworks */,
-				801A65FF2FEC47BD009182AD /* SpeziFirebaseAccountStorage in Frameworks */,
-				801A65FE2FEC47BD009182AD /* SpeziFirebaseAccount in Frameworks */,
-				801A65FD2FEC47BD009182AD /* SpeziStudy in Frameworks */,
+				801A66152FEC47BD009182AD /* GroveSensorKit in Frameworks */,
+				801A66142FEC47BD009182AD /* GroveStudyDefinition in Frameworks */,
+				801A66132FEC47BD009182AD /* GroveHealthKitUI in Frameworks */,
+				801A66122FEC47BD009182AD /* GroveHealthKitBulkExport in Frameworks */,
+				801A66112FEC47BD009182AD /* GroveStudy in Frameworks */,
+				801A66102FEC47BD009182AD /* GroveHealthKit in Frameworks */,
+				801A660F2FEC47BD009182AD /* GroveHealthKitUI in Frameworks */,
+				801A660E2FEC47BD009182AD /* GroveHealthKit in Frameworks */,
+				801A660D2FEC47BD009182AD /* GroveStudyDefinition in Frameworks */,
+				801A660C2FEC47BD009182AD /* GroveStudy in Frameworks */,
+				801A660B2FEC47BD009182AD /* GroveStudyDefinition in Frameworks */,
+				801A660A2FEC47BD009182AD /* GroveStudy in Frameworks */,
+				801A66092FEC47BD009182AD /* GroveStudyDefinition in Frameworks */,
+				801A66082FEC47BD009182AD /* GroveStudy in Frameworks */,
+				801A66072FEC47BD009182AD /* GroveStudyDefinition in Frameworks */,
+				801A66062FEC47BD009182AD /* GroveStudy in Frameworks */,
+				801A66052FEC47BD009182AD /* GroveStudy in Frameworks */,
+				801A66042FEC47BD009182AD /* GroveOnboarding in Frameworks */,
+				801A66032FEC47BD009182AD /* GroveOnboarding in Frameworks */,
+				801A66022FEC47BD009182AD /* GroveFirestore in Frameworks */,
+				801A66012FEC47BD009182AD /* GroveFirebaseStorage in Frameworks */,
+				80D8EE1A3027BA2800A76707 /* GroveQuestionnaireLegacy in Frameworks */,
+				801A66002FEC47BD009182AD /* GroveFirebaseConfiguration in Frameworks */,
+				801A65FF2FEC47BD009182AD /* GroveFirebaseAccountStorage in Frameworks */,
+				801A65FE2FEC47BD009182AD /* GroveFirebaseAccount in Frameworks */,
+				801A65FD2FEC47BD009182AD /* GroveStudy in Frameworks */,
 				80D8EE1E3027BA3D00A76707 /* ResearchKitSwiftUI in Frameworks */,
-				801A65FC2FEC47BD009182AD /* SpeziOnboarding in Frameworks */,
-				801A65FB2FEC47BD009182AD /* SpeziHealthKitUI in Frameworks */,
-				801A65FA2FEC47BD009182AD /* SpeziHealthKit in Frameworks */,
-				801A65F92FEC47BD009182AD /* SpeziStudy in Frameworks */,
-				801A65F82FEC47BD009182AD /* SpeziScheduler in Frameworks */,
-				801A65F72FEC47BD009182AD /* SpeziOnboarding in Frameworks */,
-				801A65F62FEC47BD009182AD /* SpeziStudy in Frameworks */,
-				801A65F52FEC47BD009182AD /* SpeziOnboarding in Frameworks */,
-				801A65F42FEC47BD009182AD /* SpeziStudy in Frameworks */,
-				801A65F32FEC47BD009182AD /* SpeziOnboarding in Frameworks */,
-				801A65F22FEC47BD009182AD /* SpeziHealthKitUI in Frameworks */,
-				801A65F12FEC47BD009182AD /* SpeziHealthKit in Frameworks */,
+				801A65FC2FEC47BD009182AD /* GroveOnboarding in Frameworks */,
+				801A65FB2FEC47BD009182AD /* GroveHealthKitUI in Frameworks */,
+				801A65FA2FEC47BD009182AD /* GroveHealthKit in Frameworks */,
+				801A65F92FEC47BD009182AD /* GroveStudy in Frameworks */,
+				801A65F82FEC47BD009182AD /* GroveScheduler in Frameworks */,
+				801A65F72FEC47BD009182AD /* GroveOnboarding in Frameworks */,
+				801A65F62FEC47BD009182AD /* GroveStudy in Frameworks */,
+				801A65F52FEC47BD009182AD /* GroveOnboarding in Frameworks */,
+				801A65F42FEC47BD009182AD /* GroveStudy in Frameworks */,
+				801A65F32FEC47BD009182AD /* GroveOnboarding in Frameworks */,
+				801A65F22FEC47BD009182AD /* GroveHealthKitUI in Frameworks */,
+				801A65F12FEC47BD009182AD /* GroveHealthKit in Frameworks */,
 				80A72D7D2F377E90006B6EAD /* SensorKit.framework in Frameworks */,
-				80E982FB2EBA463500202499 /* SpeziConsent in Frameworks */,
+				80E982FB2EBA463500202499 /* GroveConsent in Frameworks */,
 				804C11E42ECA380D004783C3 /* MHCStudyDefinition in Frameworks */,
-				80D032312FE52D3D0090B041 /* SpeziTesting in Frameworks */,
-				8052B87E2EB9FFDF005E2D8C /* SpeziStudy in Frameworks */,
-				80D032072FE52D3D0090B041 /* SpeziFirebaseAccount in Frameworks */,
-				8052B87B2EB9FFDF005E2D8C /* SpeziOnboarding in Frameworks */,
-				8052B8782EB9FFDF005E2D8C /* SpeziHealthKit in Frameworks */,
-				8052B8772EB9FFDF005E2D8C /* SpeziStudyDefinition in Frameworks */,
-				80D0323D2FE52D3D0090B041 /* XCTSpeziNotificationsUI in Frameworks */,
-				8052B8752EB9FFDF005E2D8C /* SpeziHealthKitUI in Frameworks */,
-				8052B8742EB9FFDF005E2D8C /* SpeziHealthKitBulkExport in Frameworks */,
-				80D032352FE52D3D0090B041 /* SpeziViews in Frameworks */,
-				80D031FD2FE52D3D0090B041 /* Spezi in Frameworks */,
-				80D0322B2FE52D3D0090B041 /* SpeziSensorKit in Frameworks */,
-				80D0320B2FE52D3D0090B041 /* SpeziFirebaseConfiguration in Frameworks */,
+				80D032312FE52D3D0090B041 /* GroveTesting in Frameworks */,
+				8052B87E2EB9FFDF005E2D8C /* GroveStudy in Frameworks */,
+				80D032072FE52D3D0090B041 /* GroveFirebaseAccount in Frameworks */,
+				8052B87B2EB9FFDF005E2D8C /* GroveOnboarding in Frameworks */,
+				8052B8782EB9FFDF005E2D8C /* GroveHealthKit in Frameworks */,
+				8052B8772EB9FFDF005E2D8C /* GroveStudyDefinition in Frameworks */,
+				80D0323D2FE52D3D0090B041 /* XCTGroveNotificationsUI in Frameworks */,
+				8052B8752EB9FFDF005E2D8C /* GroveHealthKitUI in Frameworks */,
+				8052B8742EB9FFDF005E2D8C /* GroveHealthKitBulkExport in Frameworks */,
+				80D032352FE52D3D0090B041 /* GroveViews in Frameworks */,
+				80D031FD2FE52D3D0090B041 /* Grove in Frameworks */,
+				80D0322B2FE52D3D0090B041 /* GroveSensorKit in Frameworks */,
+				80D0320B2FE52D3D0090B041 /* GroveFirebaseConfiguration in Frameworks */,
 				807423542F28E15E00113313 /* MHCStudyDefinitionExporter in Frameworks */,
-				80D032092FE52D3D0090B041 /* SpeziFirebaseAccountStorage in Frameworks */,
-				80D032252FE52D3D0090B041 /* SpeziQuestionnaireFHIR in Frameworks */,
-				80D032212FE52D3D0090B041 /* SpeziNotifications in Frameworks */,
-				80D0320D2FE52D3D0090B041 /* SpeziFirebaseStorage in Frameworks */,
-				8052B8632EB9FFDF005E2D8C /* SpeziSchedulerUI in Frameworks */,
+				80D032092FE52D3D0090B041 /* GroveFirebaseAccountStorage in Frameworks */,
+				80D032252FE52D3D0090B041 /* GroveQuestionnaireFHIR in Frameworks */,
+				80D032212FE52D3D0090B041 /* GroveNotifications in Frameworks */,
+				80D0320D2FE52D3D0090B041 /* GroveFirebaseStorage in Frameworks */,
+				8052B8632EB9FFDF005E2D8C /* GroveSchedulerUI in Frameworks */,
 				800DF2412EBB4645001B9993 /* MyHeartCountsShared in Frameworks */,
-				80D032232FE52D3D0090B041 /* SpeziQuestionnaire in Frameworks */,
-				80D032192FE52D3D0090B041 /* SpeziKeychainStorage in Frameworks */,
-				80D032112FE52D3D0090B041 /* SpeziFoundation in Frameworks */,
-				8052B85B2EB9FFDF005E2D8C /* SpeziScheduler in Frameworks */,
+				80D032232FE52D3D0090B041 /* GroveQuestionnaire in Frameworks */,
+				80D032192FE52D3D0090B041 /* GroveKeychainStorage in Frameworks */,
+				80D032112FE52D3D0090B041 /* GroveFoundation in Frameworks */,
+				8052B85B2EB9FFDF005E2D8C /* GroveScheduler in Frameworks */,
 				8086001D2D75133B0044A054 /* SFSafeSymbols in Frameworks */,
-				80D0320F2FE52D3D0090B041 /* SpeziFirestore in Frameworks */,
+				80D0320F2FE52D3D0090B041 /* GroveFirestore in Frameworks */,
 				8043E00B2DC2348600E0DF01 /* MarkdownUI in Frameworks */,
 				2FB099AF2A875DF100B20952 /* FirebaseAuth in Frameworks */,
 				807669732D772C40001B980B /* Collections in Frameworks */,
-				80471E1A2E144A180049798B /* SpeziLocalization in Frameworks */,
-				802118D1301663AA0088582C /* SpeziHealthKitFHIR in Frameworks */,
+				80471E1A2E144A180049798B /* GroveLocalization in Frameworks */,
+				802118D1301663AA0088582C /* GroveHealthKitFHIR in Frameworks */,
 				2FB099B12A875DF100B20952 /* FirebaseFirestore in Frameworks */,
-				80D0321B2FE52D3D0090B041 /* SpeziLicense in Frameworks */,
+				80D0321B2FE52D3D0090B041 /* GroveLicense in Frameworks */,
 				80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */,
 				807669712D772C40001B980B /* BitCollections in Frameworks */,
-				80D032332FE52D3D0090B041 /* SpeziValidation in Frameworks */,
+				80D032332FE52D3D0090B041 /* GroveValidation in Frameworks */,
 				80D031FB2FE52D3D0090B041 /* ResearchKitOnFHIR in Frameworks */,
-				80D0321D2FE52D3D0090B041 /* SpeziLocalStorage in Frameworks */,
+				80D0321D2FE52D3D0090B041 /* GroveLocalStorage in Frameworks */,
 				807669772D772C40001B980B /* HashTreeCollections in Frameworks */,
 				80B7F0642FADF2940040F247 /* GRDB in Frameworks */,
 				8043DD7A2DC0CBE500E0DF01 /* FirebaseMessaging in Frameworks */,
-				80D031FF2FE52D3D0090B041 /* SpeziAccount in Frameworks */,
+				80D031FF2FE52D3D0090B041 /* GroveAccount in Frameworks */,
 				80B8A2382EC1336F00F0E453 /* ModelsR4 in Frameworks */,
-				80D032032FE52D3D0090B041 /* SpeziFHIR in Frameworks */,
+				80D032032FE52D3D0090B041 /* GroveFHIR in Frameworks */,
 				802CB63F2F85177A0011907F /* AsyncAlgorithms in Frameworks */,
 				8076696E2D772C07001B980B /* Algorithms in Frameworks */,
 				8015C35C2EB22EE400CA845E /* NIOFoundationCompat in Frameworks */,
@@ -367,12 +367,12 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				80404B0A2EDC635900DEA429 /* MyHeartCountsShared in Frameworks */,
-				80D0325A2FE5315D0090B041 /* XCTSpeziQuestionnaire in Frameworks */,
+				80D0325A2FE5315D0090B041 /* XCTGroveQuestionnaire in Frameworks */,
 				80D032542FE5315D0090B041 /* XCTHealthKit in Frameworks */,
 				80A8F7F32EDB222400944D94 /* MHCStudyDefinitionExporter in Frameworks */,
 				80D032522FE5315D0090B041 /* XCTestExtensions in Frameworks */,
-				80D032562FE5315D0090B041 /* XCTSpeziAccount in Frameworks */,
-				80D032582FE5315D0090B041 /* XCTSpeziNotifications in Frameworks */,
+				80D032562FE5315D0090B041 /* XCTGroveAccount in Frameworks */,
+				80D032582FE5315D0090B041 /* XCTGroveNotifications in Frameworks */,
 			);
 		};
 		8054D9812DE54F8800458CD9 /* Frameworks */ = {
@@ -380,7 +380,7 @@
 			files = (
 				80A0083F2DEFD0B300A446BA /* Collections in Frameworks */,
 				807093742EBB48C90038A27F /* MyHeartCountsShared in Frameworks */,
-				8034CBE22DE6514700E7F9F6 /* SpeziHealthKit in Frameworks */,
+				8034CBE22DE6514700E7F9F6 /* GroveHealthKit in Frameworks */,
 				80A008462DEFD0F900A446BA /* OrderedCollections in Frameworks */,
 			);
 		};
@@ -450,69 +450,69 @@
 			);
 			name = MyHeartCounts;
 			packageProductDependencies = (
-				2FBD738B2A3BD150004228E7 /* SpeziScheduler */,
+				2FBD738B2A3BD150004228E7 /* GroveScheduler */,
 				2FB099AE2A875DF100B20952 /* FirebaseAuth */,
 				2FB099B02A875DF100B20952 /* FirebaseFirestore */,
 				9739A0C52AD7B5730084BEA5 /* FirebaseStorage */,
-				803EAC1A2D67AB5300DA6E62 /* SpeziHealthKit */,
-				803EAC1C2D67AB5300DA6E62 /* SpeziHealthKitUI */,
-				80C7B86B2D67D76B0016BCAF /* SpeziOnboarding */,
-				80270CFA2D67F68F0022251E /* SpeziStudy */,
+				803EAC1A2D67AB5300DA6E62 /* GroveHealthKit */,
+				803EAC1C2D67AB5300DA6E62 /* GroveHealthKitUI */,
+				80C7B86B2D67D76B0016BCAF /* GroveOnboarding */,
+				80270CFA2D67F68F0022251E /* GroveStudy */,
 				8086001C2D75133B0044A054 /* SFSafeSymbols */,
-				8004CE402D75BCAA00CC3008 /* SpeziOnboarding */,
-				8004CE432D75BCBE00CC3008 /* SpeziStudy */,
-				803166A22D75DE6100E9173B /* SpeziOnboarding */,
-				803166A52D75DE7700E9173B /* SpeziScheduler */,
-				803166A72D75DE7700E9173B /* SpeziSchedulerUI */,
-				803166AA2D75DE8B00E9173B /* SpeziStudy */,
-				803166B62D75E22E00E9173B /* SpeziHealthKit */,
-				803166B82D75E22E00E9173B /* SpeziHealthKitUI */,
+				8004CE402D75BCAA00CC3008 /* GroveOnboarding */,
+				8004CE432D75BCBE00CC3008 /* GroveStudy */,
+				803166A22D75DE6100E9173B /* GroveOnboarding */,
+				803166A52D75DE7700E9173B /* GroveScheduler */,
+				803166A72D75DE7700E9173B /* GroveSchedulerUI */,
+				803166AA2D75DE8B00E9173B /* GroveStudy */,
+				803166B62D75E22E00E9173B /* GroveHealthKit */,
+				803166B82D75E22E00E9173B /* GroveHealthKitUI */,
 				8076696D2D772C07001B980B /* Algorithms */,
 				807669702D772C40001B980B /* BitCollections */,
 				807669722D772C40001B980B /* Collections */,
 				807669742D772C40001B980B /* DequeModule */,
 				807669762D772C40001B980B /* HashTreeCollections */,
 				807669782D772C40001B980B /* HeapModule */,
-				8055F2332D7C4E0D00CD7884 /* SpeziOnboarding */,
-				80A81C682D7C89D400444A17 /* SpeziStudy */,
-				80E7749D2D81B4B20035A0EE /* SpeziFirebaseAccount */,
-				80E7749F2D81B4B20035A0EE /* SpeziFirebaseAccountStorage */,
-				80E774A12D81B4B20035A0EE /* SpeziFirebaseConfiguration */,
-				80E774A32D81B4B20035A0EE /* SpeziFirebaseStorage */,
-				80E774A52D81B4B20035A0EE /* SpeziFirestore */,
-				802141582D81F14000BF5D35 /* SpeziOnboarding */,
-				80E6EFC62D83502000D513D4 /* SpeziOnboarding */,
-				804B90212D86F10F00F9F431 /* SpeziStudy */,
-				803D2B412D8981EA00DAEF9B /* SpeziStudy */,
-				803D2B432D8981EA00DAEF9B /* SpeziStudyDefinition */,
-				80E862132D8C630D0089B8E1 /* SpeziStudy */,
-				80E862152D8C630D0089B8E1 /* SpeziStudyDefinition */,
-				80713BE42D93F48C00A2DB0A /* SpeziStudy */,
-				80713BE62D93F48C00A2DB0A /* SpeziStudyDefinition */,
-				8067823A2D9AD89600B40482 /* SpeziStudy */,
-				8067823C2D9AD89600B40482 /* SpeziStudyDefinition */,
-				808E10042DAD48F300DB240D /* SpeziHealthKit */,
-				808E10062DAD48F300DB240D /* SpeziHealthKitUI */,
-				806EB94C2DB5029B000D78A5 /* SpeziHealthKit */,
-				806EB94E2DB5029B000D78A5 /* SpeziHealthKitBulkExport */,
-				806EB9502DB5029B000D78A5 /* SpeziHealthKitUI */,
-				806EB9532DB502A9000D78A5 /* SpeziStudy */,
-				806EB9552DB502A9000D78A5 /* SpeziStudyDefinition */,
+				8055F2332D7C4E0D00CD7884 /* GroveOnboarding */,
+				80A81C682D7C89D400444A17 /* GroveStudy */,
+				80E7749D2D81B4B20035A0EE /* GroveFirebaseAccount */,
+				80E7749F2D81B4B20035A0EE /* GroveFirebaseAccountStorage */,
+				80E774A12D81B4B20035A0EE /* GroveFirebaseConfiguration */,
+				80E774A32D81B4B20035A0EE /* GroveFirebaseStorage */,
+				80E774A52D81B4B20035A0EE /* GroveFirestore */,
+				802141582D81F14000BF5D35 /* GroveOnboarding */,
+				80E6EFC62D83502000D513D4 /* GroveOnboarding */,
+				804B90212D86F10F00F9F431 /* GroveStudy */,
+				803D2B412D8981EA00DAEF9B /* GroveStudy */,
+				803D2B432D8981EA00DAEF9B /* GroveStudyDefinition */,
+				80E862132D8C630D0089B8E1 /* GroveStudy */,
+				80E862152D8C630D0089B8E1 /* GroveStudyDefinition */,
+				80713BE42D93F48C00A2DB0A /* GroveStudy */,
+				80713BE62D93F48C00A2DB0A /* GroveStudyDefinition */,
+				8067823A2D9AD89600B40482 /* GroveStudy */,
+				8067823C2D9AD89600B40482 /* GroveStudyDefinition */,
+				808E10042DAD48F300DB240D /* GroveHealthKit */,
+				808E10062DAD48F300DB240D /* GroveHealthKitUI */,
+				806EB94C2DB5029B000D78A5 /* GroveHealthKit */,
+				806EB94E2DB5029B000D78A5 /* GroveHealthKitBulkExport */,
+				806EB9502DB5029B000D78A5 /* GroveHealthKitUI */,
+				806EB9532DB502A9000D78A5 /* GroveStudy */,
+				806EB9552DB502A9000D78A5 /* GroveStudyDefinition */,
 				8043DD792DC0CBE500E0DF01 /* FirebaseMessaging */,
 				8043E00A2DC2348600E0DF01 /* MarkdownUI */,
 				80BE06532DCF3A6D00171114 /* SwiftPackageList */,
-				80E08A712DD32D9F00E80C11 /* SpeziHealthKit */,
-				80E08A732DD32D9F00E80C11 /* SpeziHealthKitBulkExport */,
-				80E08A752DD32D9F00E80C11 /* SpeziHealthKitUI */,
-				805BE3CE2E060B3A001E5CA4 /* SpeziConsent */,
-				805BE3D02E060B3A001E5CA4 /* SpeziOnboarding */,
-				80471E192E144A180049798B /* SpeziLocalization */,
-				80471E1B2E144A180049798B /* SpeziStudy */,
-				80471E1D2E144A180049798B /* SpeziStudyDefinition */,
+				80E08A712DD32D9F00E80C11 /* GroveHealthKit */,
+				80E08A732DD32D9F00E80C11 /* GroveHealthKitBulkExport */,
+				80E08A752DD32D9F00E80C11 /* GroveHealthKitUI */,
+				805BE3CE2E060B3A001E5CA4 /* GroveConsent */,
+				805BE3D02E060B3A001E5CA4 /* GroveOnboarding */,
+				80471E192E144A180049798B /* GroveLocalization */,
+				80471E1B2E144A180049798B /* GroveStudy */,
+				80471E1D2E144A180049798B /* GroveStudyDefinition */,
 				800BA3422E40DB4D00A90912 /* FirebaseFunctions */,
 				8015C3592EB22EE400CA845E /* NIOCore */,
 				8015C35B2EB22EE400CA845E /* NIOFoundationCompat */,
-				80E0E3152EB27C4A00F445B6 /* SpeziSensorKit */,
+				80E0E3152EB27C4A00F445B6 /* GroveSensorKit */,
 				800DF2402EBB4645001B9993 /* MyHeartCountsShared */,
 				80B8A2352EC1336F00F0E453 /* ModelsDSTU2 */,
 				80B8A2372EC1336F00F0E453 /* ModelsR4 */,
@@ -521,28 +521,28 @@
 				802CB63E2F85177A0011907F /* AsyncAlgorithms */,
 				80B7F0632FADF2940040F247 /* GRDB */,
 				80D031FA2FE52D3D0090B041 /* ResearchKitOnFHIR */,
-				80D031FC2FE52D3D0090B041 /* Spezi */,
-				80D031FE2FE52D3D0090B041 /* SpeziAccount */,
-				80D032022FE52D3D0090B041 /* SpeziFHIR */,
-				80D032062FE52D3D0090B041 /* SpeziFirebaseAccount */,
-				80D032082FE52D3D0090B041 /* SpeziFirebaseAccountStorage */,
-				80D0320A2FE52D3D0090B041 /* SpeziFirebaseConfiguration */,
-				80D0320C2FE52D3D0090B041 /* SpeziFirebaseStorage */,
-				80D0320E2FE52D3D0090B041 /* SpeziFirestore */,
-				80D032102FE52D3D0090B041 /* SpeziFoundation */,
-				80D032182FE52D3D0090B041 /* SpeziKeychainStorage */,
-				80D0321A2FE52D3D0090B041 /* SpeziLicense */,
-				80D0321C2FE52D3D0090B041 /* SpeziLocalStorage */,
-				80D032202FE52D3D0090B041 /* SpeziNotifications */,
-				80D032222FE52D3D0090B041 /* SpeziQuestionnaire */,
-				80D032242FE52D3D0090B041 /* SpeziQuestionnaireFHIR */,
-				80D0322A2FE52D3D0090B041 /* SpeziSensorKit */,
-				80D032302FE52D3D0090B041 /* SpeziTesting */,
-				80D032322FE52D3D0090B041 /* SpeziValidation */,
-				80D032342FE52D3D0090B041 /* SpeziViews */,
-				80D0323C2FE52D3D0090B041 /* XCTSpeziNotificationsUI */,
-				802118D0301663AA0088582C /* SpeziHealthKitFHIR */,
-				80D8EE193027BA2800A76707 /* SpeziQuestionnaireLegacy */,
+				80D031FC2FE52D3D0090B041 /* Grove */,
+				80D031FE2FE52D3D0090B041 /* GroveAccount */,
+				80D032022FE52D3D0090B041 /* GroveFHIR */,
+				80D032062FE52D3D0090B041 /* GroveFirebaseAccount */,
+				80D032082FE52D3D0090B041 /* GroveFirebaseAccountStorage */,
+				80D0320A2FE52D3D0090B041 /* GroveFirebaseConfiguration */,
+				80D0320C2FE52D3D0090B041 /* GroveFirebaseStorage */,
+				80D0320E2FE52D3D0090B041 /* GroveFirestore */,
+				80D032102FE52D3D0090B041 /* GroveFoundation */,
+				80D032182FE52D3D0090B041 /* GroveKeychainStorage */,
+				80D0321A2FE52D3D0090B041 /* GroveLicense */,
+				80D0321C2FE52D3D0090B041 /* GroveLocalStorage */,
+				80D032202FE52D3D0090B041 /* GroveNotifications */,
+				80D032222FE52D3D0090B041 /* GroveQuestionnaire */,
+				80D032242FE52D3D0090B041 /* GroveQuestionnaireFHIR */,
+				80D0322A2FE52D3D0090B041 /* GroveSensorKit */,
+				80D032302FE52D3D0090B041 /* GroveTesting */,
+				80D032322FE52D3D0090B041 /* GroveValidation */,
+				80D032342FE52D3D0090B041 /* GroveViews */,
+				80D0323C2FE52D3D0090B041 /* XCTGroveNotificationsUI */,
+				802118D0301663AA0088582C /* GroveHealthKitFHIR */,
+				80D8EE193027BA2800A76707 /* GroveQuestionnaireLegacy */,
 				80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */,
 			);
 			productName = MyHeartCounts;
@@ -594,9 +594,9 @@
 				80404B092EDC635900DEA429 /* MyHeartCountsShared */,
 				80D032512FE5315D0090B041 /* XCTestExtensions */,
 				80D032532FE5315D0090B041 /* XCTHealthKit */,
-				80D032552FE5315D0090B041 /* XCTSpeziAccount */,
-				80D032572FE5315D0090B041 /* XCTSpeziNotifications */,
-				80D032592FE5315D0090B041 /* XCTSpeziQuestionnaire */,
+				80D032552FE5315D0090B041 /* XCTGroveAccount */,
+				80D032572FE5315D0090B041 /* XCTGroveNotifications */,
+				80D032592FE5315D0090B041 /* XCTGroveQuestionnaire */,
 			);
 			productName = MyHeartCountsUITests;
 			productReference = 653A256728338800005D4D48 /* MyHeartCountsUITests.xctest */;
@@ -621,7 +621,7 @@
 			);
 			name = MyHeartCountsWatchApp;
 			packageProductDependencies = (
-				8034CBE12DE6514700E7F9F6 /* SpeziHealthKit */,
+				8034CBE12DE6514700E7F9F6 /* GroveHealthKit */,
 				80A0083E2DEFD0B300A446BA /* Collections */,
 				80A008452DEFD0F900A446BA /* OrderedCollections */,
 				807093732EBB48C90038A27F /* MyHeartCountsShared */,
@@ -681,7 +681,7 @@
 				804C11E22ECA380D004783C3 /* XCRemoteSwiftPackageReference "MyHeartCounts-StudyDefinitions" */,
 				802CB63D2F85177A0011907F /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 				80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
-				80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */,
+				80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */,
 			);
 			preferredProjectObjectVersion = 63;
 			productRefGroup = 653A254E283387FE005D4D48 /* Products */;
@@ -1230,16 +1230,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git";
 			requirement = {
-				kind = upToNextMinorVersion;
-				minimumVersion = 0.2.5;
-			};
-		};
-		805363752DB6997600D7E8A3 /* XCRemoteSwiftPackageReference "SpeziHealthKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/StanfordSpezi/SpeziHealthKit.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.2.0;
+				kind = revision;
+				revision = 68b2e08015287fb29bb3ddd312598a79bfe23f48;
 			};
 		};
 		8076696C2D772C07001B980B /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
@@ -1298,12 +1290,12 @@
 				minimumVersion = 4.8.0;
 			};
 		};
-		80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */ = {
+		80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SchmiedmayerLab/Spezi.git";
+			repositoryURL = "https://github.com/SchmiedmayerLab/Grove.git";
 			requirement = {
-				kind = revision;
-				revision = 2ce6314add5dce2cfbd0651840b039a53acddcdb;
+				kind = upToNextMinorVersion;
+				minimumVersion = "0.3.0-beta.6";
 			};
 			traits = (
 				ResearchKit,
@@ -1324,17 +1316,17 @@
 			package = 2FE5DC9029EDD9C3004B9AB4 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
 		};
-		2FBD738B2A3BD150004228E7 /* SpeziScheduler */ = {
+		2FBD738B2A3BD150004228E7 /* GroveScheduler */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziScheduler;
+			productName = GroveScheduler;
 		};
-		8004CE402D75BCAA00CC3008 /* SpeziOnboarding */ = {
+		8004CE402D75BCAA00CC3008 /* GroveOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziOnboarding;
+			productName = GroveOnboarding;
 		};
-		8004CE432D75BCBE00CC3008 /* SpeziStudy */ = {
+		8004CE432D75BCBE00CC3008 /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
 		800BA3422E40DB4D00A90912 /* FirebaseFunctions */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1355,73 +1347,72 @@
 			package = 8015C3582EB22EE400CA845E /* XCRemoteSwiftPackageReference "swift-nio" */;
 			productName = NIOFoundationCompat;
 		};
-		802118D0301663AA0088582C /* SpeziHealthKitFHIR */ = {
+		802118D0301663AA0088582C /* GroveHealthKitFHIR */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziHealthKitFHIR;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveHealthKitFHIR;
 		};
-		802141582D81F14000BF5D35 /* SpeziOnboarding */ = {
+		802141582D81F14000BF5D35 /* GroveOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziOnboarding;
+			productName = GroveOnboarding;
 		};
-		80270CFA2D67F68F0022251E /* SpeziStudy */ = {
+		80270CFA2D67F68F0022251E /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
 		802CB63E2F85177A0011907F /* AsyncAlgorithms */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 802CB63D2F85177A0011907F /* XCRemoteSwiftPackageReference "swift-async-algorithms" */;
 			productName = AsyncAlgorithms;
 		};
-		803166A22D75DE6100E9173B /* SpeziOnboarding */ = {
+		803166A22D75DE6100E9173B /* GroveOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziOnboarding;
+			productName = GroveOnboarding;
 		};
-		803166A52D75DE7700E9173B /* SpeziScheduler */ = {
+		803166A52D75DE7700E9173B /* GroveScheduler */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziScheduler;
+			productName = GroveScheduler;
 		};
-		803166A72D75DE7700E9173B /* SpeziSchedulerUI */ = {
+		803166A72D75DE7700E9173B /* GroveSchedulerUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziSchedulerUI;
+			productName = GroveSchedulerUI;
 		};
-		803166AA2D75DE8B00E9173B /* SpeziStudy */ = {
+		803166AA2D75DE8B00E9173B /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
-		803166B62D75E22E00E9173B /* SpeziHealthKit */ = {
+		803166B62D75E22E00E9173B /* GroveHealthKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKit;
+			productName = GroveHealthKit;
 		};
-		803166B82D75E22E00E9173B /* SpeziHealthKitUI */ = {
+		803166B82D75E22E00E9173B /* GroveHealthKitUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKitUI;
+			productName = GroveHealthKitUI;
 		};
-		8034CBE12DE6514700E7F9F6 /* SpeziHealthKit */ = {
+		8034CBE12DE6514700E7F9F6 /* GroveHealthKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 805363752DB6997600D7E8A3 /* XCRemoteSwiftPackageReference "SpeziHealthKit" */;
-			productName = SpeziHealthKit;
+			productName = GroveHealthKit;
 		};
 		8035B5532DE6B36000326BB2 /* SwiftLintBuildToolPlugin */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2F66D20D2BB723180010D555 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */;
 			productName = "plugin:SwiftLintBuildToolPlugin";
 		};
-		803D2B412D8981EA00DAEF9B /* SpeziStudy */ = {
+		803D2B412D8981EA00DAEF9B /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
-		803D2B432D8981EA00DAEF9B /* SpeziStudyDefinition */ = {
+		803D2B432D8981EA00DAEF9B /* GroveStudyDefinition */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudyDefinition;
+			productName = GroveStudyDefinition;
 		};
-		803EAC1A2D67AB5300DA6E62 /* SpeziHealthKit */ = {
+		803EAC1A2D67AB5300DA6E62 /* GroveHealthKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKit;
+			productName = GroveHealthKit;
 		};
-		803EAC1C2D67AB5300DA6E62 /* SpeziHealthKitUI */ = {
+		803EAC1C2D67AB5300DA6E62 /* GroveHealthKitUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKitUI;
+			productName = GroveHealthKitUI;
 		};
 		80404B092EDC635900DEA429 /* MyHeartCountsShared */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1437,83 +1428,83 @@
 			package = 8043E0092DC2348600E0DF01 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
 			productName = MarkdownUI;
 		};
-		80471E192E144A180049798B /* SpeziLocalization */ = {
+		80471E192E144A180049798B /* GroveLocalization */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziLocalization;
+			productName = GroveLocalization;
 		};
-		80471E1B2E144A180049798B /* SpeziStudy */ = {
+		80471E1B2E144A180049798B /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
-		80471E1D2E144A180049798B /* SpeziStudyDefinition */ = {
+		80471E1D2E144A180049798B /* GroveStudyDefinition */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudyDefinition;
+			productName = GroveStudyDefinition;
 		};
-		804B90212D86F10F00F9F431 /* SpeziStudy */ = {
+		804B90212D86F10F00F9F431 /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
 		804C11E32ECA380D004783C3 /* MHCStudyDefinition */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 804C11E22ECA380D004783C3 /* XCRemoteSwiftPackageReference "MyHeartCounts-StudyDefinitions" */;
 			productName = MHCStudyDefinition;
 		};
-		8055F2332D7C4E0D00CD7884 /* SpeziOnboarding */ = {
+		8055F2332D7C4E0D00CD7884 /* GroveOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziOnboarding;
+			productName = GroveOnboarding;
 		};
 		805B42222DA6BDBF004C690D /* SwiftLintBuildToolPlugin */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2F66D20D2BB723180010D555 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */;
 			productName = "plugin:SwiftLintBuildToolPlugin";
 		};
-		805BE3CE2E060B3A001E5CA4 /* SpeziConsent */ = {
+		805BE3CE2E060B3A001E5CA4 /* GroveConsent */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziConsent;
+			productName = GroveConsent;
 		};
-		805BE3D02E060B3A001E5CA4 /* SpeziOnboarding */ = {
+		805BE3D02E060B3A001E5CA4 /* GroveOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziOnboarding;
+			productName = GroveOnboarding;
 		};
-		8067823A2D9AD89600B40482 /* SpeziStudy */ = {
+		8067823A2D9AD89600B40482 /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
-		8067823C2D9AD89600B40482 /* SpeziStudyDefinition */ = {
+		8067823C2D9AD89600B40482 /* GroveStudyDefinition */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudyDefinition;
+			productName = GroveStudyDefinition;
 		};
-		806EB94C2DB5029B000D78A5 /* SpeziHealthKit */ = {
+		806EB94C2DB5029B000D78A5 /* GroveHealthKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKit;
+			productName = GroveHealthKit;
 		};
-		806EB94E2DB5029B000D78A5 /* SpeziHealthKitBulkExport */ = {
+		806EB94E2DB5029B000D78A5 /* GroveHealthKitBulkExport */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKitBulkExport;
+			productName = GroveHealthKitBulkExport;
 		};
-		806EB9502DB5029B000D78A5 /* SpeziHealthKitUI */ = {
+		806EB9502DB5029B000D78A5 /* GroveHealthKitUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKitUI;
+			productName = GroveHealthKitUI;
 		};
-		806EB9532DB502A9000D78A5 /* SpeziStudy */ = {
+		806EB9532DB502A9000D78A5 /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
-		806EB9552DB502A9000D78A5 /* SpeziStudyDefinition */ = {
+		806EB9552DB502A9000D78A5 /* GroveStudyDefinition */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudyDefinition;
+			productName = GroveStudyDefinition;
 		};
 		807093732EBB48C90038A27F /* MyHeartCountsShared */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MyHeartCountsShared;
 		};
-		80713BE42D93F48C00A2DB0A /* SpeziStudy */ = {
+		80713BE42D93F48C00A2DB0A /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
-		80713BE62D93F48C00A2DB0A /* SpeziStudyDefinition */ = {
+		80713BE62D93F48C00A2DB0A /* GroveStudyDefinition */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudyDefinition;
+			productName = GroveStudyDefinition;
 		};
 		807423532F28E15E00113313 /* MHCStudyDefinitionExporter */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1555,13 +1546,13 @@
 			package = 8086001B2D75133B0044A054 /* XCRemoteSwiftPackageReference "SFSafeSymbols" */;
 			productName = SFSafeSymbols;
 		};
-		808E10042DAD48F300DB240D /* SpeziHealthKit */ = {
+		808E10042DAD48F300DB240D /* GroveHealthKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKit;
+			productName = GroveHealthKit;
 		};
-		808E10062DAD48F300DB240D /* SpeziHealthKitUI */ = {
+		808E10062DAD48F300DB240D /* GroveHealthKitUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKitUI;
+			productName = GroveHealthKitUI;
 		};
 		80A0083E2DEFD0B300A446BA /* Collections */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1573,9 +1564,9 @@
 			package = 8076696F2D772C40001B980B /* XCRemoteSwiftPackageReference "swift-collections" */;
 			productName = OrderedCollections;
 		};
-		80A81C682D7C89D400444A17 /* SpeziStudy */ = {
+		80A81C682D7C89D400444A17 /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
 		80A8F7F22EDB222400944D94 /* MHCStudyDefinitionExporter */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1607,197 +1598,197 @@
 			package = 80BE064E2DCF3A2D00171114 /* XCRemoteSwiftPackageReference "swift-package-list" */;
 			productName = SwiftPackageList;
 		};
-		80C7B86B2D67D76B0016BCAF /* SpeziOnboarding */ = {
+		80C7B86B2D67D76B0016BCAF /* GroveOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziOnboarding;
+			productName = GroveOnboarding;
 		};
 		80D031FA2FE52D3D0090B041 /* ResearchKitOnFHIR */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = ResearchKitOnFHIR;
 		};
-		80D031FC2FE52D3D0090B041 /* Spezi */ = {
+		80D031FC2FE52D3D0090B041 /* Grove */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = Spezi;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = Grove;
 		};
-		80D031FE2FE52D3D0090B041 /* SpeziAccount */ = {
+		80D031FE2FE52D3D0090B041 /* GroveAccount */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziAccount;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveAccount;
 		};
-		80D032022FE52D3D0090B041 /* SpeziFHIR */ = {
+		80D032022FE52D3D0090B041 /* GroveFHIR */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziFHIR;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveFHIR;
 		};
-		80D032062FE52D3D0090B041 /* SpeziFirebaseAccount */ = {
+		80D032062FE52D3D0090B041 /* GroveFirebaseAccount */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziFirebaseAccount;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveFirebaseAccount;
 		};
-		80D032082FE52D3D0090B041 /* SpeziFirebaseAccountStorage */ = {
+		80D032082FE52D3D0090B041 /* GroveFirebaseAccountStorage */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziFirebaseAccountStorage;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveFirebaseAccountStorage;
 		};
-		80D0320A2FE52D3D0090B041 /* SpeziFirebaseConfiguration */ = {
+		80D0320A2FE52D3D0090B041 /* GroveFirebaseConfiguration */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziFirebaseConfiguration;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveFirebaseConfiguration;
 		};
-		80D0320C2FE52D3D0090B041 /* SpeziFirebaseStorage */ = {
+		80D0320C2FE52D3D0090B041 /* GroveFirebaseStorage */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziFirebaseStorage;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveFirebaseStorage;
 		};
-		80D0320E2FE52D3D0090B041 /* SpeziFirestore */ = {
+		80D0320E2FE52D3D0090B041 /* GroveFirestore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziFirestore;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveFirestore;
 		};
-		80D032102FE52D3D0090B041 /* SpeziFoundation */ = {
+		80D032102FE52D3D0090B041 /* GroveFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziFoundation;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveFoundation;
 		};
-		80D032182FE52D3D0090B041 /* SpeziKeychainStorage */ = {
+		80D032182FE52D3D0090B041 /* GroveKeychainStorage */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziKeychainStorage;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveKeychainStorage;
 		};
-		80D0321A2FE52D3D0090B041 /* SpeziLicense */ = {
+		80D0321A2FE52D3D0090B041 /* GroveLicense */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziLicense;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveLicense;
 		};
-		80D0321C2FE52D3D0090B041 /* SpeziLocalStorage */ = {
+		80D0321C2FE52D3D0090B041 /* GroveLocalStorage */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziLocalStorage;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveLocalStorage;
 		};
-		80D032202FE52D3D0090B041 /* SpeziNotifications */ = {
+		80D032202FE52D3D0090B041 /* GroveNotifications */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziNotifications;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveNotifications;
 		};
-		80D032222FE52D3D0090B041 /* SpeziQuestionnaire */ = {
+		80D032222FE52D3D0090B041 /* GroveQuestionnaire */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziQuestionnaire;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveQuestionnaire;
 		};
-		80D032242FE52D3D0090B041 /* SpeziQuestionnaireFHIR */ = {
+		80D032242FE52D3D0090B041 /* GroveQuestionnaireFHIR */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziQuestionnaireFHIR;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveQuestionnaireFHIR;
 		};
-		80D0322A2FE52D3D0090B041 /* SpeziSensorKit */ = {
+		80D0322A2FE52D3D0090B041 /* GroveSensorKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziSensorKit;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveSensorKit;
 		};
-		80D032302FE52D3D0090B041 /* SpeziTesting */ = {
+		80D032302FE52D3D0090B041 /* GroveTesting */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziTesting;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveTesting;
 		};
-		80D032322FE52D3D0090B041 /* SpeziValidation */ = {
+		80D032322FE52D3D0090B041 /* GroveValidation */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziValidation;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveValidation;
 		};
-		80D032342FE52D3D0090B041 /* SpeziViews */ = {
+		80D032342FE52D3D0090B041 /* GroveViews */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziViews;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveViews;
 		};
-		80D0323C2FE52D3D0090B041 /* XCTSpeziNotificationsUI */ = {
+		80D0323C2FE52D3D0090B041 /* XCTGroveNotificationsUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = XCTSpeziNotificationsUI;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = XCTGroveNotificationsUI;
 		};
 		80D032512FE5315D0090B041 /* XCTestExtensions */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = XCTestExtensions;
 		};
 		80D032532FE5315D0090B041 /* XCTHealthKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = XCTHealthKit;
 		};
-		80D032552FE5315D0090B041 /* XCTSpeziAccount */ = {
+		80D032552FE5315D0090B041 /* XCTGroveAccount */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = XCTSpeziAccount;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = XCTGroveAccount;
 		};
-		80D032572FE5315D0090B041 /* XCTSpeziNotifications */ = {
+		80D032572FE5315D0090B041 /* XCTGroveNotifications */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = XCTSpeziNotifications;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = XCTGroveNotifications;
 		};
-		80D032592FE5315D0090B041 /* XCTSpeziQuestionnaire */ = {
+		80D032592FE5315D0090B041 /* XCTGroveQuestionnaire */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = XCTSpeziQuestionnaire;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = XCTGroveQuestionnaire;
 		};
-		80D8EE193027BA2800A76707 /* SpeziQuestionnaireLegacy */ = {
+		80D8EE193027BA2800A76707 /* GroveQuestionnaireLegacy */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Spezi" */;
-			productName = SpeziQuestionnaireLegacy;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveQuestionnaireLegacy;
 		};
 		80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 80A3A4812E1EB270002A8515 /* XCRemoteSwiftPackageReference "ResearchKit" */;
 			productName = ResearchKitSwiftUI;
 		};
-		80E08A712DD32D9F00E80C11 /* SpeziHealthKit */ = {
+		80E08A712DD32D9F00E80C11 /* GroveHealthKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKit;
+			productName = GroveHealthKit;
 		};
-		80E08A732DD32D9F00E80C11 /* SpeziHealthKitBulkExport */ = {
+		80E08A732DD32D9F00E80C11 /* GroveHealthKitBulkExport */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKitBulkExport;
+			productName = GroveHealthKitBulkExport;
 		};
-		80E08A752DD32D9F00E80C11 /* SpeziHealthKitUI */ = {
+		80E08A752DD32D9F00E80C11 /* GroveHealthKitUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziHealthKitUI;
+			productName = GroveHealthKitUI;
 		};
-		80E0E3152EB27C4A00F445B6 /* SpeziSensorKit */ = {
+		80E0E3152EB27C4A00F445B6 /* GroveSensorKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziSensorKit;
+			productName = GroveSensorKit;
 		};
-		80E6EFC62D83502000D513D4 /* SpeziOnboarding */ = {
+		80E6EFC62D83502000D513D4 /* GroveOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziOnboarding;
+			productName = GroveOnboarding;
 		};
-		80E7749D2D81B4B20035A0EE /* SpeziFirebaseAccount */ = {
+		80E7749D2D81B4B20035A0EE /* GroveFirebaseAccount */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziFirebaseAccount;
+			productName = GroveFirebaseAccount;
 		};
-		80E7749F2D81B4B20035A0EE /* SpeziFirebaseAccountStorage */ = {
+		80E7749F2D81B4B20035A0EE /* GroveFirebaseAccountStorage */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziFirebaseAccountStorage;
+			productName = GroveFirebaseAccountStorage;
 		};
-		80E774A12D81B4B20035A0EE /* SpeziFirebaseConfiguration */ = {
+		80E774A12D81B4B20035A0EE /* GroveFirebaseConfiguration */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziFirebaseConfiguration;
+			productName = GroveFirebaseConfiguration;
 		};
-		80E774A32D81B4B20035A0EE /* SpeziFirebaseStorage */ = {
+		80E774A32D81B4B20035A0EE /* GroveFirebaseStorage */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziFirebaseStorage;
+			productName = GroveFirebaseStorage;
 		};
-		80E774A52D81B4B20035A0EE /* SpeziFirestore */ = {
+		80E774A52D81B4B20035A0EE /* GroveFirestore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziFirestore;
+			productName = GroveFirestore;
 		};
-		80E862132D8C630D0089B8E1 /* SpeziStudy */ = {
+		80E862132D8C630D0089B8E1 /* GroveStudy */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudy;
+			productName = GroveStudy;
 		};
-		80E862152D8C630D0089B8E1 /* SpeziStudyDefinition */ = {
+		80E862152D8C630D0089B8E1 /* GroveStudyDefinition */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SpeziStudyDefinition;
+			productName = GroveStudyDefinition;
 		};
 		9739A0C52AD7B5730084BEA5 /* FirebaseStorage */ = {
 			isa = XCSwiftPackageProductDependency;

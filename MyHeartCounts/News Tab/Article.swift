@@ -9,9 +9,9 @@
 // swiftlint:disable file_types_order
 
 import Foundation
+import GroveFoundation
+import GroveStudyDefinition
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziStudyDefinition
 import SwiftUI
 
 

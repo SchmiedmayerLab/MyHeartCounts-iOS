@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import Spezi
+import Grove
 import UserNotifications
 
 

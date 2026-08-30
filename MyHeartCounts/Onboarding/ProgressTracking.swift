@@ -7,8 +7,8 @@
 //
 
 import Foundation
-import Spezi
-import SpeziAccount
+import Grove
+import GroveAccount
 import SwiftUI
 
 

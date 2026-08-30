@@ -9,12 +9,12 @@
 // swiftlint:disable file_types_order
 
 import Foundation
+import GroveHealthKit
+import GroveHealthKitUI
+import GroveLocalization
+import GroveViews
 import HealthKit
 import MyHeartCountsShared
-import SpeziHealthKit
-import SpeziHealthKitUI
-import SpeziLocalization
-import SpeziViews
 import struct SwiftUI.Color
 
 
@@ -239,7 +239,7 @@ struct QuantitySample: Hashable, Identifiable, Sendable {
     }
     
     init(_ other: HKQuantitySample) {
-        guard let sampleType = SpeziHealthKit.SampleType<HKQuantitySample>(HKQuantityTypeIdentifier(rawValue: other.quantityType.identifier)) else {
+        guard let sampleType = GroveHealthKit.SampleType<HKQuantitySample>(HKQuantityTypeIdentifier(rawValue: other.quantityType.identifier)) else {
             preconditionFailure("Unable to obtain SampleType<HKQuantitySample> for HKQuantityType '\(other.quantityType.identifier)'")
         }
         self.init(

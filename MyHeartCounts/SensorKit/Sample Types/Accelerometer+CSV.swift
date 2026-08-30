@@ -7,8 +7,8 @@
 //
 
 import CoreMotion
+import GroveSensorKit
 import MyHeartCountsShared
-import SpeziSensorKit
 
 
 extension CMRecordedAccelerometerData.SafeRepresentation: CSVAppendableSensorSample {

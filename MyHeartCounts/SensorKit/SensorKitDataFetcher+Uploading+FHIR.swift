@@ -7,8 +7,8 @@
 //
 
 import FHIRModelsExtensions
+import GroveSensorKit
 import ModelsR4
-import SpeziSensorKit
 
 
 // periphery:ignore - retained for future use; live SensorKit upload uses ``UploadStrategyJSONFile``.

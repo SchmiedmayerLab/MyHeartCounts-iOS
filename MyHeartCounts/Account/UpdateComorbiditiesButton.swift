@@ -6,9 +6,9 @@
 // SPDX-License-Identifier: MIT
 //
 
+import GroveAccount
+import GroveViews
 import SFSafeSymbols
-import SpeziAccount
-import SpeziViews
 import SwiftUI
 
 

@@ -9,9 +9,9 @@
 // swiftlint:disable attributes
 
 import Foundation
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziViews
+import GroveFoundation
+import GroveHealthKit
+import GroveViews
 import SwiftUI
 
 

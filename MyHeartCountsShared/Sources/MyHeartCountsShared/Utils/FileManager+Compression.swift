@@ -10,7 +10,7 @@
 
 import AppleArchive
 public import Foundation
-import SpeziFoundation
+import GroveFoundation
 import System
 
 

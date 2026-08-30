@@ -7,12 +7,12 @@
 //
 
 import Foundation
+import GroveHealthKit
+import GroveStudyDefinition
+import GroveViews
 import ModelsR4
 import MyHeartCountsShared
 import SFSafeSymbols
-import SpeziHealthKit
-import SpeziStudyDefinition
-import SpeziViews
 import SwiftUI
 
 

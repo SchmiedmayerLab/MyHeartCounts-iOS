@@ -8,10 +8,10 @@
 
 import FirebaseFirestore
 import FirebaseStorage
-import Spezi
-import SpeziAccount
-import SpeziFirebaseAccount
-import SpeziStudy
+import Grove
+import GroveAccount
+import GroveFirebaseAccount
+import GroveStudy
 
 
 final class FirebaseConfiguration: Module, EnvironmentAccessible, DefaultInitializable, @unchecked Sendable {

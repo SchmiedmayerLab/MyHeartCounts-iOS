@@ -12,12 +12,12 @@ import ActivityKit
 import CoreHaptics
 import CoreMotion
 import Foundation
+import Grove
+import GroveFoundation
+import GroveLocalStorage
+import GroveStudyDefinition
 import MyHeartCountsShared
 import OSLog
-import Spezi
-import SpeziFoundation
-import SpeziLocalStorage
-import SpeziStudyDefinition
 import SwiftUI
 
 

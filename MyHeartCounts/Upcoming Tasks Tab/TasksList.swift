@@ -10,17 +10,17 @@
 
 import Algorithms
 import Foundation
+import GroveFoundation
+import GroveQuestionnaire
+import GroveScheduler
+import GroveSchedulerUI
+import GroveStudy
+import GroveStudyDefinition
+import GroveViews
 import MHCStudyDefinition
 import OSLog
 import ResearchKitSwiftUI
 import SFSafeSymbols
-import SpeziFoundation
-import SpeziQuestionnaire
-import SpeziScheduler
-import SpeziSchedulerUI
-import SpeziStudy
-import SpeziStudyDefinition
-import SpeziViews
 import SwiftUI
 
 

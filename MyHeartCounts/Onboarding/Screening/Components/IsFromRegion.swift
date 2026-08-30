@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import GroveFoundation
+import GroveViews
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziViews
 import SwiftUI
 
 

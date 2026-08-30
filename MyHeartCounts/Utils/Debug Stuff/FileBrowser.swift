@@ -9,7 +9,7 @@
 // swiftlint:disable all
 
 import Foundation
-import SpeziFoundation
+import GroveFoundation
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -42,7 +42,7 @@ struct FileBrowser: View {
             FileBrowser(url: url)
         } label: {
             HStack {
-                // TODO thumbnail (we have this in LLMonFHIR/SpeziViews!)
+                // TODO thumbnail (we have this in LLMonFHIR/GroveViews!)
                 VStack(alignment: .leading) {
                     Text(url.lastPathComponent)
                     HStack {

@@ -10,26 +10,26 @@
 @preconcurrency import FirebaseCore
 @preconcurrency import FirebaseFirestore
 @preconcurrency import FirebaseStorage
+import Grove
+import GroveAccount
+import GroveFirebaseAccount
+import GroveFirestore
+import GroveFoundation
+import GroveHealthKit
+import GroveLocalStorage
+import GroveNotifications
+import GroveQuestionnaire
+import GroveScheduler
+import GroveSensorKit
+import GroveStudy
 import OSLog
 @preconcurrency import PDFKit.PDFDocument
-import Spezi
-import SpeziAccount
-import SpeziFirebaseAccount
-import SpeziFirestore
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziLocalStorage
-import SpeziNotifications
-import SpeziQuestionnaire
-import SpeziScheduler
-import SpeziSensorKit
-import SpeziStudy
 import SwiftUI
 
 
 actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConstraint {
     // swiftlint:disable attributes
-    @Application(\.spezi) var spezi
+    @Application(\.grove) var grove
     @Application(\.logger) var logger
     @Dependency(HealthKit.self) var healthKit
     @Dependency(FirebaseConfiguration.self) var firebaseConfiguration
@@ -70,7 +70,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         let isLoggedIn1 = Auth.auth().currentUser != nil
         let isLoggedIn2 = await account?.signedIn ?? false
         if !isLoggedIn1 && !isLoggedIn2 {
-            // both firebase and SpeziAccount tell us that there currently is no logged-in user.
+            // both firebase and GroveAccount tell us that there currently is no logged-in user.
             do {
                 try await performLogoutCleanup(context: .onLaunchCleanupBcNoUser)
             } catch {
@@ -222,8 +222,8 @@ extension MyHeartCountsStandard {
         }
         // upon logging out, we want to throw the user back to the onboarding.
         // note that the onboarding flow, in this context, won't work 100% identical to when you've just launched the app in a non-logged-in state,
-        // since the Firebase SDK and all related Spezi modules will still be loaded.
-        // we could look into using the `FirebaseApp.deleteApp(_:)` API in combination with attempting to unload the related Spezi modules, but that
+        // since the Firebase SDK and all related Grove modules will still be loaded.
+        // we could look into using the `FirebaseApp.deleteApp(_:)` API in combination with attempting to unload the related Grove modules, but that
         // would be anything but trivial.
         // if the user wants to switch to a different region, the easiest approach currently is to just kill and relaunch the app.
         var cleanupFailed = false
@@ -280,7 +280,7 @@ extension MyHeartCountsStandard {
             try await _Concurrency.Task.sleep(for: .seconds(2))
             // NOTE: the guard is evaluated *after* the sleep, deliberately. A logout triggered at launch (from a
             // keychain-restored Firebase session) resolves `isInSetup == false`, because SetupTestEnvironment
-            // hasn't entered `setUp()` yet -- it is still behind `Spezi.loadFirebase` + its 1s sleep. Snapshotting
+            // hasn't entered `setUp()` yet -- it is still behind `Grove.loadFirebase` + its 1s sleep. Snapshotting
             // the guard before the sleep therefore let this task clobber `onboardingFlowComplete` two seconds
             // later, potentially in the middle of the reset's own login-and-enroll. Re-reading it here, and
             // bailing if somebody signed in during the window, keeps that from happening.

@@ -8,12 +8,12 @@
 
 import FirebaseMessaging
 import Foundation
+import Grove
+import GroveAccount
+import GroveFoundation
+import GroveNotifications
 import MyHeartCountsShared
 import OSLog
-import Spezi
-import SpeziAccount
-import SpeziFoundation
-import SpeziNotifications
 import enum UIKit.UIBackgroundFetchResult
 
 

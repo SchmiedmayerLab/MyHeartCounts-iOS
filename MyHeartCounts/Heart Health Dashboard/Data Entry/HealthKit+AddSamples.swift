@@ -9,8 +9,8 @@
 // swiftlint:disable attributes
 
 import Foundation
+import GroveHealthKit
 import HealthKit
-import SpeziHealthKit
 
 
 protocol ModernLocalizedError: LocalizedError {

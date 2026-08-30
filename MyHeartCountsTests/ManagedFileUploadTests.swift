@@ -7,8 +7,8 @@
 //
 
 import Foundation
+import GroveFoundation
 @testable import MyHeartCounts
-import SpeziFoundation
 import Testing
 
 

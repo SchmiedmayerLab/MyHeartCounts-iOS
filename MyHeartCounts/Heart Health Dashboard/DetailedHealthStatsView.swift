@@ -10,14 +10,14 @@
 
 import Charts
 import Foundation
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitUI
+import GroveStudy
+import GroveViews
 import MHCStudyDefinition
 import MyHeartCountsShared
 import SFSafeSymbols
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitUI
-import SpeziStudy
-import SpeziViews
 import SwiftUI
 
 

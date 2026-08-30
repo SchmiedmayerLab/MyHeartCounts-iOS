@@ -8,8 +8,8 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveSensorKit
 import ModelsR4
-import SpeziSensorKit
 
 
 extension FHIRExtensionBuilder where Input == SensorKit.DeviceInfo {

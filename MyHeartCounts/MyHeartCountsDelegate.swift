@@ -6,23 +6,23 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Grove
+import GroveFirebaseConfiguration
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitBulkExport
+import GroveNotifications
+import GroveOnboarding
+import GroveScheduler
+import GroveSensorKit
+import GroveStudy
 import OSLog
-import Spezi
-import SpeziFirebaseConfiguration
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitBulkExport
-import SpeziNotifications
-import SpeziOnboarding
-import SpeziScheduler
-import SpeziSensorKit
-import SpeziStudy
 import SwiftUI
 import UserNotifications
 
 
 @Observable
-final class MyHeartCountsDelegate: SpeziAppDelegate {
+final class MyHeartCountsDelegate: GroveAppDelegate {
     override var configuration: Configuration {
         if let selector = FeatureFlags.overrideFirebaseConfig {
             LocalPreferencesStore.standard[.lastUsedFirebaseConfig] = selector

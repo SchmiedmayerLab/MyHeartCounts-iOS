@@ -6,8 +6,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Grove
 import Observation
-import Spezi
 
 
 @Observable

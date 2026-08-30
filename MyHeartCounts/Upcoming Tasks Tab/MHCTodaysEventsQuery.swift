@@ -7,9 +7,9 @@
 //
 
 import Foundation
-import SpeziFoundation
-import SpeziScheduler
-import SpeziStudy
+import GroveFoundation
+import GroveScheduler
+import GroveStudy
 import SwiftUI
 
 

@@ -11,16 +11,16 @@ import AsyncAlgorithms
 import FHIRModelsExtensions
 import FirebaseFirestore
 import Foundation
+import GroveAccount
+import GroveFHIR
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitFHIR
+import GroveStudy
 import HealthKit
 import ModelsR4
 import MyHeartCountsShared
 import OSLog
-import SpeziAccount
-import SpeziFHIR
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitFHIR
-import SpeziStudy
 import UserNotifications
 
 
@@ -29,7 +29,7 @@ extension LocalPreferenceKeys {
     
     static let sendSensorKitUploadNotifications = LocalPreferenceKey<Bool>("sendSensorKitUploadNotifications", default: false)
     
-    /// the last-seen value of the ``SpeziAccount/AccountDetails/enableDebugMode`` account key value.
+    /// the last-seen value of the ``GroveAccount/AccountDetails/enableDebugMode`` account key value.
     ///
     /// we need this to be able to access the account key value immediately after launch,
     /// where it typically isn't yet available if the account details haven't yet been delivered to the Standard.

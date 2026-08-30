@@ -6,11 +6,13 @@
 // SPDX-License-Identifier: MIT
 //
 
+import FHIRModelsExtensions
 import Foundation
+import GroveFHIR
+import GroveHealthKitFHIR
 import HealthKit
 import ModelsDSTU2
 import ModelsR4
-import SpeziFHIR
 
 
 extension HKSourceRevision {
@@ -39,8 +41,7 @@ extension ModelsR4.DomainResource {
 
 extension ModelsDSTU2.DomainResource {
     mutating func addSourceRevisionExtensions(for sourceRevision: HKSourceRevision) {
-        // swiftlint:disable:next force_unwrapping
-        let baseUrl: ModelsDSTU2.FHIRPrimitive<ModelsDSTU2.FHIRURI> = "https://bdh.stanford.edu/fhir/defs/sourceRevision".asFHIRURIPrimitive()!
+        let baseUrl: ModelsDSTU2.FHIRPrimitive<ModelsDSTU2.FHIRURI> = FHIRExtensionURL.sourceRevision.dstu2
         var deviceInfo = ModelsDSTU2.Extension(url: baseUrl)
         deviceInfo.extension = []
         let fieldUrl = { (components: String...) -> ModelsDSTU2.FHIRPrimitive<ModelsDSTU2.FHIRURI> in
@@ -94,8 +95,7 @@ extension ModelsDSTU2.DomainResource {
 
 extension ModelsR4.DomainResource {
     mutating func addSourceRevisionExtensions(for sourceRevision: HKSourceRevision) {
-        // swiftlint:disable:next force_unwrapping
-        let baseUrl: ModelsR4.FHIRPrimitive<ModelsR4.FHIRURI> = "https://bdh.stanford.edu/fhir/defs/sourceRevision".asFHIRURIPrimitive()!
+        let baseUrl: ModelsR4.FHIRPrimitive<ModelsR4.FHIRURI> = FHIRExtensionURL.sourceRevision.r4
         var deviceInfo = ModelsR4.Extension(url: baseUrl)
         deviceInfo.extension = []
         let fieldUrl = { (components: String...) -> ModelsR4.FHIRPrimitive<ModelsR4.FHIRURI> in

@@ -7,8 +7,8 @@
 //
 
 import Foundation
-import Spezi
-import SpeziNotifications
+import Grove
+import GroveNotifications
 import SwiftUI
 import UserNotifications
 

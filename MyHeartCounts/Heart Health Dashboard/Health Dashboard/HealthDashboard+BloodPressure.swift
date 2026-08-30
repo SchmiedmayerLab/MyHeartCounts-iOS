@@ -8,9 +8,9 @@
 
 import Charts
 import Foundation
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitUI
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitUI
 import SwiftUI
 
 

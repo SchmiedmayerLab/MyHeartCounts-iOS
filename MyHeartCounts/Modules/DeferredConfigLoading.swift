@@ -13,21 +13,21 @@ import class FirebaseFirestore.FirestoreSettings
 import class FirebaseFirestore.MemoryCacheSettings
 import class FirebaseFirestore.PersistentCacheSettings
 import Foundation
+@_spi(APISupport) // we need to access `GroveAppDelegate.grove`
+import Grove
+import GroveAccount
+import GroveFirebaseAccount
+import GroveFirebaseAccountStorage
+import GroveFirebaseConfiguration
+import GroveFirebaseStorage
+import GroveFirestore
+import GroveFoundation
+import GroveLocalization
+import GroveSensorKit
+import GroveStudy
 import MyHeartCountsShared
 import Observation
 import OSLog
-@_spi(APISupport) // we need to access `SpeziAppDelegate.spezi`
-import Spezi
-import SpeziAccount
-import SpeziFirebaseAccount
-import SpeziFirebaseAccountStorage
-import SpeziFirebaseConfiguration
-import SpeziFirebaseStorage
-import SpeziFirestore
-import SpeziFoundation
-import SpeziLocalization
-import SpeziSensorKit
-import SpeziStudy
 import SwiftUI
 import Synchronization
 import UniformTypeIdentifiers
@@ -194,7 +194,7 @@ enum DeferredConfigLoading {
         ConsentManager()
     }
     
-    /// Constructs an Array of Spezi Modules for loading Firebase and the other related modules, configured based on the specified selector.
+    /// Constructs an Array of Grove Modules for loading Firebase and the other related modules, configured based on the specified selector.
     ///
     /// Returns nil if there was an issue resolving the selector.
     @MainActor
@@ -326,7 +326,7 @@ enum DeferredConfigLoading {
 }
 
 
-extension Spezi {
+extension Grove {
     fileprivate enum LoadState {
         case loaded
         case notLoaded(waiters: [CheckedContinuation<Void, Never>])
@@ -345,14 +345,14 @@ extension Spezi {
     
     @MainActor // IDEA maybe rename this? (here and elsewhere (it's not just firebase any more))
     static func loadFirebase(for region: Locale.Region) {
-        guard let spezi = SpeziAppDelegate.spezi else {
-            fatalError("Spezi not loaded")
+        guard let grove = GroveAppDelegate.grove else {
+            fatalError("Grove not loaded")
         }
         guard !didLoadFirebase else {
             DeferredConfigLoading.logger.error("Did already load firebase, now asked to do it again, for a potentially different config. Will skip.")
             return
         }
-        spezi.loadFirebase(for: region)
+        grove.loadFirebase(for: region)
     }
     
     @MainActor
@@ -417,7 +417,7 @@ private final class LoadFirebaseTracking: Module {
     private var studyLoader
     
     func configure() {
-        let waiters: [CheckedContinuation<Void, Never>] = Spezi.loadState.withLock { state in
+        let waiters: [CheckedContinuation<Void, Never>] = Grove.loadState.withLock { state in
             switch exchange(&state, with: .loaded) {
             case .loaded: []
             case .notLoaded(let waiters): waiters

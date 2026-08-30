@@ -7,10 +7,10 @@
 //
 
 import Foundation
+import GroveFoundation
+import GroveStudyDefinition
+import GroveViews
 import MarkdownUI
-import SpeziFoundation
-import SpeziStudyDefinition
-import SpeziViews
 import SwiftUI
 
 

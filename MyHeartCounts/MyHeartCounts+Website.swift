@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import Grove
+import GroveFoundation
 import MyHeartCountsShared
-import Spezi
-import SpeziFoundation
 
 
 extension MyHeartCounts {
@@ -25,7 +25,7 @@ extension MyHeartCounts {
     static func website(_ selector: WebsiteSelector, for region: Locale.Region? = nil) -> URL { // swiftlint:disable:this cyclomatic_complexity
         switch region {
         case .none:
-            guard Spezi.didLoadFirebase else {
+            guard Grove.didLoadFirebase else {
                 // we don't know which firebase deployment we're connected to, so we return the one for the current region
                 return website(selector, for: Locale.current.region ?? .unitedStates)
             }

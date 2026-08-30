@@ -8,6 +8,9 @@
 
 import FirebaseFirestore
 import Foundation
+import GroveAccount
+import GroveFoundation
+import GroveHealthKit
 import struct ModelsR4.DateTime
 import struct ModelsR4.FHIRPrimitive
 import struct ModelsR4.FHIRURI
@@ -15,9 +18,6 @@ import struct ModelsR4.Period
 import enum ModelsR4.ResourceProxy
 import MyHeartCountsShared
 import OSLog
-import SpeziAccount
-import SpeziFoundation
-import SpeziHealthKit
 import SwiftUI
 
 

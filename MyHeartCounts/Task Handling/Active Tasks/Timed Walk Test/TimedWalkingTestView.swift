@@ -8,12 +8,12 @@
 
 import CoreMotion
 import Foundation
+import Grove
+import GroveFoundation
+import GroveStudyDefinition
+import GroveViews
 import MyHeartCountsShared
 import SFSafeSymbols
-import Spezi
-import SpeziFoundation
-import SpeziStudyDefinition
-import SpeziViews
 import SwiftUI
 
 

@@ -8,12 +8,12 @@
 
 @preconcurrency import FirebaseStorage
 import Foundation
+import Grove
+import GroveFoundation
+import GroveLocalization
+import GroveStudy
 import OSLog
 import func QuartzCore.CACurrentMediaTime
-import Spezi
-import SpeziFoundation
-import SpeziLocalization
-import SpeziStudy
 import UniformTypeIdentifiers
 
 

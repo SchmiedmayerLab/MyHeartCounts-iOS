@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import SpeziSensorKit
+import GroveSensorKit
 
 
 /// A strategy for uploading SensorKit samples.

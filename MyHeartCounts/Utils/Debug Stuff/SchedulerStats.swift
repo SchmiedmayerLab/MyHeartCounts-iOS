@@ -8,7 +8,7 @@
 
 import Algorithms
 @_spi(TestingSupport)
-import SpeziScheduler
+import GroveScheduler
 import SwiftUI
 
 

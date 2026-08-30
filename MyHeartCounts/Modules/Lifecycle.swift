@@ -7,14 +7,14 @@
 //
 
 import Foundation
-import Spezi
-import SpeziFoundation
+import Grove
 import SwiftUI
+import Synchronization
 
 
 @Observable
 final class Lifecycle: ServiceModule, EnvironmentAccessible, @unchecked Sendable {
-    private let rwLock = RWLock()
+    private let lock = Mutex<Void>(())
     private(set) var scenePhase: ScenePhase = .inactive
     
     func run() async {
@@ -34,7 +34,7 @@ final class Lifecycle: ServiceModule, EnvironmentAccessible, @unchecked Sendable
         guard let keyPath = keyPath as? ReferenceWritableKeyPath<Lifecycle, T> else {
             return
         }
-        rwLock.withWriteLock {
+        lock.withLock { _ in
             self[keyPath: keyPath] = value
         }
     }

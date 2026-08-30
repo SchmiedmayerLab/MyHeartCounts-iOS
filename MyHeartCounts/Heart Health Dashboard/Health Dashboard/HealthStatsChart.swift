@@ -10,11 +10,11 @@
 
 import Charts
 import Foundation
+import GroveFoundation
+import GroveHealthKitUI
+import GroveViews
 import HealthKit
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziHealthKitUI
-import SpeziViews
 import SwiftUI
 
 

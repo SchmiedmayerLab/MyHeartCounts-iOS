@@ -7,9 +7,9 @@
 //
 
 import Foundation
-import Spezi
-import SpeziAccount
-import SpeziStudy
+import Grove
+import GroveAccount
+import GroveStudy
 
 
 extension MyHeartCounts {

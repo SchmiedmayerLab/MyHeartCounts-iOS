@@ -8,11 +8,11 @@
 
 import Charts
 import Foundation
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitUI
 import HealthKit
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitUI
 import SwiftUI
 
 

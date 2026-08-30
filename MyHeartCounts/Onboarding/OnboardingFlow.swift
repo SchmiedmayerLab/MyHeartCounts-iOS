@@ -6,16 +6,16 @@
 // SPDX-License-Identifier: MIT
 //
 
-import SFSafeSymbols
-import Spezi
+import Grove
 @_spi(TestingSupport)
-import SpeziAccount
-import SpeziFirebaseAccount
-import SpeziHealthKit
-import SpeziNotifications
-import SpeziOnboarding
-import SpeziStudy
-import SpeziViews
+import GroveAccount
+import GroveFirebaseAccount
+import GroveHealthKit
+import GroveNotifications
+import GroveOnboarding
+import GroveStudy
+import GroveViews
+import SFSafeSymbols
 import SwiftUI
 
 
@@ -56,7 +56,7 @@ private struct AppOnboardingFlow: View {
                 .onboardingStep(.eligibility)
             if !FeatureFlags.disableFirebase {
                 AccountOnboarding()
-                    .injectingSpezi()
+                    .injectingGrove()
                     .navigationBarBackButtonHidden()
                     .onboardingStep(.login)
                 // the `AccountOnboarding` step will, as needed, branch into the consent flow.
@@ -65,29 +65,29 @@ private struct AppOnboardingFlow: View {
                 // IDEA instead of having this in an if, we should probably have a full-screen "you can't participate" thing if the user doesn't have HealthKit?
                 HealthKitPermissions()
                     .onboardingStep(.healthAccess)
-                    .injectingSpezi()
+                    .injectingGrove()
                     // we don't want the user to be able to return to the Consent flow
                     .navigationBarBackButtonHidden()
                 if ClinicalRecordPermissions.isAvailable && HealthRecordPermissions.includeInOnboarding {
                     HealthRecordPermissions()
                         .onboardingStep(.healthRecords)
-                        .injectingSpezi()
+                        .injectingGrove()
                 }
             }
             WorkoutPreferenceSetting()
                 .onboardingStep(.workoutPreference)
-                .injectingSpezi()
+                .injectingGrove()
             if !localNotificationAuthorization {
                 NotificationPermissions()
                     .onboardingStep(.notifications)
-                    .injectingSpezi()
+                    .injectingGrove()
             }
             DemographicsStep()
                 .onboardingStep(.demographics)
-                .injectingSpezi()
+                .injectingGrove()
             FinalEnrollmentStep()
                 .onboardingStep(.finalStep)
-                .injectingSpezi()
+                .injectingGrove()
         }
         .environment(\.isInOnboardingFlow, true)
         .environment(onboardingData)

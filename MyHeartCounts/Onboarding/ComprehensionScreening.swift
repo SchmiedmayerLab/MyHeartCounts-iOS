@@ -9,10 +9,10 @@
 // swiftlint:disable file_types_order discouraged_optional_boolean
 
 import Foundation
-import SpeziConsent
-import SpeziFoundation
-import SpeziOnboarding
-import SpeziViews
+import GroveConsent
+import GroveFoundation
+import GroveOnboarding
+import GroveViews
 import SwiftUI
 
 
@@ -45,7 +45,7 @@ struct ComprehensionScreening: View {
             path.append {
                 Consent(document: consentDoc)
                     .onboardingStep(.consent)
-                    .injectingSpezi()
+                    .injectingGrove()
             }
         }
     }

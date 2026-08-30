@@ -8,8 +8,8 @@
 
 import ArgumentParser
 import Foundation
+import GroveFoundation
 import MyHeartCountsShared
-import SpeziFoundation
 
 
 struct DecodePPG: ParsableCommand {

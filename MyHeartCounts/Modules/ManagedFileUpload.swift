@@ -8,10 +8,10 @@
 
 import FirebaseStorage
 import Foundation
+import Grove
+import GroveAccount
+import GroveFoundation
 import OSLog
-import Spezi
-import SpeziAccount
-import SpeziFoundation
 import Synchronization
 
 
