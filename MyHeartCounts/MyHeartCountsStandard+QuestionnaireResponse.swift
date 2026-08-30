@@ -127,7 +127,13 @@ extension MyHeartCountsStandard {
                 response: response
             )
             for sample in samples {
-                try await healthKit.save(sample)
+                do {
+                    try await healthKit.save(sample)
+                } catch {
+                    // One store refusal (an undetermined authorization, a denied type) loses
+                    // that reading, never the whole response's extraction.
+                    await logger.error("Unable to save extracted \(sample.sampleType) sample: \(error)")
+                }
             }
         } catch {
             await logger.error("Error parsing & processing questionnaire response: \(error)")
