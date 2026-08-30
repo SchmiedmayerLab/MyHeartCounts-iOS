@@ -9,6 +9,7 @@
 import Foundation
 import GroveFHIRContract
 import GroveHealthKit
+import GroveHealthKitFHIR
 import GroveQuestionnaireFHIR
 import GroveSensorKit
 import GroveSensorKitFHIR
@@ -16,9 +17,6 @@ import HealthKit
 import ModelsR4
 @testable import MyHeartCounts
 import Testing
-// Independent focused suites intentionally share their small FHIR fixtures in this file.
-// swiftlint:disable file_types_order
-
 @Suite
 struct FHIRExchangeStateTests {
     private static var subject: FHIRExchangeSubject {
@@ -186,11 +184,12 @@ struct FHIRExchangeStateTests {
     }
 
     @Test
-    func sourceRepositoriesAreInstallationScopedAndDistinct() throws {
+    func sourceRepositoriesAreStoreScopedAndDistinct() throws {
         let store = FHIRExchangeStateStore()
-        let health = try store.repositoryScope(.healthKit)
-        let sensor = try store.repositoryScope(.sensorKit)
-        let repeatedHealth = try store.repositoryScope(.healthKit)
+        let subject = try Self.subject
+        let health = try store.repositoryScope(.healthKit, subject: subject)
+        let sensor = try store.repositoryScope(.sensorKit, subject: subject)
+        let repeatedHealth = try store.repositoryScope(.healthKit, subject: subject)
         #expect(health != sensor)
         #expect(health == repeatedHealth)
         #expect(health.value.hasPrefix("healthkit:"))
@@ -221,15 +220,19 @@ struct FHIRExchangeStateTests {
     func unsupportedPersistedSchemaFailsClosed() throws {
         let store = FHIRExchangeStateStore(testingSchemaVersion: 1)
         #expect(throws: FHIRExchangeStateError.unsupportedSchemaVersion(1)) {
-            try store.repositoryScope(.healthKit)
+            try store.event(
+                key: "schema-check",
+                recordedAt: Date(timeIntervalSince1970: 1_788_000_000),
+                facts: Self.eventFacts
+            )
         }
     }
 
     @Test
     func accountCleanupFencesLateOldGenerationMutations() throws {
         let oldStore = FHIRExchangeStateStore(accountDataGeneration: 7)
-        let oldRepository = try oldStore.repositoryScope(.healthKit)
         let subject = try Self.subject
+        let oldRepository = try oldStore.repositoryScope(.healthKit, subject: subject)
         let eventKey = oldStore.healthKitEventKey(
             subject: subject,
             sourceType: "HKQuantityTypeIdentifierStepCount",
@@ -245,9 +248,11 @@ struct FHIRExchangeStateTests {
 
         let newStore = oldStore.testingView(accountDataGeneration: 8)
         try newStore.reset()
-        let newRepository = try newStore.repositoryScope(.healthKit)
+        // The scope is store-bound and partitioned by the subject, so the same account keeps
+        // its repository across a ledger reset; a different account gets its own partition.
+        let newRepository = try newStore.repositoryScope(.healthKit, subject: subject)
         let newStateWasPersisted = try newStore.hasPersistedStateForTesting
-        #expect(newRepository != oldRepository)
+        #expect(newRepository == oldRepository)
         #expect(newStateWasPersisted)
 
         #expect(throws: FHIRExchangeStateError.staleAccountGeneration(captured: 7, current: 8)) {
@@ -271,130 +276,5 @@ struct FHIRExchangeStateTests {
             facts: Self.eventFacts
         )
         #expect(retry == newEvent)
-    }
-}
-
-
-@Suite
-struct QuestionnaireHealthKitProjectionTests {
-    /// A minimal marked instrument: the panel's children are components by declaration, so a
-    /// projection can never pair answers across groups — the structural guarantee the old
-    /// extractor enforced by matching group occurrences.
-    private static let instrumentJSON = Data("""
-        {
-          "resourceType": "Questionnaire",
-          "url": "https://myheartcounts.stanford.edu/fhir/survey/heartRisk",
-          "version": "1.0.0",
-          "status": "active",
-          "item": [{
-            "linkId": "bp",
-            "type": "group",
-            "code": [{"system": "http://loinc.org", "code": "85354-9"}],
-            "extension": [{
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract",
-              "valueBoolean": true
-            }],
-            "item": [
-              {
-                "linkId": "systolic",
-                "type": "quantity",
-                "code": [{"system": "http://loinc.org", "code": "8480-6"}],
-                "extension": [{
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract",
-                  "valueCode": "component"
-                }]
-              },
-              {
-                "linkId": "diastolic",
-                "type": "quantity",
-                "code": [{"system": "http://loinc.org", "code": "8462-4"}],
-                "extension": [{
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract",
-                  "valueCode": "component"
-                }]
-              }
-            ]
-          }]
-        }
-    """.utf8)
-
-    private static func responseJSON(systolic: Double, diastolic: Double?) -> Data {
-        var answers = """
-            {
-              "linkId": "systolic",
-              "answer": [{"valueQuantity": {
-                "value": \(systolic), "unit": "mmHg",
-                "system": "http://unitsofmeasure.org", "code": "mm[Hg]"
-              }}]
-            }
-        """
-        if let diastolic {
-            answers += """
-            , {
-              "linkId": "diastolic",
-              "answer": [{"valueQuantity": {
-                "value": \(diastolic), "unit": "mmHg",
-                "system": "http://unitsofmeasure.org", "code": "mm[Hg]"
-              }}]
-            }
-            """
-        }
-        return Data("""
-        {
-          "resourceType": "QuestionnaireResponse",
-          "questionnaire": "https://myheartcounts.stanford.edu/fhir/survey/heartRisk|1.0.0",
-          "status": "completed",
-          "authored": "2026-08-29T12:00:00-07:00",
-          "subject": {"reference": "Patient/participant"},
-          "item": [{"linkId": "bp", "item": [\(answers)]}]
-        }
-        """.utf8)
-    }
-
-    private static func pair(
-        systolic: Double = 118,
-        diastolic: Double? = 76
-    ) throws -> (Questionnaire, QuestionnaireResponse) {
-        (
-            try JSONDecoder().decode(Questionnaire.self, from: instrumentJSON),
-            try JSONDecoder().decode(QuestionnaireResponse.self, from: responseJSON(systolic: systolic, diastolic: diastolic))
-        )
-    }
-
-    @Test
-    func bloodPressureBuildsOneCorrelationWithTwoComponents() throws {
-        let (questionnaire, response) = try Self.pair()
-        let samples = try QuestionnaireHealthKitSampleProjection.samples(
-            questionnaire: questionnaire,
-            response: response
-        )
-        let correlation = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
-        #expect(correlation.correlationType == HKCorrelationType(.bloodPressure))
-        let values = Set(correlation.objects.compactMap { object in
-            (object as? HKQuantitySample)?.quantity.doubleValue(for: .millimeterOfMercury())
-        })
-        #expect(values == [118, 76])
-    }
-
-    @Test
-    func bloodPressureRefusesAnIncompleteComponentSet() throws {
-        let (questionnaire, response) = try Self.pair(diastolic: nil)
-        #expect(throws: ObservationExtractionError.answerMissing(linkID: "diastolic")) {
-            _ = try QuestionnaireHealthKitSampleProjection.samples(
-                questionnaire: questionnaire,
-                response: response
-            )
-        }
-    }
-
-    @Test
-    func unmarkedItemsNeverProject() throws {
-        var (questionnaire, response) = try Self.pair()
-        questionnaire.item?[0].extension = nil
-        let samples = try QuestionnaireHealthKitSampleProjection.samples(
-            questionnaire: questionnaire,
-            response: response
-        )
-        #expect(samples.isEmpty)
     }
 }

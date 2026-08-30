@@ -106,7 +106,7 @@ struct DeviceUsageFHIRExchangeTests {
             eventIdentifier: store.eventIdentifier(for: event),
             entryNodeIdentifierSystem: FHIRExchangeIdentifiers.entryNode,
             identityScope: store.identityScope(),
-            repositoryScope: store.repositoryScope(.sensorKit),
+            repositoryScope: store.repositoryScope(.sensorKit, subject: subject),
             visitLocationIdentifierSystem: FHIRExchangeIdentifiers.visitLocation,
             sourceIdentifierDisclosurePolicy: .authorized(
                 system: FHIRExchangeIdentifiers.sensorKitSourceRecord

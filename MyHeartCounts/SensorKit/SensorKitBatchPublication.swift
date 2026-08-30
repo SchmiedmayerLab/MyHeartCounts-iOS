@@ -114,7 +114,7 @@ struct SensorKitBatchPublication: Sendable {
                 eventIdentifier: stateStore.eventIdentifier(for: event),
                 entryNodeIdentifierSystem: FHIRExchangeIdentifiers.entryNode,
                 identityScope: stateStore.identityScope(),
-                repositoryScope: stateStore.repositoryScope(.sensorKit),
+                repositoryScope: stateStore.repositoryScope(.sensorKit, subject: subject),
                 visitLocationIdentifierSystem: FHIRExchangeIdentifiers.visitLocation,
                 sourceIdentifierDisclosurePolicy: .authorized(
                     system: FHIRExchangeIdentifiers.sensorKitSourceRecord

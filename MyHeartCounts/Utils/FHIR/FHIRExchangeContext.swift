@@ -11,6 +11,7 @@ import Darwin
 import Foundation
 import GroveFHIRContract
 import GroveHealthKitFHIR
+import GroveKeychainStorage
 import GroveLocalStorage
 import GroveSensorKit
 import GroveSensorKitFHIR
@@ -113,6 +114,7 @@ enum FHIRExchangeStateError: Error, Equatable {
     case invalidPersistedTimeZone(String)
     case unsupportedSchemaVersion(UInt)
     case staleAccountGeneration(captured: Int, current: Int)
+    case corruptIdentitySecret
 }
 
 
@@ -130,6 +132,7 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
         let schemaVersion: UInt
         let accountDataGeneration: Int
         let producerInstance: UUID
+        // Superseded by FHIRExchangeIdentitySecret; kept so schema 0 ledgers still decode.
         let identityKey: Data
         var nextEventSequence: UInt64
         var events: [String: PersistedFHIRExchangeEvent]
@@ -160,7 +163,22 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
         case memory(MemoryBackend)
     }
 
+    final class SecretMemoryBackend: Sendable {
+        let secret = Mutex<FHIRExchangeIdentitySecret?>(nil)
+    }
+
+    enum SecretBackend: Sendable {
+        case keychain(KeychainStorage)
+        case memory(SecretMemoryBackend)
+    }
+
+    static let identitySecretTag = CredentialsTag.genericPassword(
+        forService: "edu.stanford.MyHeartCounts.fhirExchangeIdentity",
+        storage: .keychainSynchronizable(accessGroup: nil)
+    )
+
     private let backend: Backend
+    let secrets: SecretBackend
     private let accountDataGeneration: Int
 
     #if DEBUG
@@ -178,6 +196,7 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
 
     init(localStorage: LocalStorage, accountDataGeneration: Int) {
         self.backend = .encrypted(localStorage)
+        self.secrets = .keychain(KeychainStorage())
         self.accountDataGeneration = accountDataGeneration
     }
 
@@ -185,6 +204,7 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
     /// An isolated in-memory store for unit tests that do not load the app's dependency graph.
     init(accountDataGeneration: Int = 0) {
         self.backend = .memory(MemoryBackend(nil))
+        self.secrets = .memory(SecretMemoryBackend())
         self.accountDataGeneration = accountDataGeneration
     }
 
@@ -193,11 +213,21 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
             accountDataGeneration: accountDataGeneration,
             schemaVersion: testingSchemaVersion
         )))
+        self.secrets = .memory(SecretMemoryBackend())
         self.accountDataGeneration = accountDataGeneration
     }
 
-    private init(memoryBackend: MemoryBackend, accountDataGeneration: Int) {
+    /// A fresh in-memory ledger that shares another store's identity secret, as a second
+    /// device on the same Apple Account would.
+    init(accountDataGeneration: Int = 0, secretsSharedWith other: FHIRExchangeStateStore) {
+        self.backend = .memory(MemoryBackend(nil))
+        self.secrets = other.secrets
+        self.accountDataGeneration = accountDataGeneration
+    }
+
+    private init(memoryBackend: MemoryBackend, secrets: SecretBackend, accountDataGeneration: Int) {
         self.backend = .memory(memoryBackend)
+        self.secrets = secrets
         self.accountDataGeneration = accountDataGeneration
     }
 
@@ -207,6 +237,7 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
         }
         return FHIRExchangeStateStore(
             memoryBackend: backend,
+            secrets: secrets,
             accountDataGeneration: accountDataGeneration
         )
     }
@@ -317,6 +348,10 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
         "healthkit|\(subject.identity.systemValue)|\(subject.identity.value)|\(sourceType)|\(nativeRecordID.uuidString.lowercased())"
     }
 
+    func questionnaireEventKey(subject: FHIRExchangeSubject, responseID: String) -> String {
+        "questionnaire|\(subject.identity.systemValue)|\(subject.identity.value)|\(responseID)"
+    }
+
     func sensorKitBatchKey(
         subject: FHIRExchangeSubject,
         acquisitionBatch: SensorKit.AcquisitionBatchCoordinate,
@@ -345,23 +380,6 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
         )
     }
 
-    func identityScope() throws -> PseudonymousIdentityScope {
-        let state = try stateSnapshot()
-        return try PseudonymousIdentityScope(
-            systems: FHIRExchangeIdentifiers.pseudonymousSystems,
-            keyID: "installation",
-            epoch: 1,
-            key: state.identityKey
-        )
-    }
-
-    func repositoryScope(_ source: FHIRExchangeIdentifiers.SourceRepository) throws -> BusinessIdentifier {
-        let state = try stateSnapshot()
-        return try BusinessIdentifier(
-            system: FHIRExchangeIdentifiers.repository,
-            value: "\(source.rawValue):\(state.producerInstance.uuidString.lowercased())"
-        )
-    }
 
     /// Reads stable installation facts without rewriting the encrypted ledger.
     ///

@@ -58,7 +58,7 @@ extension FHIRExchangeStateStore {
                 eventIdentifier: eventIdentifier(for: event),
                 entryNodeIdentifierSystem: FHIRExchangeIdentifiers.entryNode,
                 identityScope: identityScope(),
-                repositoryScope: repositoryScope(.healthKit),
+                repositoryScope: repositoryScope(.healthKit, subject: subject),
                 sourceActor: .application,
                 converterWasGateway: true,
                 conversionInstant: event.recordedAt,
