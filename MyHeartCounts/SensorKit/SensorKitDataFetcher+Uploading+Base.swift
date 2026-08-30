@@ -8,80 +8,76 @@
 
 @preconcurrency import FirebaseFirestore
 import Foundation
+import GroveFHIRContract
 import GroveFirestore
 import GroveSensorKit
 import GroveSensorKitFHIR
 
 
+struct SensorKitUploadSidecar: Sendable {
+    let data: Data
+    let format: RegisteredRecordingFormat
+}
+
+
 extension MHCSensorSampleUploadStrategy {
+    /// Publishes one Grove-prepared SensorKit record through MHC's storage backend.
+    ///
+    /// Grove owns the exact payload bytes and FHIR projection. MHC owns the durable sidecar upload,
+    /// Firestore destination, and retry acknowledgement boundary.
     func upload( // swiftlint:disable:this function_parameter_count
-        data: consuming Data,
+        sidecar: SensorKitUploadSidecar?,
+        retryEvidence: Data,
         for sensor: Sensor<Sample>,
-        effectiveTimeRange: Swift.Range<Date>,
         publication: SensorKitBatchPublication,
         to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity,
         recordOrdinal: Int = 0,
-        retryEvidence: Data? = nil,
-        makeStructuredRecord: (
-            (SensorKitSourceRecordID, SensorKitNativeRecording) throws -> SensorKitRecord?
-        )? = nil
+        makeRecord: (
+            _ sourceRecordID: SensorKitSourceRecordID,
+            _ title: String,
+            _ sidecarPath: String?
+        ) throws -> SensorKitRecord
     ) async throws {
         let reservation = try publication.reserve(
             recordOrdinal: recordOrdinal,
-            evidence: retryEvidence ?? data
+            evidence: retryEvidence
         )
-        let filename = "\(reservation.sourceRecordID.value).\(try publication.stream.fileExtension)"
-        let title = "\(sensor.displayName) "
-            + "\(effectiveTimeRange.lowerBound.ISO8601Format())_\(effectiveTimeRange.upperBound.ISO8601Format())"
-        let sidecarPath = "\(ManagedFileUpload.Category(sensor).firebasePath)/\(filename)"
-        activity.updateMessage("Creating Recording Document")
-        let conversion: SensorKitConversion
-        if let makeStructuredRecord {
-            let recording = try SensorKitNativeRecording(
-                title: title,
-                format: try publication.stream.recordingFormat,
-                payload: .sidecar(path: sidecarPath, bytes: data),
-                admission: .callerAuthorizedOpaquePayload
-            )
-            if let record = try makeStructuredRecord(reservation.sourceRecordID, recording) {
-                conversion = try SensorKitGroveRecording.convert(record, reservation: reservation)
-            } else {
-                conversion = try SensorKitGroveRecording.raw(
-                    payload: data,
-                    reservation: reservation,
-                    stream: publication.stream,
-                    sidecarPath: sidecarPath,
-                    title: title,
-                    effectiveTimeRange: effectiveTimeRange
-                )
+        // Presentation only: the record's identity travels as the typed Identifier, never a label.
+        let title = sensor.displayName
+        let filename = sidecar.map {
+            "\(reservation.sourceRecordID.value).\($0.format.fileExtension)"
+        }
+        let sidecarPath = filename.map {
+            ManagedFileUpload.Category(sensor).remotePath(for: $0)
+        }
+        let record = try makeRecord(reservation.sourceRecordID, title, sidecarPath)
+        let conversion = try SensorKitConverter().convert(record, context: reservation.context)
+
+        if let sidecar, let filename {
+            // Conversion validates the complete graph before the referenced exact bytes become
+            // durably staged. Registered SensorKit payloads remain uncompressed.
+            let url = URL.temporaryDirectory.appending(component: filename)
+            try sidecar.data.write(to: url, options: .atomic)
+            defer {
+                try? FileManager.default.removeItem(at: url)
             }
-        } else {
-            conversion = try SensorKitGroveRecording.raw(
-                payload: data,
-                reservation: reservation,
-                stream: publication.stream,
-                sidecarPath: sidecarPath,
-                title: title,
-                effectiveTimeRange: effectiveTimeRange
+            activity.updateMessage("Submitting for upload")
+            try await standard.uploadSensorKitFile(
+                at: url,
+                for: sensor,
+                accountDataGeneration: publication.destination.accountDataGeneration
             )
         }
 
-        // Conversion validates the complete graph before its referenced exact bytes become durably staged.
-        // The registered format describes these bytes, so the sidecar remains uncompressed.
-        let url = URL.temporaryDirectory.appending(component: filename)
-        try data.write(to: url, options: .atomic)
-        activity.updateMessage("Submitting for upload")
-        // Note: this waits until the upload is durably scheduled (i.e., the file is in the upload module's custody),
-        // not until the file has actually been uploaded. If the scheduling fails, we abort (and in particular don't
-        // write the reference doc below, which would otherwise point to a file that will never exist).
-        try await standard.uploadSensorKitFile(at: url, for: sensor)
-
-        // Do not introduce a cancellation point here: the sidecar is now durably staged, so its one
+        // Do not introduce a cancellation point here: once a sidecar is durably staged, its one
         // complete Bundle must be persisted before the anchored batch may be acknowledged.
-        try await standard.firebaseConfiguration.userDocumentReference
-            .collection("HealthObservations_\(sensor.id)")
-            .document(reservation.sourceRecordID.value)
-            .setData(from: conversion.bundle)
+        let document = try MyHeartCountsStandard.healthObservationDocument(
+            forSampleType: sensor.id,
+            id: reservation.sourceRecordID.value,
+            destination: publication.destination
+        )
+        let encoded = try Firestore.Encoder().encode(conversion.bundle)
+        try await document.setData(encoded)
     }
 }

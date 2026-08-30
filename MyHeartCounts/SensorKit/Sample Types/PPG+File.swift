@@ -9,7 +9,7 @@
 import Foundation
 import GroveFoundation
 import GroveSensorKit
-import ModelsR4
+import GroveSensorKitFHIR
 import MyHeartCountsShared
 import NIOCore
 import NIOFoundationCompat
@@ -22,32 +22,53 @@ extension SRPhotoplethysmogramSample {
         
         func upload(
             _ samples: consuming some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
-            batchInfo: SensorKit.BatchInfo,
+            publication: SensorKitBatchPublication,
             for sensor: Sensor<SRPhotoplethysmogramSample>,
             to standard: MyHeartCountsStandard,
             activity: SensorKitDataFetcher.InProgressActivity
         ) async throws {
-            guard let firstSample = samples.first, let lastSample = samples.last else {
+            guard !samples.isEmpty else {
                 // nothing to do if samples is empty...
                 return
             }
-            let buffer = try BinaryEncoder.encode((consume samples).lazy.map { PPGSample($0.sample) })
+            let records = samples.map { PPGSample($0.sample) }
+            let measurementInstants = records.flatMap { record -> [Date] in
+                let offsets = [record.nanosecondsSinceStart]
+                    + record.opticalSamples.map(\.nanosecondsSinceStart)
+                    + record.accelerometerSamples.map(\.nanosecondsSinceStart)
+                return offsets.map {
+                    record.startDate.addingTimeInterval(Double($0) / 1_000_000_000)
+                }
+            }
+            guard let coverageStart = measurementInstants.min(),
+                  let coverageEnd = measurementInstants.max() else {
+                throw SensorKitUploadError.invalidCoverage
+            }
+            let opticalSampleCount = records.lazy.map(\.opticalSamples.count).reduce(0, +)
+            let accelerometerSampleCount = records.lazy.map(\.accelerometerSamples.count).reduce(0, +)
+            let buffer = try BinaryEncoder.encode(records)
             guard let data = buffer.getData(at: buffer.readerIndex, length: buffer.readableBytes, byteTransferStrategy: .noCopy) else {
                 // should probably be unreachable
                 assertionFailure("Failed to retrieve Data for encoded PPG samples")
                 return
             }
-            // SensorKit returns PPG samples ordered by startDate; the occasional out-of-order sample
-            // has been off by under a hundredth of a second, so the batch endpoints stand.
             try await self.upload(
                 data: data,
                 for: sensor,
-                deviceInfo: batchInfo.device,
-                effectiveTimeRange: firstSample.startDate..<lastSample.startDate,
+                effectiveTimeRange: coverageStart..<coverageEnd,
+                publication: publication,
                 to: standard,
-                documentName: "\(batchInfo.timeRange.lowerBound.ISO8601Format())_\(batchInfo.timeRange.upperBound.ISO8601Format())",
                 activity: activity
-            )
+            ) { sourceRecordID, nativeRecording in
+                .ppg(SensorKitPPGRecord(
+                    sourceRecordID: sourceRecordID,
+                    coverage: DateInterval(start: coverageStart, end: coverageEnd),
+                    recordCount: records.count,
+                    opticalSampleCount: opticalSampleCount,
+                    accelerometerSampleCount: accelerometerSampleCount,
+                    nativeRecording: nativeRecording
+                ))
+            }
         }
     }
 }

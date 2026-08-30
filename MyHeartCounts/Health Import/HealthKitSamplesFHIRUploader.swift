@@ -14,7 +14,7 @@ import GroveHealthKitFHIR
 
 
 struct HealthKitSamplesFHIRUploader: BatchProcessor {
-    typealias Output = Void
+    typealias Output = HealthKitFHIRReservationReceipt
 
     enum ProcessingError: Error {
         case missingStandard
@@ -22,21 +22,34 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
 
     let standard: MyHeartCountsStandard?
 
-    func process<Sample>(_ samples: consuming [Sample], of sampleType: SampleType<Sample>) async throws {
+    func process<Sample>(
+        _ samples: consuming [Sample],
+        of sampleType: SampleType<Sample>
+    ) async throws -> HealthKitFHIRReservationReceipt {
         guard !samples.isEmpty else {
-            return
+            return HealthKitFHIRReservationReceipt()
         }
-        try await storeSamples(samples, of: sampleType)
+        return try await storeSamples(samples, of: sampleType)
     }
 
-    private func storeSamples<Sample>(_ samples: consuming [Sample], of sampleType: SampleType<Sample>) async throws {
+    private func storeSamples<Sample>( // swiftlint:disable:this function_body_length
+        _ samples: consuming [Sample],
+        of sampleType: SampleType<Sample>
+    ) async throws -> HealthKitFHIRReservationReceipt {
         guard let standard else {
             throw ProcessingError.missingStandard
+        }
+        let preferences = LocalPreferencesStore.standard
+        let accountDataGeneration = preferences[.accountDataGeneration]
+        guard !preferences[.pendingAccountDataCleanupRequired] else {
+            throw FHIRExchangeDestinationError.accountChanged
         }
         let subject = try await standard.firebaseConfiguration.fhirExchangeSubject
         let healthKit = await standard.healthKit
         let conversionInstant = Date.now
-        let stateStore = await standard.fhirExchangeStateStore
+        let stateStore = await standard.fhirExchangeStateStore(
+            accountDataGeneration: accountDataGeneration
+        )
         var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
         for sample in consume samples {
             try Task.checkCancellation()
@@ -57,11 +70,10 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
             }
         }
         guard !entries.isEmpty else {
-            return
+            return HealthKitFHIRReservationReceipt(stateStore: stateStore, entries: entries)
         }
         entries.sort(by: healthUploadEntryPrecedes)
         let sourceIDs = entries.map(\.sourceID)
-        let eventKeys = entries.compactMap(\.eventKey)
         let resources = entries.map(\.resource)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -78,12 +90,16 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
             try? FileManager.default.removeItem(at: compressedUrl)
         }
 
-        // Staging is durable and cancellation-safe; the event ledger is completed only afterwards.
-        try await standard.stageHistoricalHealthKitFile(at: compressedUrl)
-        do {
-            try stateStore.completeHealthKitEvents(eventKeys)
-        } catch {
-            await standard.logger.error("Could not clean durable HealthKit FHIR event state: \(error)")
-        }
+        // Staging is durable and cancellation-safe. Grove releases these retry reservations only
+        // after it has durably marked the source batch descriptor complete.
+        try await standard.stageHistoricalHealthKitFile(
+            at: compressedUrl,
+            accountDataGeneration: accountDataGeneration
+        )
+        return HealthKitFHIRReservationReceipt(stateStore: stateStore, entries: entries)
+    }
+
+    func didPersist(_ output: HealthKitFHIRReservationReceipt) async {
+        output.completeAfterSourceAcknowledgement()
     }
 }

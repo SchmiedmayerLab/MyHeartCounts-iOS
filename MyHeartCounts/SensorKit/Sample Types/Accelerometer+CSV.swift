@@ -7,10 +7,10 @@
 //
 
 import CoreMotion
+import Foundation
 import GroveFHIRContract
 import GroveSensorKit
 import GroveSensorKitFHIR
-import MyHeartCountsShared
 
 
 extension CMRecordedAccelerometerData.SafeRepresentation: CSVAppendableSensorSample {
@@ -25,5 +25,25 @@ extension CMRecordedAccelerometerData.SafeRepresentation: CSVAppendableSensorSam
             .number(acceleration.y),
             .number(acceleration.z)
         ]
+    }
+
+    var recordingBatchIdentifier: UInt64? {
+        identifier
+    }
+
+    static func structuredGroveRecord(
+        sourceRecordID: SensorKitSourceRecordID,
+        coverage: DateInterval,
+        sampleCount: Int,
+        batchCount: Int,
+        nativeRecording: SensorKitNativeRecording
+    ) -> SensorKitRecord? {
+        .accelerometer(SensorKitAccelerometerRecord(
+            sourceRecordID: sourceRecordID,
+            coverage: coverage,
+            sampleCount: sampleCount,
+            batchCount: batchCount,
+            nativeRecording: nativeRecording
+        ))
     }
 }

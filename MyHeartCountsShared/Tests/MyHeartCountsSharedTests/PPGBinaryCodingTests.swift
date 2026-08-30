@@ -20,6 +20,40 @@ struct PPGBinaryCodingTests {
         let decoded = try BinaryDecoder.decode([PPGSample].self, from: encoded)
         #expect(decoded == samples)
     }
+
+    @Test
+    func registeredBinaryRetainsLegacyFloatingPointOrder() throws {
+        let sample = PPGSample(
+            startDate: Date(timeIntervalSince1970: 1),
+            nanosecondsSinceStart: 0,
+            usage: [],
+            opticalSamples: [],
+            accelerometerSamples: [],
+            temperature: nil
+        )
+        let encoded = try BinaryEncoder.encode([sample])
+        #expect(encoded.getBytes(at: 1, length: 8) == [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f])
+        #expect(try BinaryDecoder.decode([PPGSample].self, from: encoded) == [sample])
+    }
+
+    @Test
+    func photodiodeIndexesHaveCanonicalOrder() throws {
+        let sample = PPGSample.OpticalSample(
+            emitter: 1,
+            activePhotodiodeIndexes: [3, 1, 2],
+            signalIdentifier: 0,
+            nominalWavelength: 525,
+            effectiveWavelength: 525,
+            samplingFrequency: 128,
+            nanosecondsSinceStart: 0,
+            conditions: [],
+            noiseTerms: nil,
+            normalizedReflectance: nil
+        )
+        let encoded = try BinaryEncoder.encode(sample)
+        #expect(encoded.getBytes(at: 0, length: 5) == [1, 3, 1, 2, 3])
+        #expect(try BinaryDecoder.decode(PPGSample.OpticalSample.self, from: encoded) == sample)
+    }
     
     @Test
     func encodeAndDecodeJSON() throws {

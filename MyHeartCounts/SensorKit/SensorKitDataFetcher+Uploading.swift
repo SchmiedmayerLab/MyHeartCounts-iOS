@@ -17,7 +17,7 @@ protocol MHCSensorSampleUploadStrategy<Sample>: Sendable {
     
     func upload(
         _ samples: consuming some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
-        batchInfo: SensorKit.BatchInfo,
+        publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
         to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity

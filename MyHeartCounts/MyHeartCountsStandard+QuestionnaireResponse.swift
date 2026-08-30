@@ -6,36 +6,78 @@
 // SPDX-License-Identifier: MIT
 //
 
-import FHIRModelsExtensions
 @preconcurrency import FirebaseFirestore
 import Grove
+import GroveFHIRContract
+import GroveFoundation
 import GroveHealthKit
+import GroveQuestionnaire
+import GroveQuestionnaireFHIR
 import ModelsR4
 import MyHeartCountsShared
 import OSLog
 
 
+/// Converts the main-actor questionnaire state before crossing into the app's Standard actor.
+@MainActor
+func submitQuestionnaire(
+    _ responses: GroveQuestionnaire.QuestionnaireResponses,
+    to standard: MyHeartCountsStandard,
+    authored: Date = .now,
+    authoredTimeZone: TimeZone = .current
+) async throws {
+    let submission = try await standard.questionnaireSubmissionContext()
+    let writerContext = try QuestionnaireResponseWriterContext.current()
+    let pair = try ResourceBuilder().pair(
+        from: responses,
+        subject: submission.subject.reference,
+        author: submission.subject.reference,
+        responseSource: submission.subject.reference,
+        authored: authored,
+        authoredTimeZone: authoredTimeZone
+    )
+    var response = pair.response
+    response.apply(writerContext: writerContext)
+    try await standard.add(response, destination: submission.destination)
+}
+
+
+struct QuestionnaireSubmissionContext: Sendable {
+    let subject: FHIRExchangeSubject
+    let destination: FHIRExchangeDestination
+}
+
+
 extension MyHeartCountsStandard {
-    // periphery:ignore:parameters isolation
-    func add(
-        isolation: isolated (any Actor)? = #isolation,
-        _ response: ModelsR4.QuestionnaireResponse,
-        for questionnaire: ModelsR4.Questionnaire
-    ) async {
-        // shouldn't be necessary, but we had some issues with these not being properly set
-        var response = response
-        response.questionnaire = questionnaire.url?.value?.url.absoluteString.asFHIRCanonicalPrimitive()
-        response.append(extension: .mhcAppRevision, behaviour: .replace)
-        let logger = await self.logger
-        let id = response.identifier?.value?.value?.string ?? UUID().uuidString
-        do {
-            try await firebaseConfiguration.userDocumentReference
-                .collection("questionnaireResponses")
-                .document(id)
-                .setData(from: response)
-        } catch {
-            logger.error("Could not store questionnaire response: \(error)")
+    func questionnaireSubmissionContext() async throws -> QuestionnaireSubmissionContext {
+        let preferences = LocalPreferencesStore.standard
+        let generation = preferences[.accountDataGeneration]
+        guard !preferences[.pendingAccountDataCleanupRequired] else {
+            throw FHIRExchangeDestinationError.accountChanged
         }
+        let subject = try await firebaseConfiguration.fhirExchangeSubject
+        let destination = FHIRExchangeDestination(
+            accountDataGeneration: generation,
+            accountID: subject.identity.value
+        )
+        try destination.validateCurrentAccount()
+        return QuestionnaireSubmissionContext(subject: subject, destination: destination)
+    }
+
+    func add(
+        _ response: ModelsR4.QuestionnaireResponse,
+        destination: FHIRExchangeDestination
+    ) async throws {
+        guard let id = response.identifier?.value?.value?.string else {
+            throw ContractError.incompleteResponseIdentifier
+        }
+        try destination.validateCurrentAccount()
+        let document = FirebaseConfiguration.usersCollection
+            .document(destination.accountID)
+            .collection("questionnaireResponses")
+            .document(id)
+        let data = try Firestore.Encoder().encode(response)
+        try await document.setData(data)
         await parseIfApplicable(response)
         if let timestamp = try? response.authored?.value?.asNSDate() {
             await achievementsManager?.record(.completeQuestionnaire, timestamp: timestamp)
@@ -49,7 +91,7 @@ extension MyHeartCountsStandard {
         _ response: ModelsR4.QuestionnaireResponse
     ) async {
         typealias Rule = QuestionnaireDataExtractor.Rule
-        switch response.questionnaire?.value?.url {
+        switch response.questionnaireCanonicalBaseURL {
         case "https://myheartcounts.stanford.edu/fhir/survey/heartRisk":
             await processSurvey(response: response, rules: [
                 Rule.bloodPressure(

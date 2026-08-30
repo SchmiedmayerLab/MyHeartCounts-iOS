@@ -46,26 +46,26 @@ extension TimedWalkingTestResult {
             observation.append(coding: Coding(code: LOINC.phenXSixMinuteWalkTest))
             observation.append(component: .init(
                 code: LOINC.sixMinuteWalkTest,
-                quantityUnit: "m",
+                quantityUnit: .ucum(code: "m"),
                 quantityValue: distanceCovered
             ))
         }
         observation.append(coding: Coding(code: LOINC.pedometerTrackingPanel))
         observation.append(component: .init(
             code: LOINC.pedometerNumStepsInUnspecifiedTime,
-            quantityUnit: "count",
+            quantityUnit: .ucum(code: "{count}", display: "count"),
             quantityValue: Double(numberOfSteps)
         ))
         observation.append(component: .init(
             code: LOINC.pedometerWalkingDistanceInUnspecifiedTime,
-            quantityUnit: "m",
+            quantityUnit: .ucum(code: "m"),
             quantityValue: distanceCovered
         ))
         // we also append the duration and the activity type
         // in the case of the six-minute walk test, this is redundant, but for all other cases it's important.
         observation.append(component: .init(
             code: LOINC.exerciseDuration,
-            quantityUnit: "min",
+            quantityUnit: .ucum(code: "min"),
             quantityValue: test.duration.timeInterval / 60
         ))
         observation.append(component: .init(
@@ -82,7 +82,6 @@ extension TimedWalkingTestResult {
         for builder in extensions {
             try builder.apply(typeErasedInput: self, to: &observation)
         }
-        observation.addMHCAppAsSource()
         return observation
     }
 }

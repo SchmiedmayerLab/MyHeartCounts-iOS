@@ -6,39 +6,71 @@
 // SPDX-License-Identifier: MIT
 //
 
-import FHIRModelsExtensions
 import Foundation
 import GroveFHIRContract
-import GroveHealthKit
 import GroveHealthKitFHIR
 import HealthKit
-import ModelsR4
 
 
-extension FirebaseConfiguration {
-    /// The participant every converted resource is about.
-    @MainActor var subjectReference: Reference {
-        get throws(ConfigurationError) {
-            Reference(reference: "Patient/\(try accountId)".asFHIRStringPrimitive())
-        }
-    }
+struct HealthKitConversionReservation: Sendable {
+    let eventKey: String
+    let context: HealthKitConversionContext
 }
 
 
-extension HealthKitConversionContext {
-    /// The namespace the deployment owns for the graph nodes an export mints.
-    static let graphIdentifierSystem: IdentifierSystem = "https://myheartcounts.stanford.edu/fhir/healthkit/graph"
-
-    /// The conversion context for the enrolled participant.
-    static func mhc(subject: Reference, conversionInstant: Date = .now) -> Self {
-        Self(
+extension FHIRExchangeStateStore {
+    /// Reserves and reconstructs the complete deterministic context for one HealthKit source version.
+    func healthKitConversion(
+        for sample: HKSample,
+        subject: FHIRExchangeSubject,
+        conversionInstant: Date
+    ) throws -> HealthKitConversionReservation {
+        let eventKey = healthKitEventKey(
             subject: subject,
-            graphIdentifierSystem: graphIdentifierSystem,
-            conversionInstant: conversionInstant,
-            sourceRevisionDisclosurePolicy: .authorized,
-            researchStudies: MyHeartCountsStandard.currentEnrollmentInfo.map {
-                [Reference(reference: "ResearchStudy/\($0.studyId)".asFHIRStringPrimitive())]
-            } ?? []
+            sourceType: sample.sampleType.identifier,
+            nativeRecordID: sample.uuid
+        )
+        let application = HealthKitApplication.main
+        let host = FHIRExchangeRuntimeFacts.host
+        let event = try event(
+            key: eventKey,
+            recordedAt: conversionInstant,
+            facts: FHIRExchangeEventFacts(
+                applicationToken: application.bundleIdentifier,
+                applicationName: application.name,
+                applicationVersion: application.version,
+                applicationBuild: application.build,
+                hostToken: host.sourceDeviceToken,
+                hostOperatingSystemVersion: host.operatingSystemVersion,
+                hostName: host.name,
+                hostManufacturer: host.manufacturer,
+                hostModelNumber: host.modelNumber,
+                researchStudyIDs: FHIRExchangeIdentifiers.currentResearchStudyIDs()
+            )
+        )
+        return try HealthKitConversionReservation(
+            eventKey: eventKey,
+            context: HealthKitConversionContext(
+                subject: subject.reference,
+                subjectIdentity: subject.identity,
+                converter: event.healthKitApplication,
+                converterHost: event.healthKitHost,
+                eventIdentifier: eventIdentifier(for: event),
+                entryNodeIdentifierSystem: FHIRExchangeIdentifiers.entryNode,
+                identityScope: identityScope(),
+                repositoryScope: repositoryScope(.healthKit),
+                sourceActor: .application,
+                converterWasGateway: true,
+                conversionInstant: event.recordedAt,
+                recordingDeviceStableUnitToken: sample.device?.localIdentifier,
+                udiDisclosurePolicy: .omit,
+                nativeIdentifierDisclosurePolicy: .authorized(
+                    system: FHIRExchangeIdentifiers.healthKitNativeRecord
+                ),
+                routeDisclosurePolicy: .omit,
+                protocolCanonical: nil,
+                researchStudies: FHIRExchangeIdentifiers.researchStudyReferences(for: event.researchStudyIDs)
+            )
         )
     }
 }

@@ -11,7 +11,6 @@ import Foundation
 import GroveHealthKit
 import GroveHealthKitFHIR
 import HealthKit
-import ModelsDSTU2
 import ModelsR4
 import MyHeartCountsShared
 
@@ -25,13 +24,67 @@ protocol HealthObservation: Sendable { // might want to rename this (@lukas); th
 
 /// A health observation whose FHIR representation My Heart Counts builds itself.
 ///
-/// Covers only what no Grove adapter models: the app's own active-task results and the SensorKit
-/// streams Grove admits as raw recordings.
+/// Covers only app-produced observations for which no Grove adapter exists, such as active-task
+/// results and dashboard measurements. SensorKit exchange uses the Grove SensorKit adapters.
 protocol SelfModelledHealthObservation: HealthObservation {
     func resource(
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ModelsR4.ResourceProxy
+}
+
+
+struct PreparedHealthObservationFHIRPayload {
+    struct Entry {
+        let resource: AnyEncodable
+        let sourceID: UUID
+        let sourceTypeIdentifier: String
+        let eventKey: String?
+    }
+
+    let entries: [Entry]
+}
+
+
+/// Retry-only event reservations released only after Grove commits the corresponding source cursor.
+struct HealthKitFHIRReservationReceipt: Sendable {
+    let eventKeys: Set<String>
+    private let stateStore: FHIRExchangeStateStore?
+
+    var anchorCommitAction: HealthKitAnchorCommitAction? {
+        guard let stateStore, !eventKeys.isEmpty else {
+            return nil
+        }
+        let eventKeys = eventKeys
+        return HealthKitAnchorCommitAction {
+            try? stateStore.completeHealthKitEvents(eventKeys)
+        }
+    }
+
+    init() {
+        self.stateStore = nil
+        self.eventKeys = []
+    }
+
+    init(
+        stateStore: FHIRExchangeStateStore,
+        eventKeys: some Sequence<String>
+    ) {
+        self.stateStore = stateStore
+        self.eventKeys = Set(eventKeys)
+    }
+
+    init(
+        stateStore: FHIRExchangeStateStore,
+        entries: some Sequence<PreparedHealthObservationFHIRPayload.Entry>
+    ) {
+        self.init(stateStore: stateStore, eventKeys: entries.compactMap(\.eventKey))
+    }
+
+    /// Cleanup is best-effort and idempotent: the source cursor is already durable at this point.
+    func completeAfterSourceAcknowledgement() {
+        try? stateStore?.completeHealthKitEvents(eventKeys)
+    }
 }
 
 
@@ -58,59 +111,146 @@ extension TimedWalkingTestResult: SelfModelledHealthObservation {
 // MARK: Utils
 
 extension HealthObservation {
+    private static func preparedEntry(
+        bundle: ModelsR4.Bundle,
+        sourceID: UUID,
+        sourceTypeIdentifier: String,
+        eventKey: String,
+        postprocess: (inout FHIRResource) throws -> Void
+    ) throws -> PreparedHealthObservationFHIRPayload.Entry {
+        var resource = FHIRResource(bundle)
+        try postprocess(&resource)
+        return PreparedHealthObservationFHIRPayload.Entry(
+            resource: AnyEncodable(resource.encodableUnderlyingResource),
+            sourceID: sourceID,
+            sourceTypeIdentifier: sourceTypeIdentifier,
+            eventKey: eventKey
+        )
+    }
+
+    private static func preparedEntries( // swiftlint:disable:this function_parameter_count
+        for sample: HKSample,
+        conversionInstant: Date,
+        subject: FHIRExchangeSubject,
+        stateStore: FHIRExchangeStateStore,
+        healthKit: HealthKit,
+        postprocess: @Sendable (inout FHIRResource) throws -> Void
+    ) async throws -> [PreparedHealthObservationFHIRPayload.Entry] {
+        let conversions = try await HealthKitConverter().convert(
+            sample,
+            using: healthKit
+        ) { sourceSample in
+            try stateStore.healthKitConversion(
+                for: sourceSample,
+                subject: subject,
+                conversionInstant: conversionInstant
+            ).context
+        }
+        return try conversions.all.map { conversion in
+            try Self.preparedEntry(
+                bundle: conversion.bundle,
+                sourceID: conversion.localSourceUUID,
+                sourceTypeIdentifier: conversion.localSourceTypeIdentifier,
+                eventKey: stateStore.healthKitEventKey(
+                    subject: subject,
+                    sourceType: conversion.localSourceTypeIdentifier,
+                    nativeRecordID: conversion.localSourceUUID
+                ),
+                postprocess: postprocess
+            )
+        }
+    }
+
+    private static func preparedEntry(
+        for observation: any SelfModelledHealthObservation,
+        conversionInstant: Date,
+        postprocess: (inout FHIRResource) throws -> Void
+    ) throws -> PreparedHealthObservationFHIRPayload.Entry {
+        let resourceProxy = try observation.resource(
+            issuedDate: FHIRPrimitive<ModelsR4.Instant>(try .init(date: conversionInstant)),
+            extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions
+        )
+        var resource = FHIRResource(resourceProxy.get())
+        try postprocess(&resource)
+        return PreparedHealthObservationFHIRPayload.Entry(
+            resource: AnyEncodable(resource.encodableUnderlyingResource),
+            sourceID: observation.id,
+            sourceTypeIdentifier: observation.sampleTypeIdentifier,
+            eventKey: nil
+        )
+    }
+
     /// Produces the FHIR payload persisted for this observation.
     ///
-    /// A HealthKit sample converts through the Grove HealthKit adapter, which yields a transaction
+    /// A HealthKit sample converts through the Grove HealthKit adapter, which yields an exchange
     /// Bundle holding the Observation, the recording and converting Devices, and the conversion
-    /// Provenance. Clinical records already are FHIR and are passed through. Everything else is
-    /// modelled by the app itself.
-    func turnIntoFHIRResource(
+    /// Provenance. Provider-issued clinical FHIR remains byte-preserved inside an R4 recording-
+    /// document graph. Everything without a Grove adapter is modelled by the app itself.
+    func prepareFHIRPayload( // swiftlint:disable:this function_body_length
         conversionInstant: Date,
-        subject: ModelsR4.Reference,
+        subject: FHIRExchangeSubject,
+        stateStore: FHIRExchangeStateStore,
         using healthKit: HealthKit,
         postprocess: @Sendable (inout FHIRResource) throws -> Void = { _ in }
-    ) async throws -> AnyEncodable {
-        var resource: FHIRResource
+    ) async throws -> PreparedHealthObservationFHIRPayload {
+        var entries: [PreparedHealthObservationFHIRPayload.Entry]
         switch self {
         case let record as HKClinicalRecord:
-            resource = try FHIRResource(record)
-            switch resource {
-            case .r4(let inner):
-                if var inner = inner as? any ModelsR4.DomainResource {
-                    inner.addSourceRevisionExtensions(for: record.sourceRevision)
-                    inner.addMHCAppRevision()
-                    resource = .r4(inner)
-                }
-            case .dstu2(let inner):
-                if var inner = inner as? any ModelsDSTU2.DomainResource {
-                    inner.addSourceRevisionExtensions(for: record.sourceRevision)
-                    inner.addMHCAppRevision()
-                    resource = .dstu2(inner)
-                }
-            }
-            try postprocess(&resource)
-            return AnyEncodable(resource)
+            let reservation = try stateStore.healthKitConversion(
+                for: record,
+                subject: subject,
+                conversionInstant: conversionInstant
+            )
+            let conversion = try HealthKitConverter().convert(record, context: reservation.context)
+            entries = [
+                try Self.preparedEntry(
+                    bundle: conversion.bundle,
+                    sourceID: record.uuid,
+                    sourceTypeIdentifier: record.sampleType.identifier,
+                    eventKey: reservation.eventKey,
+                    postprocess: postprocess
+                )
+            ]
+        case let document as HKCDADocumentSample:
+            let reservation = try stateStore.healthKitConversion(
+                for: document,
+                subject: subject,
+                conversionInstant: conversionInstant
+            )
+            let conversion = try HealthKitConverter().convert(document, context: reservation.context)
+            entries = [
+                try Self.preparedEntry(
+                    bundle: conversion.bundle,
+                    sourceID: document.uuid,
+                    sourceTypeIdentifier: document.sampleType.identifier,
+                    eventKey: reservation.eventKey,
+                    postprocess: postprocess
+                )
+            ]
         case let sample as HKSample:
-            let conversion = try await HealthKitConverter().convert(
-                sample,
-                using: healthKit,
-                context: .mhc(subject: subject, conversionInstant: conversionInstant)
+            entries = try await Self.preparedEntries(
+                for: sample,
+                conversionInstant: conversionInstant,
+                subject: subject,
+                stateStore: stateStore,
+                healthKit: healthKit,
+                postprocess: postprocess
             )
-            resource = FHIRResource(conversion.bundle)
         case let observation as any SelfModelledHealthObservation:
-            let resourceProxy = try observation.resource(
-                issuedDate: FHIRPrimitive<ModelsR4.Instant>(try .init(date: conversionInstant)),
-                extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions
-            )
-            resource = FHIRResource(resourceProxy.get())
+            entries = [
+                try Self.preparedEntry(
+                    for: observation,
+                    conversionInstant: conversionInstant,
+                    postprocess: postprocess
+                )
+            ]
         default:
             throw NSError(
                 mhcErrorCode: .unspecified,
                 localizedDescription: "No FHIR representation for '\(sampleTypeIdentifier)'"
             )
         }
-        try postprocess(&resource)
-        return AnyEncodable(resource.encodableUnderlyingResource)
+        return PreparedHealthObservationFHIRPayload(entries: entries)
     }
 }
 

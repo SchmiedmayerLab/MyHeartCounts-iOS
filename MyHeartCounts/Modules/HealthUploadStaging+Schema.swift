@@ -165,3 +165,47 @@ extension HealthUploadStaging {
         }
     }
 }
+
+
+// MARK: Query Models
+
+extension HealthUploadStaging {
+    struct PendingRecordKey: Decodable, FetchableRecord, Hashable {
+        enum Columns: String, CodingKey, ColumnExpression {
+            case sampleType
+            case sampleId
+        }
+
+        let sampleType: String
+        let sampleId: UUID
+
+        var databaseKey: [String: (any DatabaseValueConvertible)?] {
+            [
+                Columns.sampleType.name: sampleType,
+                Columns.sampleId.name: sampleId
+            ]
+        }
+    }
+
+    struct SampleTypeCount: Decodable, FetchableRecord {
+        enum Columns: String, CodingKey, ColumnExpression {
+            case sampleType
+            case count
+        }
+
+        let sampleType: String
+        let count: Int
+    }
+
+    struct SampleTypeStats {
+        let pendingUploads: [String: Int]
+        let pendingDeletions: [String: Int]
+    }
+
+    func fetchSampleTypeStats() throws -> SampleTypeStats? {
+        SampleTypeStats(
+            pendingUploads: try fetchSampleTypeCounts(for: PendingSampleRecord.self),
+            pendingDeletions: try fetchSampleTypeCounts(for: PendingDeletionRecord.self)
+        )
+    }
+}

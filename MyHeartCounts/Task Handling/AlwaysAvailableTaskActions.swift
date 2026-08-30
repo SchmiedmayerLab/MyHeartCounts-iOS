@@ -9,6 +9,7 @@
 // swiftlint:disable attributes function_body_length closure_body_length cyclomatic_complexity
 
 import GroveFoundation
+import GroveQuestionnaire
 import GroveScheduler
 import GroveStudy
 import MHCStudyDefinition
@@ -64,7 +65,7 @@ struct AlwaysAvailableTaskActions: DynamicProperty {
                                 .first?
                                 .studyBundle?
                                 .questionnaire(for: component.fileRef, in: studyManager.preferredLocale)?
-                                .id == questionnaire.id
+                                .url?.value?.url.absoluteString == questionnaire.metadata.url?.absoluteString
                         default:
                             false
                         }

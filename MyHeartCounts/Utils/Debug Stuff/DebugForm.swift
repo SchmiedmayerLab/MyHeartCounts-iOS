@@ -147,8 +147,19 @@ private struct DebugFormImpl: View {
             ForEach(options, id: \.self) { option in
                 Button(option) {
                     let fileRef = StudyBundle.FileReference(category: .questionnaire, filename: option, fileExtension: "json")
-                    if let questionnaire = studyManager.studyEnrollments.first?.studyBundle?.questionnaire(for: fileRef, in: .enUS) {
+                    guard let fhirQuestionnaire = studyManager.studyEnrollments.first?
+                        .studyBundle?
+                        .questionnaire(for: fileRef, in: .enUS) else {
+                        return
+                    }
+                    do {
+                        let questionnaire = try fhirQuestionnaire.groveQuestionnaire(
+                            evaluationInstant: .now,
+                            locale: .init(identifier: "en-US")
+                        )
                         performTask(.answerQuestionnaire(questionnaire), context: nil)
+                    } catch {
+                        logger.error("Unable to prepare debug Questionnaire: \(error)")
                     }
                 }
             }

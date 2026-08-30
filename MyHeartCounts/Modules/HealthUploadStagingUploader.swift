@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import CryptoKit
 import Foundation
 import GRDB
 import Grove
@@ -19,6 +20,45 @@ import struct ModelsR4.Instant
 import enum ModelsR4.ResourceProxy
 import MyHeartCountsShared
 import OSLog
+
+
+enum HealthUploadBatchFilename {
+    private static let digestByteCount = 12
+
+    static func make(
+        typePrefix: String,
+        identifiers: some Sequence<UUID>,
+        fileExtension: String
+    ) -> String {
+        let canonicalIdentifiers = identifiers
+            .map { $0.uuidString.lowercased() }
+            .sorted()
+            .joined(separator: "\n")
+        let digest = SHA256.hash(data: Data(canonicalIdentifiers.utf8))
+        let alphabet = Array("0123456789abcdef".utf8)
+        let keyBytes = digest.prefix(digestByteCount).flatMap { byte in
+            [alphabet[Int(byte >> 4)], alphabet[Int(byte & 0x0F)]]
+        }
+        let key = String(decoding: keyBytes, as: UTF8.self)
+        return "\(typePrefix)_\(key).\(fileExtension)"
+    }
+}
+
+
+func healthUploadEntryPrecedes(
+    _ lhs: PreparedHealthObservationFHIRPayload.Entry,
+    _ rhs: PreparedHealthObservationFHIRPayload.Entry
+) -> Bool {
+    let lhsID = lhs.sourceID.uuidString.lowercased()
+    let rhsID = rhs.sourceID.uuidString.lowercased()
+    if lhsID != rhsID {
+        return lhsID < rhsID
+    }
+    if lhs.sourceTypeIdentifier != rhs.sourceTypeIdentifier {
+        return lhs.sourceTypeIdentifier < rhs.sourceTypeIdentifier
+    }
+    return (lhs.eventKey ?? "") < (rhs.eventKey ?? "")
+}
 
 
 @Observable
@@ -187,7 +227,10 @@ final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, S
             LocalPreferencesStore.standard[.lastStagedHealthUploadDrain] = .now
         }
     }
+}
 
+
+extension HealthUploadStagingUploader {
     @concurrent
     private func drainPendingSamples(
         from healthUploadStaging: HealthUploadStaging,
@@ -215,17 +258,24 @@ final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, S
             guard !ProcessInfo.processInfo.isLowPowerModeEnabled else {
                 return false
             }
-            let jsonArray = try chunk.rows.jsonArrayData()
+            let rows = chunk.rows.sorted {
+                $0.sampleId.uuidString.lowercased() < $1.sampleId.uuidString.lowercased()
+            }
+            let jsonArray = try rows.jsonArrayData()
             let compressed = try (consume jsonArray).compressed(using: Zstd.self)
             try Task.checkCancellation()
             let url = URL.temporaryDirectory.appending(
-                path: "\(chunk.sampleType)_\(UUID().uuidString).json.zstd",
+                path: HealthUploadBatchFilename.make(
+                    typePrefix: chunk.sampleType,
+                    identifiers: rows.lazy.map(\.sampleId),
+                    fileExtension: "json.zstd"
+                ),
                 directoryHint: .notDirectory
             )
             defer {
                 try? FileManager.default.removeItem(at: url)
             }
-            try (consume compressed).write(to: url)
+            try (consume compressed).write(to: url, options: .atomic)
             try Task.checkCancellation()
             try await managedFileUpload.stage(url, category: .liveHealthUpload)
             try healthUploadStaging.remove(chunk)
@@ -235,7 +285,7 @@ final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, S
     }
 
     @concurrent
-    private func drainPendingDeletions(
+    private func drainPendingDeletions( // swiftlint:disable:this function_body_length
         from healthUploadStaging: HealthUploadStaging,
         to managedFileUpload: ManagedFileUpload,
         before processingCutoff: Date,
@@ -260,24 +310,33 @@ final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, S
             guard !ProcessInfo.processInfo.isLowPowerModeEnabled else {
                 return false
             }
-            let csvWriter = try CSVWriter(columns: ["sampleType", "sampleId", "timestamp"])
-            for (index, deletion) in chunk.rows.enumerated() {
+            let rows = chunk.rows.sorted {
+                $0.sampleId.uuidString.lowercased() < $1.sampleId.uuidString.lowercased()
+            }
+            var csvWriter = RecordingCSVWriter(columns: ["sampleType", "sampleId", "timestamp"])
+            for (index, deletion) in rows.enumerated() {
                 if index.isMultiple(of: 256) {
                     try Task.checkCancellation()
                 }
-                try csvWriter.appendRow(fields: [
-                    deletion.sampleType, deletion.sampleId, deletion.timestamp
-                ] as [any CSVWriter.FieldValue])
+                try csvWriter.append([
+                    .text(deletion.sampleType),
+                    .text(deletion.sampleId.uuidString),
+                    .timestamp(deletion.timestamp)
+                ])
             }
             let csvData = csvWriter.data()
             let url = URL.temporaryDirectory.appending(
-                path: "\(chunk.sampleType)_\(UUID().uuidString).csv.zstd",
+                path: HealthUploadBatchFilename.make(
+                    typePrefix: chunk.sampleType,
+                    identifiers: rows.lazy.map(\.sampleId),
+                    fileExtension: "csv.zstd"
+                ),
                 directoryHint: .notDirectory
             )
             defer {
                 try? FileManager.default.removeItem(at: url)
             }
-            try (consume csvData).compressed(using: Zstd.self).write(to: url)
+            try (consume csvData).compressed(using: Zstd.self).write(to: url, options: .atomic)
             try Task.checkCancellation()
             try await managedFileUpload.stage(url, category: .healthDeletions)
             try healthUploadStaging.remove(chunk)

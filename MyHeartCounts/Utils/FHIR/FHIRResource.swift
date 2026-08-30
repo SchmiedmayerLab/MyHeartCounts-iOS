@@ -7,10 +7,6 @@
 //
 
 import Foundation
-import GroveFHIR
-import GroveHealthKit
-import GroveHealthKitFHIR
-import HealthKit
 import ModelsDSTU2
 import ModelsR4
 
@@ -107,57 +103,6 @@ extension FHIRResource: Codable {
         case .r4(let resource):
             try container.encode("R4", forKey: .version)
             try container.encode(resource, forKey: .resource)
-        }
-    }
-}
-
-
-// MARK: Utils
-
-extension FHIRResource {
-    init(_ other: GroveFHIR.FHIRResource) {
-        switch other.versionedResource {
-        case .dstu2(let resource):
-            self = .dstu2(resource)
-        case .r4(let resource):
-            self = .r4(resource)
-        }
-    }
-}
-
-
-extension GroveFHIR.FHIRResource {
-    // periphery:ignore - API
-    init(_ other: FHIRResource) {
-        switch other {
-        case .dstu2(let resource):
-            self.init(versionedResource: .dstu2(resource), displayName: "")
-        case .r4(let resource):
-            self.init(versionedResource: .r4(resource), displayName: "")
-        }
-    }
-}
-
-
-extension FHIRResource {
-    /// Wraps the FHIR resource a clinical record already carries.
-    ///
-    /// Passed through in the release it was authored in; the Grove adapter does not convert these.
-    init(_ record: HKClinicalRecord) throws {
-        guard let fhirResource = record.fhirResource else {
-            throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing FHIR Resource")
-        }
-        let decoder = JSONDecoder()
-        switch fhirResource.fhirVersion.fhirRelease {
-        case .dstu2:
-            self = .dstu2(try decoder.decode(ModelsDSTU2.ResourceProxy.self, from: fhirResource.data).get())
-        case .r4:
-            self = .r4(try decoder.decode(ModelsR4.ResourceProxy.self, from: fhirResource.data).get())
-        default:
-            throw NSError(
-                mhcErrorCode: .unspecified,
-                localizedDescription: "Unsupported FHIR release '\(fhirResource.fhirVersion.stringRepresentation)'"
-            )
         }
     }
 }

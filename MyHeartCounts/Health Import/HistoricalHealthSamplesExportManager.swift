@@ -292,13 +292,4 @@ extension ManagedFileUpload.Category {
         title: "HealthKit Deletions",
         firebasePath: "healthDeletions"
     )
-    /// Documents HealthKit stores alongside a clinical record.
-    ///
-    /// They travel as sidecars rather than inlined: an institution's discharge summary or imaging
-    /// report is routinely larger than a resource should carry.
-    static let clinicalAttachments = Self(
-        id: "HealthKitUpload/clinicalAttachments",
-        title: "Clinical Record Attachments",
-        firebasePath: "clinicalAttachments"
-    )
 }

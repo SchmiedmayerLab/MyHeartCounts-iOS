@@ -11,7 +11,6 @@ import Foundation
 import GroveFirestore
 import GroveSensorKit
 import GroveSensorKitFHIR
-import ModelsR4
 import SensorKit
 
 
@@ -21,69 +20,85 @@ struct UploadStrategyECG: MHCSensorSampleUploadStrategy {
 
     func upload(
         _ samples: some RandomAccessCollection<SensorKitECGSession> & Sendable,
-        batchInfo: SensorKit.BatchInfo,
+        publication: SensorKitBatchPublication,
         for sensor: Sensor<SRElectrocardiogramSample>,
         to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity
     ) async throws {
-        let subject = try await standard.firebaseConfiguration.subjectReference
-        let collection = try await standard.firebaseConfiguration.userDocumentReference
+        let collection = FirebaseConfiguration.usersCollection
+            .document(publication.destination.accountID)
             .collection("HealthObservations_\(sensor.id)")
-        for session in samples {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        for (recordOrdinal, session) in samples.enumerated() {
             activity.updateMessage("Converting ECG session")
-            let payload = try JSONEncoder().encode(session.nativeBatches)
-            let recordID = session.groveRecordID
-            let filename = "\(recordID.uuidString).json"
-            let url = URL.temporaryDirectory.appending(component: filename)
-            try payload.write(to: url)
-            await standard.uploadSensorKitFile(at: url, for: sensor)
-
+            let payload = try encoder.encode(session.completeNativeEvidence)
+            let reservation = try publication.reserve(
+                recordOrdinal: recordOrdinal,
+                evidence: payload
+            )
+            let filename = "\(reservation.sourceRecordID.value).json"
             let conversion = try SensorKitGroveRecording.electrocardiogram(
                 session,
-                recordID: recordID,
+                reservation: reservation,
                 payload: payload,
-                sidecarPath: "\(ManagedFileUpload.Category(sensor).firebasePath)/\(filename)",
-                device: batchInfo.device,
-                subject: subject
+                sidecarPath: ManagedFileUpload.Category(sensor).remotePath(for: filename)
             )
-            try await collection.document(recordID.uuidString).setData(from: conversion.bundle)
+            let url = URL.temporaryDirectory.appending(component: filename)
+            try payload.write(to: url, options: .atomic)
+            defer {
+                try? FileManager.default.removeItem(at: url)
+            }
+            try await standard.uploadSensorKitFile(
+                at: url,
+                for: sensor,
+                accountDataGeneration: publication.destination.accountDataGeneration
+            )
+            try publication.destination.validateCurrentAccount()
+            let document = collection.document(reservation.sourceRecordID.value)
+            let encoded = try Firestore.Encoder().encode(conversion.bundle)
+            try await document.setData(encoded)
         }
     }
 }
 
 
 extension SensorKitECGSession {
-    struct NativeBatch: Encodable {
+    struct NativeEvidence: Encodable {
+        let sessionIdentifier: String
+        let sessionStates: [Int]
+        let batches: [EvidenceBatch]
+    }
+
+    struct EvidenceBatch: Encodable {
+        struct Sample: Encodable {
+            let flags: UInt
+            let microvolts: Double
+        }
+
         let offsetSeconds: TimeInterval
-        let microvolts: [Double]
+        let samples: [Sample]
     }
 
-    /// A producer-assigned identity derived from the session's own fields and samples.
+    /// Native-only evidence required alongside the structured ECG Observation.
     ///
-    /// SensorKit assigns no durable identifier of its own.
-    var groveRecordID: UUID {
-        var hasher = SensorKitSampleIDHasher()
-        hasher.combine(startDate)
-        hasher.combine(duration)
-        hasher.combine(frequency.value)
-        hasher.combine(batches.count)
-        for batch in batches {
-            hasher.combine(batch.offset)
-            hasher.combine(batch.samples.count)
-            for sample in batch.samples {
-                hasher.combine(sample.voltage.value)
+    /// Start time, duration, frequency, lead, guidance, and voltages are represented by the
+    /// Observation; this document preserves session identity/state, flags, and batch structure.
+    var completeNativeEvidence: NativeEvidence {
+        NativeEvidence(
+            sessionIdentifier: sessionIdentifier,
+            sessionStates: sessionStates.map(\.rawValue),
+            batches: batches.map { batch in
+                EvidenceBatch(
+                    offsetSeconds: batch.offset,
+                    samples: batch.samples.map { sample in
+                        EvidenceBatch.Sample(
+                            flags: sample.flags.rawValue,
+                            microvolts: sample.voltage.converted(to: .microvolts).value
+                        )
+                    }
+                )
             }
-        }
-        return hasher.finalize()
-    }
-
-    /// The exact per-batch voltages, in the units SensorKit reported them in.
-    var nativeBatches: [NativeBatch] {
-        batches.map { batch in
-            NativeBatch(
-                offsetSeconds: batch.offset,
-                microvolts: batch.samples.map { $0.voltage.converted(to: .microvolts).value }
-            )
-        }
+        )
     }
 }

@@ -8,11 +8,8 @@
 
 import Foundation
 import GroveFHIRContract
-import GroveFoundation
 import GroveSensorKit
 import GroveSensorKitFHIR
-import ModelsR4
-import MyHeartCountsShared
 
 
 /// A SensorKit sample that can be appended to a tabular recording.
@@ -22,6 +19,16 @@ import MyHeartCountsShared
 enum SensorKitUploadError: Error {
     /// The stream declares a registry format that publishes no column set.
     case formatIsNotTabular(RegisteredRecordingFormat)
+    case emptyWristTemperatureSession
+    case invalidCoverage
+    case unknownWristTemperatureConditionBits(UInt)
+}
+
+
+enum SensorKitBatchStatistics {
+    static func distinctRecordingIdentifierCount(_ identifiers: some Sequence<UInt64?>) -> Int {
+        Set(identifiers.compactMap { $0 }).count
+    }
 }
 
 
@@ -31,6 +38,17 @@ protocol CSVAppendableSensorSample: Sendable {
 
     /// This sample's values for every column but the trailing device column.
     var recordingFields: [RecordingCSVWriter.Field] { get }
+
+    /// A native batch identifier when individual rows belong to a larger source batch.
+    var recordingBatchIdentifier: UInt64? { get }
+
+    static func structuredGroveRecord(
+        sourceRecordID: SensorKitSourceRecordID,
+        coverage: DateInterval,
+        sampleCount: Int,
+        batchCount: Int,
+        nativeRecording: SensorKitNativeRecording
+    ) -> SensorKitRecord?
 }
 
 
@@ -39,7 +57,7 @@ struct UploadStrategyCSVFile<Sample: SensorKitSampleProtocol>: MHCSensorSampleUp
 where Sample.SafeRepresentation: CSVAppendableSensorSample {
     func upload(
         _ samples: some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
-        batchInfo: SensorKit.BatchInfo,
+        publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
         to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity
@@ -52,7 +70,7 @@ where Sample.SafeRepresentation: CSVAppendableSensorSample {
         }
         var writer = RecordingCSVWriter(columns: columns)
         activity.updateMessage("Writing to CSV")
-        let device = RecordingCSVWriter.Field.text(batchInfo.device.description)
+        let device = RecordingCSVWriter.Field.text(publication.info.device.description)
         var minDate = firstSample.timeRange.lowerBound
         var maxDate = firstSample.timeRange.upperBound
         for sample in samples {
@@ -60,14 +78,41 @@ where Sample.SafeRepresentation: CSVAppendableSensorSample {
             minDate = min(minDate, sample.timeRange.lowerBound)
             maxDate = max(maxDate, sample.timeRange.upperBound)
         }
+        let batchCount = SensorKitBatchStatistics.distinctRecordingIdentifierCount(
+            samples.lazy.map(\.recordingBatchIdentifier)
+        )
         try await upload(
             data: writer.data(),
             for: sensor,
-            deviceInfo: batchInfo.device,
             effectiveTimeRange: minDate..<maxDate,
+            publication: publication,
             to: standard,
-            documentName: "\(batchInfo.timeRange.lowerBound.ISO8601Format())_\(batchInfo.timeRange.upperBound.ISO8601Format())",
             activity: activity
-        )
+        ) { sourceRecordID, nativeRecording in
+            Sample.SafeRepresentation.structuredGroveRecord(
+                sourceRecordID: sourceRecordID,
+                coverage: DateInterval(start: minDate, end: maxDate),
+                sampleCount: samples.count,
+                batchCount: batchCount,
+                nativeRecording: nativeRecording
+            )
+        }
+    }
+}
+
+
+extension CSVAppendableSensorSample {
+    var recordingBatchIdentifier: UInt64? {
+        nil
+    }
+
+    static func structuredGroveRecord(
+        sourceRecordID: SensorKitSourceRecordID,
+        coverage: DateInterval,
+        sampleCount: Int,
+        batchCount: Int,
+        nativeRecording: SensorKitNativeRecording
+    ) -> SensorKitRecord? {
+        nil
     }
 }

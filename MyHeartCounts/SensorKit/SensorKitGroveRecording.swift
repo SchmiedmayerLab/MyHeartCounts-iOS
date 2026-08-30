@@ -6,12 +6,9 @@
 // SPDX-License-Identifier: MIT
 //
 
-import CryptoKit
 import Foundation
-import GroveFHIRContract
 import GroveSensorKit
 import GroveSensorKitFHIR
-import ModelsR4
 import SensorKit
 
 
@@ -38,162 +35,110 @@ struct SensorKitGroveStream {
         .ambientPressure: .ambientPressureSamples,
         .pedometerData: .pedometerSamples,
         .wristTemperature: .wristTemperatureSamples,
-        .visits: .fhirResourceArray,
-        .onWristState: .fhirResourceArray,
-        .deviceUsageReport: .fhirResourceArray,
-        .electrocardiogram: .fhirResourceArray,
+        .electrocardiogram: .nativeRecording,
         .photoplethysmogram: .photoplethysmogramSamples
     ]
 
     /// The stream's source token in the Grove SensorKit catalog.
     let sourceToken: String
-    /// The registry format the stream's upload strategy writes.
-    let format: RegisteredRecordingFormat
+    /// The registry format the stream writes, absent when a structured source has no sidecar.
+    private let format: RegisteredRecordingFormat?
+
+    var recordingFormat: RegisteredRecordingFormat {
+        get throws {
+            guard let format else {
+                throw SensorKitGroveRecordingError.sourceHasNoRecordingFormat(sourceToken)
+            }
+            return format
+        }
+    }
 
     var fileExtension: String {
-        if format.csvColumns != nil {
-            return "csv"
+        get throws {
+            let recordingFormat = try recordingFormat
+            if recordingFormat.csvColumns != nil {
+                return "csv"
+            }
+            return recordingFormat == .photoplethysmogramSamples ? "mhcPPG" : "json"
         }
-        return format == .photoplethysmogramSamples ? "mhcPPG" : "json"
     }
 
     init(_ sensor: some AnySensor) throws {
-        guard let sourceToken = Self.sourceTokens[sensor.srSensor],
-              let format = Self.formats[sensor.srSensor] else {
+        guard let sourceToken = Self.sourceTokens[sensor.srSensor] else {
             throw SensorKitGroveRecordingError.unsupportedSensor(sensor.id)
         }
-        guard let entry = SensorKitCatalog.current.entries.first(where: { $0.sourceToken == sourceToken }),
-              entry.rawFormats.contains(format) else {
+        let format = Self.formats[sensor.srSensor]
+        guard let entry = SensorKitCatalog.current.entries.first(where: { $0.sourceToken == sourceToken }) else {
+            throw SensorKitGroveRecordingError.unsupportedSensor(sensor.id)
+        }
+        if let format, !entry.rawFormats.contains(format) {
             throw SensorKitGroveRecordingError.unadmittedFormat(sourceToken: sourceToken, format: format)
         }
         self.sourceToken = sourceToken
         self.format = format
-    }
-
-    /// Derives the producer-assigned record UUID from the exact payload bytes.
-    ///
-    /// Grove permits reusing a source record id only while every source byte is unchanged.
-    func recordID(for payload: Data, from device: SensorKit.DeviceInfo) -> UUID {
-        var hasher = Insecure.SHA1()
-        hasher.update(data: Data("\(sourceToken)|\(device.description)|".utf8))
-        hasher.update(data: payload)
-        return Data(hasher.finalize().prefix(16))
-            .withUnsafeBytes { UUID(uuid: $0.load(as: uuid_t.self)) }
-            .makeValidV4()
     }
 }
 
 
 enum SensorKitGroveRecordingError: Error {
     case unsupportedSensor(String)
+    case sourceHasNoRecordingFormat(String)
     case unadmittedFormat(sourceToken: String, format: RegisteredRecordingFormat)
-    case missingRecordingDocument
 }
 
 
-/// Wraps a SensorKit batch payload into a Grove SensorKit recording document.
+/// Builds complete Grove SensorKit exchange graphs from already-fetched evidence.
 enum SensorKitGroveRecording {
-    private static let applicationIdentifierSystem: IdentifierSystem =
-        "https://myheartcounts.stanford.edu/fhir/sensorkit/application"
-    private static let deviceIdentifierSystem: IdentifierSystem =
-        "https://myheartcounts.stanford.edu/fhir/sensorkit/sourceDevice"
-    private static let graphIdentifierSystem: IdentifierSystem =
-        "https://myheartcounts.stanford.edu/fhir/sensorkit/graph"
-
-    static func document( // swiftlint:disable:this function_parameter_count
+    static func raw( // swiftlint:disable:this function_parameter_count
         payload: Data,
-        recordID: UUID,
+        reservation: SensorKitRecordReservation,
         stream: SensorKitGroveStream,
         sidecarPath: String,
         title: String,
-        device: SensorKit.DeviceInfo,
-        effectiveTimeRange: Swift.Range<Date>,
-        subject: Reference
-    ) throws -> DocumentReference {
-        let record = SensorKitRawRecord(
-            sourceRecordID: SensorKitSourceRecordID(recordID),
+        effectiveTimeRange: Swift.Range<Date>
+    ) throws -> SensorKitConversion {
+        let record = try SensorKitRawRecord(
+            sourceRecordID: reservation.sourceRecordID,
             sourceToken: stream.sourceToken,
+            effectivePeriod: DateInterval(
+                start: effectiveTimeRange.lowerBound,
+                end: effectiveTimeRange.upperBound
+            ),
             nativeRecording: try SensorKitNativeRecording(
                 title: title,
-                contentType: stream.format.registeredContentType,
-                format: stream.format,
+                format: stream.recordingFormat,
                 payload: .sidecar(path: sidecarPath, bytes: payload),
                 admission: .callerAuthorizedOpaquePayload
             )
         )
-        let conversion = try SensorKitConverter().convert(.raw(record), context: context(for: device, subject: subject))
-        guard var document = conversion.recordingDocument else {
-            throw SensorKitGroveRecordingError.missingRecordingDocument
-        }
-        var documentContext = document.context ?? DocumentReferenceContext()
-        documentContext.period = Period(
-            end: FHIRPrimitive(try DateTime(date: effectiveTimeRange.upperBound)),
-            start: FHIRPrimitive(try DateTime(date: effectiveTimeRange.lowerBound))
-        )
-        document.context = documentContext
-        return document
+        return try SensorKitConverter().convert(.raw(record), context: reservation.context)
     }
 
     /// Converts one already-built Grove record into its graph.
     static func convert(
         _ record: SensorKitRecord,
-        device: SensorKit.DeviceInfo,
-        subject: Reference
+        reservation: SensorKitRecordReservation
     ) throws -> SensorKitConversion {
-        try SensorKitConverter().convert(record, context: context(for: device, subject: subject))
+        try SensorKitConverter().convert(record, context: reservation.context)
     }
 
     /// Converts one SensorKit ECG session into its structured Grove graph.
-    static func electrocardiogram( // swiftlint:disable:this function_parameter_count
+    static func electrocardiogram(
         _ session: SensorKitECGSession,
-        recordID: UUID,
+        reservation: SensorKitRecordReservation,
         payload: Data,
-        sidecarPath: String,
-        device: SensorKit.DeviceInfo,
-        subject: Reference
+        sidecarPath: String
     ) throws -> SensorKitConversion {
         let record = try SensorKitECGRecord(
-            sourceRecordID: SensorKitSourceRecordID(recordID),
+            sourceRecordID: reservation.sourceRecordID,
             session: session,
             nativeRecording: try SensorKitNativeRecording(
                 title: "Electrocardiogram \(session.startDate.ISO8601Format())",
-                contentType: RegisteredRecordingFormat.nativeRecording.registeredContentType,
                 format: .nativeRecording,
                 payload: .sidecar(path: sidecarPath, bytes: payload),
                 admission: .callerAuthorizedOpaquePayload
             )
         )
-        return try SensorKitConverter().convert(.electrocardiogram(record), context: context(for: device, subject: subject))
-    }
-
-    private static func context(for device: SensorKit.DeviceInfo, subject: Reference) throws -> SensorKitConversionContext {
-        SensorKitConversionContext(
-            subject: subject,
-            converter: SensorApplication(
-                identifier: try BusinessIdentifier(
-                    system: applicationIdentifierSystem,
-                    value: "edu.stanford.MyHeartCounts"
-                ),
-                name: "My Heart Counts",
-                version: Bundle.main.appVersion
-            ),
-            graphIdentifierSystem: graphIdentifierSystem,
-            recordingDevice: SensorRecordingDevice(
-                identifier: try BusinessIdentifier(
-                    system: deviceIdentifierSystem,
-                    value: "\(device.productType)|\(device.name)"
-                ),
-                name: device.name,
-                manufacturer: "Apple",
-                modelNumber: device.productType
-            ),
-            sourceTimeZone: .current,
-            issuedAt: .now,
-            recordedAt: .now,
-            linkableIdentifierPolicy: .authorized,
-            researchStudies: MyHeartCountsStandard.currentEnrollmentInfo.map {
-                [Reference(reference: "ResearchStudy/\($0.studyId)".asFHIRStringPrimitive())]
-            } ?? []
-        )
+        return try SensorKitConverter().convert(.electrocardiogram(record), context: reservation.context)
     }
 }

@@ -11,25 +11,25 @@ import Foundation
 import GroveFirestore
 import GroveSensorKit
 import GroveSensorKitFHIR
-import ModelsR4
 import SensorKit
 
 
 /// A SensorKit sample Grove maps to a structured record rather than an opaque payload.
 protocol GroveStructuredSensorSample: Sendable {
-    /// Whether the record carries the exact native bytes alongside its structured fields.
+    /// Whether the record carries a declared native-evidence payload alongside its structured fields.
     static var carriesNativeRecording: Bool { get }
 
-    /// A producer-assigned identity derived from the sample's own fields.
-    ///
-    /// SensorKit assigns no durable identifier of its own.
-    var groveRecordID: UUID { get }
+    /// The sample's Grove record, given its producer-assigned identity and native evidence.
+    func groveRecord(
+        sourceRecordID: SensorKitSourceRecordID,
+        nativeRecording: @autoclosure () throws -> SensorKitNativeRecording
+    ) throws -> SensorKitRecord
 
-    /// The sample's Grove record, given the producer-assigned identity and its exact native bytes.
-    func groveRecord(recordID: UUID, nativeRecording: @autoclosure () throws -> SensorKitNativeRecording) throws -> SensorKitRecord
-
-    /// The sample's exact native encoding, uploaded as the graph's recording document.
+    /// The sample's declared native-evidence encoding, uploaded as the graph's recording document.
     func nativePayload() throws -> Data
+
+    /// Canonical source evidence compared before a retry reuses its coordinate-derived identity.
+    func retryEvidence() throws -> Data
 }
 
 
@@ -38,40 +38,55 @@ struct UploadStrategyStructured<Sample: SensorKitSampleProtocol>: MHCSensorSampl
 where Sample.SafeRepresentation: GroveStructuredSensorSample {
     func upload(
         _ samples: some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
-        batchInfo: SensorKit.BatchInfo,
+        publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
         to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity
     ) async throws {
-        let subject = try await standard.firebaseConfiguration.subjectReference
-        let collection = try await standard.firebaseConfiguration.userDocumentReference
+        let collection = FirebaseConfiguration.usersCollection
+            .document(publication.destination.accountID)
             .collection("HealthObservations_\(sensor.id)")
         activity.updateMessage("Converting \(sensor.displayName)")
-        for sample in samples {
-            let recordID = sample.groveRecordID
+        for (recordOrdinal, sample) in samples.enumerated() {
+            let reservation = try publication.reserve(
+                recordOrdinal: recordOrdinal,
+                evidence: sample.retryEvidence()
+            )
             var sidecarPath: String?
             var payload = Data()
             if Sample.SafeRepresentation.carriesNativeRecording {
                 payload = try sample.nativePayload()
-                let filename = "\(recordID.uuidString).json"
-                let url = URL.temporaryDirectory.appending(component: filename)
-                try payload.write(to: url)
-                await standard.uploadSensorKitFile(at: url, for: sensor)
-                sidecarPath = "\(ManagedFileUpload.Category(sensor).firebasePath)/\(filename)"
+                let filename = "\(reservation.sourceRecordID.value).json"
+                sidecarPath = ManagedFileUpload.Category(sensor).remotePath(for: filename)
             }
             let record = try sample.groveRecord(
-                recordID: recordID,
+                sourceRecordID: reservation.sourceRecordID,
                 nativeRecording: try SensorKitNativeRecording(
-                    title: "\(sensor.displayName) \(recordID.uuidString)",
-                    contentType: RegisteredRecordingFormat.nativeRecording.registeredContentType,
+                    title: "\(sensor.displayName) \(reservation.sourceRecordID.value)",
                     format: .nativeRecording,
                     // SAFETY: only evaluated for records that declare they carry native bytes.
                     payload: .sidecar(path: sidecarPath ?? "", bytes: payload),
                     admission: .callerAuthorizedOpaquePayload
                 )
             )
-            let conversion = try SensorKitGroveRecording.convert(record, device: batchInfo.device, subject: subject)
-            try await collection.document(recordID.uuidString).setData(from: conversion.bundle)
+            let conversion = try SensorKitGroveRecording.convert(record, reservation: reservation)
+            if Sample.SafeRepresentation.carriesNativeRecording {
+                let filename = "\(reservation.sourceRecordID.value).json"
+                let url = URL.temporaryDirectory.appending(component: filename)
+                try payload.write(to: url, options: .atomic)
+                defer {
+                    try? FileManager.default.removeItem(at: url)
+                }
+                try await standard.uploadSensorKitFile(
+                    at: url,
+                    for: sensor,
+                    accountDataGeneration: publication.destination.accountDataGeneration
+                )
+            }
+            try publication.destination.validateCurrentAccount()
+            let document = collection.document(reservation.sourceRecordID.value)
+            let encoded = try Firestore.Encoder().encode(conversion.bundle)
+            try await document.setData(encoded)
         }
     }
 }
