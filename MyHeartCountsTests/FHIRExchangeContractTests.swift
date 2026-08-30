@@ -9,6 +9,7 @@
 import Foundation
 import GroveFHIRContract
 import GroveHealthKit
+import GroveQuestionnaireFHIR
 import GroveSensorKit
 import GroveSensorKitFHIR
 import HealthKit
@@ -273,140 +274,127 @@ struct FHIRExchangeStateTests {
     }
 }
 
+
 @Suite
 struct QuestionnaireHealthKitProjectionTests {
-    @Test
-    func bloodPressureBuildsOneCorrelationWithTwoComponents() throws {
-        let responseJSON = Data(#"""
+    /// A minimal marked instrument: the panel's children are components by declaration, so a
+    /// projection can never pair answers across groups — the structural guarantee the old
+    /// extractor enforced by matching group occurrences.
+    private static let instrumentJSON = Data("""
         {
-          "resourceType":"QuestionnaireResponse",
-          "status":"completed",
-          "authored":"2026-08-29T12:00:00-07:00",
-          "item":[
-            {"linkId":"systolic","answer":[{"valueQuantity":{"value":118,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]},
-            {"linkId":"diastolic","answer":[{"valueQuantity":{"value":76,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]}
-          ]
-        }
-        """#.utf8)
-        let response = try JSONDecoder().decode(QuestionnaireResponse.self, from: responseJSON)
-        let correlation = try #require(try QuestionnaireDataExtractor(response: response).bloodPressureCorrelation(
-            systolicLinkID: "systolic",
-            diastolicLinkID: "diastolic"
-        ))
-        #expect(correlation.objects.count == 2)
-        #expect(correlation.objects.allSatisfy { $0 is HKQuantitySample })
-    }
-
-    @Test
-    func bloodPressureUsesSiblingAnswersWithinOneGroupOccurrence() throws {
-        let responseJSON = Data(#"""
-        {
-          "resourceType":"QuestionnaireResponse",
-          "status":"completed",
-          "authored":"2026-08-29T12:00:00-07:00",
-          "item":[{
-            "linkId":"blood-pressure",
-            "item":[
-              {"linkId":"systolic","answer":[{"valueQuantity":{"value":118,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]},
-              {"linkId":"diastolic","answer":[{"valueQuantity":{"value":76,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]}
+          "resourceType": "Questionnaire",
+          "url": "https://myheartcounts.stanford.edu/fhir/survey/heartRisk",
+          "version": "1.0.0",
+          "status": "active",
+          "item": [{
+            "linkId": "bp",
+            "type": "group",
+            "code": [{"system": "http://loinc.org", "code": "85354-9"}],
+            "extension": [{
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract",
+              "valueBoolean": true
+            }],
+            "item": [
+              {
+                "linkId": "systolic",
+                "type": "quantity",
+                "code": [{"system": "http://loinc.org", "code": "8480-6"}],
+                "extension": [{
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract",
+                  "valueCode": "component"
+                }]
+              },
+              {
+                "linkId": "diastolic",
+                "type": "quantity",
+                "code": [{"system": "http://loinc.org", "code": "8462-4"}],
+                "extension": [{
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract",
+                  "valueCode": "component"
+                }]
+              }
             ]
           }]
         }
-        """#.utf8)
-        let response = try JSONDecoder().decode(QuestionnaireResponse.self, from: responseJSON)
-        let correlation = try #require(try QuestionnaireDataExtractor(response: response).bloodPressureCorrelation(
-            systolicLinkID: "systolic",
-            diastolicLinkID: "diastolic"
-        ))
+    """.utf8)
 
-        #expect(correlation.objects.count == 2)
+    private static func responseJSON(systolic: Double, diastolic: Double?) -> Data {
+        var answers = """
+            {
+              "linkId": "systolic",
+              "answer": [{"valueQuantity": {
+                "value": \(systolic), "unit": "mmHg",
+                "system": "http://unitsofmeasure.org", "code": "mm[Hg]"
+              }}]
+            }
+        """
+        if let diastolic {
+            answers += """
+            , {
+              "linkId": "diastolic",
+              "answer": [{"valueQuantity": {
+                "value": \(diastolic), "unit": "mmHg",
+                "system": "http://unitsofmeasure.org", "code": "mm[Hg]"
+              }}]
+            }
+            """
+        }
+        return Data("""
+        {
+          "resourceType": "QuestionnaireResponse",
+          "questionnaire": "https://myheartcounts.stanford.edu/fhir/survey/heartRisk|1.0.0",
+          "status": "completed",
+          "authored": "2026-08-29T12:00:00-07:00",
+          "subject": {"reference": "Patient/participant"},
+          "item": [{"linkId": "bp", "item": [\(answers)]}]
+        }
+        """.utf8)
+    }
+
+    private static func pair(
+        systolic: Double = 118,
+        diastolic: Double? = 76
+    ) throws -> (Questionnaire, QuestionnaireResponse) {
+        (
+            try JSONDecoder().decode(Questionnaire.self, from: instrumentJSON),
+            try JSONDecoder().decode(QuestionnaireResponse.self, from: responseJSON(systolic: systolic, diastolic: diastolic))
+        )
     }
 
     @Test
-    func bloodPressureRejectsAnswersFromDifferentGroups() throws {
-        let responseJSON = Data(#"""
-        {
-          "resourceType":"QuestionnaireResponse",
-          "status":"completed",
-          "authored":"2026-08-29T12:00:00-07:00",
-          "item":[
-            {"linkId":"first-group","item":[
-              {"linkId":"systolic","answer":[{"valueQuantity":{"value":118,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]}
-            ]},
-            {"linkId":"second-group","item":[
-              {"linkId":"diastolic","answer":[{"valueQuantity":{"value":76,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]}
-            ]}
-          ]
-        }
-        """#.utf8)
-        let response = try JSONDecoder().decode(QuestionnaireResponse.self, from: responseJSON)
+    func bloodPressureBuildsOneCorrelationWithTwoComponents() throws {
+        let (questionnaire, response) = try Self.pair()
+        let samples = try QuestionnaireHealthKitSampleProjection.samples(
+            questionnaire: questionnaire,
+            response: response
+        )
+        let correlation = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
+        #expect(correlation.correlationType == HKCorrelationType(.bloodPressure))
+        let values = Set(correlation.objects.compactMap { object in
+            (object as? HKQuantitySample)?.quantity.doubleValue(for: .millimeterOfMercury())
+        })
+        #expect(values == [118, 76])
+    }
 
-        #expect(throws: QuestionnaireDataExtractionError.uncorrelatedBloodPressure(
-            systolicLinkID: "systolic",
-            diastolicLinkID: "diastolic"
-        )) {
-            _ = try QuestionnaireDataExtractor(response: response).bloodPressureCorrelation(
-                systolicLinkID: "systolic",
-                diastolicLinkID: "diastolic"
+    @Test
+    func bloodPressureRefusesAnIncompleteComponentSet() throws {
+        let (questionnaire, response) = try Self.pair(diastolic: nil)
+        #expect(throws: ObservationExtractionError.answerMissing(linkID: "diastolic")) {
+            _ = try QuestionnaireHealthKitSampleProjection.samples(
+                questionnaire: questionnaire,
+                response: response
             )
         }
     }
 
     @Test
-    func bloodPressureRejectsMultipleRepeatingGroupOccurrences() throws {
-        let responseJSON = Data(#"""
-        {
-          "resourceType":"QuestionnaireResponse",
-          "status":"completed",
-          "authored":"2026-08-29T12:00:00-07:00",
-          "item":[
-            {"linkId":"blood-pressure","item":[
-              {"linkId":"systolic","answer":[{"valueQuantity":{"value":118,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]},
-              {"linkId":"diastolic","answer":[{"valueQuantity":{"value":76,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]}
-            ]},
-            {"linkId":"blood-pressure","item":[
-              {"linkId":"systolic","answer":[{"valueQuantity":{"value":121,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]},
-              {"linkId":"diastolic","answer":[{"valueQuantity":{"value":79,"system":"http://unitsofmeasure.org","code":"mm[Hg]"}}]}
-            ]}
-          ]
-        }
-        """#.utf8)
-        let response = try JSONDecoder().decode(QuestionnaireResponse.self, from: responseJSON)
-
-        #expect(throws: QuestionnaireDataExtractionError.ambiguousBloodPressure(
-            systolicLinkID: "systolic",
-            diastolicLinkID: "diastolic"
-        )) {
-            _ = try QuestionnaireDataExtractor(response: response).bloodPressureCorrelation(
-                systolicLinkID: "systolic",
-                diastolicLinkID: "diastolic"
-            )
-        }
-    }
-
-    @Test
-    func codedQuantityRequiresUCUMForHealthKitProjection() throws {
-        let responseJSON = Data(#"""
-        {
-          "resourceType":"QuestionnaireResponse",
-          "status":"completed",
-          "authored":"2026-08-29T12:00:00-07:00",
-          "item":[{
-            "linkId":"weight",
-            "answer":[{"valueQuantity":{"value":70,"system":"https://example.org/units","code":"kg"}}]
-          }]
-        }
-        """#.utf8)
-        let response = try JSONDecoder().decode(QuestionnaireResponse.self, from: responseJSON)
-
-        #expect(throws: QuestionnaireDataExtractionError.unsupportedQuantitySystem(
-            linkID: "weight",
-            system: "https://example.org/units"
-        )) {
-            _ = try QuestionnaireDataExtractor(response: response).quantitySample(
-                SampleType<HKQuantitySample>.bodyMass,
-                linkID: "weight"
-            )
-        }
+    func unmarkedItemsNeverProject() throws {
+        var (questionnaire, response) = try Self.pair()
+        questionnaire.item?[0].extension = nil
+        let samples = try QuestionnaireHealthKitSampleProjection.samples(
+            questionnaire: questionnaire,
+            response: response
+        )
+        #expect(samples.isEmpty)
     }
 }

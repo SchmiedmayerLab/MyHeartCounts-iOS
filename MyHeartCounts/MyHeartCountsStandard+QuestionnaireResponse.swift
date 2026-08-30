@@ -13,6 +13,8 @@ import GroveFoundation
 import GroveHealthKit
 import GroveQuestionnaire
 import GroveQuestionnaireFHIR
+import GroveStudy
+import GroveStudyDefinition
 import ModelsR4
 import MyHeartCountsShared
 import OSLog
@@ -50,6 +52,30 @@ struct QuestionnaireSubmissionContext: Sendable {
 
 
 extension MyHeartCountsStandard {
+    @MainActor
+    private static func enrolledQuestionnaire(
+        for canonical: QuestionnaireCanonicalIdentity,
+        in studyManager: StudyManager
+    ) -> ModelsR4.Questionnaire? {
+        for enrollment in studyManager.studyEnrollments {
+            guard let bundle = enrollment.studyBundle else {
+                continue
+            }
+            for component in bundle.studyDefinition.components {
+                guard case .questionnaire(let questionnaireComponent) = component,
+                      let questionnaire = bundle.questionnaire(
+                          for: questionnaireComponent.fileRef,
+                          in: .current
+                      ),
+                      questionnaire.canonicalIdentity?.url == canonical.url else {
+                    continue
+                }
+                return questionnaire
+            }
+        }
+        return nil
+    }
+
     func questionnaireSubmissionContext() async throws -> QuestionnaireSubmissionContext {
         let preferences = LocalPreferencesStore.standard
         let generation = preferences[.accountDataGeneration]
@@ -86,40 +112,25 @@ extension MyHeartCountsStandard {
     }
     
     
-    // periphery:ignore:parameters isolation
-    private func parseIfApplicable(
-        isolation: isolated (any Actor)? = #isolation,
-        _ response: ModelsR4.QuestionnaireResponse
-    ) async {
-        typealias Rule = QuestionnaireDataExtractor.Rule
-        switch response.questionnaireCanonicalIdentity?.url.absoluteString {
-        case "https://myheartcounts.stanford.edu/fhir/survey/heartRisk":
-            await processSurvey(response: response, rules: [
-                Rule.bloodPressure(
-                    systolicLinkId: "7cec349c-495c-4ef6-834e-cc9708625736",
-                    diastolicLinkId: "b25ac0aa-4528-47dc-951f-97f411ec5cc2"
-                ),
-                Rule.quantitySample(.bloodPressureSystolic, linkId: "78edc19f-e409-49f0-8e42-a0adf5e777b0"),
-                Rule.quantitySample(.bloodGlucose, linkId: "7309938e-ea24-4e31-8427-82f3a1a44f83")
-            ])
-        default:
-            break
+    private func parseIfApplicable(_ response: ModelsR4.QuestionnaireResponse) async {
+        // The instrument's own SDC markings drive extraction: an item marked with
+        // `observationExtract` and carrying its measurement code becomes a HealthKit sample,
+        // so instruments declare what they measure instead of the app hardcoding linkIds.
+        guard let canonical = response.questionnaireCanonicalIdentity,
+              let studyManager,
+              let questionnaire = await Self.enrolledQuestionnaire(for: canonical, in: studyManager) else {
+            return
         }
-    }
-    
-    
-    private func processSurvey(
-        isolation: isolated (any Actor)? = #isolation,
-        response: QuestionnaireResponse,
-        rules: [any QuestionnaireDataExtractor.AnyRule<HealthKit>]
-    ) async {
-        let extractor = QuestionnaireDataExtractor(response: response)
-        for rule in rules {
-            do {
-                _ = try await rule(isolation: isolation, extractor: extractor, context: healthKit)
-            } catch {
-                await logger.error("Error parsing & processing questionnaire response: \(error)")
+        do {
+            let samples = try QuestionnaireHealthKitSampleProjection.samples(
+                questionnaire: questionnaire,
+                response: response
+            )
+            for sample in samples {
+                try await healthKit.save(sample)
             }
+        } catch {
+            await logger.error("Error parsing & processing questionnaire response: \(error)")
         }
     }
 }
