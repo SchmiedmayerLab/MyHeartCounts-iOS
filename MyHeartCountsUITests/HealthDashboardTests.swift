@@ -11,6 +11,7 @@ import GroveHealthKit
 import MyHeartCountsShared
 import XCTest
 import XCTestExtensions
+import XCTGroveQuestionnaire
 import XCTHealthKit
 
 
@@ -115,7 +116,7 @@ class HealthDashboardTests: MHCTestCase, Sendable {
     }
     
     
-    func testNicotineExposureProcessing() throws {
+    func testNicotineExposureQuestionnaire() throws {
         try launchAppAndEnrollIntoStudy()
         goToTab(.heartHealth)
         
@@ -125,34 +126,22 @@ class HealthDashboardTests: MHCTestCase, Sendable {
         XCTAssert(app.navigationBars["Nicotine Exposure"].buttons["Add Data"].waitForExistence(timeout: 2))
         
         app.navigationBars["Nicotine Exposure"].buttons["Add Data"].tap()
-        try navigateResearchKitQuestionnaire(title: "Dashboard - Smoking", steps: [ // NOTE: might want to rename the survey here?!
-            .init(actions: [.selectOption(title: "Never smoked/vaped")])
-        ])
-        XCTAssert(app.staticTexts["Most Recent Response: Never Smoked"].waitForExistence(timeout: 10))
+        XCTAssert(questionnaire.waitUntilPresented())
+        questionnaire.question("dcb2277e-fe96-4f45-844a-ef58a9516380").select("Never smoked/vaped")
+        questionnaire.submit()
+        XCTAssert(questionnaire.waitUntilDismissed())
         
         app.navigationBars["Nicotine Exposure"].buttons["Add Data"].tap()
-        try navigateResearchKitQuestionnaire(title: "Dashboard - Smoking", steps: [ // NOTE: might want to rename the survey here?!
-            .init(actions: [.selectOption(title: "Quit >5 years ago")])
-        ])
-        XCTAssert(app.staticTexts["Most Recent Response: Quit more than 5 years ago"].waitForExistence(timeout: 10))
+        XCTAssert(questionnaire.waitUntilPresented())
+        questionnaire.question("dcb2277e-fe96-4f45-844a-ef58a9516380").select("Quit >5 years ago")
+        questionnaire.submit()
+        XCTAssert(questionnaire.waitUntilDismissed())
     }
     
     
     func testDietScoreProcessing() throws {
-        // not trivial bc the survey contains mutiple questions on a single page, and it's not easy to differentiate between them.
+        // The survey contains multiple questions on one page and needs a dedicated UI-test flow.
         throw XCTSkip("TODO")
-//        try launchAppAndEnrollIntoStudy()
-//        goToTab(.heartHealth)
-//        
-//        XCTAssert(app.buttons["Diet"].waitForExistence(timeout: 2))
-//        app.buttons["Diet"].tap()
-//        
-//        XCTAssert(app.navigationBars["Diet"].waitForExistence(timeout: 2))
-//        app.navigationBars["Diet"].buttons["Add Data"].tap()
-//        
-//        try app.navigateResearchKitQuestionnaire(title: "Diet", steps: [
-//            .init(actions: [.continue]),
-//        ])
     }
     
     
