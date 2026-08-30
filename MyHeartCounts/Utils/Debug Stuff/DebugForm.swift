@@ -12,6 +12,8 @@ import Foundation
 import GroveAccount
 import GroveFoundation
 import GroveLocalStorage
+import GroveQuestionnaire
+import GroveQuestionnaireFHIR
 import GroveStudy
 import GroveStudyDefinition
 import GroveViews
@@ -153,9 +155,10 @@ private struct DebugFormImpl: View {
                         return
                     }
                     do {
-                        let questionnaire = try fhirQuestionnaire.groveQuestionnaire(
+                        let questionnaire = try GroveQuestionnaire.Questionnaire(
+                            fhirQuestionnaire,
                             evaluationInstant: .now,
-                            locale: .init(identifier: "en-US")
+                            using: .init(locale: .init(identifier: "en-US"))
                         )
                         performTask(.answerQuestionnaire(questionnaire), context: nil)
                     } catch {

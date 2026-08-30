@@ -391,7 +391,7 @@ extension SensorKit {
             MHCSensorUploadDefinition(sensor: .onWrist, strategy: UploadStrategyStructured()),
             MHCSensorUploadDefinition(sensor: .deviceUsage, strategy: UploadStrategyStructured()),
             MHCSensorUploadDefinition(sensor: .ecg, strategy: UploadStrategyECG()),
-            MHCSensorUploadDefinition(sensor: .wristTemperature, strategy: UploadStrategyCSVFile2()),
+            MHCSensorUploadDefinition(sensor: .wristTemperature, strategy: UploadStrategyWristTemperature()),
             MHCSensorUploadDefinition(sensor: .heartRate, strategy: UploadStrategyCSVFile()),
             MHCSensorUploadDefinition(sensor: .pedometer, strategy: UploadStrategyCSVFile()),
             

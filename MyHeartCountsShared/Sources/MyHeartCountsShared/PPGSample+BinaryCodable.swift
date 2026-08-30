@@ -70,7 +70,7 @@ extension PPGSample.OpticalSample: BinaryCodable {
     
     public func binaryEncode(to encoder: BinaryEncoder) throws {
         try encoder.encode(self.emitter)
-        try encoder.encodeLengthPrefixed(self.activePhotodiodeIndexes.sorted())
+        try encoder.encode(self.activePhotodiodeIndexes)
         try encoder.encode(self.signalIdentifier)
         try encoder.encode(self.nominalWavelength)
         try encoder.encode(self.effectiveWavelength)

@@ -6,30 +6,15 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Foundation
 import GroveSensorKit
 import GroveSensorKitFHIR
+import SensorKit
 
 
-/// A SensorKit sample that can be turned into a CSV file representing this singular sample.
-///
-/// This protocol is intended for sample types that represent a session of several individual measurements, instead of being a measurement in their own right.
-/// (E.g., the wrist temperature samples.)
-protocol CSVConvertibleSensorSample: Sendable {
-    func csvData() throws -> Data
+/// Uploads each wrist-temperature session using Grove's registered tabular representation.
+struct UploadStrategyWristTemperature: MHCSensorSampleUploadStrategy {
+    typealias Sample = SRWristTemperatureSession
 
-    func retryEvidence(csvData: Data) -> Data
-
-    func groveRecord(
-        sourceRecordID: SensorKitSourceRecordID,
-        nativeRecording: SensorKitNativeRecording
-    ) throws -> SensorKitRecord
-}
-
-
-/// An upload strategy that encodes a batch of samples into a CSV files, uploads that, and creates a corresponding FHIR observation.
-struct UploadStrategyCSVFile2<Sample: SensorKitSampleProtocol>: MHCSensorSampleUploadStrategy
-where Sample.SafeRepresentation: CSVConvertibleSensorSample {
     func upload(
         _ samples: some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
         publication: SensorKitBatchPublication,
@@ -39,43 +24,26 @@ where Sample.SafeRepresentation: CSVConvertibleSensorSample {
     ) async throws {
         for (recordOrdinal, sample) in samples.enumerated() {
             activity.updateMessage("Writing to CSV")
-            let csvData = try sample.csvData()
+            let recording = try SensorKitTabularRecording(wristTemperature: sample.sample)
             try await upload(
-                data: csvData,
+                sidecar: SensorKitUploadSidecar(data: recording.data, format: recording.format),
+                retryEvidence: recording.retryEvidence,
                 for: sensor,
-                effectiveTimeRange: sample.timeRange,
                 publication: publication,
                 to: standard,
                 activity: activity,
-                recordOrdinal: recordOrdinal,
-                retryEvidence: sample.retryEvidence(csvData: csvData)
-            ) { sourceRecordID, nativeRecording in
-                try sample.groveRecord(
+                recordOrdinal: recordOrdinal
+            ) { sourceRecordID, title, sidecarPath in
+                guard let sidecarPath else {
+                    throw SensorKitRecordError.missingProviderValue("wristTemperature.location")
+                }
+                return try recording.sensorKitRecord(
                     sourceRecordID: sourceRecordID,
-                    nativeRecording: nativeRecording
+                    title: title,
+                    location: .sidecar(path: sidecarPath),
+                    admission: .callerAuthorizedOpaquePayload
                 )
             }
         }
-    }
-}
-
-
-extension DefaultSensorKitSampleSafeRepresentation: CSVConvertibleSensorSample where Sample: CSVConvertibleSensorSample {
-    func csvData() throws -> Data {
-        try sample.csvData()
-    }
-    
-    func retryEvidence(csvData: Data) -> Data {
-        sample.retryEvidence(csvData: csvData)
-    }
-
-    func groveRecord(
-        sourceRecordID: SensorKitSourceRecordID,
-        nativeRecording: SensorKitNativeRecording
-    ) throws -> SensorKitRecord {
-        try sample.groveRecord(
-            sourceRecordID: sourceRecordID,
-            nativeRecording: nativeRecording
-        )
     }
 }

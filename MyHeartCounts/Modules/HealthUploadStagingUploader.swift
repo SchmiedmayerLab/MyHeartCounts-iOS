@@ -12,12 +12,6 @@ import GRDB
 import Grove
 import GroveFHIRContract
 import GroveFoundation
-import GroveHealthKit
-import GroveSensorKitFHIR
-import HealthKit
-import struct ModelsR4.FHIRPrimitive
-import struct ModelsR4.Instant
-import enum ModelsR4.ResourceProxy
 import MyHeartCountsShared
 import OSLog
 

@@ -19,6 +19,8 @@ enum FHIRExchangeIdentifiers {
         case sensorKit = "sensorkit"
     }
 
+    static let application: IdentifierSystem =
+        "https://myheartcounts.stanford.edu/fhir/identifiers/application"
     static let participant: IdentifierSystem =
         "https://myheartcounts.stanford.edu/fhir/identifiers/participant"
     static let researchStudy: IdentifierSystem =
@@ -63,11 +65,8 @@ enum FHIRExchangeIdentifiers {
 
     static func researchStudyReferences(for studyIDs: [String]) throws -> [Reference] {
         try studyIDs.map { studyID in
-            let identifier = try BusinessIdentifier(system: researchStudy, value: studyID)
-            return Reference(
-                identifier: identifier.fhirIdentifier,
-                type: FHIRPrimitive(FHIRURI(stringLiteral: "ResearchStudy"))
-            )
+            try BusinessIdentifier(system: researchStudy, value: studyID)
+                .reference(to: .researchStudy)
         }
     }
 }

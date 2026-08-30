@@ -27,18 +27,19 @@ func submitQuestionnaire(
     authoredTimeZone: TimeZone = .current
 ) async throws {
     let submission = try await standard.questionnaireSubmissionContext()
-    let writerContext = try QuestionnaireResponseWriterContext.current()
+    let writerContext = try QuestionnaireWriterContext.current(
+        applicationIdentifierSystem: FHIRExchangeIdentifiers.application
+    )
     let pair = try ResourceBuilder().pair(
         from: responses,
         subject: submission.subject.reference,
         author: submission.subject.reference,
         responseSource: submission.subject.reference,
+        writerContext: writerContext,
         authored: authored,
         authoredTimeZone: authoredTimeZone
     )
-    var response = pair.response
-    response.apply(writerContext: writerContext)
-    try await standard.add(response, destination: submission.destination)
+    try await standard.add(pair.response, destination: submission.destination)
 }
 
 
@@ -91,7 +92,7 @@ extension MyHeartCountsStandard {
         _ response: ModelsR4.QuestionnaireResponse
     ) async {
         typealias Rule = QuestionnaireDataExtractor.Rule
-        switch response.questionnaireCanonicalBaseURL {
+        switch response.questionnaireCanonicalIdentity?.url.absoluteString {
         case "https://myheartcounts.stanford.edu/fhir/survey/heartRisk":
             await processSurvey(response: response, rules: [
                 Rule.bloodPressure(

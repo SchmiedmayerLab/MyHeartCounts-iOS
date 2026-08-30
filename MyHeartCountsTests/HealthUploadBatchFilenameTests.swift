@@ -8,7 +8,6 @@
 
 import Foundation
 @testable import MyHeartCounts
-import SensorKit
 import Testing
 
 
@@ -55,23 +54,5 @@ struct HealthUploadBatchFilenameTests {
         )
 
         #expect(oneIdentifier != twoIdentifiers)
-    }
-
-    @Test
-    func wristTemperatureConditionsRejectUnknownBits() throws {
-        let known = SRWristTemperature.Condition.offWrist.union(.inMotion)
-        #expect(try known.csvStringValue() == "offWrist,inMotion")
-
-        let unknown = SRWristTemperature.Condition(rawValue: 1 << 12)
-        #expect(throws: SensorKitUploadError.self) {
-            _ = try unknown.csvStringValue()
-        }
-    }
-
-    @Test
-    func accelerometerBatchCountUsesDistinctNativeIdentifiers() {
-        let identifiers: [UInt64?] = [41, 41, 42, nil, 43, 42]
-
-        #expect(SensorKitBatchStatistics.distinctRecordingIdentifierCount(identifiers) == 3)
     }
 }

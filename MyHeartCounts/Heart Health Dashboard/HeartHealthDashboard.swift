@@ -13,6 +13,7 @@ import GroveFoundation
 import GroveHealthKit
 import GroveHealthKitUI
 import GroveQuestionnaire
+import GroveQuestionnaireFHIR
 import GroveStudy
 import GroveViews
 import MHCStudyDefinition
@@ -289,9 +290,10 @@ private struct HealthDashboardQuestionnaireView: View {
             return
         }
         do {
-            questionnaire = try fhirQuestionnaire.groveQuestionnaire(
+            questionnaire = try GroveQuestionnaire.Questionnaire(
+                fhirQuestionnaire,
                 evaluationInstant: .now,
-                locale: studyManager.preferredLocale
+                using: .init(locale: studyManager.preferredLocale)
             )
         } catch {
             loadErrorDescription = error.localizedDescription

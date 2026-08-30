@@ -23,7 +23,7 @@ struct SensorKitRecordReservation: Sendable {
 
 /// Stable publication facts shared by every record in one acknowledged SensorKit batch.
 struct SensorKitBatchPublication: Sendable {
-    let stream: SensorKitGroveStream
+    let sourceToken: String
     let batchKey: String
     let destination: FHIRExchangeDestination
     let info: SensorKit.BatchInfo
@@ -42,8 +42,10 @@ struct SensorKitBatchPublication: Sendable {
         stateStore: FHIRExchangeStateStore,
         conversionInstant: Date = .now
     ) throws {
-        let stream = try SensorKitGroveStream(sensor)
-        self.stream = stream
+        guard let sourceToken = SensorKitCatalog.current.entry(for: sensor)?.sourceToken else {
+            throw SensorKitRecordError.sourceTypeNotAdmitted(sensor.id)
+        }
+        self.sourceToken = sourceToken
         self.destination = destination
         self.info = batchInfo
         self.acquisitionBatch = batchInfo.acquisitionBatch
@@ -54,7 +56,7 @@ struct SensorKitBatchPublication: Sendable {
         self.batchKey = stateStore.sensorKitBatchKey(
             subject: subject,
             acquisitionBatch: batchInfo.acquisitionBatch,
-            sourceToken: stream.sourceToken,
+            sourceToken: sourceToken,
             deviceProductType: batchInfo.device.productType
         )
     }
@@ -65,7 +67,7 @@ struct SensorKitBatchPublication: Sendable {
         try destination.validateCurrentAccount()
         let sourceRecordID = SensorKitSourceRecordID.derived(
             acquisitionBatch: acquisitionBatch,
-            sourceToken: stream.sourceToken,
+            sourceToken: sourceToken,
             deviceProductType: deviceProductType,
             recordOrdinal: UInt64(recordOrdinal)
         )

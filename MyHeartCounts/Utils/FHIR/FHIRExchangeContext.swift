@@ -27,10 +27,7 @@ struct FHIRExchangeSubject: Sendable {
     let identity: BusinessIdentifier
 
     var reference: Reference {
-        Reference(
-            identifier: identity.fhirIdentifier,
-            type: FHIRPrimitive(FHIRURI(stringLiteral: "Patient"))
-        )
+        identity.reference(to: .patient)
     }
 }
 

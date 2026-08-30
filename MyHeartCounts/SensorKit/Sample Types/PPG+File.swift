@@ -7,19 +7,15 @@
 //
 
 import Foundation
-import GroveFoundation
 import GroveSensorKit
 import GroveSensorKitFHIR
-import MyHeartCountsShared
-import NIOCore
-import NIOFoundationCompat
 import SensorKit
 
 
 extension SRPhotoplethysmogramSample {
     struct UploadStrategy: MHCSensorSampleUploadStrategy {
         typealias Sample = SRPhotoplethysmogramSample
-        
+
         func upload(
             _ samples: consuming some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
             publication: SensorKitBatchPublication,
@@ -28,46 +24,26 @@ extension SRPhotoplethysmogramSample {
             activity: SensorKitDataFetcher.InProgressActivity
         ) async throws {
             guard !samples.isEmpty else {
-                // nothing to do if samples is empty...
                 return
             }
-            let records = samples.map { PPGSample($0.sample) }
-            let measurementInstants = records.flatMap { record -> [Date] in
-                let offsets = [record.nanosecondsSinceStart]
-                    + record.opticalSamples.map(\.nanosecondsSinceStart)
-                    + record.accelerometerSamples.map(\.nanosecondsSinceStart)
-                return offsets.map {
-                    record.startDate.addingTimeInterval(Double($0) / 1_000_000_000)
-                }
-            }
-            guard let coverageStart = measurementInstants.min(),
-                  let coverageEnd = measurementInstants.max() else {
-                throw SensorKitUploadError.invalidCoverage
-            }
-            let opticalSampleCount = records.lazy.map(\.opticalSamples.count).reduce(0, +)
-            let accelerometerSampleCount = records.lazy.map(\.accelerometerSamples.count).reduce(0, +)
-            let buffer = try BinaryEncoder.encode(records)
-            guard let data = buffer.getData(at: buffer.readerIndex, length: buffer.readableBytes, byteTransferStrategy: .noCopy) else {
-                // should probably be unreachable
-                assertionFailure("Failed to retrieve Data for encoded PPG samples")
-                return
-            }
+            let prepared = try SensorKitPPGRecording(samples: Array(samples)).prepared()
             try await self.upload(
-                data: data,
+                sidecar: SensorKitUploadSidecar(data: prepared.data, format: prepared.format),
+                retryEvidence: prepared.retryEvidence,
                 for: sensor,
-                effectiveTimeRange: coverageStart..<coverageEnd,
                 publication: publication,
                 to: standard,
                 activity: activity
-            ) { sourceRecordID, nativeRecording in
-                .ppg(SensorKitPPGRecord(
+            ) { sourceRecordID, title, sidecarPath in
+                guard let sidecarPath else {
+                    throw SensorKitRecordError.missingProviderValue("photoplethysmogram.location")
+                }
+                return try prepared.sensorKitRecord(
                     sourceRecordID: sourceRecordID,
-                    coverage: DateInterval(start: coverageStart, end: coverageEnd),
-                    recordCount: records.count,
-                    opticalSampleCount: opticalSampleCount,
-                    accelerometerSampleCount: accelerometerSampleCount,
-                    nativeRecording: nativeRecording
-                ))
+                    title: title,
+                    location: .sidecar(path: sidecarPath),
+                    admission: .callerAuthorizedOpaquePayload
+                )
             }
         }
     }

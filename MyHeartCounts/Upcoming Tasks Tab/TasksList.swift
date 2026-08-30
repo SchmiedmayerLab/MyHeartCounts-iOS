@@ -12,6 +12,7 @@ import Algorithms
 import Foundation
 import GroveFoundation
 import GroveQuestionnaire
+import GroveQuestionnaireFHIR
 import GroveScheduler
 import GroveSchedulerUI
 import GroveStudy
@@ -247,9 +248,10 @@ extension TasksList {
             }
             let questionnaire: GroveQuestionnaire.Questionnaire
             do {
-                questionnaire = try fhirQuestionnaire.groveQuestionnaire(
+                questionnaire = try GroveQuestionnaire.Questionnaire(
+                    fhirQuestionnaire,
                     evaluationInstant: .now,
-                    locale: studyManager.preferredLocale
+                    using: .init(locale: studyManager.preferredLocale)
                 )
             } catch {
                 logger.error("Unable to prepare Questionnaire for administration: \(error)")

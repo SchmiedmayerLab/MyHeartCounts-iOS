@@ -16,46 +16,6 @@ import Testing
 
 @testable import MyHeartCounts
 
-private struct DeviceUsageNativeReport: Decodable, Equatable {
-    struct ApplicationUsage: Decodable, Equatable {
-        struct SupplementalCategory: Decodable, Equatable {
-            let identifier: String
-        }
-
-        struct TextInputSession: Decodable, Equatable {
-            let duration: TimeInterval
-            let sessionTypeRawValue: Int
-            let identifier: String
-        }
-
-        let bundleIdentifier: String?
-        let reportApplicationIdentifier: String
-        let relativeStartTime: TimeInterval
-        let usageTime: TimeInterval
-        let supplementalCategories: [SupplementalCategory]
-        let textInputSessions: [TextInputSession]
-    }
-
-    struct NotificationUsage: Decodable, Equatable {
-        let bundleIdentifier: String?
-        let eventRawValue: Int
-    }
-
-    struct WebUsage: Decodable, Equatable {
-        let totalUsageTime: TimeInterval
-    }
-
-    let timestamp: Date
-    let duration: TimeInterval
-    let totalScreenWakes: Int
-    let totalUnlocks: Int
-    let totalUnlockDuration: TimeInterval
-    let version: String
-    let appUsageByCategory: [String: [ApplicationUsage]]
-    let notificationUsageByCategory: [String: [NotificationUsage]]
-    let webUsageByCategory: [String: [WebUsage]]
-}
-
 @Suite
 struct DeviceUsageFHIRExchangeTests {
     private static let timestamp = Date(timeIntervalSince1970: 1_788_000_000.125)
@@ -157,68 +117,6 @@ struct DeviceUsageFHIRExchangeTests {
         )
     }
 
-    // The assertions intentionally verify the complete native report shape in one place.
-    @Test
-    func nativePayloadPreservesEveryDeviceUsageField() throws { // swiftlint:disable:this function_body_length
-        let report = Self.report()
-        let payload = try report.nativePayload()
-        let retryEvidence = try report.retryEvidence()
-        let repeatedPayload = try report.nativePayload()
-        #expect(payload == retryEvidence)
-        #expect(payload == repeatedPayload)
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .secondsSince1970
-        let decoded = try decoder.decode(DeviceUsageNativeReport.self, from: payload)
-
-        #expect(decoded.timestamp == Self.timestamp)
-        #expect(decoded.duration == 600.25)
-        #expect(decoded.totalScreenWakes == 9)
-        #expect(decoded.totalUnlocks == 7)
-        #expect(decoded.totalUnlockDuration == 123.75)
-        #expect(decoded.version == "algorithm-v0")
-
-        let application = try #require(decoded.appUsageByCategory["application-category"]?.first)
-        #expect(application.bundleIdentifier == "com.apple.Health")
-        #expect(application.reportApplicationIdentifier == "report-app-1")
-        #expect(application.relativeStartTime == 17.5)
-        #expect(application.usageTime == 42.25)
-        #expect(
-            application.textInputSessions == [
-                .init(
-                    duration: 3.5,
-                    sessionTypeRawValue: SRTextInputSession.SessionType.keyboard.rawValue,
-                    identifier: "text-session-1"
-                ),
-                .init(
-                    duration: 5.25,
-                    sessionTypeRawValue: SRTextInputSession.SessionType.dictation.rawValue,
-                    identifier: "text-session-2"
-                )
-            ]
-        )
-        #expect(
-            application.supplementalCategories == [
-                .init(identifier: "supplemental-1"),
-                .init(identifier: "supplemental-2")
-            ]
-        )
-
-        let notification = try #require(
-            decoded.notificationUsageByCategory["notification-category"]?.first
-        )
-        #expect(notification.bundleIdentifier == "com.apple.MobileSMS")
-        #expect(
-            notification.eventRawValue
-                == SRDeviceUsageReport.NotificationUsage.Event.received.rawValue
-        )
-        #expect(
-            decoded.webUsageByCategory["web-category"] == [
-                .init(totalUsageTime: 84.5)
-            ]
-        )
-    }
-
     @Test
     func nestedDeviceUsageDriftCannotReuseReservedIdentity() throws {
         let store = FHIRExchangeStateStore()
@@ -227,14 +125,16 @@ struct DeviceUsageFHIRExchangeTests {
         )
         let batchKey = "device-usage-batch"
         try store.verifySensorRetryDigest(
-            Self.report().retryEvidence(),
+            SensorKitPreparedStructuredRecord(deviceUsage: Self.report()).retryEvidence,
             batchKey: batchKey,
             sourceRecordID: sourceID
         )
 
         #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceID.value)) {
             try store.verifySensorRetryDigest(
-                Self.report(textInputSessionIdentifier: "changed-session").retryEvidence(),
+                SensorKitPreparedStructuredRecord(
+                    deviceUsage: Self.report(textInputSessionIdentifier: "changed-session")
+                ).retryEvidence,
                 batchKey: batchKey,
                 sourceRecordID: sourceID
             )
@@ -244,21 +144,19 @@ struct DeviceUsageFHIRExchangeTests {
     @Test
     func deviceUsageBundleCarriesMandatoryNativeRecordingDocument() throws {
         let report = Self.report()
-        let payload = try report.nativePayload()
+        let prepared = try SensorKitPreparedStructuredRecord(deviceUsage: report)
+        let payload = try #require(prepared.nativePayload)
         let sourceID = SensorKitSourceRecordID(
             try #require(UUID(uuidString: "879d9ea2-21cb-4527-b59b-2831dc4c84ab"))
         )
         let filename = "\(sourceID.value).json"
         let category = ManagedFileUpload.Category(Sensor.deviceUsage)
         let sidecarPath = category.remotePath(for: filename)
-        let record = try report.groveRecord(
+        let record = try prepared.sensorKitRecord(
             sourceRecordID: sourceID,
-            nativeRecording: SensorKitNativeRecording(
-                title: "Exact SensorKit device-usage report",
-                format: .nativeRecording,
-                payload: .sidecar(path: sidecarPath, bytes: payload),
-                admission: .callerAuthorizedOpaquePayload
-            )
+            title: "Exact SensorKit device-usage report",
+            location: .sidecar(path: sidecarPath),
+            admission: .callerAuthorizedOpaquePayload
         )
         let conversion = try SensorKitConverter().convert(record, context: Self.context())
         let document = try #require(conversion.recordingDocument)

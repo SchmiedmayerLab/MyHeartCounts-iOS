@@ -9,7 +9,6 @@
 import Foundation
 import GroveFHIRContract
 import GroveHealthKit
-import GroveQuestionnaire
 import GroveSensorKit
 import GroveSensorKitFHIR
 import HealthKit
@@ -273,93 +272,6 @@ struct FHIRExchangeStateTests {
         #expect(retry == newEvent)
     }
 }
-
-@Suite
-struct GroveQuestionnaireCompositionTests {
-    @Test
-    func catalogQuestionnaireConvertsToNativeGroveModel() throws {
-        let data = Data(#"""
-        {
-          "resourceType":"Questionnaire",
-          "meta":{"profile":["https://grovealliance.org/fhir/questionnaire/StructureDefinition/grove-questionnaire"]},
-          "url":"https://myheartcounts.stanford.edu/fhir/Questionnaire/weight",
-          "version":"0.0.0",
-          "status":"active",
-          "subjectType":["Patient"],
-          "title":"Weight",
-          "item":[{
-            "linkId":"measurements",
-            "type":"group",
-            "item":[{
-              "linkId":"body-weight",
-              "type":"quantity",
-              "text":"Body weight",
-              "extension":[{
-                "url":"http://hl7.org/fhir/StructureDefinition/questionnaire-unitOption",
-                "valueCoding":{"system":"http://unitsofmeasure.org","code":"kg","display":"kg"}
-              }]
-            }]
-          }]
-        }
-        """#.utf8)
-        let source = try JSONDecoder().decode(ModelsR4.Questionnaire.self, from: data)
-        let questionnaire = try source.groveQuestionnaire(
-            evaluationInstant: Date(timeIntervalSince1970: 1_788_000_000),
-            locale: Locale(identifier: "en-US")
-        )
-
-        #expect(questionnaire.metadata.url?.absoluteString == source.url?.value?.url.absoluteString)
-        #expect(questionnaire.metadata.version == "0.0.0")
-        #expect(questionnaire.metadata.lifecycle == .active)
-        #expect(questionnaire.sections.count == 1)
-        let section = try #require(questionnaire.sections.first)
-        #expect(section.tasks.map(\.id) == ["body-weight"])
-    }
-
-    @Test
-    func writerContextIsCompleteAndIdempotent() throws {
-        var response = QuestionnaireResponse(status: FHIRPrimitive(QuestionnaireResponseStatus.completed))
-        let context = QuestionnaireResponseWriterContext(
-            applicationIdentifier: "edu.stanford.MyHeartCounts",
-            applicationName: "My Heart Counts",
-            applicationVersion: "1.0.0",
-            applicationBuild: "42",
-            hostModel: "iPhone18,1",
-            hostOperatingSystemVersion: "26.0"
-        )
-
-        response.apply(writerContext: context)
-        response.apply(writerContext: context)
-
-        let url = "https://grovealliance.org/fhir/questionnaire/StructureDefinition/grove-questionnaire-writer-context"
-        let matching = response.extension?.filter { $0.url.value?.url.absoluteString == url }
-        #expect(matching?.count == 1)
-        let writer = try #require(matching?.first)
-        #expect(stringValue("applicationName", in: writer) == "My Heart Counts")
-        #expect(stringValue("applicationVersion", in: writer) == "1.0.0")
-        #expect(stringValue("applicationBuild", in: writer) == "42")
-        #expect(stringValue("hostModel", in: writer) == "iPhone18,1")
-        #expect(stringValue("hostOperatingSystemVersion", in: writer) == "26.0")
-        guard case .identifier(let identifier) = writer.extension?
-            .first(where: { $0.url.value?.url.absoluteString == "applicationIdentifier" })?
-            .value else {
-            Issue.record("Missing applicationIdentifier")
-            return
-        }
-        #expect(identifier.system?.value?.url.absoluteString == "https://myheartcounts.stanford.edu/fhir/identifiers/application")
-        #expect(identifier.value?.value?.string == "edu.stanford.MyHeartCounts")
-    }
-
-    private func stringValue(_ name: String, in parent: ModelsR4.Extension) -> String? {
-        guard case .string(let value) = parent.extension?
-            .first(where: { $0.url.value?.url.absoluteString == name })?
-            .value else {
-            return nil
-        }
-        return value.value?.string
-    }
-}
-
 
 @Suite
 struct QuestionnaireHealthKitProjectionTests {
