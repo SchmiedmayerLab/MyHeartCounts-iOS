@@ -11,6 +11,7 @@ import Grove
 import GroveFHIRContract
 import GroveFoundation
 import GroveHealthKit
+import GroveHealthKitFHIR
 import GroveQuestionnaire
 import GroveQuestionnaireFHIR
 import GroveStudy
@@ -113,28 +114,45 @@ extension MyHeartCountsStandard {
     
     
     private func parseIfApplicable(_ response: ModelsR4.QuestionnaireResponse) async {
-        // The instrument's own SDC markings drive extraction: an item marked with
-        // `observationExtract` and carrying its measurement code becomes a HealthKit sample,
-        // so instruments declare what they measure instead of the app hardcoding linkIds.
+        // The instrument's own SDC markings drive extraction: the response is projected into
+        // the full Grove exchange bundle -- identities, devices, provenance -- and each of the
+        // bundle's Observations lands as the HealthKit sample it describes, synced under its
+        // minted source-output identity. The bundle itself is discarded for now; the server
+        // will own the exchange-side extraction.
         guard let canonical = response.questionnaireCanonicalIdentity,
+              let responseID = response.identifier?.value?.value?.string,
               let studyManager,
               let questionnaire = await Self.enrolledQuestionnaire(for: canonical, in: studyManager) else {
             return
         }
         do {
-            let samples = try QuestionnaireHealthKitSampleProjection.samples(
-                questionnaire: questionnaire,
-                response: response
+            let reservation = try fhirExchangeStateStore(
+                accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
+            ).questionnaireConversion(
+                responseID: responseID,
+                subject: try await firebaseConfiguration.fhirExchangeSubject,
+                conversionInstant: .now
             )
-            for sample in samples {
+            let graph = try QuestionnaireExchangeProjection.exchangeGraph(
+                questionnaire: questionnaire,
+                response: response,
+                context: reservation.context
+            )
+            for entry in graph.bundle.entry ?? [] {
+                guard case .observation(let observation) = entry.resource else {
+                    continue
+                }
                 do {
+                    let sample = try HealthKitSampleProjection.sample(for: observation)
                     try await healthKit.save(sample)
                 } catch {
-                    // One store refusal (an undetermined authorization, a denied type) loses
-                    // that reading, never the whole response's extraction.
-                    await logger.error("Unable to save extracted \(sample.sampleType) sample: \(error)")
+                    // One refusal (an unmapped measurement, an undetermined authorization)
+                    // loses that reading, never the whole response's extraction.
+                    await logger.error("Unable to project extracted observation into HealthKit: \(error)")
                 }
             }
+        } catch ObservationExtractionError.noExtractableMeasurements {
+            // A survey that measures nothing is the common case, not an error.
         } catch {
             await logger.error("Error parsing & processing questionnaire response: \(error)")
         }

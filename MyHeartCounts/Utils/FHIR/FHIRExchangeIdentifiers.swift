@@ -16,6 +16,7 @@ import ModelsR4
 enum FHIRExchangeIdentifiers {
     enum SourceRepository: String, Sendable {
         case healthKit = "healthkit"
+        case questionnaire = "questionnaire"
         case sensorKit = "sensorkit"
     }
 
