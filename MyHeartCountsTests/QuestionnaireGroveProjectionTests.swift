@@ -13,6 +13,7 @@ import GroveQuestionnaireFHIR
 import HealthKit
 import ModelsR4
 @testable import MyHeartCounts
+import Synchronization
 import Testing
 
 
@@ -54,6 +55,38 @@ struct FHIRExchangeIdentityScopeTests {
         #expect(scopeA == (try store.repositoryScope(.healthKit, subject: accountA)))
         #expect(scopeA != (try store.repositoryScope(.healthKit, subject: accountB)))
         #expect(scopeA != (try store.repositoryScope(.questionnaire, subject: accountA)))
+    }
+
+    /// The exact identifier a known secret mints, so no part of the app-owned composition —
+    /// repository-scope format, adapter and source-type strings, or the secret's own decoding —
+    /// can change without re-identifying every record already exported.
+    @Test
+    func appOwnedIdentityCompositionIsPinned() throws {
+        let store = FHIRExchangeStateStore()
+        guard case .memory(let secrets) = store.secrets else {
+            Issue.record("An in-memory store must carry an in-memory secret backend")
+            return
+        }
+        secrets.secret.withLock { stored in
+            stored = try? JSONDecoder().decode(FHIRExchangeIdentitySecret.self, from: Data("""
+                {
+                  "key": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+                  "storeID": "3F8A1D2E-4B5C-6D7E-8F90-A1B2C3D4E5F6",
+                  "epoch": 1
+                }
+            """.utf8))
+        }
+        let scope = try store.repositoryScope(.healthKit, subject: try Self.subject)
+        #expect(scope.systemValue == "https://myheartcounts.stanford.edu/fhir/identifiers/repository")
+        #expect(scope.value == "healthkit:3f8a1d2e-4b5c-6d7e-8f90-a1b2c3d4e5f6:participant-1")
+
+        let identity = try store.identityScope().sourceRecord(
+            adapterID: "healthkit",
+            sourceType: "HKQuantityTypeIdentifierStepCount",
+            repositoryScope: scope,
+            nativeRecordID: "9512fc92-b514-4bcc-a157-050c41dac51d"
+        )
+        #expect(identity.value == "v0:store:1:3_vdE_qomxipxpR-C7cSNp4tlxgrHrMUx9A-hYVz0n0")
     }
 
     @Test
@@ -123,6 +156,14 @@ struct QuestionnaireHealthKitProjectionTests {
                 }]
               }
             ]
+          }, {
+            "linkId": "bone",
+            "type": "quantity",
+            "code": [{"system": "http://loinc.org", "code": "101685-6"}],
+            "extension": [{
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract",
+              "valueBoolean": true
+            }]
           }]
         }
     """.utf8)
@@ -157,7 +198,13 @@ struct QuestionnaireHealthKitProjectionTests {
           "authored": "2026-08-29T12:00:00-07:00",
           "identifier": {"system": "https://myheartcounts.stanford.edu/fhir/identifiers/response", "value": "response-1"},
           "subject": {"reference": "Patient/participant"},
-          "item": [{"linkId": "bp", "item": [\(answers)]}]
+          "item": [
+            {"linkId": "bp", "item": [\(answers)]},
+            {"linkId": "bone", "answer": [{"valueQuantity": {
+              "value": 30, "unit": "kg",
+              "system": "http://unitsofmeasure.org", "code": "kg"
+            }}]}
+          ]
         }
         """.utf8)
     }
@@ -172,10 +219,12 @@ struct QuestionnaireHealthKitProjectionTests {
         )
     }
 
+    /// The projection production runs, so a test can never exercise different semantics.
     private static func samples(
         questionnaire: Questionnaire,
         response: QuestionnaireResponse,
-        store: FHIRExchangeStateStore = FHIRExchangeStateStore()
+        store: FHIRExchangeStateStore = FHIRExchangeStateStore(),
+        onRefusal: (any Error) -> Void = { _ in }
     ) throws -> [HKSample] {
         var response = response
         response.apply(writerContext: try .current(
@@ -194,12 +243,7 @@ struct QuestionnaireHealthKitProjectionTests {
             response: response,
             context: reservation.context
         )
-        return try (graph.bundle.entry ?? []).compactMap { entry -> HKSample? in
-            guard case .observation(let observation) = entry.resource else {
-                return nil
-            }
-            return try HealthKitSampleProjection.sample(for: observation)
-        }
+        return HealthKitSampleProjection.samples(in: graph, onRefusal: onRefusal)
     }
 
     @Test
@@ -209,10 +253,16 @@ struct QuestionnaireHealthKitProjectionTests {
         let samples = try Self.samples(questionnaire: questionnaire, response: response, store: store)
         let correlation = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
         #expect(correlation.correlationType == HKCorrelationType(.bloodPressure))
-        let values = Set(correlation.objects.compactMap { object in
-            (object as? HKQuantitySample)?.quantity.doubleValue(for: .millimeterOfMercury())
-        })
-        #expect(values == [118, 76])
+        // Asserted per component type: an unordered value set cannot tell a swap from a match.
+        func value(of type: HKQuantityTypeIdentifier) -> Double? {
+            correlation.objects
+                .compactMap { $0 as? HKQuantitySample }
+                .first { $0.quantityType == HKQuantityType(type) }?
+                .quantity.doubleValue(for: .millimeterOfMercury())
+        }
+        #expect(value(of: .bloodPressureSystolic) == 118)
+        #expect(value(of: .bloodPressureDiastolic) == 76)
+        #expect(correlation.objects.count == 2)
         #expect(correlation.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
 
         // The sync identity is the minted source-output identity: deterministic, so the same
@@ -232,10 +282,29 @@ struct QuestionnaireHealthKitProjectionTests {
         }
     }
 
+    /// Bone mass extracts but has no HealthKit type to land on, so it is the reading that is lost.
+    @Test
+    func oneUnprojectableMeasurementStillYieldsTheOthers() throws {
+        let (questionnaire, response) = try Self.pair()
+        var refusals: [any Error] = []
+        let samples = try Self.samples(
+            questionnaire: questionnaire,
+            response: response,
+            onRefusal: { refusals.append($0) }
+        )
+        #expect(samples.compactMap { $0 as? HKCorrelation }.count == 1)
+        #expect(refusals.count == 1)
+        #expect(
+            refusals.first as? HealthKitSampleProjectionError
+                == .measurementNotMappable(id: "bone-mass")
+        )
+    }
+
     @Test
     func unmarkedItemsNeverProject() throws {
         var (questionnaire, response) = try Self.pair()
         questionnaire.item?[0].extension = nil
+        questionnaire.item?[1].extension = nil
         // A survey that measures nothing refuses before any identity is minted, so nothing
         // reaches HealthKit and no exchange event is spent on it.
         #expect(throws: ObservationExtractionError.noExtractableMeasurements) {

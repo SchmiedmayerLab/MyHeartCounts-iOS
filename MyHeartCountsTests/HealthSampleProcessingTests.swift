@@ -24,7 +24,7 @@ import Testing
 // The suite keeps its staging fixtures adjacent to the assertions that exercise their persistence.
 // swiftlint:disable type_body_length
 @Suite
-struct HealthSampleProcessingTests { // swiftlint:disable:this type_body_length
+struct HealthSampleProcessingTests {
     private actor FakeStandard: Standard, HealthKitConstraint {
         func handleNewSamples<Sample>(
             _ addedSamples: some Collection<Sample> & Sendable,
