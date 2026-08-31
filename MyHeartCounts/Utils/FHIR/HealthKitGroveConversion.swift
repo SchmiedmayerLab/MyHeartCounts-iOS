@@ -30,24 +30,7 @@ extension FHIRExchangeStateStore {
             sourceType: sample.sampleType.identifier,
             nativeRecordID: sample.uuid
         )
-        let application = HealthKitApplication.main
-        let host = FHIRExchangeRuntimeFacts.host
-        let event = try event(
-            key: eventKey,
-            recordedAt: conversionInstant,
-            facts: FHIRExchangeEventFacts(
-                applicationToken: application.bundleIdentifier,
-                applicationName: application.name,
-                applicationVersion: application.version,
-                applicationBuild: application.build,
-                hostToken: host.sourceDeviceToken,
-                hostOperatingSystemVersion: host.operatingSystemVersion,
-                hostName: host.name,
-                hostManufacturer: host.manufacturer,
-                hostModelNumber: host.modelNumber,
-                researchStudyIDs: FHIRExchangeIdentifiers.currentResearchStudyIDs()
-            )
-        )
+        let event = try event(key: eventKey, recordedAt: conversionInstant, facts: .current)
         return try HealthKitConversionReservation(
             eventKey: eventKey,
             context: HealthKitConversionContext(
@@ -60,7 +43,10 @@ extension FHIRExchangeStateStore {
                 identityScope: identityScope(),
                 repositoryScope: repositoryScope(.healthKit, subject: subject),
                 sourceActor: .application,
-                converterWasGateway: true,
+                // Converting a stored record does not make the converter a gateway; MHC mediated
+                // the recording only for samples it wrote itself.
+                converterWasGateway: sample.sourceRevision.source.bundleIdentifier
+                    == event.facts.applicationToken,
                 conversionInstant: event.recordedAt,
                 recordingDeviceStableUnitToken: sample.device?.localIdentifier,
                 udiDisclosurePolicy: .omit,
@@ -69,7 +55,9 @@ extension FHIRExchangeStateStore {
                 ),
                 routeDisclosurePolicy: .omit,
                 protocolCanonical: nil,
-                researchStudies: FHIRExchangeIdentifiers.researchStudyReferences(for: event.researchStudyIDs)
+                researchStudies: FHIRExchangeIdentifiers.researchStudyReferences(
+                    for: event.facts.researchStudyIDs
+                )
             )
         )
     }
