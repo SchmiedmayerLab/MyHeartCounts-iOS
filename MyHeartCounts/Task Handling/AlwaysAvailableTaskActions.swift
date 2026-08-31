@@ -9,10 +9,11 @@
 // swiftlint:disable attributes function_body_length closure_body_length cyclomatic_complexity
 
 import GroveFoundation
+import GroveQuestionnaire
+import GroveQuestionnaireFHIR
 import GroveScheduler
 import GroveStudy
 import MHCStudyDefinition
-import ModelsR4
 import SwiftUI
 
 
@@ -59,14 +60,25 @@ struct AlwaysAvailableTaskActions: DynamicProperty {
                     !events.contains { event in
                         switch event.task.studyScheduledTaskAction {
                         case .answerQuestionnaire(let component):
-                            studyManager
+                            guard let scheduledQuestionnaire = studyManager
                                 .studyEnrollments
                                 .first?
                                 .studyBundle?
-                                .questionnaire(for: component.fileRef, in: studyManager.preferredLocale)?
-                                .id == questionnaire.id
+                                .questionnaire(for: component.fileRef, in: studyManager.preferredLocale)
+                            else {
+                                return false
+                            }
+                            guard let scheduledIdentity = scheduledQuestionnaire.canonicalIdentity,
+                                  let url = questionnaire.metadata.url,
+                                  let version = questionnaire.metadata.version else {
+                                return false
+                            }
+                            return scheduledIdentity == QuestionnaireCanonicalIdentity(
+                                url: url,
+                                version: version
+                            )
                         default:
-                            false
+                            return false
                         }
                     }
                 case .article(let article):

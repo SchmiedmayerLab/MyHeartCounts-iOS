@@ -163,9 +163,10 @@ extension ManagedFileUpload {
 
 
 extension ManagedFileUpload {
-    enum UploadError: Error, Sendable {
+    enum UploadError: Error, Equatable, Sendable {
         case noAccount
         case cancelled
+        case stagingCollision(URL)
     }
 
     /// Moves a file into durable staging and schedules its upload.
@@ -191,13 +192,24 @@ extension ManagedFileUpload {
         let stagingDirectory = stagingDirectory(for: category)
         try createDirectoryIfNeeded(at: stagingDirectory)
         try ensureUploadsAreAllowed(accountDataGeneration)
-        let stagingUrl = try moveToStaging(url, in: stagingDirectory)
+        let stagedFile = try moveToStaging(url, in: stagingDirectory)
+        let stagingUrl = stagedFile.url
+        do {
+            try ensureUploadsAreAllowed(accountDataGeneration)
+        } catch {
+            if stagedFile.wasCreated {
+                try? fileManager.removeItem(at: stagingUrl)
+            }
+            throw error
+        }
         let upload = PendingUpload(fileUrl: stagingUrl, category: category, accountId: accountId)
         guard await uploadQueue.enqueue(
             upload,
             generation: queueGeneration
         ) else {
-            try? fileManager.removeItem(at: stagingUrl)
+            if stagedFile.wasCreated {
+                try? fileManager.removeItem(at: stagingUrl)
+            }
             throw UploadError.cancelled
         }
     }
@@ -324,19 +336,22 @@ extension ManagedFileUpload {
     }
 
     nonisolated
-    private func moveToStaging(_ sourceUrl: URL, in directory: URL) throws -> URL {
+    private func moveToStaging(_ sourceUrl: URL, in directory: URL) throws -> (url: URL, wasCreated: Bool) {
         try stagingLock.withLock { _ in
             let preferredUrl = directory.appending(component: sourceUrl.lastPathComponent, directoryHint: .notDirectory)
-            let stagingUrl = if fileManager.fileExists(atPath: preferredUrl.path(percentEncoded: false)) {
-                directory.appending(
-                    component: "\(UUID().uuidString)-\(sourceUrl.lastPathComponent)",
-                    directoryHint: .notDirectory
-                )
-            } else {
-                preferredUrl
+            if fileManager.fileExists(atPath: preferredUrl.path(percentEncoded: false)) {
+                guard sourceUrl.standardizedFileURL != preferredUrl.standardizedFileURL else {
+                    return (preferredUrl, false)
+                }
+                guard try Data(contentsOf: sourceUrl, options: .mappedIfSafe)
+                    == Data(contentsOf: preferredUrl, options: .mappedIfSafe) else {
+                    throw UploadError.stagingCollision(preferredUrl)
+                }
+                try fileManager.removeItem(at: sourceUrl)
+                return (preferredUrl, false)
             }
-            try fileManager.moveItem(at: sourceUrl, to: stagingUrl)
-            return stagingUrl
+            try fileManager.moveItem(at: sourceUrl, to: preferredUrl)
+            return (preferredUrl, true)
         }
     }
 }

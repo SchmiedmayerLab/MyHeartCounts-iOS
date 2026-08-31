@@ -11,11 +11,19 @@ import GroveHealthKit
 
 
 actor MHCWatchAppStandard: Standard, HealthKitConstraint {
-    func handleNewSamples<Sample>(_ addedSamples: some Collection<Sample>, ofType sampleType: SampleType<Sample>) async {
+    func handleNewSamples<Sample>(
+        _ addedSamples: some Collection<Sample> & Sendable,
+        ofType sampleType: SampleType<Sample>
+    ) async throws -> HealthKitAnchorCommitAction? {
         // ...
+        nil
     }
     
-    func handleDeletedObjects<Sample>(_ deletedObjects: some Collection<HKDeletedObject>, ofType sampleType: SampleType<Sample>) async {
+    func handleDeletedObjects<Sample>(
+        _ deletedObjects: some Collection<HKDeletedObject> & Sendable,
+        ofType sampleType: SampleType<Sample>
+    ) async throws -> HealthKitAnchorCommitAction? {
         // ...
+        nil
     }
 }

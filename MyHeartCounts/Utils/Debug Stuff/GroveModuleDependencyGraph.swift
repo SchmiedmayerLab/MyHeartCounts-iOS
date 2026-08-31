@@ -18,7 +18,7 @@ import Grove
 ///
 /// Grove doesn't publicly expose its modules' `@Dependency` declarations, so this type extracts them via reflection.
 /// It is therefore tied to the internal property-wrapper storage layout of the currently-pinned Grove version
-/// (verified against SchmiedmayerLab/Grove 0.3.0-beta.6, rev `fb13cf97`) and intended purely as a debugging aid;
+/// and intended purely as a debugging aid;
 /// if Grove's internals change, edges will be missing and reported via ``warnings``.
 ///
 /// - Warning: Grove itself crashes (stack overflow in `DependencyManager.buildTypeOrder()`) at the end of any

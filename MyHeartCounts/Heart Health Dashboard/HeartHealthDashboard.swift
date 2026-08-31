@@ -12,11 +12,11 @@ import Foundation
 import GroveFoundation
 import GroveHealthKit
 import GroveHealthKitUI
-import GroveQuestionnaireLegacy
+import GroveQuestionnaire
+import GroveQuestionnaireFHIR
 import GroveStudy
 import GroveViews
 import MHCStudyDefinition
-import struct ModelsR4.Questionnaire
 import MyHeartCountsShared
 import SFSafeSymbols
 import SwiftUI
@@ -258,22 +258,29 @@ private struct HealthDashboardQuestionnaireView: View {
     private var dismiss
     
     let questionnaireName: String
-    @State private var questionnaire: ModelsR4::Questionnaire?
+    @State private var questionnaire: GroveQuestionnaire.Questionnaire?
+    @State private var loadErrorDescription: String?
     
     var body: some View {
         Group {
             if let questionnaire {
-                QuestionnaireView(questionnaire: questionnaire) { result in
+                QuestionnaireSheet(questionnaire) { result in
                     switch result {
-                    case .completed(let response):
-                        await standard.add(response, for: questionnaire)
-                    case .cancelled, .failed:
+                    case .completed(let responses):
+                        try await submitQuestionnaire(responses, to: standard)
+                    case .cancelled:
                         break
                     }
                     dismiss()
                 }
+            } else if let loadErrorDescription {
+                ContentUnavailableView {
+                    Label("Unable to Load Questionnaire", systemSymbol: .exclamationmarkTriangle)
+                } description: {
+                    Text(loadErrorDescription)
+                }
             } else {
-                ContentUnavailableView("Unable to find Questionnaire", systemSymbol: .exclamationmarkTriangle) // ???
+                ProgressView()
             }
         }
         .task {
@@ -282,9 +289,22 @@ private struct HealthDashboardQuestionnaireView: View {
     }
     
     private func loadQuestionnaire() {
-        guard let studyBundle = studyManager.studyEnrollments.first?.studyBundle else {
+        guard let studyBundle = studyManager.studyEnrollments.first?.studyBundle,
+              let fhirQuestionnaire = studyBundle.questionnaire(
+                named: questionnaireName,
+                in: studyManager.preferredLocale
+              ) else {
+            loadErrorDescription = "The study does not contain this questionnaire."
             return
         }
-        questionnaire = studyBundle.questionnaire(named: questionnaireName, in: studyManager.preferredLocale)
+        do {
+            questionnaire = try GroveQuestionnaire.Questionnaire(
+                fhirQuestionnaire,
+                evaluationInstant: .now,
+                using: .init(locale: studyManager.preferredLocale)
+            )
+        } catch {
+            loadErrorDescription = error.localizedDescription
+        }
     }
 }

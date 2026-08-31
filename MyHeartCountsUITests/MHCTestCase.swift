@@ -17,6 +17,7 @@ import MyHeartCountsShared
 import XCTest
 import XCTestExtensions
 import XCTGroveNotifications
+import XCTGroveQuestionnaire
 import XCTHealthKit
 
 /*
@@ -52,6 +53,7 @@ class MHCTestCase: XCTestCase, Sendable {
     private var _app: MHCXCUIApplication!
     
     var app: XCUIApplication { _app }
+    var questionnaire: QuestionnaireSheetNavigator { QuestionnaireSheetNavigator(app) }
     
     /// The on-disk location of the study bundle, for this specific test run.
     ///

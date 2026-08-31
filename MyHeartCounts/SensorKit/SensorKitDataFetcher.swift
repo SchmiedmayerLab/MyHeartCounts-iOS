@@ -208,6 +208,45 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
     }
     
     
+    /// Publishes one fetched batch and advances its cursor as one indivisible step.
+    ///
+    /// The unstructured task deliberately does not inherit a background-task cancellation that may
+    /// arrive after sidecar staging but before the Bundle and the cursor are durable.
+    private func publishAndAcknowledge<Sample, Strategy: MHCSensorSampleUploadStrategy<Sample>>(
+        _ batch: SensorKit.AnchoredBatch<Sample.SafeRepresentation>,
+        uploadDefinition: MHCSensorUploadDefinition<Sample, Strategy>,
+        to standard: MyHeartCountsStandard,
+        activity: InProgressActivity
+    ) async throws {
+        let sensor = uploadDefinition.sensor
+        let task = Task { @concurrent in
+            let publication = try await standard.sensorKitBatchPublication(
+                for: sensor,
+                batchInfo: batch.info
+            )
+            try await uploadDefinition.strategy.upload(
+                batch.samples,
+                publication: publication,
+                for: sensor,
+                to: standard,
+                activity: activity
+            )
+            try await batch.acknowledge()
+            do {
+                try await standard.completeSensorKitBatch(
+                    publication.batchKey,
+                    accountDataGeneration: publication.destination.accountDataGeneration
+                )
+            } catch {
+                // The cursor is already durable. A transient local-ledger cleanup failure must not
+                // make an acknowledged batch look unpublished or trigger a false retry.
+                logger.error("Could not clean acknowledged SensorKit FHIR state: \(error)")
+            }
+        }
+        try await task.value
+    }
+
+
     /// Fetches all new SensorKit samples for the specified sensor (relative to the last time the function was called for the sensor), and uploads them all into the Firestore.
     @concurrent
     private func fetchAndUploadAnchored(
@@ -234,17 +273,14 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
             activity.updateMessage("Fetching Samples")
             var uploadedBatches = 0
             let standard = standard
-            for try await (batchInfo, batch) in try await sensorKit.fetchAnchored(sensor) {
-                activity.updateTimeRange(batchInfo.timeRange)
-                // The anchored fetch persists its query anchor past a batch before yielding it to us;
-                // a yielded batch that doesn't get uploaded is therefore lost for good.
-                // Running the upload in an unstructured Task (which doesn't inherit cancellation) ensures that
-                // cancellation (eg BGTask expiration) and protected-data loss can only abort the fetch
-                // between batches, and never strand the batch we're currently holding.
-                let uploadTask = Task { @concurrent in
-                    try await uploadDefinition.strategy.upload(batch, batchInfo: batchInfo, for: sensor, to: standard, activity: activity)
-                }
-                try await uploadTask.value
+            for try await batch in try await sensorKit.fetchAnchored(sensor) {
+                activity.updateTimeRange(batch.info.timeRange)
+                try await publishAndAcknowledge(
+                    batch,
+                    uploadDefinition: uploadDefinition,
+                    to: standard,
+                    activity: activity
+                )
                 uploadedBatches += 1
                 if maximumBatches.map({ uploadedBatches >= $0 }) ?? false {
                     break
@@ -289,24 +325,29 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
             .ephemeral()
         }
         activity.updateMessage("Fetching Samples")
-        for try await (batchInfo, samples) in fetcher {
-            activity.updateTimeRange(batchInfo.timeRange)
-            try await uploadDefinition.strategy.upload(consume samples, batchInfo: batchInfo, for: sensor, to: standard, activity: activity)
+        for try await batch in fetcher {
+            activity.updateTimeRange(batch.info.timeRange)
+            try await publishAndAcknowledge(
+                batch,
+                uploadDefinition: uploadDefinition,
+                to: standard,
+                activity: activity
+            )
             activity.updateMessage("Fetching Samples")
         }
     }
     
     /// Intended for debugging and development purposes
-    func resetAllQueryAnchors() {
+    func resetAllQueryAnchors() async {
         guard SensorKit.isAvailable else {
             return
         }
-        func imp(_ sensor: some AnySensor) {
+        func imp(_ sensor: some AnySensor) async {
             let sensor = Sensor(sensor)
-            try? sensorKit.resetQueryAnchors(for: sensor)
+            try? await sensorKit.resetQueryAnchors(for: sensor)
         }
         for sensor in SensorKit.allKnownSensors {
-            imp(sensor)
+            await imp(sensor)
         }
     }
     
@@ -346,11 +387,11 @@ extension SensorKit {
             return []
         }
         return [
-            MHCSensorUploadDefinition(sensor: .visits, strategy: UploadStrategyJSONFile()),
-            MHCSensorUploadDefinition(sensor: .onWrist, strategy: UploadStrategyJSONFile()),
-            MHCSensorUploadDefinition(sensor: .deviceUsage, strategy: UploadStrategyJSONFile()),
-            MHCSensorUploadDefinition(sensor: .ecg, strategy: UploadStrategyJSONFile()),
-            MHCSensorUploadDefinition(sensor: .wristTemperature, strategy: UploadStrategyCSVFile2()),
+            MHCSensorUploadDefinition(sensor: .visits, strategy: UploadStrategyStructured()),
+            MHCSensorUploadDefinition(sensor: .onWrist, strategy: UploadStrategyStructured()),
+            MHCSensorUploadDefinition(sensor: .deviceUsage, strategy: UploadStrategyStructured()),
+            MHCSensorUploadDefinition(sensor: .ecg, strategy: UploadStrategyECG()),
+            MHCSensorUploadDefinition(sensor: .wristTemperature, strategy: UploadStrategyWristTemperature()),
             MHCSensorUploadDefinition(sensor: .heartRate, strategy: UploadStrategyCSVFile()),
             MHCSensorUploadDefinition(sensor: .pedometer, strategy: UploadStrategyCSVFile()),
             
@@ -368,5 +409,9 @@ extension SensorKit {
 extension ManagedFileUpload.Category {
     init(_ sensor: any AnySensor) {
         self.init(id: "SensorKitUpload/\(sensor.id)", title: "SensorKit \(sensor.displayName)", firebasePath: "SensorKit/\(sensor.id)")
+    }
+
+    func remotePath(for filename: String) -> String {
+        "\(firebasePath)/\(filename)"
     }
 }

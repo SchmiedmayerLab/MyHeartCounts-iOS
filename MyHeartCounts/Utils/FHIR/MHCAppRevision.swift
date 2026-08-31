@@ -78,7 +78,9 @@ extension FHIRExtensionURL {
     /// Url of a FHIR Extension identifying the My Heart Counts build which created the resource.
     ///
     /// See ``MHCAppRevision``.
-    static let mhcAppRevision = Self("https://myheartcounts.stanford.edu/fhir/core/mhcAppRevision")
+    static let mhcAppRevision = try! Self( // swiftlint:disable:this force_try
+        "https://myheartcounts.stanford.edu/fhir/core/mhcAppRevision"
+    )
 }
 
 

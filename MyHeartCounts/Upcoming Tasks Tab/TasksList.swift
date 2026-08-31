@@ -12,6 +12,7 @@ import Algorithms
 import Foundation
 import GroveFoundation
 import GroveQuestionnaire
+import GroveQuestionnaireFHIR
 import GroveScheduler
 import GroveSchedulerUI
 import GroveStudy
@@ -238,8 +239,22 @@ extension TasksList {
         case .answerQuestionnaire(let component):
             guard let enrollment = studyManager.enrollment(withId: context.enrollmentId),
                   let studyBundle = enrollment.studyBundle,
-                  let questionnaire = studyBundle.questionnaire(for: component.fileRef, in: studyManager.preferredLocale) else {
-                logger.error("Unable to find SPC")
+                  let fhirQuestionnaire = studyBundle.questionnaire(
+                    for: component.fileRef,
+                    in: studyManager.preferredLocale
+                  ) else {
+                logger.error("Unable to find Questionnaire")
+                return
+            }
+            let questionnaire: GroveQuestionnaire.Questionnaire
+            do {
+                questionnaire = try GroveQuestionnaire.Questionnaire(
+                    fhirQuestionnaire,
+                    evaluationInstant: .now,
+                    using: .init(locale: studyManager.preferredLocale)
+                )
+            } catch {
+                logger.error("Unable to prepare Questionnaire for administration: \(error)")
                 return
             }
             _Concurrency.Task {

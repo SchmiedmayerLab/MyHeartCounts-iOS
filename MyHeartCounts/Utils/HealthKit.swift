@@ -27,25 +27,18 @@ extension HKUnit {
 
 // MARK: FHIR
 extension HKUnit {
-    private static let defaultFHIRUnitsMapping: [String: Set<HKUnit>] = {
-        SampleTypesFHIRMapping.default.quantityTypesMapping.reduce(into: [:]) { acc, entry in
-            let mappedUnit = entry.value.unit
-            if let code = mappedUnit.code?.value?.string {
-                acc[code, default: []].insert(mappedUnit.hkUnit)
-            }
-            acc[mappedUnit.unit, default: []].insert(mappedUnit.hkUnit)
-        }
-    }()
-    
+    /// Display spellings producers use that no Grove contract states.
+    ///
+    /// `Quantity.unit` is a human label rather than a coded value — only `Quantity.code` is UCUM —
+    /// so a producer is free to write `C` for Celsius. Grove publishes only the displays its own
+    /// contracts state, which is `Cel`, so a spelling seen in the wild is matched here.
+    private static let producerUnitAliases: [String: HKUnit] = ["C": .degreeCelsius()]
+
+    /// The HealthKit unit a FHIR unit names, whether the string is the UCUM code or the display.
+    ///
+    /// Grove publishes the correspondence because it cannot be derived: HealthKit does not parse
+    /// UCUM, and `HKUnit(from: "Cel")` raises rather than returning degrees Celsius.
     static func parseFromFHIRUnit(_ unitString: String) -> HKUnit? {
-        guard let units = defaultFHIRUnitsMapping[unitString], !units.isEmpty else {
-            return nil
-        }
-        if units.count > 1 {
-            print("Error: found multiple units for unitString '\(unitString)'. returning nil.")
-            return nil
-        } else {
-            return units.first
-        }
+        HealthKitCatalog.unit(forUnitSpelling: unitString) ?? producerUnitAliases[unitString]
     }
 }

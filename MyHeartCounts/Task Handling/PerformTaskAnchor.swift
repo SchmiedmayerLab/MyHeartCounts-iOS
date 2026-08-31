@@ -14,7 +14,6 @@ import GroveScheduler
 import GroveStudy
 import GroveStudyDefinition
 import MHCStudyDefinition
-import struct ModelsR4.Questionnaire
 import MyHeartCountsShared
 import ResearchKitSwiftUI
 import SFSafeSymbols
@@ -39,7 +38,7 @@ struct PerformTask: DynamicProperty {
     @MainActor
     final class Task: Sendable {
         enum Action: Hashable {
-            case answerQuestionnaire(Questionnaire)
+            case answerQuestionnaire(GroveQuestionnaire.Questionnaire)
             case article(Article)
             case timedWalkTest(TimedWalkingTestConfiguration)
             case ecg
@@ -160,12 +159,12 @@ private struct UserTaskPerforming: ViewModifier {
             .sheet(item: $currentlyActiveTask.task, id: \.action) { task in
                 switch task.action {
                 case .answerQuestionnaire(let questionnaire):
-                    QuestionnaireView(questionnaire: questionnaire, cancelBehavior: .cancel) { result in
+                    QuestionnaireSheet(questionnaire) { result in
                         switch result {
-                        case .completed(let response):
-                            await standard.add(response, for: questionnaire)
+                        case .completed(let responses):
+                            try await submitQuestionnaire(responses, to: standard)
                             task.markCompleted(didSucceed: true)
-                        case .cancelled, .failed:
+                        case .cancelled:
                             task.markCompleted(didSucceed: false)
                         }
                         currentlyActiveTask.task = nil
@@ -212,7 +211,7 @@ extension PerformTask.Task.Action {
     var title: LocalizedStringResource {
         switch self {
         case .answerQuestionnaire(let questionnaire):
-            (questionnaire.title?.value?.string).map { "\($0)" } ?? "Questionnaire"
+            questionnaire.metadata.title.isEmpty ? "Questionnaire" : "\(questionnaire.metadata.title)"
         case .article(let article):
             "\(article.title)"
         case .timedWalkTest(let test):
@@ -238,7 +237,7 @@ extension PerformTask.Task.Action {
     var instructions: LocalizedStringResource? {
         switch self {
         case .answerQuestionnaire(let questionnaire):
-            (questionnaire.purpose?.value?.string).map { "\($0)" }
+            questionnaire.metadata.explainer.isEmpty ? nil : "\(questionnaire.metadata.explainer)"
         case .article:
             nil // lede?
         case .timedWalkTest:

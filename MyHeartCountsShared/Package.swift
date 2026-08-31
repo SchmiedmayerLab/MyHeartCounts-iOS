@@ -11,7 +11,10 @@ import PackageDescription
 
 
 var packageDeps: [Package.Dependency] = [
-    .package(url: "https://github.com/SchmiedmayerLab/Grove.git", .upToNextMinor(from: "0.3.0-beta.6")),
+    .package(
+        url: "https://github.com/SchmiedmayerLab/Grove.git",
+        revision: "83cf971ccb1ead1c80f0da23d684322be85e96da"
+    ),
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.93.0"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0")
 ]

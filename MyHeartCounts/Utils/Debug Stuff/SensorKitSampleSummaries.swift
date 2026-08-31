@@ -134,15 +134,16 @@ struct SensorKitSampleSummaries: View {
                 // we want to use ephemeral query anchors, bc this fetch is happening outside of the regular anchoring
                 .ephemeral()
             }
-            for try await (batchInfo, samples) in fetcher {
-                let countsByRange: [Range<Date>: Int] = samples.reduce(into: [:]) { result, sample in
+            for try await batch in fetcher {
+                let countsByRange: [Range<Date>: Int] = batch.samples.reduce(into: [:]) { result, sample in
                     result[cal.rangeOfDay(for: sample.timeRange.lowerBound), default: 0] += 1
                 }
                 await MainActor.run {
                     for (range, count) in countsByRange {
-                        info.samplesByDeviceByTimeRange[range, default: [:]][batchInfo.device, default: 0] += count
+                        info.samplesByDeviceByTimeRange[range, default: [:]][batch.info.device, default: 0] += count
                     }
                 }
+                try await batch.acknowledge()
             }
         } catch {
             await MainActor.run {

@@ -78,7 +78,7 @@ struct ManagedFileUploadTests {
     )
 
     @Test
-    func limitsConcurrentUploadsAndPreservesCollidingFiles() async throws {
+    func limitsConcurrentUploads() async throws {
         let directory = try makeTemporaryDirectory()
         defer {
             try? FileManager.default.removeItem(at: directory)
@@ -115,6 +115,59 @@ struct ManagedFileUploadTests {
         #expect(await probe.startedCount == 5)
         #expect(await probe.maximumActiveCount == 2)
         #expect(recursiveFileCount(in: directory) == 0)
+    }
+
+    @Test
+    func identicalStagingCollisionReusesPreferredFile() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let probe = UploadProbe()
+        let uploader = makeUploader(directory: directory, accountId: "account-a", probe: probe)
+        let firstSource = try makeSourceFile(index: 0, filename: "recording.json", contents: "same", in: directory)
+        let secondSource = try makeSourceFile(index: 1, filename: "recording.json", contents: "same", in: directory)
+
+        try await uploader.stage(firstSource, category: category)
+        await probe.waitUntilStarted(1)
+        try await uploader.stage(secondSource, category: category)
+
+        let stagedFiles = regularFiles(in: directory).filter { $0.deletingLastPathComponent().lastPathComponent == category.id }
+        #expect(stagedFiles.map(\.lastPathComponent) == ["recording.json"])
+        #expect(!FileManager.default.fileExists(atPath: secondSource.path(percentEncoded: false)))
+        #expect(await probe.startedCount == 1)
+
+        await probe.releaseUploads()
+        await uploader.waitUntilQuiescent()
+        #expect(recursiveFileCount(in: directory) == 0)
+    }
+
+    @Test
+    func differentStagingCollisionFailsWithoutReplacingPreferredFile() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let probe = UploadProbe()
+        let uploader = makeUploader(directory: directory, accountId: "account-a", probe: probe)
+        let firstSource = try makeSourceFile(index: 0, filename: "recording.json", contents: "first", in: directory)
+        let secondSource = try makeSourceFile(index: 1, filename: "recording.json", contents: "second", in: directory)
+        let preferredUrl = directory
+            .appending(component: category.id, directoryHint: .isDirectory)
+            .appending(component: "recording.json", directoryHint: .notDirectory)
+
+        try await uploader.stage(firstSource, category: category)
+        await probe.waitUntilStarted(1)
+        await #expect(throws: ManagedFileUpload.UploadError.stagingCollision(preferredUrl)) {
+            try await uploader.stage(secondSource, category: category)
+        }
+
+        #expect(try Data(contentsOf: preferredUrl) == Data("first".utf8))
+        #expect(try Data(contentsOf: secondSource) == Data("second".utf8))
+        #expect(await probe.startedCount == 1)
+
+        await probe.releaseUploads()
+        await uploader.waitUntilQuiescent()
     }
 
     @Test
@@ -203,13 +256,18 @@ struct ManagedFileUploadTests {
         return directory
     }
 
-    private func makeSourceFile(index: Int, in testDirectory: URL) throws -> URL {
+    private func makeSourceFile(
+        index: Int,
+        filename: String? = nil,
+        contents: String? = nil,
+        in testDirectory: URL
+    ) throws -> URL {
         let directory = testDirectory
             .appending(path: "sources", directoryHint: .isDirectory)
             .appending(path: "\(index)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let url = directory.appending(path: "upload.dat", directoryHint: .notDirectory)
-        try Data("test-\(index)".utf8).write(to: url)
+        let url = directory.appending(path: filename ?? "upload-\(index).dat", directoryHint: .notDirectory)
+        try Data((contents ?? "test-\(index)").utf8).write(to: url)
         return url
     }
 
