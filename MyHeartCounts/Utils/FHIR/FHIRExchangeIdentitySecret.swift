@@ -32,6 +32,22 @@ struct FHIRExchangeIdentitySecret: Codable, Sendable, Equatable {
 
 
 extension FHIRExchangeStateStore {
+    private static func storedIdentitySecret(
+        in keychain: KeychainStorage
+    ) throws -> FHIRExchangeIdentitySecret? {
+        guard let credentials = try keychain.retrieveCredentials(
+            withUsername: "identity",
+            for: identitySecretTag
+        ) else {
+            return nil
+        }
+        guard let data = Data(base64Encoded: credentials.password),
+              let secret = try? JSONDecoder().decode(FHIRExchangeIdentitySecret.self, from: data) else {
+            throw FHIRExchangeStateError.corruptIdentitySecret
+        }
+        return secret
+    }
+
     func identityScope() throws -> PseudonymousIdentityScope {
         let secret = try identitySecret()
         let keyID = FHIRExchangeIdentifiers.identityKeyID
@@ -73,23 +89,26 @@ extension FHIRExchangeStateStore {
                 return secret
             }
         case .keychain(let keychain):
-            if let credentials = try keychain.retrieveCredentials(
-                withUsername: "identity",
-                for: Self.identitySecretTag
-            ) {
-                guard let data = Data(base64Encoded: credentials.password),
-                      let secret = try? JSONDecoder().decode(FHIRExchangeIdentitySecret.self, from: data) else {
-                    throw FHIRExchangeStateError.corruptIdentitySecret
-                }
-                return secret
+            if let stored = try Self.storedIdentitySecret(in: keychain) {
+                return stored
             }
             let secret = FHIRExchangeIdentitySecret()
             let encoded = try JSONEncoder().encode(secret).base64EncodedString()
-            try keychain.store(
-                Credentials(username: "identity", password: encoded),
-                for: Self.identitySecretTag
-            )
-            return secret
+            do {
+                try keychain.store(
+                    Credentials(username: "identity", password: encoded),
+                    for: Self.identitySecretTag,
+                    replaceDuplicates: false
+                )
+                return secret
+            } catch {
+                // A concurrent first use won the mint. Replacing its secret would orphan every
+                // identity it already put on the wire, so adopt the winner instead.
+                guard let winner = try? Self.storedIdentitySecret(in: keychain) else {
+                    throw error
+                }
+                return winner
+            }
         }
     }
 }
