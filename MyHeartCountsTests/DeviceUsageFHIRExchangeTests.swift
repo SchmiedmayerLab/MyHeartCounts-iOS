@@ -8,6 +8,7 @@
 
 import Foundation
 import GroveFHIRContract
+import GroveFoundation
 import GroveSensorKit
 import GroveSensorKitFHIR
 import ModelsR4
@@ -73,70 +74,54 @@ struct DeviceUsageFHIRExchangeTests {
         )
     }
 
-    private static func context() throws -> SensorKitConversionContext {
-        let store = FHIRExchangeStateStore()
+    /// The publication production builds, so its account fence, ordinal-derived source ids, and
+    /// event facts are the ones under test rather than a copy of them.
+    private static func publication(
+        store: FHIRExchangeStateStore = FHIRExchangeStateStore()
+    ) throws -> SensorKitBatchPublication {
         let subject = try FHIRExchangeSubject(
             identity: BusinessIdentifier(
                 system: FHIRExchangeIdentifiers.participant,
                 value: "device-usage-test-participant"
             )
         )
-        let event = try store.event(
-            key: "sensorkit|device-usage-test",
-            recordedAt: timestamp,
-            sourceTimeZone: try #require(TimeZone(identifier: "America/Los_Angeles")),
-            facts: FHIRExchangeEventFacts(
-                applicationToken: "edu.stanford.MyHeartCounts",
-                applicationName: "My Heart Counts",
-                applicationVersion: "1.0.0",
-                applicationBuild: "42",
-                hostToken: "test-host",
-                hostOperatingSystemVersion: "26.0",
-                hostName: nil,
-                hostManufacturer: "Apple",
-                hostModelNumber: "iPhone18,1",
-                researchStudyIDs: []
-            )
-        )
-        return try SensorKitConversionContext(
-            subject: subject.reference,
-            subjectIdentity: subject.identity,
-            converter: event.sensorApplication,
-            converterHost: event.sensorHost,
-            eventIdentifier: store.eventIdentifier(for: event),
-            entryNodeIdentifierSystem: FHIRExchangeIdentifiers.entryNode,
-            identityScope: store.identityScope(),
-            repositoryScope: store.repositoryScope(.sensorKit, subject: subject),
-            visitLocationIdentifierSystem: FHIRExchangeIdentifiers.visitLocation,
-            sourceIdentifierDisclosurePolicy: .authorized(
-                system: FHIRExchangeIdentifiers.sensorKitSourceRecord
+        return try SensorKitBatchPublication(
+            sensor: Sensor.deviceUsage,
+            batchInfo: SensorKit.BatchInfo(
+                timeRange: timestamp..<timestamp.addingTimeInterval(600),
+                device: SensorKit.DeviceInfo(SRDevice.current),
+                acquisitionBatch: SensorKit.AcquisitionBatchCoordinate(
+                    cursorTimestamp: timestamp,
+                    resetGeneration: 2,
+                    sequence: 7
+                )
             ),
-            converterWasGateway: true,
-            sourceTimeZone: event.sourceTimeZone,
-            recordedAt: event.recordedAt
+            subject: subject,
+            destination: FHIRExchangeDestination(
+                accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration],
+                accountID: subject.identity.value
+            ),
+            stateStore: store,
+            conversionInstant: timestamp
         )
     }
 
     @Test
     func nestedDeviceUsageDriftCannotReuseReservedIdentity() throws {
-        let store = FHIRExchangeStateStore()
-        let sourceID = SensorKitSourceRecordID(
-            try #require(UUID(uuidString: "879d9ea2-21cb-4527-b59b-2831dc4c84ab"))
-        )
-        let batchKey = "device-usage-batch"
-        try store.verifySensorRetryDigest(
-            SensorKitPreparedStructuredRecord(deviceUsage: Self.report()).retryEvidence,
-            batchKey: batchKey,
-            sourceRecordID: sourceID
+        let publication = try Self.publication()
+        let reservation = try publication.reserve(
+            recordOrdinal: 0,
+            evidence: try SensorKitPreparedStructuredRecord(deviceUsage: Self.report()).retryEvidence
         )
 
-        #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceID.value)) {
-            try store.verifySensorRetryDigest(
-                SensorKitPreparedStructuredRecord(
+        #expect(throws: FHIRExchangeStateError.retryContentChanged(
+            sourceRecordID: reservation.sourceRecordID.value
+        )) {
+            _ = try publication.reserve(
+                recordOrdinal: 0,
+                evidence: try SensorKitPreparedStructuredRecord(
                     deviceUsage: Self.report(textInputSessionIdentifier: "changed-session")
-                ).retryEvidence,
-                batchKey: batchKey,
-                sourceRecordID: sourceID
+                ).retryEvidence
             )
         }
     }
@@ -146,9 +131,11 @@ struct DeviceUsageFHIRExchangeTests {
         let report = Self.report()
         let prepared = try SensorKitPreparedStructuredRecord(deviceUsage: report)
         let payload = try #require(prepared.nativePayload)
-        let sourceID = SensorKitSourceRecordID(
-            try #require(UUID(uuidString: "879d9ea2-21cb-4527-b59b-2831dc4c84ab"))
+        let reservation = try Self.publication().reserve(
+            recordOrdinal: 0,
+            evidence: prepared.retryEvidence
         )
+        let sourceID = reservation.sourceRecordID
         let filename = "\(sourceID.value).json"
         let category = ManagedFileUpload.Category(Sensor.deviceUsage)
         let sidecarPath = category.remotePath(for: filename)
@@ -158,7 +145,7 @@ struct DeviceUsageFHIRExchangeTests {
             location: .sidecar(path: sidecarPath),
             admission: .callerAuthorizedOpaquePayload
         )
-        let conversion = try SensorKitConverter().convert(record, context: Self.context())
+        let conversion = try SensorKitConverter().convert(record, context: reservation.context)
         let document = try #require(conversion.recordingDocument)
         let content = try #require(document.content.first)
 

@@ -96,9 +96,9 @@ struct FHIRExchangeStateTests {
             )
         )
         #expect(laterPublication.sequence == first.sequence + 1)
-        #expect(first.researchStudyIDs == ["study-original"])
-        #expect(retry.researchStudyIDs == ["study-original"])
-        #expect(laterPublication.researchStudyIDs == ["study-after-completion"])
+        #expect(first.facts.researchStudyIDs == ["study-original"])
+        #expect(retry.facts.researchStudyIDs == ["study-original"])
+        #expect(laterPublication.facts.researchStudyIDs == ["study-after-completion"])
     }
 
     @Test
@@ -151,36 +151,26 @@ struct FHIRExchangeStateTests {
             accountID: "account-a"
         )
 
-        try destination.validate(currentGeneration: 7, cleanupPending: false)
+        try FHIRExchangeDestination.validateWrites(
+            for: destination.accountDataGeneration,
+            currentGeneration: 7,
+            cleanupPending: false
+        )
         #expect(destination.accountID == "account-a")
         #expect(throws: FHIRExchangeDestinationError.accountChanged) {
-            try destination.validate(currentGeneration: 8, cleanupPending: false)
-        }
-        #expect(throws: FHIRExchangeDestinationError.accountChanged) {
-            try destination.validate(currentGeneration: 7, cleanupPending: true)
-        }
-    }
-
-    @Test
-    func questionnaireSubmissionRejectsAccountSwitchWithoutRetargeting() throws {
-        let subject = try FHIRExchangeSubject(identity: BusinessIdentifier(
-            system: FHIRExchangeIdentifiers.participant,
-            value: "participant-a"
-        ))
-        let submission = QuestionnaireSubmissionContext(
-            subject: subject,
-            destination: FHIRExchangeDestination(
-                accountDataGeneration: 11,
-                accountID: "account-a"
+            try FHIRExchangeDestination.validateWrites(
+                for: destination.accountDataGeneration,
+                currentGeneration: 8,
+                cleanupPending: false
             )
-        )
-
-        #expect(submission.subject.identity.value == "participant-a")
-        #expect(submission.destination.accountID == "account-a")
-        #expect(throws: FHIRExchangeDestinationError.accountChanged) {
-            try submission.destination.validate(currentGeneration: 12, cleanupPending: false)
         }
-        #expect(submission.destination.accountID == "account-a")
+        #expect(throws: FHIRExchangeDestinationError.accountChanged) {
+            try FHIRExchangeDestination.validateWrites(
+                for: destination.accountDataGeneration,
+                currentGeneration: 7,
+                cleanupPending: true
+            )
+        }
     }
 
     @Test
@@ -197,23 +187,38 @@ struct FHIRExchangeStateTests {
     }
 
     @Test
-    func pseudonymousSystemsBindRoleProtocolGenerationAndKeyEpoch() throws {
-        let systems = try FHIRExchangeIdentifiers.pseudonymousSystems
-        let values = [
-            systems.sourceRecord,
-            systems.sourceOutput,
-            systems.writerRecord,
-            systems.providerRecord,
-            systems.providerOutput,
-            systems.sourceArtifact,
-            systems.providerArtifact,
-            systems.sourceContext,
-            systems.recordingDevice,
-            systems.deviceSnapshot
-        ].map(\.rawValue)
+    func pseudonymousSystemsNameTheKeyAndEpochTheirValuesCarry() throws {
+        let store = FHIRExchangeStateStore()
+        let scope = try store.identityScope()
+        let root = "https://myheartcounts.stanford.edu/fhir/identifiers/pseudonym"
 
-        #expect(Set(values).count == values.count)
-        #expect(values.allSatisfy { $0.contains("-v0/installation/1") })
+        #expect(scope.keyID == "store")
+        #expect(scope.epoch.rawValue == "1")
+        let expected: [(IdentifierSystem, String)] = [
+            (scope.systems.sourceRecord, "\(root)/source-record-v0/store/1"),
+            (scope.systems.sourceOutput, "\(root)/source-output-v0/store/1"),
+            (scope.systems.writerRecord, "\(root)/writer-record-v0/store/1"),
+            (scope.systems.providerRecord, "\(root)/provider-record-v0/store/1"),
+            (scope.systems.providerOutput, "\(root)/provider-output-v0/store/1"),
+            (scope.systems.sourceArtifact, "\(root)/source-artifact-v0/store/1"),
+            (scope.systems.providerArtifact, "\(root)/provider-artifact-v0/store/1"),
+            (scope.systems.sourceContext, "\(root)/source-context-v0/store/1"),
+            (scope.systems.recordingDevice, "\(root)/recording-device-v0/store/1"),
+            (scope.systems.deviceSnapshot, "\(root)/device-snapshot-v0/store/1")
+        ]
+        for (system, literal) in expected {
+            #expect(system.rawValue == literal)
+        }
+
+        // The system and the value minted under it state the same key id and epoch.
+        let record = try scope.sourceRecord(
+            adapterID: "healthkit",
+            sourceType: "HKQuantityTypeIdentifierStepCount",
+            repositoryScope: try store.repositoryScope(.healthKit, subject: try Self.subject),
+            nativeRecordID: "9512fc92-b514-4bcc-a157-050c41dac51d"
+        )
+        #expect(record.system == scope.systems.sourceRecord)
+        #expect(record.value.hasPrefix("v0:store:1:"))
     }
 
     @Test
@@ -268,7 +273,7 @@ struct FHIRExchangeStateTests {
             recordedAt: Date(timeIntervalSince1970: 1_788_000_002),
             facts: Self.eventFacts
         )
-        try oldStore.completeHealthKitEvent(eventKey)
+        try oldStore.completeExchangeEvents(CollectionOfOne(eventKey))
         try oldStore.completeSensorBatch("late-account-a-batch")
         let retry = try newStore.event(
             key: eventKey,

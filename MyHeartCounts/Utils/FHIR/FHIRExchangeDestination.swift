@@ -19,17 +19,24 @@ struct FHIRExchangeDestination: Equatable, Sendable {
     let accountDataGeneration: Int
     let accountID: String
 
-    func validateCurrentAccount() throws {
-        let preferences = LocalPreferencesStore.standard
-        try validate(
-            currentGeneration: preferences[.accountDataGeneration],
-            cleanupPending: preferences[.pendingAccountDataCleanupRequired]
-        )
+    /// Captures the account an exchange is composed for, refusing one that already rotated.
+    static func capture(accountID: String, accountDataGeneration: Int) throws -> Self {
+        try validateWrites(for: accountDataGeneration)
+        return Self(accountDataGeneration: accountDataGeneration, accountID: accountID)
     }
 
-    func validate(currentGeneration: Int, cleanupPending: Bool) throws {
-        guard currentGeneration == accountDataGeneration, !cleanupPending else {
+    /// The account fence: a rotated generation or a pending cleanup refuses every write.
+    static func validateWrites(
+        for accountDataGeneration: Int,
+        currentGeneration: Int = LocalPreferencesStore.standard[.accountDataGeneration],
+        cleanupPending: Bool = LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired]
+    ) throws {
+        guard accountDataGeneration == currentGeneration, !cleanupPending else {
             throw FHIRExchangeDestinationError.accountChanged
         }
+    }
+
+    func validateCurrentAccount() throws {
+        try Self.validateWrites(for: accountDataGeneration)
     }
 }

@@ -21,7 +21,7 @@ struct SensorKitRecordReservation: Sendable {
 }
 
 
-/// Stable publication facts shared by every record in one acknowledged SensorKit batch.
+/// Stable publication facts shared by every record in one fetched SensorKit batch.
 struct SensorKitBatchPublication: Sendable {
     let sourceToken: String
     let batchKey: String
@@ -86,24 +86,7 @@ struct SensorKitBatchPublication: Sendable {
             batchKey: batchKey,
             sourceRecordID: sourceRecordID
         )
-        let application = HealthKitApplication.main
-        let host = FHIRExchangeRuntimeFacts.host
-        let event = try stateStore.event(
-            key: eventKey,
-            recordedAt: conversionInstant,
-            facts: FHIRExchangeEventFacts(
-                applicationToken: application.bundleIdentifier,
-                applicationName: application.name,
-                applicationVersion: application.version,
-                applicationBuild: application.build,
-                hostToken: host.sourceDeviceToken,
-                hostOperatingSystemVersion: host.operatingSystemVersion,
-                hostName: host.name,
-                hostManufacturer: host.manufacturer,
-                hostModelNumber: host.modelNumber,
-                researchStudyIDs: FHIRExchangeIdentifiers.currentResearchStudyIDs()
-            )
-        )
+        let event = try stateStore.event(key: eventKey, recordedAt: conversionInstant, facts: .current)
         return try SensorKitRecordReservation(
             sourceRecordID: sourceRecordID,
             context: SensorKitConversionContext(
@@ -120,11 +103,10 @@ struct SensorKitBatchPublication: Sendable {
                     system: FHIRExchangeIdentifiers.sensorKitSourceRecord
                 ),
                 recordingDevice: nil,
-                converterWasGateway: true,
                 sourceTimeZone: event.sourceTimeZone,
-                recordedAt: event.recordedAt,
+                conversionInstant: event.recordedAt,
                 researchStudies: FHIRExchangeIdentifiers.researchStudyReferences(
-                    for: event.researchStudyIDs
+                    for: event.facts.researchStudyIDs
                 )
             )
         )
@@ -137,17 +119,12 @@ extension MyHeartCountsStandard {
         for sensor: some AnySensor,
         batchInfo: SensorKit.BatchInfo
     ) async throws -> SensorKitBatchPublication {
-        let preferences = LocalPreferencesStore.standard
-        let accountDataGeneration = preferences[.accountDataGeneration]
-        guard !preferences[.pendingAccountDataCleanupRequired] else {
-            throw FHIRExchangeDestinationError.accountChanged
-        }
+        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
         let subject = try await firebaseConfiguration.fhirExchangeSubject
-        let destination = FHIRExchangeDestination(
-            accountDataGeneration: accountDataGeneration,
-            accountID: subject.identity.value
+        let destination = try FHIRExchangeDestination.capture(
+            accountID: subject.identity.value,
+            accountDataGeneration: accountDataGeneration
         )
-        try destination.validateCurrentAccount()
         return try SensorKitBatchPublication(
             sensor: sensor,
             batchInfo: batchInfo,

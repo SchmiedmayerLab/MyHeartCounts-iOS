@@ -16,6 +16,7 @@ import GroveQuestionnaire
 import GroveQuestionnaireFHIR
 import GroveStudy
 import GroveStudyDefinition
+import HealthKit
 import ModelsR4
 import MyHeartCountsShared
 import OSLog
@@ -42,7 +43,7 @@ func submitQuestionnaire(
         authored: authored,
         authoredTimeZone: authoredTimeZone
     )
-    try await standard.add(pair.response, destination: submission.destination)
+    try await standard.add(pair.response, in: submission)
 }
 
 
@@ -78,42 +79,44 @@ extension MyHeartCountsStandard {
     }
 
     func questionnaireSubmissionContext() async throws -> QuestionnaireSubmissionContext {
-        let preferences = LocalPreferencesStore.standard
-        let generation = preferences[.accountDataGeneration]
-        guard !preferences[.pendingAccountDataCleanupRequired] else {
-            throw FHIRExchangeDestinationError.accountChanged
-        }
+        // Read before the await: capturing it afterwards would compare the current generation with
+        // itself and let an account rotation that happened during the await through.
+        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
         let subject = try await firebaseConfiguration.fhirExchangeSubject
-        let destination = FHIRExchangeDestination(
-            accountDataGeneration: generation,
-            accountID: subject.identity.value
+        return QuestionnaireSubmissionContext(
+            subject: subject,
+            destination: try FHIRExchangeDestination.capture(
+                accountID: subject.identity.value,
+                accountDataGeneration: accountDataGeneration
+            )
         )
-        try destination.validateCurrentAccount()
-        return QuestionnaireSubmissionContext(subject: subject, destination: destination)
     }
 
     func add(
         _ response: ModelsR4.QuestionnaireResponse,
-        destination: FHIRExchangeDestination
+        in submission: QuestionnaireSubmissionContext
     ) async throws {
         guard let id = response.identifier?.value?.value?.string else {
             throw ContractError.incompleteResponseIdentifier
         }
-        try destination.validateCurrentAccount()
+        try submission.destination.validateCurrentAccount()
         let document = FirebaseConfiguration.usersCollection
-            .document(destination.accountID)
+            .document(submission.destination.accountID)
             .collection("questionnaireResponses")
             .document(id)
         let data = try Firestore.Encoder().encode(response)
         try await document.setData(data)
-        await parseIfApplicable(response)
+        await parseIfApplicable(response, in: submission)
         if let timestamp = try? response.authored?.value?.asNSDate() {
             await achievementsManager?.record(.completeQuestionnaire, timestamp: timestamp)
         }
     }
-    
-    
-    private func parseIfApplicable(_ response: ModelsR4.QuestionnaireResponse) async {
+
+
+    private func parseIfApplicable(
+        _ response: ModelsR4.QuestionnaireResponse,
+        in submission: QuestionnaireSubmissionContext
+    ) async {
         // The instrument's own SDC markings drive extraction: the response is projected into
         // the full Grove exchange bundle -- identities, devices, provenance -- and each of the
         // bundle's Observations lands as the HealthKit sample it describes, synced under its
@@ -126,35 +129,68 @@ extension MyHeartCountsStandard {
             return
         }
         do {
-            let reservation = try fhirExchangeStateStore(
-                accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
-            ).questionnaireConversion(
+            // The submission's captured account, never the current one: an account switch between
+            // the Firestore write and here must refuse, not re-target this response.
+            try submission.destination.validateCurrentAccount()
+            let stateStore = fhirExchangeStateStore(
+                accountDataGeneration: submission.destination.accountDataGeneration
+            )
+            let reservation = try stateStore.questionnaireConversion(
                 responseID: responseID,
-                subject: try await firebaseConfiguration.fhirExchangeSubject,
+                subject: submission.subject,
                 conversionInstant: .now
             )
+            // Extraction has no retry to protect: the response is already durable and the bundle is
+            // discarded, so the reservation is released however extraction concludes.
+            defer {
+                try? stateStore.completeExchangeEvents(CollectionOfOne(reservation.eventKey))
+            }
             let graph = try QuestionnaireExchangeProjection.exchangeGraph(
                 questionnaire: questionnaire,
                 response: response,
                 context: reservation.context
             )
-            for entry in graph.bundle.entry ?? [] {
-                guard case .observation(let observation) = entry.resource else {
-                    continue
-                }
+            // One refusal (an unmapped measurement) loses that reading, never the response.
+            var refusals: [any Error] = []
+            let samples = HealthKitSampleProjection.samples(in: graph) { refusals.append($0) }
+            for refusal in refusals {
+                logger.error("Unable to project extracted observation: \(refusal)")
+            }
+            for sample in samples {
                 do {
-                    let sample = try HealthKitSampleProjection.sample(for: observation)
                     try await healthKit.save(sample)
                 } catch {
-                    // One refusal (an unmapped measurement, an undetermined authorization)
-                    // loses that reading, never the whole response's extraction.
-                    await logger.error("Unable to project extracted observation into HealthKit: \(error)")
+                    logger.error("Unable to save extracted sample into HealthKit: \(error)")
                 }
             }
         } catch ObservationExtractionError.noExtractableMeasurements {
             // A survey that measures nothing is the common case, not an error.
         } catch {
             await logger.error("Error parsing & processing questionnaire response: \(error)")
+        }
+    }
+}
+
+
+extension HealthKitSampleProjection {
+    /// Every Observation in an exchange graph that projects back into a HealthKit sample.
+    ///
+    /// One refusal loses that reading and is reported; the remaining measurements still land. Both
+    /// production and its tests read the graph through here, so they cannot disagree about it.
+    static func samples(
+        in graph: ExchangeGraph,
+        onRefusal: (any Error) -> Void
+    ) -> [HKSample] {
+        (graph.bundle.entry ?? []).compactMap { entry -> HKSample? in
+            guard case .observation(let observation) = entry.resource else {
+                return nil
+            }
+            do {
+                return try Self.sample(for: observation)
+            } catch {
+                onRefusal(error)
+                return nil
+            }
         }
     }
 }

@@ -208,9 +208,48 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
     }
     
     
+    /// Publishes one fetched batch and advances its cursor as one indivisible step.
+    ///
+    /// The unstructured task deliberately does not inherit a background-task cancellation that may
+    /// arrive after sidecar staging but before the Bundle and the cursor are durable.
+    private func publishAndAcknowledge<Sample, Strategy: MHCSensorSampleUploadStrategy<Sample>>(
+        _ batch: SensorKit.AnchoredBatch<Sample.SafeRepresentation>,
+        uploadDefinition: MHCSensorUploadDefinition<Sample, Strategy>,
+        to standard: MyHeartCountsStandard,
+        activity: InProgressActivity
+    ) async throws {
+        let sensor = uploadDefinition.sensor
+        let task = Task { @concurrent in
+            let publication = try await standard.sensorKitBatchPublication(
+                for: sensor,
+                batchInfo: batch.info
+            )
+            try await uploadDefinition.strategy.upload(
+                batch.samples,
+                publication: publication,
+                for: sensor,
+                to: standard,
+                activity: activity
+            )
+            try await batch.acknowledge()
+            do {
+                try await standard.completeSensorKitBatch(
+                    publication.batchKey,
+                    accountDataGeneration: publication.destination.accountDataGeneration
+                )
+            } catch {
+                // The cursor is already durable. A transient local-ledger cleanup failure must not
+                // make an acknowledged batch look unpublished or trigger a false retry.
+                logger.error("Could not clean acknowledged SensorKit FHIR state: \(error)")
+            }
+        }
+        try await task.value
+    }
+
+
     /// Fetches all new SensorKit samples for the specified sensor (relative to the last time the function was called for the sensor), and uploads them all into the Firestore.
     @concurrent
-    private func fetchAndUploadAnchored( // swiftlint:disable:this function_body_length
+    private func fetchAndUploadAnchored(
         _ uploadDefinition: some AnyMHCSensorUploadDefinition<some Any, some Any>,
         maximumBatches: Int?
     ) async throws {
@@ -236,34 +275,12 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
             let standard = standard
             for try await batch in try await sensorKit.fetchAnchored(sensor) {
                 activity.updateTimeRange(batch.info.timeRange)
-                // Once SensorKit has yielded a batch, finish its durable publication and acknowledgement
-                // together. The unstructured task does not inherit a background-task cancellation that may
-                // arrive after sidecar staging but before the Bundle and cursor are durable.
-                let uploadTask = Task { @concurrent in
-                    let publication = try await standard.sensorKitBatchPublication(
-                        for: sensor,
-                        batchInfo: batch.info
-                    )
-                    try await uploadDefinition.strategy.upload(
-                        batch.samples,
-                        publication: publication,
-                        for: sensor,
-                        to: standard,
-                        activity: activity
-                    )
-                    try await batch.acknowledge()
-                    do {
-                        try await standard.completeSensorKitBatch(
-                            publication.batchKey,
-                            accountDataGeneration: publication.destination.accountDataGeneration
-                        )
-                    } catch {
-                        // The cursor is already durable. A transient local-ledger cleanup failure must
-                        // not make an acknowledged batch look unpublished or trigger a false retry.
-                        logger.error("Could not clean acknowledged SensorKit FHIR state: \(error)")
-                    }
-                }
-                try await uploadTask.value
+                try await publishAndAcknowledge(
+                    batch,
+                    uploadDefinition: uploadDefinition,
+                    to: standard,
+                    activity: activity
+                )
                 uploadedBatches += 1
                 if maximumBatches.map({ uploadedBatches >= $0 }) ?? false {
                     break
@@ -310,29 +327,12 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
         activity.updateMessage("Fetching Samples")
         for try await batch in fetcher {
             activity.updateTimeRange(batch.info.timeRange)
-            let uploadTask = Task { @concurrent in
-                let publication = try await standard.sensorKitBatchPublication(
-                    for: sensor,
-                    batchInfo: batch.info
-                )
-                try await uploadDefinition.strategy.upload(
-                    batch.samples,
-                    publication: publication,
-                    for: sensor,
-                    to: standard,
-                    activity: activity
-                )
-                try await batch.acknowledge()
-                do {
-                    try await standard.completeSensorKitBatch(
-                        publication.batchKey,
-                        accountDataGeneration: publication.destination.accountDataGeneration
-                    )
-                } catch {
-                    logger.error("Could not clean acknowledged SensorKit FHIR state: \(error)")
-                }
-            }
-            try await uploadTask.value
+            try await publishAndAcknowledge(
+                batch,
+                uploadDefinition: uploadDefinition,
+                to: standard,
+                activity: activity
+            )
             activity.updateMessage("Fetching Samples")
         }
     }

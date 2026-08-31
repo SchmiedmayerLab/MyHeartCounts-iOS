@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import GroveFHIRContract
 import GroveSensorKit
 import GroveSensorKitFHIR
 import SensorKit
