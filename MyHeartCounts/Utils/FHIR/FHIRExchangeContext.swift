@@ -46,40 +46,50 @@ extension FirebaseConfiguration {
 }
 
 
+/// The application and host facts one exchange event is composed from.
+struct FHIRExchangeEventFacts: Codable, Equatable, Sendable {
+    /// The facts as they stand right now, for a reservation being made.
+    static var current: Self {
+        let application = HealthKitApplication.main
+        let host = FHIRExchangeRuntimeFacts.host
+        return Self(
+            applicationToken: application.bundleIdentifier,
+            applicationName: application.name,
+            applicationVersion: application.version,
+            applicationBuild: application.build,
+            hostToken: host.sourceDeviceToken,
+            hostOperatingSystemVersion: host.operatingSystemVersion,
+            hostName: host.name,
+            hostManufacturer: host.manufacturer,
+            hostModelNumber: host.modelNumber,
+            researchStudyIDs: FHIRExchangeIdentifiers.currentResearchStudyIDs()
+        )
+    }
+
+    let applicationToken: String
+    let applicationName: String
+    let applicationVersion: String?
+    let applicationBuild: String?
+    let hostToken: String
+    let hostOperatingSystemVersion: String
+    let hostName: String?
+    let hostManufacturer: String?
+    let hostModelNumber: String?
+    let researchStudyIDs: [String]
+}
+
+
 /// Immutable event-time facts retained so an exact retry reproduces the original graph.
 struct PersistedFHIRExchangeEvent: Codable, Equatable, Sendable {
     let sequence: UInt64
     let recordedAt: Date
     let sourceTimeZoneIdentifier: String
-    let applicationToken: String
-    let applicationName: String
-    let applicationVersion: String?
-    let applicationBuild: String?
-    let hostToken: String
-    let hostOperatingSystemVersion: String
-    let hostName: String?
-    let hostManufacturer: String?
-    let hostModelNumber: String?
-    let researchStudyIDs: [String]
-}
-
-
-struct FHIRExchangeEventFacts: Sendable {
-    let applicationToken: String
-    let applicationName: String
-    let applicationVersion: String?
-    let applicationBuild: String?
-    let hostToken: String
-    let hostOperatingSystemVersion: String
-    let hostName: String?
-    let hostManufacturer: String?
-    let hostModelNumber: String?
-    let researchStudyIDs: [String]
+    let facts: FHIRExchangeEventFacts
 }
 
 
 enum FHIRExchangeRuntimeFacts {
-    static var host: HealthKitHostDevice {
+    static let host: HealthKitHostDevice = {
         let version = ProcessInfo.processInfo.operatingSystemVersion
         return HealthKitHostDevice(
             sourceDeviceToken: "current-converter-host",
@@ -91,9 +101,14 @@ enum FHIRExchangeRuntimeFacts {
             manufacturer: "Apple",
             modelNumber: machineIdentifier
         )
-    }
+    }()
 
     private static var machineIdentifier: String? {
+        // A simulator's uname reports the host Mac, which is not the device the app runs as.
+        if let simulated = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"],
+           !simulated.isEmpty {
+            return simulated
+        }
         var systemInfo = utsname()
         guard uname(&systemInfo) == 0 else {
             return nil
@@ -109,7 +124,6 @@ enum FHIRExchangeRuntimeFacts {
 
 
 enum FHIRExchangeStateError: Error, Equatable {
-    case exhaustedEventSequence
     case retryContentChanged(sourceRecordID: String)
     case invalidPersistedTimeZone(String)
     case unsupportedSchemaVersion(UInt)
@@ -122,7 +136,7 @@ enum FHIRExchangeStateError: Error, Equatable {
 ///
 /// `LocalStorage` provides encryption and atomic replacement. Tests may use the in-memory
 /// initializer, while every production call site uses the same encrypted key.
-final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:this type_body_length
+final class FHIRExchangeStateStore: Sendable {
     fileprivate struct State: Codable, Sendable {
         struct SensorRetry: Codable, Sendable {
             let batchKey: String
@@ -132,18 +146,14 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
         let schemaVersion: UInt
         let accountDataGeneration: Int
         let producerInstance: UUID
-        // Superseded by FHIRExchangeIdentitySecret; kept so schema 0 ledgers still decode.
-        let identityKey: Data
         var nextEventSequence: UInt64
         var events: [String: PersistedFHIRExchangeEvent]
         var sensorRetries: [String: SensorRetry]
 
         init(accountDataGeneration: Int, schemaVersion: UInt = 0) {
-            var generator = SystemRandomNumberGenerator()
             self.schemaVersion = schemaVersion
             self.accountDataGeneration = accountDataGeneration
             self.producerInstance = UUID()
-            self.identityKey = Data((0..<32).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
             self.nextEventSequence = 1
             self.events = [:]
             self.sensorRetries = [:]
@@ -184,12 +194,7 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
     #if DEBUG
     var hasPersistedStateForTesting: Bool {
         get throws {
-            switch backend {
-            case .encrypted(let localStorage):
-                try localStorage.load(.fhirExchangeState) != nil
-            case .memory(let backend):
-                backend.state.withLock { $0 != nil }
-            }
+            try withStorage(readOnly: true) { $0 != nil }
         }
     }
     #endif
@@ -253,23 +258,11 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
             if let persisted = state.events[key] {
                 return persisted
             }
-            guard state.nextEventSequence < UInt64.max else {
-                throw FHIRExchangeStateError.exhaustedEventSequence
-            }
             let event = PersistedFHIRExchangeEvent(
                 sequence: state.nextEventSequence,
                 recordedAt: recordedAt,
                 sourceTimeZoneIdentifier: sourceTimeZone.identifier,
-                applicationToken: facts.applicationToken,
-                applicationName: facts.applicationName,
-                applicationVersion: facts.applicationVersion,
-                applicationBuild: facts.applicationBuild,
-                hostToken: facts.hostToken,
-                hostOperatingSystemVersion: facts.hostOperatingSystemVersion,
-                hostName: facts.hostName,
-                hostManufacturer: facts.hostManufacturer,
-                hostModelNumber: facts.hostModelNumber,
-                researchStudyIDs: facts.researchStudyIDs
+                facts: facts
             )
             state.nextEventSequence += 1
             state.events[key] = event
@@ -284,7 +277,7 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
         sourceRecordID: SensorKitSourceRecordID
     ) throws {
         let key = "\(batchKey)|\(sourceRecordID.value)"
-        let digest = Data(SHA256.hash(data: sourceBytes)).lowercaseHexString
+        let digest = SHA256.hash(data: sourceBytes).lowercaseHexString
         try withState { state in
             if let persisted = state.sensorRetries[key] {
                 guard persisted.digest == digest else {
@@ -304,16 +297,11 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
         }
     }
 
-    /// Removes a HealthKit reservation after the source cursor durably acknowledges its graph.
+    /// Atomically removes reservations whose graphs the source has durably acknowledged.
     ///
     /// Persisting a Bundle is not sufficient: a crash before the source cursor commit still causes
     /// exact redelivery and must reuse the original event facts.
-    func completeHealthKitEvent(_ eventKey: String) throws {
-        try completeHealthKitEvents(CollectionOfOne(eventKey))
-    }
-
-    /// Atomically removes every reservation for one source-acknowledged HealthKit batch.
-    func completeHealthKitEvents(_ eventKeys: some Sequence<String>) throws {
+    func completeExchangeEvents(_ eventKeys: some Sequence<String>) throws {
         let eventKeys = Set(eventKeys)
         guard !eventKeys.isEmpty else {
             return
@@ -328,16 +316,7 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
     /// The fresh state records this store's captured account generation. A late publisher carrying
     /// an older generation fails before mutation; late cleanup-only callbacks become no-ops.
     func reset() throws {
-        switch backend {
-        case .encrypted(let localStorage):
-            try localStorage.modify(.fhirExchangeState) { stored in
-                stored = State(accountDataGeneration: accountDataGeneration)
-            }
-        case .memory(let backend):
-            backend.state.withLock {
-                $0 = State(accountDataGeneration: accountDataGeneration)
-            }
-        }
+        try withStorage { $0 = State(accountDataGeneration: accountDataGeneration) }
     }
 
     func healthKitEventKey(
@@ -386,18 +365,10 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
     /// The first read still initializes the state atomically so repeated read-only calls cannot
     /// observe different producer identities.
     private func stateSnapshot() throws -> State {
-        switch backend {
-        case .encrypted(let localStorage):
-            if let state = try localStorage.load(.fhirExchangeState) {
-                return try validated(state)
-            }
-            return try withState { $0 }
-        case .memory(let backend):
-            return try backend.state.withLock { stored in
-                let state = stored ?? State(accountDataGeneration: accountDataGeneration)
-                stored = state
-                return try validated(state)
-            }
+        try withStorage(readOnly: true) { stored in
+            let state = try validated(stored ?? State(accountDataGeneration: accountDataGeneration))
+            stored = state
+            return state
         }
     }
 
@@ -414,61 +385,54 @@ final class FHIRExchangeStateStore: @unchecked Sendable { // swiftlint:disable:t
         return state
     }
 
-    private func withState<Result>(_ body: (inout State) throws -> Result) throws -> Result {
+    /// The one place either backend is loaded, mutated, and stored again.
+    ///
+    /// `readOnly` serves already-initialized state without a write-back, so repeated fact reads do
+    /// not rewrite the encrypted ledger.
+    private func withStorage<Result>(
+        readOnly: Bool = false,
+        _ body: (inout State?) throws -> Result
+    ) throws -> Result {
         switch backend {
         case .encrypted(let localStorage):
+            if readOnly, let loaded = try localStorage.load(.fhirExchangeState) {
+                var stored: State? = loaded
+                return try body(&stored)
+            }
             var result: Result?
             try localStorage.modify(.fhirExchangeState) { stored in
-                var state = try validated(
-                    stored ?? State(accountDataGeneration: accountDataGeneration)
-                )
-                result = try body(&state)
-                stored = state
+                result = try body(&stored)
             }
             // `LocalStorage.modify` always invokes the closure or throws.
             return result! // swiftlint:disable:this force_unwrapping
         case .memory(let backend):
-            return try backend.state.withLock { stored in
-                var state = try validated(
-                    stored ?? State(accountDataGeneration: accountDataGeneration)
-                )
-                let result = try body(&state)
-                stored = state
-                return result
-            }
+            return try backend.state.withLock { try body(&$0) }
         }
     }
 
+    private func withState<Result>(_ body: (inout State) throws -> Result) throws -> Result {
+        try withStorage { stored in
+            var state = try validated(stored ?? State(accountDataGeneration: accountDataGeneration))
+            let result = try body(&state)
+            stored = state
+            return result
+        }
+    }
+
+    /// Mutates state that already exists; a late callback from a rotated account is a no-op.
     private func withExistingState(_ body: (inout State) throws -> Void) throws {
-        switch backend {
-        case .encrypted(let localStorage):
-            try localStorage.modify(.fhirExchangeState) { stored in
-                guard var state = stored else {
-                    return
-                }
-                guard state.schemaVersion == 0 else {
-                    throw FHIRExchangeStateError.unsupportedSchemaVersion(state.schemaVersion)
-                }
-                guard state.accountDataGeneration == accountDataGeneration else {
-                    return
-                }
-                try body(&state)
-                stored = state
+        try withStorage { stored in
+            guard var state = stored else {
+                return
             }
-        case .memory(let backend):
-            try backend.state.withLock { stored in
-                guard var state = stored else {
-                    return
-                }
-                guard state.schemaVersion == 0 else {
-                    throw FHIRExchangeStateError.unsupportedSchemaVersion(state.schemaVersion)
-                }
-                guard state.accountDataGeneration == accountDataGeneration else {
-                    return
-                }
-                try body(&state)
-                stored = state
+            guard state.schemaVersion == 0 else {
+                throw FHIRExchangeStateError.unsupportedSchemaVersion(state.schemaVersion)
             }
+            guard state.accountDataGeneration == accountDataGeneration else {
+                return
+            }
+            try body(&state)
+            stored = state
         }
     }
 }
@@ -478,18 +442,4 @@ extension LocalStorageKeys {
     fileprivate static let fhirExchangeState = LocalStorageKey<FHIRExchangeStateStore.State>(
         "edu.stanford.MyHeartCounts.fhir.exchange-state.v0"
     )
-}
-
-
-extension Data {
-    fileprivate var lowercaseHexString: String {
-        let alphabet = Array("0123456789abcdef".utf8)
-        var bytes: [UInt8] = []
-        bytes.reserveCapacity(count * 2)
-        for byte in self {
-            bytes.append(alphabet[Int(byte >> 4)])
-            bytes.append(alphabet[Int(byte & 0x0F)])
-        }
-        return String(decoding: bytes, as: UTF8.self)
-    }
 }

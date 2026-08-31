@@ -39,22 +39,34 @@ enum FHIRExchangeIdentifiers {
     static let visitLocation: IdentifierSystem =
         "https://myheartcounts.stanford.edu/fhir/identifiers/sensorkit-visit-location"
 
-    static var pseudonymousSystems: PseudonymousIdentitySystems {
-        get throws {
-            let root = "https://myheartcounts.stanford.edu/fhir/identifiers/pseudonym"
-            return try PseudonymousIdentitySystems(
-                sourceRecord: IdentifierSystem("\(root)/source-record-v0/installation/1"),
-                sourceOutput: IdentifierSystem("\(root)/source-output-v0/installation/1"),
-                writerRecord: IdentifierSystem("\(root)/writer-record-v0/installation/1"),
-                providerRecord: IdentifierSystem("\(root)/provider-record-v0/installation/1"),
-                providerOutput: IdentifierSystem("\(root)/provider-output-v0/installation/1"),
-                sourceArtifact: IdentifierSystem("\(root)/source-artifact-v0/installation/1"),
-                providerArtifact: IdentifierSystem("\(root)/provider-artifact-v0/installation/1"),
-                sourceContext: IdentifierSystem("\(root)/source-context-v0/installation/1"),
-                recordingDevice: IdentifierSystem("\(root)/recording-device-v0/installation/1"),
-                deviceSnapshot: IdentifierSystem("\(root)/device-snapshot-v0/installation/1")
-            )
+    /// The wire-visible key id selecting the store-bound secret every identity is minted from.
+    static let identityKeyID = "store"
+
+    private static let pseudonymRoot = "https://myheartcounts.stanford.edu/fhir/identifiers/pseudonym"
+
+    /// The ten systems for one identity scope, each naming the key id and epoch minting under it.
+    ///
+    /// Derived from the scope rather than written out, so a system can never claim a key id or
+    /// epoch the values carried under it contradict.
+    static func pseudonymousSystems(
+        keyID: String,
+        epoch: CanonicalPositiveDecimal
+    ) throws -> PseudonymousIdentitySystems {
+        func system(_ kind: String) throws -> IdentifierSystem {
+            try IdentifierSystem("\(pseudonymRoot)/\(kind)-v0/\(keyID)/\(epoch.rawValue)")
         }
+        return try PseudonymousIdentitySystems(
+            sourceRecord: system("source-record"),
+            sourceOutput: system("source-output"),
+            writerRecord: system("writer-record"),
+            providerRecord: system("provider-record"),
+            providerOutput: system("provider-output"),
+            sourceArtifact: system("source-artifact"),
+            providerArtifact: system("provider-artifact"),
+            sourceContext: system("source-context"),
+            recordingDevice: system("recording-device"),
+            deviceSnapshot: system("device-snapshot")
+        )
     }
 
     static func currentResearchStudyIDs() -> [String] {
@@ -76,39 +88,39 @@ enum FHIRExchangeIdentifiers {
 extension PersistedFHIRExchangeEvent {
     var healthKitApplication: HealthKitApplication {
         HealthKitApplication(
-            name: applicationName,
-            bundleIdentifier: applicationToken,
-            version: applicationVersion ?? "0",
-            build: applicationBuild
+            name: facts.applicationName,
+            bundleIdentifier: facts.applicationToken,
+            version: facts.applicationVersion ?? "0",
+            build: facts.applicationBuild
         )
     }
 
     var healthKitHost: HealthKitHostDevice {
         HealthKitHostDevice(
-            sourceDeviceToken: hostToken,
-            operatingSystemVersion: hostOperatingSystemVersion,
-            name: hostName,
-            manufacturer: hostManufacturer,
-            modelNumber: hostModelNumber
+            sourceDeviceToken: facts.hostToken,
+            operatingSystemVersion: facts.hostOperatingSystemVersion,
+            name: facts.hostName,
+            manufacturer: facts.hostManufacturer,
+            modelNumber: facts.hostModelNumber
         )
     }
 
     var sensorApplication: SensorApplication {
         SensorApplication(
-            sourceDeviceToken: applicationToken,
-            name: applicationName,
-            version: applicationVersion,
-            build: applicationBuild
+            sourceDeviceToken: facts.applicationToken,
+            name: facts.applicationName,
+            version: facts.applicationVersion,
+            build: facts.applicationBuild
         )
     }
 
     var sensorHost: SensorHostDevice {
         SensorHostDevice(
-            sourceDeviceToken: hostToken,
-            operatingSystemVersion: hostOperatingSystemVersion,
-            name: hostName,
-            manufacturer: hostManufacturer,
-            modelNumber: hostModelNumber
+            sourceDeviceToken: facts.hostToken,
+            operatingSystemVersion: facts.hostOperatingSystemVersion,
+            name: facts.hostName,
+            manufacturer: facts.hostManufacturer,
+            modelNumber: facts.hostModelNumber
         )
     }
 

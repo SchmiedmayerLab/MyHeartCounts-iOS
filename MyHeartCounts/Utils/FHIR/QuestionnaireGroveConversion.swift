@@ -27,24 +27,7 @@ extension FHIRExchangeStateStore {
         conversionInstant: Date
     ) throws -> QuestionnaireConversionReservation {
         let eventKey = questionnaireEventKey(subject: subject, responseID: responseID)
-        let application = HealthKitApplication.main
-        let host = FHIRExchangeRuntimeFacts.host
-        let event = try event(
-            key: eventKey,
-            recordedAt: conversionInstant,
-            facts: FHIRExchangeEventFacts(
-                applicationToken: application.bundleIdentifier,
-                applicationName: application.name,
-                applicationVersion: application.version,
-                applicationBuild: application.build,
-                hostToken: host.sourceDeviceToken,
-                hostOperatingSystemVersion: host.operatingSystemVersion,
-                hostName: host.name,
-                hostManufacturer: host.manufacturer,
-                hostModelNumber: host.modelNumber,
-                researchStudyIDs: FHIRExchangeIdentifiers.currentResearchStudyIDs()
-            )
-        )
+        let event = try event(key: eventKey, recordedAt: conversionInstant, facts: .current)
         return try QuestionnaireConversionReservation(
             eventKey: eventKey,
             context: QuestionnaireExtractionContext(

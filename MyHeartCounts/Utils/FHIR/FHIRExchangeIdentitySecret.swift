@@ -14,10 +14,9 @@ import Synchronization
 
 /// The store-bound identity secret every device on the participant's Apple Account shares.
 ///
-/// It lives in the synchronizable keychain, so it survives reinstalls and syncs across devices
-/// exactly like the HealthKit store whose records it names: the same reading minted anywhere
-/// yields the same identities. Account partitioning happens in the repository scope, never by
-/// rotating this secret.
+/// It lives in the synchronizable keychain, so it survives reinstalls and, wherever iCloud Keychain
+/// is on, reaches the participant's other devices. Account partitioning happens in the repository
+/// scope, never by rotating this secret.
 struct FHIRExchangeIdentitySecret: Codable, Sendable, Equatable {
     let key: Data
     let storeID: UUID
@@ -35,10 +34,12 @@ struct FHIRExchangeIdentitySecret: Codable, Sendable, Equatable {
 extension FHIRExchangeStateStore {
     func identityScope() throws -> PseudonymousIdentityScope {
         let secret = try identitySecret()
+        let keyID = FHIRExchangeIdentifiers.identityKeyID
+        let epoch = try CanonicalPositiveDecimal(secret.epoch)
         return try PseudonymousIdentityScope(
-            systems: FHIRExchangeIdentifiers.pseudonymousSystems,
-            keyID: "store",
-            epoch: CanonicalPositiveDecimal(secret.epoch),
+            systems: FHIRExchangeIdentifiers.pseudonymousSystems(keyID: keyID, epoch: epoch),
+            keyID: keyID,
+            epoch: epoch,
             key: secret.key
         )
     }
