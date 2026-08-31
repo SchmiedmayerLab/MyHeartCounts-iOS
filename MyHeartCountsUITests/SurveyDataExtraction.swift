@@ -29,8 +29,9 @@ final class ScheduledTaskTests: MHCTestCase, Sendable {
         app.buttons["HeartRisk"].tap()
         
         XCTAssert(questionnaire.waitUntilPresented())
-        try questionnaire.question("7cec349c-495c-4ef6-834e-cc9708625736").enterNumber(69)
-        try questionnaire.question("b25ac0aa-4528-47dc-951f-97f411ec5cc2").enterNumber(69)
+        // Asymmetric on purpose: equal components cannot tell a correct pairing from a swapped one.
+        try questionnaire.question("7cec349c-495c-4ef6-834e-cc9708625736").enterNumber(118)
+        try questionnaire.question("b25ac0aa-4528-47dc-951f-97f411ec5cc2").enterNumber(76)
         try questionnaire.question("7309938e-ea24-4e31-8427-82f3a1a44f83").enterNumber(100)
         questionnaire.submit()
         XCTAssert(questionnaire.waitUntilDismissed())
@@ -44,7 +45,7 @@ final class ScheduledTaskTests: MHCTestCase, Sendable {
         app.swipeUp()
         if !HealthKit.needsBloodPressureAuthFlowFix {
             app.buttons["Blood Pressure"].tap()
-            XCTAssert(app.collectionViews.staticTexts["Most Recent Sample: 69 over 69"].waitForExistence(timeout: 2))
+            XCTAssert(app.collectionViews.staticTexts["Most Recent Sample: 118 over 76"].waitForExistence(timeout: 2))
             app.buttons["Close"].tap()
         }
         app.buttons["Fasting Blood Glucose"].tap() // fasting blood glucose value

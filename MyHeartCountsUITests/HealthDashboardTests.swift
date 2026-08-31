@@ -130,12 +130,14 @@ class HealthDashboardTests: MHCTestCase, Sendable {
         questionnaire.question("dcb2277e-fe96-4f45-844a-ef58a9516380").select("Never smoked/vaped")
         questionnaire.submit()
         XCTAssert(questionnaire.waitUntilDismissed())
-        
+        XCTAssert(app.staticTexts["Most Recent Response: Never Smoked"].waitForExistence(timeout: 10))
+
         app.navigationBars["Nicotine Exposure"].buttons["Add Data"].tap()
         XCTAssert(questionnaire.waitUntilPresented())
         questionnaire.question("dcb2277e-fe96-4f45-844a-ef58a9516380").select("Quit >5 years ago")
         questionnaire.submit()
         XCTAssert(questionnaire.waitUntilDismissed())
+        XCTAssert(app.staticTexts["Most Recent Response: Quit more than 5 years ago"].waitForExistence(timeout: 10))
     }
     
     
