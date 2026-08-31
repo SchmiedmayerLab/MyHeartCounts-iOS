@@ -16,11 +16,7 @@ import GroveHealthKitFHIR
 struct HealthKitSamplesFHIRUploader: BatchProcessor {
     typealias Output = HealthKitFHIRReservationReceipt
 
-    enum ProcessingError: Error {
-        case missingStandard
-    }
-
-    let standard: MyHeartCountsStandard?
+    let standard: MyHeartCountsStandard
 
     func process<Sample>(
         _ samples: consuming [Sample],
@@ -32,18 +28,12 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         return try await storeSamples(samples, of: sampleType)
     }
 
-    private func storeSamples<Sample>( // swiftlint:disable:this function_body_length
+    private func storeSamples<Sample>(
         _ samples: consuming [Sample],
         of sampleType: SampleType<Sample>
     ) async throws -> HealthKitFHIRReservationReceipt {
-        guard let standard else {
-            throw ProcessingError.missingStandard
-        }
-        let preferences = LocalPreferencesStore.standard
-        let accountDataGeneration = preferences[.accountDataGeneration]
-        guard !preferences[.pendingAccountDataCleanupRequired] else {
-            throw FHIRExchangeDestinationError.accountChanged
-        }
+        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
+        try FHIRExchangeDestination.validateWrites(for: accountDataGeneration)
         let subject = try await standard.firebaseConfiguration.fhirExchangeSubject
         let healthKit = await standard.healthKit
         let conversionInstant = Date.now
@@ -72,20 +62,7 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         guard !entries.isEmpty else {
             return HealthKitFHIRReservationReceipt(stateStore: stateStore, entries: entries)
         }
-        entries.sort(by: healthUploadEntryPrecedes)
-        let sourceIDs = entries.map(\.sourceID)
-        let resources = entries.map(\.resource)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        let encoded = try encoder.encode(resources)
-        let compressed = try (consume encoded).compressed(using: Zstd.self)
-        let filename = HealthUploadBatchFilename.make(
-            typePrefix: sampleType.id,
-            identifiers: sourceIDs,
-            fileExtension: "json.zstd"
-        )
-        let compressedUrl = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-        try (consume compressed).write(to: compressedUrl, options: .atomic)
+        let compressedUrl = try HealthUploadBatch.write(entries, typePrefix: sampleType.id)
         defer {
             try? FileManager.default.removeItem(at: compressedUrl)
         }

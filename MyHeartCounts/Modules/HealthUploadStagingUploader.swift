@@ -10,7 +10,6 @@ import CryptoKit
 import Foundation
 import GRDB
 import Grove
-import GroveFHIRContract
 import GroveFoundation
 import MyHeartCountsShared
 import OSLog
@@ -29,29 +28,75 @@ enum HealthUploadBatchFilename {
             .sorted()
             .joined(separator: "\n")
         let digest = SHA256.hash(data: Data(canonicalIdentifiers.utf8))
-        let alphabet = Array("0123456789abcdef".utf8)
-        let keyBytes = digest.prefix(digestByteCount).flatMap { byte in
-            [alphabet[Int(byte >> 4)], alphabet[Int(byte & 0x0F)]]
-        }
-        let key = String(decoding: keyBytes, as: UTF8.self)
+        let key = digest.prefix(digestByteCount).lowercaseHexString
         return "\(typePrefix)_\(key).\(fileExtension)"
     }
 }
 
 
-func healthUploadEntryPrecedes(
-    _ lhs: PreparedHealthObservationFHIRPayload.Entry,
-    _ rhs: PreparedHealthObservationFHIRPayload.Entry
-) -> Bool {
-    let lhsID = lhs.sourceID.uuidString.lowercased()
-    let rhsID = rhs.sourceID.uuidString.lowercased()
-    if lhsID != rhsID {
-        return lhsID < rhsID
+/// The one definition of a staged upload batch's wire format.
+enum HealthUploadBatch {
+    /// The deterministic JSON every upload path writes: sorted keys, unescaped slashes.
+    static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        return encoder
+    }()
+
+    /// Sorts, encodes, compresses, and writes one batch, returning the file staged uploads take.
+    ///
+    /// Every path producing a batch goes through here, so their bytes and filenames cannot diverge.
+    static func write(
+        _ entries: consuming [PreparedHealthObservationFHIRPayload.Entry],
+        typePrefix: String
+    ) throws -> URL {
+        var entries = consume entries
+        entries.sort(by: precedes)
+        let compressed = try encoder
+            .encode(entries.map(\.resource))
+            .compressed(using: Zstd.self)
+        return try write(
+            compressed,
+            typePrefix: typePrefix,
+            identifiers: entries.map(\.sourceID),
+            fileExtension: "json.zstd"
+        )
     }
-    if lhs.sourceTypeIdentifier != rhs.sourceTypeIdentifier {
-        return lhs.sourceTypeIdentifier < rhs.sourceTypeIdentifier
+
+    /// Writes already-serialized batch bytes under the digest-derived batch filename.
+    static func write(
+        _ payload: consuming Data,
+        typePrefix: String,
+        identifiers: some Sequence<UUID>,
+        fileExtension: String
+    ) throws -> URL {
+        let url = URL.temporaryDirectory.appending(
+            path: HealthUploadBatchFilename.make(
+                typePrefix: typePrefix,
+                identifiers: identifiers,
+                fileExtension: fileExtension
+            ),
+            directoryHint: .notDirectory
+        )
+        try (consume payload).write(to: url, options: .atomic)
+        return url
     }
-    return (lhs.eventKey ?? "") < (rhs.eventKey ?? "")
+
+    /// The order entries are written in, so redelivery reproduces the same bytes.
+    static func precedes(
+        _ lhs: PreparedHealthObservationFHIRPayload.Entry,
+        _ rhs: PreparedHealthObservationFHIRPayload.Entry
+    ) -> Bool {
+        let lhsID = lhs.sourceID.uuidString.lowercased()
+        let rhsID = rhs.sourceID.uuidString.lowercased()
+        if lhsID != rhsID {
+            return lhsID < rhsID
+        }
+        if lhs.sourceTypeIdentifier != rhs.sourceTypeIdentifier {
+            return lhs.sourceTypeIdentifier < rhs.sourceTypeIdentifier
+        }
+        return (lhs.eventKey ?? "") < (rhs.eventKey ?? "")
+    }
 }
 
 
@@ -258,18 +303,15 @@ extension HealthUploadStagingUploader {
             let jsonArray = try rows.jsonArrayData()
             let compressed = try (consume jsonArray).compressed(using: Zstd.self)
             try Task.checkCancellation()
-            let url = URL.temporaryDirectory.appending(
-                path: HealthUploadBatchFilename.make(
-                    typePrefix: chunk.sampleType,
-                    identifiers: rows.lazy.map(\.sampleId),
-                    fileExtension: "json.zstd"
-                ),
-                directoryHint: .notDirectory
+            let url = try HealthUploadBatch.write(
+                compressed,
+                typePrefix: chunk.sampleType,
+                identifiers: rows.lazy.map(\.sampleId),
+                fileExtension: "json.zstd"
             )
             defer {
                 try? FileManager.default.removeItem(at: url)
             }
-            try (consume compressed).write(to: url, options: .atomic)
             try Task.checkCancellation()
             try await managedFileUpload.stage(url, category: .liveHealthUpload)
             try healthUploadStaging.remove(chunk)
@@ -279,7 +321,7 @@ extension HealthUploadStagingUploader {
     }
 
     @concurrent
-    private func drainPendingDeletions( // swiftlint:disable:this function_body_length
+    private func drainPendingDeletions(
         from healthUploadStaging: HealthUploadStaging,
         to managedFileUpload: ManagedFileUpload,
         before processingCutoff: Date,
@@ -307,33 +349,25 @@ extension HealthUploadStagingUploader {
             let rows = chunk.rows.sorted {
                 $0.sampleId.uuidString.lowercased() < $1.sampleId.uuidString.lowercased()
             }
-            var csvWriter = RecordingCSVWriter(columns: ["sampleType", "sampleId", "timestamp"])
-            for (index, deletion) in rows.enumerated() {
-                if index.isMultiple(of: 256) {
-                    try Task.checkCancellation()
-                }
-                try csvWriter.append([
-                    .text(deletion.sampleType),
-                    .text(deletion.sampleId.uuidString),
-                    .timestamp(deletion.timestamp)
-                ])
+            guard let batch = try await healthUploadStaging.retractionBatch(for: rows) else {
+                // Nothing in this chunk left an exported graph node behind, so nothing to retract.
+                try healthUploadStaging.remove(chunk)
+                drainedChunks += 1
+                continue
             }
-            let csvData = csvWriter.data()
-            let url = URL.temporaryDirectory.appending(
-                path: HealthUploadBatchFilename.make(
-                    typePrefix: chunk.sampleType,
-                    identifiers: rows.lazy.map(\.sampleId),
-                    fileExtension: "csv.zstd"
-                ),
-                directoryHint: .notDirectory
+            let url = try HealthUploadBatch.write(
+                try batch.payload.compressed(using: Zstd.self),
+                typePrefix: chunk.sampleType,
+                identifiers: batch.identifiers,
+                fileExtension: "json.zstd"
             )
             defer {
                 try? FileManager.default.removeItem(at: url)
             }
-            try (consume csvData).compressed(using: Zstd.self).write(to: url, options: .atomic)
             try Task.checkCancellation()
             try await managedFileUpload.stage(url, category: .healthDeletions)
             try healthUploadStaging.remove(chunk)
+            batch.receipt.completeAfterSourceAcknowledgement()
             drainedChunks += 1
         }
         return true

@@ -29,12 +29,9 @@ struct HealthUploadBatchFilenameTests {
             fileExtension: "json.zstd"
         )
 
+        // The filename is the cross-version dedup key for staged uploads, so it is pinned exactly.
+        #expect(forward == "HKQuantityTypeIdentifierStepCount_7a70c782c5d30f61a8f57b90.json.zstd")
         #expect(forward == reverse)
-        #expect(forward.hasPrefix("HKQuantityTypeIdentifierStepCount_"))
-        #expect(forward.hasSuffix(".json.zstd"))
-        let digest = try #require(forward.split(separator: "_").last?.split(separator: ".").first)
-        #expect(digest.count == 24)
-        #expect(digest.allSatisfy { $0.isHexDigit && !$0.isUppercase })
     }
 
     @Test
