@@ -32,10 +32,11 @@ struct SaveBloodPressureSampleView: View {
         }
     }
     
-    @Environment(HealthKit.self)
-    private var healthKit
-    @Environment(\.dismiss)
-    private var dismiss
+    // swiftlint:enable attributes
+    @Environment(\.dismiss) private var dismiss
+    @Environment(MyHeartCountsStandard.self) private var standard
+    @Environment(HealthKit.self) private var healthKit
+    // swiftlint:disable attributes
     
     @FocusState private var focusedField: Field?
     @State private var viewState: ViewState = .idle
@@ -148,6 +149,17 @@ struct SaveBloodPressureSampleView: View {
                 )
             ]
         )
-        try await healthKit.save(correlation)
+        let uploadQuestionnaire = { @Sendable in
+            let response = try SaveQuantitySampleView.singleSampleDataEntryQuestionnaireResponse(
+                for: .bloodPressure(.init(
+                    systolic: systolic,
+                    diastolic: diastolic
+                ))
+            )
+            await self.standard.add(response)
+        }
+        async let healthKitAdd = try? healthKit.save(correlation)
+        async let standardAdd = try uploadQuestionnaire()
+        _ = try await (healthKitAdd, standardAdd)
     }
 }

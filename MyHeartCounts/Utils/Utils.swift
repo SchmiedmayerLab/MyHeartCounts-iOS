@@ -38,3 +38,10 @@ extension Result {
         }
     }
 }
+
+
+extension Range where Bound == Date {
+    var timeInterval: TimeInterval {
+        upperBound.timeIntervalSince(lowerBound)
+    }
+}

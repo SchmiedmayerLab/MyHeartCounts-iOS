@@ -6,16 +6,19 @@
 // SPDX-License-Identifier: MIT
 //
 
-// swiftlint:disable file_types_order
+// swiftlint:disable file_types_order all
 
 import Foundation
 import MHCStudyDefinition
 import struct ModelsR4.Questionnaire
+import struct ModelsR4.QuestionnaireResponse
 import MyHeartCountsShared
 import SFSafeSymbols
 import SpeziFoundation
 import SpeziHealthKit
 import SpeziHealthKitUI
+import SpeziQuestionnaire
+import SpeziQuestionnaireFHIR
 import SpeziQuestionnaireLegacy
 import SpeziStudy
 import SpeziViews
@@ -214,23 +217,62 @@ extension HeartHealthDashboard {
     }
     
     
+    @available(*, deprecated)
     static func addSampleSheet(for keyPath: KeyPath<CVHScore, ScoreResult>) -> some View {
-        NavigationStack {
+        AddSampleSheet(keyPath: keyPath)
+    }
+}
+
+
+extension HeartHealthDashboard {
+    struct AddSampleSheet: View {
+        @AccountFeatureFlagQuery(.init(sources: [
+            .launchOption(.dashboardDataEntryUsesQuestionnaires)
+        ]))
+        private var preferQuestionnaires
+        
+        let keyPath: KeyPath<CVHScore, ScoreResult>
+        
+        var body: some View {
             switch keyPath {
             case \.nicotineExposureScore:
-                HealthDashboardQuestionnaireView(questionnaireName: "NicotineExposure")
+                HealthDashboardQuestionnaireView(namedInStudyBundle: "NicotineExposure")
             case \.dietScore:
-                HealthDashboardQuestionnaireView(questionnaireName: "Diet")
+                HealthDashboardQuestionnaireView(namedInStudyBundle: "Diet")
             case \.mentalHealthScore:
-                HealthDashboardQuestionnaireView(questionnaireName: "WHO5")
+                HealthDashboardQuestionnaireView(namedInStudyBundle: "WHO5")
             case \.bodyMassIndexScore:
-                SaveBMISampleView()
+                if preferQuestionnaires {
+                    HealthDashboardQuestionnaireView(.bmi)
+                } else {
+                    NavigationStack {
+                        SaveBMISampleView()
+                    }
+                }
             case \.bloodLipidsScore:
-                SaveQuantitySampleView(sampleType: MHCQuantitySampleType.custom(.bloodLipids))
+                if preferQuestionnaires {
+                    Text(verbatim: "TODO") // TODO
+                } else {
+                    NavigationStack {
+                        SaveQuantitySampleView(sampleType: MHCQuantitySampleType.custom(.bloodLipids))
+                    }
+                }
             case \.bloodGlucoseScore:
-                SaveQuantitySampleView(sampleType: MHCQuantitySampleType.healthKit(.bloodGlucose))
+                if preferQuestionnaires {
+                    Text(verbatim: "TODO") // TODO
+                } else {
+                    NavigationStack {
+                        SaveQuantitySampleView(sampleType: MHCQuantitySampleType.healthKit(.bloodGlucose))
+                    }
+                }
             case \.bloodPressureScore:
-                SaveBloodPressureSampleView()
+                if preferQuestionnaires {
+                    Text(verbatim: "TODO") // TODO
+                } else {
+                    NavigationStack {
+                        SaveBloodPressureSampleView()
+                    }
+                }
             default:
                 EmptyView()
             }
@@ -239,22 +281,142 @@ extension HeartHealthDashboard {
 }
 
 
+//private struct TmpQuestionnaireDataEntrySheet: View {
+//    @Environment(\.dismiss) private var dismiss
+//    @Environment(MyHeartCountsStandard.self) private var standard
+//    
+//    private let r4Questionnaire: ModelsR4::Questionnaire
+//    private let speziQuestionnaire: Result<SpeziQuestionnaire::Questionnaire, any Error>
+//    @State private var viewState: ViewState = .idle
+//    
+//    var body: some View {
+//        switch speziQuestionnaire {
+//        case .success(let questionnaire):
+//            QuestionnaireSheet(questionnaire, completionStepConfig: .disable) { result in
+//                switch result {
+//                case .cancelled:
+//                    break
+//                case .completed(let responses):
+//                    do {
+//                        let fhirResponse = try ModelsR4::QuestionnaireResponse(responses)
+//                        await standard.add(fhirResponse)
+//                    } catch {
+//                        viewState = .error(AnyLocalizedError(error: error))
+//                    }
+//                }
+//                dismiss()
+//            }
+//            .viewStateAlert(state: $viewState)
+//        case .failure(let error):
+//            ContentUnavailableView(
+//                "Unable to load questionnaire" as String,
+//                systemSymbol: .xmarkOctagon,
+//                description: Text(String(describing: error))
+//            )
+//        }
+//    }
+//    
+//    init(_ questionnaire: ModelsR4::Questionnaire) {
+//        r4Questionnaire = questionnaire
+//        speziQuestionnaire = Result {
+//            try .init(questionnaire)
+//        }
+//    }
+//}
+
+
 private struct HealthDashboardQuestionnaireView: View {
-    @Environment(MyHeartCountsStandard.self)
-    private var standard
+    private enum QuestionnaireSelector {
+        case studyBundleResource(name: String)
+        case direct(ModelsR4.Questionnaire)
+    }
     
-    @Environment(StudyManager.self)
-    private var studyManager
+    private struct Questionnaires {
+        let fhir: Result<ModelsR4.Questionnaire, any Error>
+        let spezi: Result<SpeziQuestionnaire.Questionnaire, any Error>
+    }
     
-    @Environment(\.dismiss)
-    private var dismiss
+    // swiftlint:disable attributes
+    @Environment(\.dismiss) private var dismiss
+    @Environment(MyHeartCountsStandard.self) private var standard
+    @Environment(StudyManager.self) private var studyManager
+    @AccountFeatureFlagQuery(.useNewQuestionnaireUI) private var useNewUI
+    // swiftlint:enable attributes
     
-    let questionnaireName: String
-    @State private var questionnaire: ModelsR4::Questionnaire?
+    private let selector: QuestionnaireSelector
+    @State private var questionnaires: Questionnaires?
     
     var body: some View {
         Group {
-            if let questionnaire {
+            if let questionnaires {
+                view(for: questionnaires)
+            } else {
+                ProgressView("Loading…" as String)
+            }
+        }
+        .task {
+            questionnaires = loadQuestionnaire()
+        }
+    }
+    
+    init(namedInStudyBundle name: String) {
+        selector = .studyBundleResource(name: name)
+    }
+    
+    init(_ questionnaire: ModelsR4.Questionnaire) {
+        selector = .direct(questionnaire)
+    }
+    
+    
+    private func loadQuestionnaire() -> Questionnaires {
+        switch selector {
+        case .studyBundleResource(let name):
+            guard let studyBundle = studyManager.studyEnrollments.first?.studyBundle,
+                  let fhir = studyBundle.questionnaire(named: name, in: studyManager.preferredLocale) else {
+                let error = NSError(localizedDescription: "Unable to find Questionnaire")
+                return Questionnaires(
+                    fhir: .failure(error),
+                    spezi: .failure(error)
+                )
+            }
+            return Questionnaires(
+                fhir: .success(fhir),
+                spezi: Result { try SpeziQuestionnaire.Questionnaire(fhir) }
+            )
+        case .direct(let fhir):
+            return Questionnaires(
+                fhir: .success(fhir),
+                spezi: Result { try SpeziQuestionnaire.Questionnaire(fhir) }
+            )
+        }
+    }
+    
+    @ViewBuilder
+    private func view(for questionnaires: Questionnaires) -> some View {
+        if useNewUI {
+            switch questionnaires.spezi {
+            case .success(let questionnaire):
+                QuestionnaireSheet(questionnaire, completionStepConfig: .disable) { result in
+                    switch result {
+                    case .completed(let responses):
+                        do {
+                            let fhirResponse = try ModelsR4.QuestionnaireResponse(responses)
+                            await standard.add(fhirResponse, for: questionnaires.fhir.value)
+                        } catch {
+                            logger.error("Unable to create FHIR questionnaire response")
+                            assertionFailure()
+                        }
+                    case .cancelled:
+                        break
+                    }
+                    dismiss()
+                }
+            case .failure(let error):
+                noQuestionnaireErrorView(for: error)
+            }
+        } else {
+            switch questionnaires.fhir {
+            case .success(let questionnaire):
                 QuestionnaireView(questionnaire: questionnaire) { result in
                     switch result {
                     case .completed(let response):
@@ -264,19 +426,17 @@ private struct HealthDashboardQuestionnaireView: View {
                     }
                     dismiss()
                 }
-            } else {
-                ContentUnavailableView("Unable to find Questionnaire", systemSymbol: .exclamationmarkTriangle) // ???
+            case .failure(let error):
+                noQuestionnaireErrorView(for: error)
             }
-        }
-        .task {
-            loadQuestionnaire()
         }
     }
     
-    private func loadQuestionnaire() {
-        guard let studyBundle = studyManager.studyEnrollments.first?.studyBundle else {
-            return
-        }
-        questionnaire = studyBundle.questionnaire(named: questionnaireName, in: studyManager.preferredLocale)
+    private func noQuestionnaireErrorView(for error: any Error) -> some View {
+        ContentUnavailableView(
+            "Unable to load questionnaire" as String,
+            systemSymbol: .xmarkOctagon,
+            description: Text(String(describing: error))
+        )
     }
 }

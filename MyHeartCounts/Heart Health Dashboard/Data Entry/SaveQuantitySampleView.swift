@@ -28,8 +28,6 @@ struct SaveQuantitySampleView: View {
     private let title: LocalizedStringKey
     private let sampleType: MHCQuantitySampleType
     private let unit: HKUnit
-    /// whether the default "save" operation is allowed to fail; in this case a failure will be silently ignored.
-    private let isDefaultSaveAllowedToFail: Bool
     private let completionHandler: (@MainActor (QuantitySample) -> Void)?
     @State private var date: Date = .now
     @State private var value: Double?
@@ -92,12 +90,10 @@ struct SaveQuantitySampleView: View {
     private init(
         title: LocalizedStringKey?,
         sampleType: MHCQuantitySampleType,
-        isDefaultSaveAllowedToFail: Bool,
         completionHandler: (@MainActor (QuantitySample) -> Void)?
     ) {
         self.title = title ?? "Enter \(sampleType.displayTitle)"
         self.sampleType = sampleType
-        self.isDefaultSaveAllowedToFail = isDefaultSaveAllowedToFail
         self.completionHandler = completionHandler
         self.unit = switch sampleType {
         case .healthKit(.height):
@@ -125,9 +121,6 @@ struct SaveQuantitySampleView: View {
         self.init(
             title: title,
             sampleType: sampleType,
-            // if we do not have a custom completion handler (that might do stuff with the value entered by the user),
-            // the default save operation *must* succeed.
-            isDefaultSaveAllowedToFail: false,
             completionHandler: nil
         )
     }
@@ -135,13 +128,11 @@ struct SaveQuantitySampleView: View {
     init(
         _ title: LocalizedStringKey? = nil,
         sampleType: MHCQuantitySampleType,
-        isDefaultSaveAllowedToFail: Bool,
         completionHandler: @MainActor @escaping (QuantitySample) -> Void
     ) {
         self.init(
             title: title,
             sampleType: sampleType,
-            isDefaultSaveAllowedToFail: isDefaultSaveAllowedToFail,
             completionHandler: completionHandler
         )
     }
@@ -151,6 +142,12 @@ struct SaveQuantitySampleView: View {
         guard let value = self.value, !containsInvalidInput else {
             return
         }
+        let addToStandard = { @Sendable (sample: QuantitySample) in
+            let questionnaireResponse = try Self.singleSampleDataEntryQuestionnaireResponse(
+                for: .quantity(sample)
+            )
+            await self.standard.add(questionnaireResponse)
+        }
         switch sampleType {
         case .healthKit(let sampleType):
             let sample = HKQuantitySample(
@@ -159,13 +156,9 @@ struct SaveQuantitySampleView: View {
                 start: self.date,
                 end: self.date
             )
-            do {
-                try await self.healthKit.save(sample)
-            } catch {
-                if !isDefaultSaveAllowedToFail {
-                    throw error
-                }
-            }
+            async let standardAdd = addToStandard(QuantitySample(sample))
+            async let healthKitAdd = try? self.healthKit.save(sample)
+            _ = try await (standardAdd, healthKitAdd)
             completionHandler?(.init(sample))
         case .custom(let sampleType):
             let sample = QuantitySample(
@@ -176,13 +169,7 @@ struct SaveQuantitySampleView: View {
                 startDate: self.date,
                 endDate: self.date
             )
-            do {
-                try await self.standard.uploadHealthObservation(sample)
-            } catch {
-                if !isDefaultSaveAllowedToFail {
-                    throw error
-                }
-            }
+            try await addToStandard(sample)
             completionHandler?(sample)
         }
     }
