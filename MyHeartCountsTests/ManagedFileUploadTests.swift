@@ -11,6 +11,7 @@ import Foundation
 import Spezi
 import SpeziFoundation
 import SpeziTesting
+import Synchronization
 import Testing
 
 
@@ -93,9 +94,7 @@ struct ManagedFileUploadTests {
         }
         let probe = UploadProbe()
         let uploader = makeUploader(root: root, accountId: "account-a", probe: probe)
-        await withDependencyResolution {
-            uploader
-        }
+        resolveDependencies(of: uploader)
 
         // All five are named `upload.dat`; only the directory they sit in differs.
         let sources = try (0..<5).map { try makeSourceFile(index: $0, in: root) }
@@ -135,9 +134,7 @@ struct ManagedFileUploadTests {
         }
         let firstProbe = UploadProbe()
         let firstUploader = makeUploader(root: root, accountId: "account-a", probe: firstProbe)
-        await withDependencyResolution {
-            firstUploader
-        }
+        resolveDependencies(of: firstUploader)
         for index in 0..<4 {
             try await firstUploader.stage(try makeSourceFile(index: index, in: root), category: category)
         }
@@ -150,9 +147,7 @@ struct ManagedFileUploadTests {
 
         let replayProbe = UploadProbe()
         let replayUploader = makeUploader(root: root, accountId: "account-a", probe: replayProbe)
-        await withDependencyResolution {
-            replayUploader
-        }
+        resolveDependencies(of: replayUploader)
         await replayUploader.resumePendingUploads()
         await replayProbe.waitUntilStarted(2)
         #expect(await replayProbe.maximumActiveCount == 2)
@@ -173,9 +168,7 @@ struct ManagedFileUploadTests {
         }
         let probe = UploadProbe()
         let uploader = makeUploader(root: root, accountId: "account-b", probe: probe, isCleanupPending: { true })
-        await withDependencyResolution {
-            uploader
-        }
+        resolveDependencies(of: uploader)
         // Seed a file the way the old, file-system-based module would have left it behind.
         let legacyDirectory = uploader.configuration.directory.appending(component: category.id, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: legacyDirectory, withIntermediateDirectories: true)
@@ -207,18 +200,14 @@ struct ManagedFileUploadTests {
             throw CocoaError(.fileNoSuchFile)
         }
         let firstUploader = ManagedFileUpload(categories: [category], configuration: failingConfiguration)
-        await withDependencyResolution {
-            firstUploader
-        }
+        resolveDependencies(of: firstUploader)
         try await firstUploader.stage(try makeSourceFile(index: 0, in: root), category: category)
         await firstUploader.waitUntilQuiescent()
         #expect(regularFiles(in: firstUploader.stagingDirectory).count == 1)
 
         let secondProbe = UploadProbe()
         let secondUploader = makeUploader(root: root, accountId: "account-b", probe: secondProbe)
-        await withDependencyResolution {
-            secondUploader
-        }
+        resolveDependencies(of: secondUploader)
         await secondUploader.resumePendingUploads()
         await secondUploader.waitUntilQuiescent()
 
@@ -227,6 +216,45 @@ struct ManagedFileUploadTests {
         // The entry and its file are dropped rather than retained: keeping them would mean holding the previous
         // participant's data on the device indefinitely.
         #expect(regularFiles(in: secondUploader.stagingDirectory).isEmpty)
+    }
+
+    /// A failed attempt is retried within the launch for as long as the configuration allows; after that the entry
+    /// waits for the next resume, which picks it up again.
+    @Test
+    func retriesFailedUploadsWithinTheLaunch() async throws {
+        let root = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: root)
+        }
+        let attempts = Mutex(0)
+        var configuration = makeConfiguration(root: root, accountId: "account-a")
+        // Two in-launch attempts, then give up until the next resume.
+        configuration.retryDelay = { failedAttempts in failedAttempts < 2 ? .milliseconds(10) : nil }
+        configuration.uploadOperation = { _, _, _, _, _ in
+            let attempt = attempts.withLock { attempts in
+                attempts += 1
+                return attempts
+            }
+            guard attempt >= 3 else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+        }
+        let uploader = ManagedFileUpload(categories: [category], configuration: configuration)
+        resolveDependencies(of: uploader)
+        try await uploader.stage(try makeSourceFile(index: 0, in: root), category: category)
+        // `waitUntilQuiescent()` deliberately doesn't cover the delay between attempts, so poll for the retry instead.
+        let deadline = ContinuousClock.now + .seconds(5)
+        while attempts.withLock({ $0 }) < 2, ContinuousClock.now < deadline {
+            try await Swift::Task.sleep(for: .milliseconds(10))
+        }
+        try await Swift::Task.sleep(for: .milliseconds(100))
+        #expect(attempts.withLock { $0 } == 2)
+        #expect(regularFiles(in: uploader.stagingDirectory).count == 1)
+
+        await uploader.resumePendingUploads()
+        await uploader.waitUntilQuiescent()
+        #expect(attempts.withLock { $0 } == 3)
+        #expect(regularFiles(in: uploader.stagingDirectory).isEmpty)
     }
 
     /// Clearing reopens the queue, so staging keeps working afterwards.
@@ -238,9 +266,7 @@ struct ManagedFileUploadTests {
         }
         let probe = UploadProbe()
         let uploader = makeUploader(root: root, accountId: "account-a", probe: probe)
-        await withDependencyResolution {
-            uploader
-        }
+        resolveDependencies(of: uploader)
         try await uploader.clearPendingUploads()
         try await uploader.stage(try makeSourceFile(index: 0, in: root), category: category)
         await probe.waitUntilStarted(1)
@@ -250,6 +276,18 @@ struct ManagedFileUploadTests {
         #expect(regularFiles(in: uploader.stagingDirectory).isEmpty)
     }
 
+
+    /// Resolves the module's dependencies the way the app's configuration would, i.e. including the background-task
+    /// and lifecycle plumbing it hooks into (whose `configure()`s are inert here: no launch handler can be registered
+    /// this late, and there is no scene).
+    private func resolveDependencies(of uploader: ManagedFileUpload) {
+        withDependencyResolution {
+            uploader
+            MHCBackgroundTasks()
+            Lifecycle()
+            LocalNotifications()
+        }
+    }
 
     private func makeConfiguration(root: URL, accountId: String) -> ManagedFileUpload.Configuration {
         var configuration = ManagedFileUpload.Configuration()

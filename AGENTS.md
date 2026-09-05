@@ -84,8 +84,12 @@ The StudyBundle, consisting of a StudyDefinition and resources referenced by the
     - MHC registers several background tasks with iOS, which are triggered by the OS periodically and are given small amounts of background-execution time; the BGTask plumbing is owned by the `MHCBackgroundTasks` module
     - HealthKit: MHC uses HealthKit background delivery to be notified by iOS when new HealthKit data is available
     - AppRefresh: runs a couple of times per day to update the study definition
-    - stagedHealthSamplesUpload: a BGProcessingTask that drains the HealthUploadStaging buffer (see below)
+    - stagedHealthSamplesUpload: a BGHealthResearchTask (needs external power + network) that drains the HealthUploadStaging buffer (see below)
     - SensorKitProcessing: a BGHealthResearchTask that runs the SensorKit fetch+upload
+    - healthStatsRefresh: a BGHealthResearchTask that briefly runs the `HealthKitStatsCalculator`
+    - fileUpload: a BGProcessingTask (needs network only) that drains the `ManagedFileUpload` queue (see below)
+    - task registration must happen during the launch sequence (`MHCBackgroundTasks.register` rejects later registrations, since iOS 18 crashes on them); deferred-loaded modules therefore only get their tasks registered from the next launch on
+    - task requests are submitted whenever the scene phase becomes `.background`, which also happens on background launches
     - (additionally, SpeziScheduler registers its own notifications-scheduling task)
 - HealthUploadStaging:
     - the `HealthUploadStaging` module acts as a local persistence layer for buffering new/deleted HealthKit samples before they are persisted to the backend
@@ -95,7 +99,8 @@ The StudyBundle, consisting of a StudyDefinition and resources referenced by the
 - File Upload:
     - the `ManagedFileUpload` module implements generic file upload support
     - other parts of the app can submit files they wish to upload to a persistent local queue managed by the module (a SwiftData database tracking the pending uploads + a staging directory holding the files)
-    - it works through that queue while the app process is alive, and picks up whatever is left on subsequent launches — the guarantee is durable scheduling + eventual retry, not background execution (the module registers no background task of its own; it only runs in the background incidentally, when the app is woken for other modules' tasks)
+    - it works through that queue while the app process is alive: the backlog is re-queued on every launch and on every return to the foreground, failed attempts are retried within the launch with a growing delay (30 s … 8 min, then left for the next resume), and the module's own `fileUpload` background task drains the backlog on devices that are rarely opened
+    - `stage(_:category:)` moves the file into the staging directory *before* committing the database entry, so that a committed entry always has its file (an entry without a file is treated as lost and dropped)
     - the motivation here is not making other parts of the app (eg, HealthKit/SensorKit data collection) wait until the data they have collected has been uploaded
         - for example, HealthKit background delivery typically is limited to 30 seconds, so the app needs to focus on fetching the new samples; the actual upload happens whenever the module next gets to it
 

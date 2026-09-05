@@ -79,6 +79,18 @@ struct PastTimedWalkTestResults: View {
 
 
 extension MHCFirestoreQuery {
+    private struct ResourceProxyToTWTResult: ValueTransformer {
+        struct Failure: Error {}
+        
+        func transform(_ input: ResourceProxy) throws -> TimedWalkingTestResult {
+            guard let observation = input.get(if: Observation.self),
+                  let testResult = TimedWalkingTestResult(consume observation) else {
+                throw Failure()
+            }
+            return testResult
+        }
+    }
+    
     // periphery:ignore - we're using this init (the property wrapper in the view above...) but periphery doesn't seem to be able to see that use.
     init(
         fetching _: TimedWalkingTestResult.Type,
@@ -90,11 +102,8 @@ extension MHCFirestoreQuery {
             sampleTypeIdentifier: TimedWalkingTestResult.sampleTypeIdentifier,
             timeRange: timeRange,
             sorted: [sortComparator],
-            limit: limit
-        ) { resourceProxy in
-            resourceProxy
-                .get(if: Observation.self)
-                .flatMap { TimedWalkingTestResult($0) }
-        }
+            limit: limit,
+            transform: ResourceProxyToTWTResult()
+        )
     }
 }

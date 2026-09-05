@@ -67,7 +67,11 @@ final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, S
     
     func configure() {
         do {
-            try backgroundTasks.register(.processing(
+            // A health-research task rather than a plain processing task: same conditions, but iOS grants it the
+            // longer execution window that draining and re-compressing a multi-day backlog can actually use.
+            // The default data-protection requirement (first unlock) matches the staging database, so overnight
+            // charging — the obvious window for a task that needs external power — still qualifies even while locked.
+            try backgroundTasks.register(.healthResearch(
                 id: .stagedHealthUpload,
                 nextTriggerDate: .after(TimeConstants.hour * 6),
                 options: [.requiresExternalPower, .requiresNetworkConnectivity]

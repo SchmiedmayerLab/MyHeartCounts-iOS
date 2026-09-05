@@ -28,28 +28,59 @@ import SwiftUI
 /// Differences to the `@FirestoreQuery` API:
 /// - ability to not only transform the documents into a custom `Decodable` type, but then (optionally) also implicitly project into a different type from that
 ///     (required bc we don't want to have to operate directly on FHIR Observations and eg want to turn them into our ``QuantitySample``s instead)
+///
+/// - Note: The ``MHCFirestoreQuery`` APIs intentionally use `ValueTransformer`s instead of regular closures to customize decoding;
+///     the reason being that closures cannot be `Equatable`, which is important for the query to be able to skip unnecessary updates
+///     if it is recreated with identical inputs (in which case the previously-created underlying firestore query can be kept around).
 @MainActor
 @propertyWrapper
 struct MHCFirestoreQuery<Element: Sendable>: DynamicProperty {
-    typealias DecodeFn = @Sendable (QueryDocumentSnapshot) -> Element?
+    typealias ValueTransformer = MyHeartCountsShared.ValueTransformer
     
     /// The collection which should be queried
-    enum Collection {
+    enum Collection: Hashable, Sendable {
         /// The query should observe `users/{USER}/{path}`, where `USER` is the account id of the currently logged in user.
         case user(path: String)
         /// The query should observe the collection at `path`.
         case root(path: String)
     }
     
+    /// A server-side filter on the queried collection.
+    ///
+    /// Modelled as a value rather than a `FirebaseFirestore.Filter`, so that the query specification stays `Hashable`:
+    /// that is what lets the wrapper tell a genuinely changed query apart from its view merely being re-evaluated.
+    enum Filter: Hashable, Sendable {
+        /// Restricts the query to the documents whose id lies within the range.
+        case documentId(in: ClosedRange<String>)
+        
+        fileprivate var firestoreFilter: FirebaseFirestore.Filter {
+            switch self {
+            case .documentId(let range):
+                .andFilter([
+                    .whereField(FieldPath.documentID(), isGreaterOrEqualTo: range.lowerBound),
+                    .whereField(FieldPath.documentID(), isLessThanOrEqualTo: range.upperBound)
+                ])
+            }
+        }
+    }
+    
+    
     @Environment(Account.self)
     private var account: Account?
     
     @State private var impl = Impl()
-    private let input: QueryInput
+    /// The firebase side of the query
+    private let querySpec: FirebaseQuerySpec
+    /// The client side of the query
+    private let queryPostProcessingSpec: PostQueryProcessingSpec
+    
     private let logger = Logger(category: .init("MHCFirestoreQuery<\(Element.self)>"))
     
     var wrappedValue: [Element] {
-        impl.elements
+        // we need to access the accountId here to have the query auto-update if it changes,
+        // e.g. when the user is logged out/in while the query is installed on a view.
+        _ = account?.details?.accountId
+        return impl.elements
     }
     
     init(
@@ -58,15 +89,14 @@ struct MHCFirestoreQuery<Element: Sendable>: DynamicProperty {
         filter: Filter? = nil,
         sortBy sortDescriptors: [SortDescriptor] = [],
         limit: Int? = nil,
-        decode: @escaping DecodeFn
+        decoder: some ValueTransformer<QueryDocumentSnapshot, Element>
     ) {
         self.init(
-            Element.self,
             collection: collection,
             preDecodeFilter: filter,
             preDecodeSort: sortDescriptors,
             preDecodeLimit: limit,
-            decode: decode,
+            decoder: decoder,
             postDecodeSort: [],
             postDecodeLimit: nil
         )
@@ -76,17 +106,16 @@ struct MHCFirestoreQuery<Element: Sendable>: DynamicProperty {
     init(
         _: Element.Type = Element.self,
         collection: Collection,
-        decode: @escaping DecodeFn,
+        decoder: some ValueTransformer<QueryDocumentSnapshot, Element>,
         sort: [any SortComparator<Element>] = [],
         limit: Int? = nil
     ) {
         self.init(
-            Element.self,
             collection: collection,
             preDecodeFilter: nil,
             preDecodeSort: [],
             preDecodeLimit: nil,
-            decode: decode,
+            decoder: decoder,
             postDecodeSort: sort,
             postDecodeLimit: limit
         )
@@ -94,59 +123,103 @@ struct MHCFirestoreQuery<Element: Sendable>: DynamicProperty {
     
     
     private init(
-        _: Element.Type = Element.self,
         collection: Collection,
         preDecodeFilter: Filter?,
         preDecodeSort: [SortDescriptor],
         preDecodeLimit: Int?,
-        decode: @escaping DecodeFn,
+        decoder: some ValueTransformer<QueryDocumentSnapshot, Element>,
         postDecodeSort: [any SortComparator<Element>],
         postDecodeLimit: Int?
     ) {
-        input = .init(
+        querySpec = FirebaseQuerySpec(
             collection: collection,
-            preDecodeFilter: preDecodeFilter,
-            preDecodeSort: preDecodeSort,
-            preDecodeLimit: preDecodeLimit,
-            decode: decode,
+            filter: preDecodeFilter,
+            sort: preDecodeSort,
+            limit: preDecodeLimit
+        )
+        queryPostProcessingSpec = PostQueryProcessingSpec(
+            decoder: decoder,
             postDecodeSort: postDecodeSort,
             postDecodeLimit: postDecodeLimit
         )
     }
     
     nonisolated func update() {
-        var input = self.input
-        Task { @MainActor in
-            switch input.collection {
-            case .user(let path):
-                guard let accountId = account?.details?.accountId else {
-                    logger.error("Asked to query in user collection, but no user logged in. (path: \(path))")
-                    return
-                }
-                input.collection = .root(path: "users/\(accountId)/" + path)
-            case .root:
-                break
-            }
-            impl.setup(input: input, logger: logger)
+        MainActor.assumeIsolated {
+            self._update()
         }
+    }
+    
+    @MainActor
+    private func _update() {
+        var querySpec = querySpec
+        switch querySpec.collection {
+        case .user(let path):
+            guard let accountId = account?.details?.accountId else {
+                // if no user is available, we stop the underlying query.
+                // since we access `account.details.accountId` in `wrappedValue`,
+                // the query will auto-restart when the user logs back in.
+                impl.stop()
+                return
+            }
+            querySpec.collection = .root(path: "users/\(accountId)/" + path)
+        case .root:
+            break
+        }
+        impl.setup(querySpec: querySpec, postProcessingSpec: queryPostProcessingSpec, logger: logger)
     }
 }
 
 
 extension MHCFirestoreQuery {
-    struct SortDescriptor: Sendable {
+    struct SortDescriptor: Hashable, Sendable {
         let fieldName: String
         let order: SortOrder
     }
     
-    fileprivate struct QueryInput: Sendable {
+    /// The server-side half of a query: everything that determines which documents the snapshot listener receives, and how they are filtered/sorted/etc while still in firebase-land.
+    ///
+    /// Being `Hashable` is what makes it possible to keep the listener across view updates, and to replace it exactly when the query changed.
+    fileprivate struct FirebaseQuerySpec: Hashable, Sendable {
         var collection: Collection
-        var preDecodeFilter: Filter?
-        var preDecodeSort: [SortDescriptor]
-        var preDecodeLimit: Int?
-        var decode: DecodeFn
-        var postDecodeSort: [any SortComparator<Element>] = []
-        var postDecodeLimit: Int?
+        var filter: Filter?
+        var sort: [SortDescriptor]
+        var limit: Int?
+    }
+    
+    
+    /// The client-side half of a query: how the received documents are turned into elements.
+    fileprivate struct PostQueryProcessingSpec: Equatable, Sendable {
+        private let decoder: any ValueTransformer<QueryDocumentSnapshot, Element>
+        let postDecodeSort: [any SortComparator<Element>]
+        let postDecodeLimit: Int?
+        
+        init(
+            decoder: some ValueTransformer<QueryDocumentSnapshot, Element>,
+            postDecodeSort: [any SortComparator<Element>],
+            postDecodeLimit: Int?
+        ) {
+            self.decoder = decoder
+            self.postDecodeSort = postDecodeSort
+            self.postDecodeLimit = postDecodeLimit
+        }
+        
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            if !lhs.decoder.isEqual(rhs.decoder) {
+                return false
+            }
+            if !lhs.postDecodeSort.elementsEqual(rhs.postDecodeSort, by: { $0.isEqual($1) }) {
+                return false
+            }
+            if lhs.postDecodeLimit != rhs.postDecodeLimit {
+                return false
+            }
+            return true
+        }
+        
+        func decode(_ document: QueryDocumentSnapshot) -> Element? {
+            try? decoder.transform(document)
+        }
     }
 }
 
@@ -155,20 +228,76 @@ extension MHCFirestoreQuery {
     @Observable
     @MainActor
     fileprivate final class Impl: Sendable {
-        typealias QueryInput = MHCFirestoreQuery<Element>.QueryInput
+        typealias FirebaseQuerySpec = MHCFirestoreQuery<Element>.FirebaseQuerySpec
+        typealias PostQueryProcessingSpec = MHCFirestoreQuery<Element>.PostQueryProcessingSpec
         
         @ObservationIgnored private var listener: (any ListenerRegistration)?
+        /// The specification the current listener was created for.
+        @ObservationIgnored private var activeQuerySpec: FirebaseQuerySpec?
+        /// Bumped whenever the listener is replaced, so that snapshots of a previous listener that are still being delivered get dropped.
+        @ObservationIgnored private var listenerGeneration = 0
+        /// The most recent snapshot, kept so that it can be decoded again when the decode parameters change.
+        @ObservationIgnored private var lastSnapshot: QuerySnapshot?
+        /// The most recently supplied processing, applied to the next decode.
+        @ObservationIgnored private var postProcessingSpec: PostQueryProcessingSpec?
         /// snapshot generation counter, so that out-of-order decode completions can't overwrite newer data with older data
         @ObservationIgnored private var snapshotGeneration = 0
         private(set) var elements: [Element] = []
         
-        func setup(input: QueryInput, logger: Logger) {
-            guard listener == nil else {
+        func setup(querySpec: FirebaseQuerySpec, postProcessingSpec: PostQueryProcessingSpec, logger: Logger) {
+            let oldPostProcessingSpec = self.postProcessingSpec
+            // always adopt the latest processing; it is what the next decode uses.
+            self.postProcessingSpec = postProcessingSpec
+            guard querySpec == activeQuerySpec else {
+                replaceListener(with: querySpec, logger: logger)
                 return
             }
+            if let oldPostProcessingSpec, postProcessingSpec == oldPostProcessingSpec {
+                // the view was re-evaluated, but nothing about the query changed: keep both the listener and the elements.
+                return
+            }
+            // Immediately invalidate in-flight decoding that used the previous processing specification.
+            snapshotGeneration += 1
+            let scheduledGeneration = snapshotGeneration
+            // the query is the same, but its documents need to be interpreted differently: decode the ones we already have again.
+            if let lastSnapshot {
+                let listenerGeneration = listenerGeneration
+                Task {
+                    guard scheduledGeneration == self.snapshotGeneration else {
+                        return
+                    }
+                    await process(lastSnapshot, from: listenerGeneration)
+                }
+            }
+        }
+        
+        /// Stops the query, and clears all previously-fetched elements.
+        func stop() {
+            exchange(&listener, with: nil)?.remove()
+            activeQuerySpec = nil
+            lastSnapshot = nil
+            postProcessingSpec = nil
+            // Reject callbacks and decode results from the previous query.
+            listenerGeneration += 1
+            snapshotGeneration += 1
+            // remove fetched elements
+            if !elements.isEmpty {
+                elements.removeAll()
+            }
+        }
+        
+        private func replaceListener(with querySpec: FirebaseQuerySpec, logger: Logger) {
             listener?.remove()
+            listener = nil
+            activeQuerySpec = querySpec
+            listenerGeneration += 1
+            let listenerGeneration = listenerGeneration
+            // whatever the previous query delivered doesn't belong to this one.
+            lastSnapshot = nil
+            snapshotGeneration += 1
+            elements = []
             var query: Query
-            switch input.collection {
+            switch querySpec.collection {
             case .root(let path):
                 query = Firestore.firestore().collection(path)
             default:
@@ -176,13 +305,13 @@ extension MHCFirestoreQuery {
                 logger.error("[impl] skipping setup request bc input contains an unresolved path.")
                 return
             }
-            if let filter = input.preDecodeFilter {
-                query = query.whereFilter(filter)
+            if let filter = querySpec.filter {
+                query = query.whereFilter(filter.firestoreFilter)
             }
-            for sortDescriptor in input.preDecodeSort {
+            for sortDescriptor in querySpec.sort {
                 query = query.order(by: sortDescriptor.fieldName, descending: sortDescriptor.order == .reverse)
             }
-            if let limit = input.preDecodeLimit, limit > 0 {
+            if let limit = querySpec.limit, limit > 0 {
                 query = query.limit(to: limit)
             }
             listener = query.addSnapshotListener { @Sendable [weak self] snapshot, error in
@@ -191,7 +320,7 @@ extension MHCFirestoreQuery {
                 }
                 if let snapshot {
                     Task {
-                        await self.process(snapshot, input: input)
+                        await self.process(snapshot, from: listenerGeneration)
                     }
                 } else if let error {
                     logger.error("encountered error in firebase snapshot listener: \(error)")
@@ -199,28 +328,33 @@ extension MHCFirestoreQuery {
             }
         }
         
-        private func process(_ snapshot: QuerySnapshot, input: QueryInput) async {
+        private func process(_ snapshot: QuerySnapshot, from listenerGeneration: Int) async {
+            guard listenerGeneration == self.listenerGeneration, let postProcessingSpec else {
+                // the listener that delivered this snapshot has since been replaced
+                return
+            }
+            lastSnapshot = snapshot
             snapshotGeneration += 1
             let generation = snapshotGeneration
-            let elements = await decode(snapshot, input: input)
+            let elements = await decode(snapshot, using: postProcessingSpec)
             guard generation == snapshotGeneration else {
-                // a newer snapshot was already processed
+                // a newer snapshot (or a newer set of parameters) was already processed
                 return
             }
             self.elements = elements
         }
         
         @concurrent
-        private func decode(_ snapshot: QuerySnapshot, input: QueryInput) async -> [Element] {
+        private func decode(_ snapshot: QuerySnapshot, using spec: PostQueryProcessingSpec) async -> [Element] {
             var elements: [Element] = []
             elements.reserveCapacity(snapshot.documents.count)
             for document in snapshot.documents {
-                if let element = input.decode(document) {
+                if let element = spec.decode(document) {
                     elements.append(element)
                 }
             }
-            elements.sort(using: input.postDecodeSort)
-            if let limit = input.postDecodeLimit, limit < elements.count {
+            elements.sort(using: spec.postDecodeSort)
+            if let limit = spec.postDecodeLimit, limit < elements.count {
                 elements.removeFirst(elements.count - limit)
             }
             return elements
@@ -234,47 +368,50 @@ extension MHCFirestoreQuery {
     }
 }
 
-
 // MARK: Extensions
 
 extension MHCFirestoreQuery {
+    private struct ResourceProxyDecoder: ValueTransformer<QueryDocumentSnapshot, ResourceProxy> {
+        private struct TransformFailed: Error {}
+        
+        let timeRange: HealthKitQueryTimeRange
+        
+        func transform(_ input: QueryDocumentSnapshot) throws -> ResourceProxy {
+            if timeRange != .ever {
+                let data = input.data()
+                if let dateString = data["effectiveDateTime"] as? String {
+                    let date = try DateTime(dateString).asNSDate()
+                    guard timeRange.range.contains(date) else {
+                        throw TransformFailed()
+                    }
+                } else if let periodDict = data["effectivePeriod"] as? [String: String] {
+                    guard let start = periodDict["start"].flatMap({ try? DateTime($0).asNSDate() }),
+                          let end = periodDict["end"].flatMap({ try? DateTime($0).asNSDate() }) else {
+                        throw TransformFailed()
+                    }
+                    guard (start..<end).overlaps(timeRange.range) else {
+                        throw TransformFailed()
+                    }
+                } else {
+                    // we want to filter based on time range, but we can't extract a time range to filter against from the document
+                    throw TransformFailed()
+                }
+            }
+            return try input.data(as: ResourceProxy.self)
+        }
+    }
+    
+    
     init(
         sampleTypeIdentifier: String,
         timeRange: HealthKitQueryTimeRange,
         sorted sortDescriptors: [any SortComparator<Element>] = [],
         limit: Int? = nil,
-        transform: @escaping @Sendable (ResourceProxy) -> Element?
+        transform: some MyHeartCountsShared.ValueTransformer<ResourceProxy, Element>
     ) {
         self.init(
             collection: .user(path: "HealthObservations_\(sampleTypeIdentifier)"),
-            decode: { document -> Element? in
-                if timeRange != .ever {
-                    let data = document.data()
-                    if let dateString = data["effectiveDateTime"] as? String {
-                        guard let date = try? DateTime(dateString).asNSDate() else {
-                            return nil
-                        }
-                        guard timeRange.range.contains(date) else {
-                            return nil
-                        }
-                    } else if let periodDict = data["effectivePeriod"] as? [String: String] {
-                        guard let start = periodDict["start"].flatMap({ try? DateTime($0).asNSDate() }),
-                              let end = periodDict["end"].flatMap({ try? DateTime($0).asNSDate() }) else {
-                            return nil
-                        }
-                        guard (start..<end).overlaps(timeRange.range) else {
-                            return nil
-                        }
-                    } else {
-                        // we want to filter based on time range, but we can't extract a time range to filter against from the document
-                        return nil
-                    }
-                }
-                guard let proxy = try? document.data(as: ResourceProxy.self) else {
-                    return nil
-                }
-                return transform(proxy)
-            },
+            decoder: ResourceProxyDecoder(timeRange: timeRange).concat(transform),
             sort: sortDescriptors,
             limit: limit
         )
@@ -283,6 +420,20 @@ extension MHCFirestoreQuery {
 
 
 extension MHCFirestoreQuery where Element == QuantitySample {
+    private struct QuantitySampleTransformer: ValueTransformer<ResourceProxy, Element> {
+        struct FailedToCreateSample: Error {}
+        
+        let sampleTypeHint: MHCQuantitySampleType
+        
+        func transform(_ input: ResourceProxy) throws -> QuantitySample {
+            if let sample = QuantitySample(input, sampleTypeHint: sampleTypeHint) {
+                return sample
+            } else {
+                throw FailedToCreateSample()
+            }
+        }
+    }
+    
     init(
         sampleType: CustomQuantitySampleType,
         timeRange: HealthKitQueryTimeRange,
@@ -293,9 +444,8 @@ extension MHCFirestoreQuery where Element == QuantitySample {
             sampleTypeIdentifier: sampleType.id,
             timeRange: timeRange,
             sorted: [sortDescriptor],
-            limit: limit
-        ) { resourceProxy in
-            QuantitySample(resourceProxy, sampleTypeHint: .custom(sampleType))
-        }
+            limit: limit,
+            transform: QuantitySampleTransformer(sampleTypeHint: .custom(sampleType))
+        )
     }
 }

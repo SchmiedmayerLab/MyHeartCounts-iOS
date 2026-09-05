@@ -15,7 +15,15 @@ import SwiftUI
 @Observable
 final class Lifecycle: ServiceModule, EnvironmentAccessible, @unchecked Sendable {
     private let rwLock = RWLock()
-    private(set) var scenePhase: ScenePhase = .inactive
+    private(set) var scenePhase: ScenePhase = .inactive {
+        didSet {
+            handleLifecycleChange(from: oldValue, to: scenePhase)
+        }
+    }
+    
+    // swiftlint:disable attributes
+    @ObservationIgnored @Dependency(LocalNotifications.self) private var localNotifications
+    // swiftlint:enable attributes
     
     func run() async {
         await TimedWalkingTest.endLiveActivity()
@@ -38,8 +46,60 @@ final class Lifecycle: ServiceModule, EnvironmentAccessible, @unchecked Sendable
             self[keyPath: keyPath] = value
         }
     }
+    
+    private func handleLifecycleChange(from oldValue: ScenePhase, to newValue: ScenePhase) {
+        guard LocalPreferencesStore.standard[.enableAppLifecycleNotifications] else {
+            return
+        }
+        Task {
+            try? await localNotifications.send(
+                title: "[dbg] lifecycle change",
+                body: "\(oldValue.rawValue) → \(newValue.rawValue)"
+            )
+        }
+    }
 }
 
+
+extension LocalPreferenceKeys {
+    static let enableAppLifecycleNotifications = LocalPreferenceKey<Bool>("enableAppLifecycleNotifications", default: false)
+}
+
+
+extension ScenePhase: @retroactive RawRepresentable<String>, @retroactive CustomDebugStringConvertible {
+    public var debugDescription: String {
+        rawValue
+    }
+    
+    public var rawValue: String {
+        switch self {
+        case .background:
+            "background"
+        case .inactive:
+            "inactive"
+        case .active:
+            "active"
+        @unknown default:
+            "unknown"
+        }
+    }
+    
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "background":
+            self = .background
+        case "inactive":
+            self = .inactive
+        case "active":
+            self = .active
+        default:
+            return nil
+        }
+    }
+}
+
+
+// MARK: SwiftUI integration
 
 extension Lifecycle {
     fileprivate struct ScenePhaseTrackingModifier: ViewModifier {

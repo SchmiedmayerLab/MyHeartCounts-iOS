@@ -76,7 +76,9 @@ struct CVHScore: DynamicProperty {
     @StatsDocumentsQuery<QuantitySample>(metric: .weight, timeRange: .last(months: 3), aggregationKind: .avg)
     private var statsBodyWeight
     
-    @StatsDocumentsQuery<QuantitySample>(metric: .height, timeRange: .last(years: 5), aggregationKind: .avg)
+    // the most recent height, however old: adults don't grow, and the stats documents cover the month of the latest
+    // height sample regardless of when the participant enrolled (see `HealthKitStatsCalculator.Coverage`).
+    @StatsDocumentsQuery<QuantitySample>(metric: .height, timeRange: .ever, aggregationKind: .avg)
     private var statsHeight
     
     @StatsDocumentsQuery<BloodPressureStatsSample>(bloodPressureIn: .last(months: 3))
@@ -244,7 +246,7 @@ extension CVHScore {
             return makeScore(bmiSample: sample)
         case let (nil, .some(weight), .some(height)):
             // if we have no BMI sample, but weight and height samples, compute BMI from that
-            guard weight.endDate.timeIntervalSinceNow < TimeConstants.year / 2 else {
+            guard Date.now.timeIntervalSince(weight.endDate) < TimeConstants.year / 2 else {
                 // if the weight is from too long ago, we don't use it.
                 // we don't have the same check for height, since that doesn't flucuate as much as weight, for adults.
                 return .init(title, sampleType: sampleType, definition: def)

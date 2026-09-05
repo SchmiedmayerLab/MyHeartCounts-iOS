@@ -15,6 +15,7 @@ import Spezi
 import SpeziAccount
 import SpeziFoundation
 import SwiftData
+import enum SwiftUI.ScenePhase
 import Synchronization
 
 
@@ -29,6 +30,12 @@ import Synchronization
 ///     only ever reached via `.task(spezi.run)` in Spezi's view modifier, which the app applies inside its `WindowGroup`.
 ///     A launch that connects no scene — a `BGTask` wake, or HealthKit background delivery — would therefore never start it,
 ///     i.e. exactly the situations this module exists to serve. `configure()` runs on every launch, so the drain starts there.
+///
+/// The queue makes progress whenever the process is alive: every launch (foreground or background) re-queues the backlog,
+/// every return to the foreground does so again, and failed attempts are retried within the launch with a growing delay.
+/// On top of that, the module registers a background task of its own (``MHCBackgroundTasks/TaskIdentifier/fileUpload``),
+/// so that a backlog also gets drained on devices that are rarely opened, instead of only whenever some other module's
+/// background task happens to wake the app.
 @Observable
 @MainActor
 final class ManagedFileUpload: Spezi::Module, EnvironmentAccessible, Sendable {
@@ -50,12 +57,18 @@ final class ManagedFileUpload: Spezi::Module, EnvironmentAccessible, Sendable {
     /// app that handles participant data on its way off the device — can be tested without a Firebase environment.
     struct Configuration: Sendable {
         /// The directory holding the staged files (and any not-yet-migrated legacy per-category directories).
-        var directory: URL = ManagedFileUpload.defaultDirectory
+        var directory: URL = .documentsDirectory.appending(
+            component: "ManagedFileUploading",
+            directoryHint: .isDirectory
+        )
         /// The directory holding the pending-uploads database.
         ///
         /// Deliberately outside ``directory``, so that ``ManagedFileUpload/clearPendingUploads()`` cannot destroy
         /// the index it is iterating.
-        var databaseDirectory: URL = ManagedFileUpload.defaultDatabaseDirectory
+        var databaseDirectory: URL = .applicationSupportDirectory.appending(
+            component: "ManagedFileUpload",
+            directoryHint: .isDirectory
+        )
         /// Whether to keep the database in memory instead of on disk.
         var isStoredInMemoryOnly = false
         /// How many files may be uploaded concurrently.
@@ -70,6 +83,16 @@ final class ManagedFileUpload: Spezi::Module, EnvironmentAccessible, Sendable {
         /// Whether data belonging to a previous account still needs to be cleared.
         var isCleanupPending: @Sendable () -> Bool = {
             LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired]
+        }
+        /// How long to wait before retrying an upload that failed during the current launch, based on how often it has failed so far;
+        /// `nil` to stop retrying until the next ``ManagedFileUpload/resumePendingUploads()``.
+        ///
+        /// Default: retries after 30 s, 1 min, 2 min, 4 min and 8 min; anything that still fails after that is left to the next resume.
+        var retryDelay: @Sendable (_ failedAttempts: Int) -> Duration? = { failedAttempts in
+            guard (1...5).contains(failedAttempts) else {
+                return nil
+            }
+            return .seconds(30 << (failedAttempts - 1))
         }
     }
 
@@ -89,18 +112,11 @@ final class ManagedFileUpload: Spezi::Module, EnvironmentAccessible, Sendable {
         case discarded
     }
 
-    nonisolated private static let defaultDirectory = URL.documentsDirectory.appending(
-        component: "ManagedFileUploading",
-        directoryHint: .isDirectory
-    )
-    nonisolated private static let defaultDatabaseDirectory = URL.applicationSupportDirectory.appending(
-        component: "ManagedFileUpload",
-        directoryHint: .isDirectory
-    )
-
     // swiftlint:disable attributes
     @ObservationIgnored @Application(\.logger) private var logger
     @ObservationIgnored @Dependency(Account.self) private var account: Account?
+    @ObservationIgnored @Dependency(MHCBackgroundTasks.self) private var backgroundTasks
+    @ObservationIgnored @Dependency(Lifecycle.self) private var lifecycle
     // swiftlint:enable attributes
 
     nonisolated let configuration: Configuration
@@ -121,6 +137,10 @@ final class ManagedFileUpload: Spezi::Module, EnvironmentAccessible, Sendable {
     private var activeUploads: [PersistentIdentifier: Swift::Task<UploadOutcome, Never>] = [:]
     private var quiescenceWaiters: [CheckedContinuation<Void, Never>] = []
     private var drainTask: Swift::Task<Void, Never>?
+    /// The delayed re-queueing of each upload that is waiting to be retried after a failed attempt.
+    private var retryTasks: [PersistentIdentifier: Swift::Task<Void, Never>] = [:]
+    /// How often each upload has failed during this launch; forgotten once it succeeds or is discarded.
+    private var failedAttempts: [PersistentIdentifier: Int] = [:]
 
     private(set) var categories: Set<Category>
 
@@ -191,6 +211,36 @@ final class ManagedFileUpload: Spezi::Module, EnvironmentAccessible, Sendable {
         // gate is applied on the one path where it matters most: a launch following a logout whose cleanup didn't finish.
         Swift::Task { [weak self] in
             await self?.resumePendingUploads()
+        }
+        // Also re-queue the backlog whenever the app returns to the foreground, so that entries which used up their
+        // in-launch retries while the app was in the background get another go without waiting for the next launch.
+        // (Re-queueing is idempotent, so the overlap with the resume above on a foreground launch is harmless.)
+        lifecycle.onChange(of: \.scenePhase) { [weak self] oldValue, newValue in
+            guard oldValue != .active, newValue == .active else {
+                return
+            }
+            Swift::Task { @MainActor in
+                await self?.resumePendingUploads()
+            }
+        }
+        registerBackgroundTask()
+    }
+
+    /// Registers the background task that drains the backlog on devices which are rarely opened.
+    ///
+    /// Network-only, deliberately without `requiresExternalPower`: the files are small, compressed payloads, and waiting
+    /// for a charger is what turns "eventually" into days on devices that are only ever topped up briefly.
+    private func registerBackgroundTask() {
+        do {
+            try backgroundTasks.register(.processing(
+                id: .fileUpload,
+                nextTriggerDate: .after(TimeConstants.hour * 6),
+                options: [.requiresNetworkConnectivity]
+            ) { [weak self] in
+                await self?.drainPendingUploads()
+            })
+        } catch {
+            logger.error("Failed to register \(MHCBackgroundTasks.TaskIdentifier.fileUpload) background task: \(error)")
         }
     }
 
@@ -477,6 +527,7 @@ extension ManagedFileUpload {
             }
             for url in (try? fileManager.contents(of: legacyDir)) ?? [] where !fileManager.isDirectory(at: url) {
                 let upload = ScheduledUpload(
+                    id: UUID(),
                     category: category,
                     filename: url.lastPathComponent,
                     metadata: [:],
@@ -619,12 +670,14 @@ extension ManagedFileUpload {
         var numAttempts = 0
 
         init(
+            id: UUID,
             category: Category,
             filename: String,
             metadata: [String: String],
             accountId: String?,
             accountDataGeneration: Int
         ) {
+            self.id = id
             self.categoryId = category.id
             self.categoryFirebasePath = category.firebasePath
             self.filename = filename
@@ -691,6 +744,8 @@ extension ManagedFileUpload {
         guard acceptsUploads, enqueuedUploads[uploadId] == nil else {
             return
         }
+        // Being queued now supersedes any retry that was still waiting for its delay to pass.
+        retryTasks.removeValue(forKey: uploadId)?.cancel()
         enqueuedUploads[uploadId] = category
         addUploadToProgress(for: category)
         newUploads.continuation.yield(uploadId)
@@ -717,12 +772,43 @@ extension ManagedFileUpload {
         if let category = enqueuedUploads.removeValue(forKey: uploadId) {
             switch outcome {
             case .completed:
+                failedAttempts[uploadId] = nil
                 completeUploadProgress(for: category)
-            case .failed, .discarded:
+            case .failed:
+                abortUploadProgress(for: category)
+                scheduleRetry(uploadId, category: category)
+            case .discarded:
+                failedAttempts[uploadId] = nil
                 abortUploadProgress(for: category)
             }
         }
         signalQuiescenceIfIdle()
+    }
+
+    /// Re-queues a failed upload after a delay that grows with the number of failures, as long as the configuration allows.
+    ///
+    /// Deliberately invisible to ``waitUntilQuiescent()``: a background task that drains the queue should report completion
+    /// once every entry has had its attempt, not sit through the backoff of the ones that failed.
+    private func scheduleRetry(_ uploadId: PersistentIdentifier, category: Category) {
+        guard acceptsUploads else {
+            // The queue was closed (a clear, or the drain being cancelled); whoever reopens it also resumes the backlog.
+            return
+        }
+        let attempts = failedAttempts[uploadId, default: 0] + 1
+        failedAttempts[uploadId] = attempts
+        guard let delay = configuration.retryDelay(attempts) else {
+            // Left for the next resume: the next foregrounding, the module's background task, or the next launch.
+            return
+        }
+        retryTasks[uploadId]?.cancel()
+        retryTasks[uploadId] = Swift::Task { [weak self] in
+            try? await Swift::Task.sleep(for: delay)
+            guard !Swift::Task.isCancelled, let self else {
+                return
+            }
+            self.retryTasks[uploadId] = nil
+            self.enqueue(uploadId, category: category)
+        }
     }
 }
 
@@ -748,6 +834,10 @@ extension ManagedFileUpload {
     /// and nothing new can be added behind our back.
     func cancelAndWaitForQuiescence() async {
         acceptsUploads = false
+        for task in retryTasks.values {
+            task.cancel()
+        }
+        retryTasks.removeAll()
         for task in activeUploads.values {
             task.cancel()
         }
@@ -796,6 +886,25 @@ extension ManagedFileUpload {
                 pending.persistentId,
                 category: resolveCategory(id: pending.categoryId, firebasePath: pending.categoryFirebasePath)
             )
+        }
+    }
+
+    /// Re-queues the whole backlog and waits until every entry has had one attempt.
+    ///
+    /// This is what the module's own background task runs. Cancelling the calling task — which is what a background task's
+    /// expiration does — stops the in-flight uploads (their entries survive for a later attempt) and reopens the queue.
+    func drainPendingUploads() async {
+        await resumePendingUploads()
+        await withTaskCancellationHandler {
+            await waitUntilQuiescent()
+        } onCancel: {
+            Swift::Task { @MainActor [weak self] in
+                guard let self else {
+                    return
+                }
+                await self.cancelAndWaitForQuiescence()
+                self.acceptsUploads = true
+            }
         }
     }
 
@@ -848,6 +957,8 @@ extension ManagedFileUpload {
         in context: ModelContext
     ) async -> String? {
         guard fileManager.fileExists(atPath: fileUrl.path(percentEncoded: false)) else {
+            // `stage(...)` moves the file into place before it commits the entry, so an entry whose file is gone has
+            // genuinely lost it (a partially failed clear, or something outside the module deleting it); nothing can bring it back.
             await logger.error("Discarding scheduled upload \(upload.id): its staged file is missing.")
             context.delete(upload)
             try? context.save()
@@ -985,20 +1096,29 @@ extension ManagedFileUpload {
         guard let accountId = await currentAccountId(), !accountId.isEmpty else {
             throw UploadError.noAccount
         }
-        let upload = try await commitUpload(
-            filename: url.lastPathComponent,
-            category: category,
-            metadata: metadata,
-            accountId: accountId,
-            accountDataGeneration: generation
-        )
+        // File first, entry second. A committed entry must always have its file: everything that finds an entry without
+        // one (a resume running concurrently on the main actor, the next launch) treats that as a lost file and drops the
+        // entry — and returning success from here after that would have the caller delete its only copy of the data.
+        // The reverse — a file without an entry, if the process dies in between — is harmless: it's an orphan that the next
+        // launch sweeps up, and since we haven't returned, the caller still holds its copy.
+        let uploadId = UUID()
+        let stagingUrl = stagingUrl(forUploadWithId: uploadId)
+        try fileManager.moveItem(at: url, to: stagingUrl)
+        let persistentId: PersistentIdentifier
         do {
-            try fileManager.moveItem(at: url, to: stagingUrl(forUploadWithId: upload.id))
+            persistentId = try await commitUpload(
+                id: uploadId,
+                filename: url.lastPathComponent,
+                category: category,
+                metadata: metadata,
+                accountId: accountId,
+                accountDataGeneration: generation
+            )
         } catch {
-            await discardUpload(upload.persistentId)
+            try? fileManager.removeItem(at: stagingUrl)
             throw error
         }
-        await finishStaging(upload.persistentId, category: category)
+        await finishStaging(persistentId, category: category)
     }
 
     /// Creates and commits the ``ScheduledUpload`` entry for a new upload.
@@ -1006,19 +1126,21 @@ extension ManagedFileUpload {
     /// Runs on the main actor and contains no suspension point, so the gate check and the `save()` cannot be
     /// interleaved with a clear (which is also main-actor bound). That is what makes the guarantee "no entry is ever
     /// committed after the app decided the account's data must go" hold, rather than merely usually hold.
-    private func commitUpload(
+    private func commitUpload( // swiftlint:disable:this function_parameter_count
+        id: UUID,
         filename: String,
         category: Category,
         metadata: [String: String],
         accountId: String,
         accountDataGeneration: Int
-    ) throws -> (id: UUID, persistentId: PersistentIdentifier) {
+    ) throws -> PersistentIdentifier {
         try ensureUploadsAreAllowed(accountDataGeneration)
         guard let modelContext else {
             throw UploadError.databaseUnavailable
         }
         register(category)
         let upload = ScheduledUpload(
+            id: id,
             category: category,
             filename: filename,
             metadata: metadata,
@@ -1027,7 +1149,7 @@ extension ManagedFileUpload {
         )
         modelContext.insert(upload)
         try modelContext.save()
-        return (upload.id, upload.persistentModelID)
+        return upload.persistentModelID
     }
 
     /// Queues a freshly staged upload, if the queue is still open.
@@ -1039,15 +1161,6 @@ extension ManagedFileUpload {
     ///     pending and is picked up by the next ``resumePendingUploads()``.
     private func finishStaging(_ uploadId: PersistentIdentifier, category: Category) {
         enqueue(uploadId, category: category)
-    }
-
-    /// Deletes a ``ScheduledUpload`` entry again, in response to its file failing to get moved into the staging directory.
-    private func discardUpload(_ uploadId: PersistentIdentifier) {
-        guard let modelContext, let upload: ScheduledUpload = modelContext.existingModel(for: uploadId) else {
-            return
-        }
-        modelContext.delete(upload)
-        try? modelContext.save()
     }
 
     /// Whether an upload staged under `accountDataGeneration` may still be committed.
@@ -1089,6 +1202,7 @@ extension ManagedFileUpload {
         }
         resetAllProgress()
         enqueuedUploads.removeAll()
+        failedAttempts.removeAll()
         try removeContents(of: stagingDirectory)
         // Also sweep any legacy per-category directories: the migration deliberately leaves behind directories
         // belonging to categories that aren't registered during this launch, and those hold the previous account's
@@ -1117,6 +1231,7 @@ extension ManagedFileUpload {
                 try fileManager.removeItem(at: url)
             }
             enqueuedUploads.removeValue(forKey: upload.persistentModelID)
+            failedAttempts.removeValue(forKey: upload.persistentModelID)
             modelContext.delete(upload)
         }
         try modelContext.save()
@@ -1149,4 +1264,9 @@ extension ManagedFileUpload {
             throw firstError
         }
     }
+}
+
+
+extension MHCBackgroundTasks.TaskIdentifier {
+    static let fileUpload = Self("edu.stanford.MyHeartCounts.fileUpload")
 }

@@ -4911,7 +4911,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "MHC Salud cardiovascular"
+            "value" : "MHC Salud Cardíaca"
           }
         }
       }
@@ -8354,6 +8354,7 @@
       }
     },
     "Setting Up Test Environment" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {

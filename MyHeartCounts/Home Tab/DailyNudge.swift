@@ -8,6 +8,7 @@
 
 @preconcurrency import FirebaseFirestore
 import Foundation
+import MyHeartCountsShared
 import SwiftUI
 
 
@@ -26,7 +27,7 @@ struct DailyNudge: DynamicProperty {
         collection: .user(path: "notificationHistory"),
         sortBy: [.init(fieldName: "originalTimestamp", order: .reverse)],
         limit: 1,
-        decode: { try? $0.data(as: MHCUserNotification.self) }
+        decoder: MUCUserNotificationDecoder()
     )
     private var notifications: [MHCUserNotification]
     
@@ -41,6 +42,15 @@ struct DailyNudge: DynamicProperty {
             return nil
         }
         return Nudge(title: notificaton.title, message: notificaton.body)
+    }
+}
+
+
+extension DailyNudge {
+    private struct MUCUserNotificationDecoder: MyHeartCountsShared::ValueTransformer {
+        func transform(_ input: QueryDocumentSnapshot) throws -> MHCUserNotification {
+            try input.data(as: MHCUserNotification.self)
+        }
     }
 }
 

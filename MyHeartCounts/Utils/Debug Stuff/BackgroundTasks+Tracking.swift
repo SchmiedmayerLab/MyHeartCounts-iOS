@@ -12,42 +12,40 @@ import SpeziFoundation
 import SwiftUI
 
 
-extension MHCBackgroundTasks {
-    struct Event: Hashable, Codable {
-        enum Kind: String, Hashable, Codable {
-            case start
-            case stop
-            case expiration
-        }
-        
-        let date: Date
-        let taskId: MHCBackgroundTasks.TaskIdentifier
-        let kind: Kind
-    }
-    
-    static func track(_ kind: Event.Kind, for taskId: TaskIdentifier) {
-        LocalPreferencesStore.standard[.backgroundTaskEvents].append(.init(date: .now, taskId: taskId, kind: kind))
-    }
-}
-
-
 extension LocalPreferenceKeys {
     static let backgroundTaskEvents = LocalPreferenceKey<[MHCBackgroundTasks.Event]>("backgroundTaskEvents", default: [])
+    
+    static let backgroundTaskNotifications = LocalPreferenceKey<Bool>("backgroundTaskNotifications", default: false)
 }
 
 
 extension MHCBackgroundTasks {
     struct EventsView: View {
         private struct ProcessedEvent: Hashable {
-            enum StopReason: String, Hashable { // swiftlint:disable:this nesting
-                case terminated
+            enum StopReason: Hashable, CustomStringConvertible { // swiftlint:disable:this nesting
+                case succeeded
+                case failed(String)
                 case expired
+                
+                var description: String {
+                    switch self {
+                    case .succeeded:
+                        "succeeded"
+                    case .expired:
+                        "expired"
+                    case .failed(let reason):
+                        "failed: \(reason)"
+                    }
+                }
             }
             let start: Date
             var end: Date?
             let taskId: MHCBackgroundTasks.TaskIdentifier
             var stopReason: StopReason?
         }
+        
+        @LocalPreference(.backgroundTaskNotifications)
+        private var enableNotifications
         
         @LocalPreference(.backgroundTaskEvents)
         private var events
@@ -56,6 +54,9 @@ extension MHCBackgroundTasks {
         
         var body: some View {
             Form {
+                Section {
+                    Toggle("Enable Notifications" as String, isOn: $enableNotifications)
+                }
                 Section("Pending Tasks" as String) {
                     ForEach(pendingRequests, id: \.self) { request in
                         VStack(alignment: .leading) {
@@ -78,7 +79,7 @@ extension MHCBackgroundTasks {
                                 if let stopReason = event.stopReason, let end = event.end {
                                     let duration = end.timeIntervalSince(event.start)
                                     Text(
-                                        "\(stopReason.rawValue.localizedCapitalized) after \(duration.formatted(.number.precision(.fractionLength(2)))) sec" as String
+                                        "\(stopReason.description.localizedCapitalized) after \(duration.formatted(.number.precision(.fractionLength(2)))) sec" as String
                                     )
                                 } else {
                                     Text("Ongoing" as String)
@@ -106,10 +107,15 @@ extension MHCBackgroundTasks {
                 switch event.kind {
                 case .start:
                     processed.append(ProcessedEvent(start: event.date, end: nil, taskId: event.taskId, stopReason: nil))
-                case .stop, .expiration:
+                case .expiration, .succeeded, .failed:
                     if let idx = processed.lastIndex(where: { $0.taskId == event.taskId }), processed[idx].stopReason == nil {
                         processed[idx].end = event.date
-                        processed[idx].stopReason = event.kind == .stop ? .terminated : .expired
+                        processed[idx].stopReason = switch event.kind {
+                        case .expiration: .expired
+                        case .succeeded: .succeeded
+                        case .failed(let error): .failed(error)
+                        case .start: .expired // unreachable to doesnt matter
+                        }
                     }
                 }
             }

@@ -32,10 +32,42 @@ import SwiftUI
 @propertyWrapper
 struct StatsDocumentsQuery<Element: Sendable>: DynamicProperty {
     typealias MetricID = HealthKitStatsCalculator.MetricID
-    /// Converts a decoded stats document into elements, keeping only those within the time range.
-    fileprivate typealias DecodeDocumentFn = @Sendable (StatsDocument, _ timeRange: Range<Date>) -> [Element]
+    
+    private struct StatsDocDecoder: MyHeartCountsShared::ValueTransformer {
+        private struct Failure: Error {}
+        
+        let metricId: HealthKitStatsCalculator.MetricID
+        
+        func transform(_ input: QueryDocumentSnapshot) throws -> StatsDocument {
+            let logger = Logger(category: .init("StatsDocumentsQuery"))
+            let statsDoc: StatsDocument
+            do {
+                statsDoc = try input.data(as: StatsDocument.self)
+            } catch {
+                logger.error("unable to decode stats document at '\(input.reference.path)': \(error)")
+                throw error
+            }
+            switch statsDoc.version {
+            case 0:
+                guard statsDoc.metric == metricId.rawValue else {
+                    logger.error(
+                        "skipping stats document at '\(input.reference.path)': its metric field ('\(statsDoc.metric)') doesn't match the queried metric ('\(metricId.rawValue)')"
+                    )
+                    throw Failure()
+                }
+                return statsDoc
+            default:
+                logger.error("skipping stats document at '\(input.reference.path)' with unsupported version \(statsDoc.version)")
+                throw Failure()
+            }
+        }
+    }
     
     /// The underlying query, fetching one `[Element]` chunk per month document.
+    ///
+    /// The month documents overlapping the time range are what the listener follows; the time range's finer-grained
+    /// filtering of their entries is done in the decode step, which the query redoes over the documents it already has
+    /// whenever the parameters change — so a view changing its time range never re-queries months it already holds.
     @MHCFirestoreQuery<[Element]> private var monthChunks: [[Element]]
     private let areInIncreasingOrder: @Sendable (Element, Element) -> Bool
     
@@ -48,38 +80,18 @@ struct StatsDocumentsQuery<Element: Sendable>: DynamicProperty {
     fileprivate init(
         metricId: MetricID,
         timeRange: HealthKitQueryTimeRange,
-        decode: @escaping DecodeDocumentFn,
+        transform: some MyHeartCountsShared.ValueTransformer<StatsDocument, [Element]>,
         areInIncreasingOrder: @escaping @Sendable (Element, Element) -> Bool
     ) {
         self.areInIncreasingOrder = areInIncreasingOrder
         let timeRange = timeRange.range
         // matches nothing; used when the time range doesn't overlap any month that could contain data
         let bounds = Self.monthDocumentIdBounds(for: timeRange) ?? "0000-00"..."0000-00"
-        let logger = Logger(category: .init("StatsDocumentsQuery"))
         self._monthChunks = MHCFirestoreQuery(
+            [Element].self,
             collection: .user(path: "stats/\(metricId.rawValue)/months"),
-            filter: .andFilter([
-                .whereField(FieldPath.documentID(), isGreaterOrEqualTo: bounds.lowerBound),
-                .whereField(FieldPath.documentID(), isLessThanOrEqualTo: bounds.upperBound)
-            ]),
-            decode: { document in
-                let statsDoc: StatsDocument
-                do {
-                    statsDoc = try document.data(as: StatsDocument.self)
-                } catch {
-                    logger.error("unable to decode stats document at '\(document.reference.path)': \(error)")
-                    return nil
-                }
-                guard statsDoc.version == 0 else {
-                    logger.error("skipping stats document at '\(document.reference.path)' with unsupported version \(statsDoc.version)")
-                    return nil
-                }
-                guard statsDoc.metric == metricId.rawValue else {
-                    logger.error("skipping stats document at '\(document.reference.path)': its metric field ('\(statsDoc.metric)') doesn't match the queried metric ('\(metricId.rawValue)')")
-                    return nil
-                }
-                return decode(statsDoc, timeRange)
-            }
+            filter: .documentId(in: bounds),
+            decoder: StatsDocDecoder(metricId: metricId).concat(transform)
         )
     }
     
@@ -115,6 +127,16 @@ struct StatsDocumentsQuery<Element: Sendable>: DynamicProperty {
 
 
 extension StatsDocumentsQuery where Element == QuantitySample {
+    private struct QuantitySampleDecoder: MyHeartCountsShared::ValueTransformer {
+        let metric: HealthStatsMetric
+        let timeRange: Range<Date>
+        let aggregationKind: StatisticsAggregationOption
+        
+        func transform(_ input: StatsDocument) throws -> [QuantitySample] {
+            input.quantitySamples(for: metric, in: timeRange, aggregationKind: aggregationKind)
+        }
+    }
+    
     /// - parameter metric: the metric whose stats documents should be fetched
     /// - parameter timeRange: the time range to fetch entries for
     /// - parameter aggregationKind: which of a bucketed entry's values (sum, resp. min/max/avg) should be used as the resulting sample's value.
@@ -123,9 +145,7 @@ extension StatsDocumentsQuery where Element == QuantitySample {
         self.init(
             metricId: metric.id,
             timeRange: timeRange,
-            decode: { document, timeRange in
-                document.quantitySamples(for: metric, in: timeRange, aggregationKind: aggregationKind)
-            },
+            transform: QuantitySampleDecoder(metric: metric, timeRange: timeRange.range, aggregationKind: aggregationKind),
             areInIncreasingOrder: { $0.startDate < $1.startDate }
         )
     }
@@ -133,15 +153,21 @@ extension StatsDocumentsQuery where Element == QuantitySample {
 
 
 extension StatsDocumentsQuery where Element == SleepSessionStatsSample {
+    private struct SleepSessionsDecoder: MyHeartCountsShared::ValueTransformer {
+        let timeRange: Range<Date>
+        
+        func transform(_ input: StatsDocument) throws -> [SleepSessionStatsSample] {
+            input.sleepSessionSamples(in: timeRange)
+        }
+    }
+    
     /// Fetches the sleep sessions of the `sleep` metric's stats documents.
     /// (Sleep isn't a quantity sample type, so it doesn't have a ``HealthStatsMetric``.)
     init(sleepSessionsIn timeRange: HealthKitQueryTimeRange) {
         self.init(
             metricId: .sleep,
             timeRange: timeRange,
-            decode: { document, timeRange in
-                document.sleepSessionSamples(in: timeRange)
-            },
+            transform: SleepSessionsDecoder(timeRange: timeRange.range),
             areInIncreasingOrder: { $0.timeRange.upperBound < $1.timeRange.upperBound }
         )
     }
@@ -149,15 +175,21 @@ extension StatsDocumentsQuery where Element == SleepSessionStatsSample {
 
 
 extension StatsDocumentsQuery where Element == BloodPressureStatsSample {
+    private struct BloodPressureDecoder: MyHeartCountsShared::ValueTransformer {
+        let timeRange: Range<Date>
+        
+        func transform(_ input: StatsDocument) throws -> [BloodPressureStatsSample] {
+            input.bloodPressureSamples(in: timeRange)
+        }
+    }
+    
     /// Fetches the sys/dia reading pairs of the `blood-pressure` metric's stats documents.
     /// (Blood pressure isn't representable as ``QuantitySample``s, since its entries carry two values.)
     init(bloodPressureIn timeRange: HealthKitQueryTimeRange) {
         self.init(
             metricId: .bloodPressure,
             timeRange: timeRange,
-            decode: { document, timeRange in
-                document.bloodPressureSamples(in: timeRange)
-            },
+            transform: BloodPressureDecoder(timeRange: timeRange.range),
             areInIncreasingOrder: { $0.date < $1.date }
         )
     }

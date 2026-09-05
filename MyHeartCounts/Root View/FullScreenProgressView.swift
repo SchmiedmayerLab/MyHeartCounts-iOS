@@ -10,15 +10,15 @@ import SwiftUI
 
 
 struct FullScreenProgressView: View {
-    private let title: LocalizedStringResource
-    private let subtitle: LocalizedStringResource?
+    private let title: Text
+    private let subtitle: Text?
     
     var body: some View {
         ProgressView {
             VStack(alignment: .center) {
-                Text(title)
+                title
                 if let subtitle {
-                    Text(subtitle)
+                    subtitle
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -29,7 +29,13 @@ struct FullScreenProgressView: View {
     }
     
     init(title: LocalizedStringResource, subtitle: LocalizedStringResource? = nil) {
-        self.title = title
-        self.subtitle = subtitle
+        self.title = Text(title)
+        self.subtitle = subtitle.map { Text($0) }
+    }
+    
+    @_disfavoredOverload
+    init(title: some StringProtocol, subtitle: (some StringProtocol)? = String?.none) {
+        self.title = Text(title)
+        self.subtitle = subtitle.map { Text($0) }
     }
 }

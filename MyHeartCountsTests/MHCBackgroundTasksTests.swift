@@ -24,8 +24,9 @@ private final class BackgroundTaskCallbackRecorder: Sendable {
         storage.withLock { $0 }
     }
 
-    func recordCompletion(_ success: Bool) {
-        storage.withLock { $0.completions.append(success) }
+    func recordCompletion(_ result: Result<Void, any Error>) {
+        let didSucceed = if case .success = result { true } else { false }
+        storage.withLock { $0.completions.append(didSucceed) }
     }
 
     func recordReschedule() {

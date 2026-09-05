@@ -23,6 +23,9 @@ import UserNotifications
 
 @Observable
 final class MyHeartCountsDelegate: SpeziAppDelegate {
+    // mutated only once, from the main actor, when the app's launch sequence is finishing up.
+    nonisolated(unsafe) private(set) static var didFinishLaunching = false
+    
     override var configuration: Configuration {
         if let selector = FeatureFlags.overrideFirebaseConfig {
             LocalPreferencesStore.standard[.lastUsedFirebaseConfig] = selector
@@ -69,6 +72,14 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             AccountFeatureFlags()
             DemoSetup()
         }
+    }
+    
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? // swiftlint:disable:this discouraged_optional_collection
+    ) -> Bool {
+        Self.didFinishLaunching = true
+        return true
     }
 }
 
