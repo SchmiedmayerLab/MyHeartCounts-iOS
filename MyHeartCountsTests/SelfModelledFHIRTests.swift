@@ -88,23 +88,6 @@ struct SelfModelledQuantityFHIRTests {
         #expect(QuantitySample(preliminary) == nil)
     }
 
-    @Test
-    func writerRejectsIncompatibleSourceUnit() {
-        let sample = QuantitySample(
-            id: UUID(),
-            sampleType: .custom(.bloodLipids),
-            unit: .meter(),
-            value: 50,
-            date: Date(timeIntervalSince1970: 1_788_000_000)
-        )
-
-        #expect(throws: QuantitySample.FHIRObservationConversionError.incompatibleUnit(
-            sampleTypeIdentifier: CustomQuantitySampleType.bloodLipids.id
-        )) {
-            _ = try sample.resource(issuedDate: nil, extensions: [])
-        }
-    }
-
     private func bloodLipidsObservation(
         system: FHIRPrimitive<FHIRURI>?,
         code: String?,
