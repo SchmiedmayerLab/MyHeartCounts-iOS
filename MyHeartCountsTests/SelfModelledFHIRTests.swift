@@ -88,16 +88,30 @@ struct SelfModelledQuantityFHIRTests {
         #expect(QuantitySample(preliminary) == nil)
     }
 
+    @Test
+    func readerAcceptsTheCodingSystemUsedBeforeTheMigration() throws {
+        let observation = try bloodLipidsObservation(
+            system: UCUM.system,
+            code: "mg/dL",
+            display: "mg/dL",
+            codingSystem: MHCCodingSystem.supersededSystem
+        )
+
+        let sample = try #require(QuantitySample(observation))
+        #expect(sample.sampleType == .custom(.bloodLipids))
+    }
+
     private func bloodLipidsObservation(
         system: FHIRPrimitive<FHIRURI>?,
         code: String?,
-        display: String
+        display: String,
+        codingSystem: FHIRPrimitive<FHIRURI> = MHCCodingSystem.system
     ) throws -> Observation {
         var observation = Observation(
             code: CodeableConcept(coding: [
                 Coding(
                     code: CustomQuantitySampleType.bloodLipids.id.asFHIRStringPrimitive(),
-                    system: MHCCodingSystem.system
+                    system: codingSystem
                 )
             ]),
             status: FHIRPrimitive(.final)
