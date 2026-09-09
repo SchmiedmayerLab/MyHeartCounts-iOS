@@ -39,9 +39,9 @@ struct AchievementStatsTests {
     func dailyThresholdsRejectUnalignedBucketsAndFutureEnrollment() throws {
         #expect(AchievementsManager.dailyStepsRequest(since: date(1), now: date(0), calendar: calendar()) == nil)
         let request = try #require(AchievementsManager.dailyStepsRequest(since: date(0), now: date(49), calendar: calendar()))
-        var crossingMidnight = bucket(hour: 23, count: 20_000)
-        crossingMidnight.start = date(23).addingTimeInterval(1_800).ISO8601Format()
-        crossingMidnight.end = date(24).addingTimeInterval(1_800).ISO8601Format()
+        let crossingMidnight = StatsDocument.Entry.aggregate(.init(
+            start: date(23).addingTimeInterval(1_800), end: date(24).addingTimeInterval(1_800), unit: .count(), values: .sum(20_000)
+        ))
         #expect(throws: StatsStore.Processor.Error.self) {
             try request.process([StatsDocument(metric: "steps", entriesBySourceId: ["com.apple.HealthKit": [crossingMidnight]])])
         }
@@ -135,11 +135,7 @@ struct AchievementStatsTests {
     }
 
     private func bucket(hour: Int, count: Double) -> StatsDocument.Entry {
-        var entry = StatsDocument.Entry(unit: "count")
-        entry.start = date(hour).ISO8601Format()
-        entry.end = date(hour + 1).ISO8601Format()
-        entry.sum = count
-        return entry
+        .aggregate(.init(start: date(hour), end: date(hour + 1), unit: .count(), values: .sum(count)))
     }
 
     private func ecg(hour: Int) -> ElectrocardiogramStatsSample {

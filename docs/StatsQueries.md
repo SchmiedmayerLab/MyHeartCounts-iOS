@@ -14,6 +14,10 @@ SPDX-License-Identifier: MIT
 
 Query API types are nested under `StatsStore`, including `Request`, `Snapshot`, `Subscription`, and the source/read/interval policies. Stored metadata types are nested under `StatsDocument`; these Swift namespaces do not change the document schema.
 
+The [User Data Statistics section of the MHC data spec](MHCDataSpec.md#user-data-statistics) is authoritative for storage locations, monthly document structure, source identifiers, and entry fields, including [optional average metadata](MHCDataSpec.md#optional-average-metadata).
+
+The HealthKit writer and stats reader share the `StatsDocument.Aggregate`, `.Quantity`, `.BloodPressure`, `.Workout`, and `.Electrocardiogram` entry payloads. `StatsDocument.Entry` wraps them in corresponding enum cases. Aggregates contain either a sum or a min/max/average summary, with optional average weights on the summary. Custom coding preserves the existing flat JSON fields without adding enum case names. Invalid entry shapes, dates, or units are skipped and counted while the rest of the month remains readable.
+
 ```swift
 @Dependency(StatsStore.self) private var stats
 
@@ -56,15 +60,22 @@ private var samples: [QuantitySample]
 
 Metadata-only Firestore updates refresh `isFromCache` and `hasPendingWrites` without decoding the documents or rebuilding the processed samples. Changes to document data or the request still trigger processing.
 
-`StatsStore.Request.sleepSessions(in:sourcePolicy:)` and `.bloodPressure(in:sourcePolicy:)` have matching wrapper initializers. A preconstructed typed request can also be passed directly to `StatsDocumentsQuery`.
+`StatsStore.Request.sleepSessions(in:sourcePolicy:)` and `.bloodPressure(in:sourcePolicy:)` have matching wrapper initializers. `.workouts(in:sourcePolicy:)` and `.electrocardiograms(in:sourcePolicy:)` return typed event requests:
+
+```swift
+let workouts = try await stats.fetch(.workouts(in: .last(days: 7)))
+let recordings = try await stats.fetch(.electrocardiograms(in: .last(days: 7)))
+```
+
+Workout results preserve activity type and active duration, excluding pauses; ECG results preserve recording start and end dates. Both require the event's start and end inside the requested half-open range. A preconstructed typed request can also be passed directly to `StatsDocumentsQuery`.
 
 ## Source and interval policies
 
 Source selection is performed after filtering entries to the requested range. Default preference is HealthKit followed by the other source IDs in lexical order. Selection operates on individual buckets, so another source can fill missing buckets even when HealthKit has some data in the same month.
 
-Individual quantity and blood-pressure readings at different timestamps can coexist across sources, including legacy readings with unknown origins. At the same timestamp, source preference resolves competing readings unless the policy and provenance allow both. A shared `provenance.observationID` identifies a duplicate even when the copies have different timestamps. Without that shared identity, differently timestamped copies cannot be reliably deduplicated; writers should preserve the original observation's ID and timestamp.
+Individual quantity readings, blood-pressure readings, and workout/ECG events at different start timestamps can coexist across sources. At the same timestamp, source preference resolves competing readings; `.mergeCompatible` throws instead. Multiple readings within a single source are retained. Source selection does not track observation identities or remove copies at different timestamps; event IDs are retained only as result identity.
 
-Timestamp equality compares the exact parsed instant, including supplied fractional seconds; the reader does not truncate timestamps to whole seconds. The HealthKit stats writer currently emits whole-second dates, so a copy retaining a nonzero fractional part has a different timestamp. Preserving the shared `observationID` across ingestion paths identifies such copies despite the precision difference.
+Timestamp equality compares the exact parsed instant, including supplied fractional seconds; the reader does not truncate timestamps to whole seconds. The HealthKit stats writer currently emits whole-second dates, so a copy retaining a nonzero fractional part has a different timestamp and both readings remain in the result. HealthKit stats fetching does not yet exclude samples based on connected integrations; existing metric-specific filters still apply.
 
 - `.automatic` combines compatible contributions and reports preferred-source fallback where merging is unsupported.
 - `.only(id)` restricts results to one source.

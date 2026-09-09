@@ -32,16 +32,13 @@ Workout and ECG entries preserve event identity and timing:
   "samples": {
     "com.apple.HealthKit": [
       {
+        "id": "healthkit:efc55c58-041a-4baa-a3af-c1a32a47ce09",
         "date": "2026-09-09T10:00:00+02:00",
         "endDate": "2026-09-09T10:45:00+02:00",
         "unit": "s",
         "value": 2400,
         "duration": 2400,
-        "activityType": 37,
-        "provenance": {
-          "origins": [],
-          "observationID": "healthkit:efc55c58-041a-4baa-a3af-c1a32a47ce09"
-        }
+        "activityType": 37
       }
     ]
   }
@@ -50,7 +47,7 @@ Workout and ECG entries preserve event identity and timing:
 
 `date` is the event start; `endDate` is its end. The event belongs to the month containing `date`, including events spanning midnight or a month boundary. Event timing does not use the `start`/`end` fields reserved for aggregate buckets. Workout `duration` preserves `HKWorkout.duration`, excluding pauses, rather than assuming it equals the elapsed wall-clock span. `activityType` is the unsigned raw value of `HKWorkoutActivityType`.
 
-ECG entries omit `duration` and `activityType`. Their summary does not contain waveform data or classification. Both event types carry `healthkit:<lowercase UUID>` in `provenance.observationID`, preserving identity across monthly recomputations. Empty `origins` makes no claim that an event is independent of an external provider's copy; consumers must apply the source policies in [StatsAggregation.md](StatsAggregation.md).
+ECG entries omit `duration` and `activityType`. Their summary does not contain waveform data or classification. Both event types carry `healthkit:<lowercase UUID>` in `id`, preserving output identity across monthly recomputations. The decoder also accepts the previous `provenance.observationID` field when `id` is absent; new writes do not emit provenance. IDs do not deduplicate entries or establish independence between sources. Simultaneous events from different sources compete under the source policies in [StatsAggregation.md](StatsAggregation.md); same-source events and events at different instants remain distinct. [MHCDataSpec.md](MHCDataSpec.md#entry-shapes) defines the canonical wire-format contract.
 
 All additional metrics retain the calculator's enrollment-aware history, with at least twelve months of chart coverage. Event updates reread and replace the full HealthKit contribution for the event's month. Empty reads clear previous entries only when the anchored update includes deletion evidence, and query anchors advance only after successful uncancelled persistence.
 

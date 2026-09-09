@@ -498,10 +498,10 @@ extension HealthKitStatsCalculator {
         let metricId: MetricID
     }
 
-    private struct EventSamplesRunDescriptor<Sample: _HKSampleWithSampleType> {
+    private struct EventSamplesRunDescriptor<Sample: _HKSampleWithSampleType, Entry: Codable & Sendable> {
         let sampleType: SampleType<Sample>
         let metricId: MetricID
-        let entry: @Sendable (Sample) -> EventSampleEntry
+        let entry: @Sendable (Sample) -> Entry
     }
     
     private enum NonstandardSamplesRunDescriptor: CaseIterable {
@@ -512,7 +512,7 @@ extension HealthKitStatsCalculator {
     }
     
     
-    // One run per bucketed quantity metric; participation additions are documented in docs/ParticipationStats.md.
+    // One run per bucketed quantity metric in the spec's Metrics table (docs/MHCDataSpec.md).
     private static let bucketedDescriptors: [StatsRunDescriptor] = [
         .init(
             sampleType: .stepCount,
@@ -600,13 +600,13 @@ extension HealthKitStatsCalculator {
                 // An overlapping sample can produce buckets on both sides of the boundary. Store each bucket
                 // only in its own month, leaving HealthKit to aggregate samples and reconcile their sources.
                 let stats = collection.statistics().filter { month.range.contains($0.startDate) }
-                let entries: [StatEntry] = switch input.mode {
+                let entries: [StatsDocument.Aggregate] = switch input.mode {
                 case .sum:
                     stats.compactMap { stats in
                         guard let sum = stats.sumQuantity() else {
                             return nil
                         }
-                        return StatEntry(
+                        return StatsDocument.Aggregate(
                             start: stats.startDate,
                             end: stats.endDate,
                             unit: unit,
@@ -623,7 +623,7 @@ extension HealthKitStatsCalculator {
                         // Heart rate uses HealthKit's temporally weighted average. Neither the public
                         // statistics API nor duration() supplies its averaging denominator, so we must not
                         // manufacture merge weights from sample count, bucket length, or covered duration.
-                        return StatEntry(
+                        return StatsDocument.Aggregate(
                             start: stats.startDate,
                             end: stats.endDate,
                             unit: unit,
@@ -675,11 +675,10 @@ extension HealthKitStatsCalculator {
             for try await result in results {
                 let samples = try await healthKit.query(input.sampleType, timeRange: .ever, predicate: month.samplesStartingInMonthPredicate)
                 let entries = samples.map { sample in
-                    QuantitySampleEntry(
+                    StatsDocument.Quantity(
                         date: sample.startDate,
                         unit: unit,
-                        value: sample.quantity.doubleValue(for: unit),
-                        provenance: Self.provenance(for: sample)
+                        value: sample.quantity.doubleValue(for: unit)
                     )
                 }
                 try await persistence.persistStatsUpdate(
@@ -713,7 +712,7 @@ extension HealthKitStatsCalculator {
             await runBloodPressureStats(months: months, persistence: persistence, runId: runId)
         case .workouts:
             await process(
-                EventSamplesRunDescriptor(sampleType: .workout, metricId: .workouts, entry: EventSampleEntry.init(workout:)),
+                EventSamplesRunDescriptor(sampleType: .workout, metricId: .workouts, entry: StatsDocument.Workout.init(workout:)),
                 months: months,
                 persistence: persistence,
                 runId: runId
@@ -721,7 +720,7 @@ extension HealthKitStatsCalculator {
         case .electrocardiograms:
             await process(
                 EventSamplesRunDescriptor(
-                    sampleType: .electrocardiogram, metricId: .electrocardiograms, entry: EventSampleEntry.init(electrocardiogram:)
+                    sampleType: .electrocardiogram, metricId: .electrocardiograms, entry: StatsDocument.Electrocardiogram.init(electrocardiogram:)
                 ),
                 months: months,
                 persistence: persistence,
@@ -730,8 +729,8 @@ extension HealthKitStatsCalculator {
         }
     }
 
-    private func process<Sample>(
-        _ descriptor: EventSamplesRunDescriptor<Sample>,
+    private func process<Sample, Entry>(
+        _ descriptor: EventSamplesRunDescriptor<Sample, Entry>,
         months: [StatsMonth],
         persistence: StatsPersistence,
         runId: UUID
@@ -798,7 +797,7 @@ extension HealthKitStatsCalculator {
                     month.range.contains(session.timeRange.middle)
                 }
                 let entries = sessions.map { session in
-                    StatEntry(
+                    StatsDocument.Aggregate(
                         start: session.startDate,
                         end: session.endDate,
                         unit: .hour(),
@@ -839,17 +838,16 @@ extension HealthKitStatsCalculator {
             )
             for try await result in results {
                 let samples = try await self.healthKit.query(.bloodPressure, timeRange: .ever, predicate: month.samplesStartingInMonthPredicate)
-                let entries = samples.compactMap { correlation -> BloodPressureSampleEntry? in
+                let entries = samples.compactMap { correlation -> StatsDocument.BloodPressure? in
                     guard let systolic = correlation.objects(for: .bloodPressureSystolic).first,
                           let diastolic = correlation.objects(for: .bloodPressureDiastolic).first else {
                         return nil
                     }
-                    return BloodPressureSampleEntry(
+                    return StatsDocument.BloodPressure(
                         date: correlation.startDate,
                         unit: unit,
                         systolic: systolic.quantity.doubleValue(for: unit),
-                        diastolic: diastolic.quantity.doubleValue(for: unit),
-                        provenance: Self.provenance(for: correlation)
+                        diastolic: diastolic.quantity.doubleValue(for: unit)
                     )
                 }
                 try await persistence.persistStatsUpdate(
@@ -871,177 +869,6 @@ extension HealthKitStatsCalculator {
                     }
                 }
             }
-        }
-    }
-}
-
-
-extension HealthKitStatsCalculator {
-    /// Preserve identity across recomputations without claiming independence from an external integration.
-    /// HealthKit's immediate source may itself have imported the reading from another provider.
-    static func provenance(for sample: HKObject) -> StatsDocument.Provenance {
-        StatsDocument.Provenance(origins: [], observationID: "healthkit:\(sample.uuid.uuidString.lowercased())")
-    }
-}
-
-
-// MARK: Wire format
-
-extension HealthKitStatsCalculator {
-    enum StatsWireFormat {
-        /// spec: all timestamps in stats documents are ISO8601 strings; we include the device's local-time UTC offset (matching the bucket boundaries, which are computed in local time).
-        /// - Note: the field modifiers must all be spelled out: calling any modifier on an `ISO8601FormatStyle` discards the default field set, so e.g. a bare `.timeZone(separator:)` style would format dates as just the offset.
-        static let dateFormat = Date.ISO8601FormatStyle(timeZone: .current)
-            .year().month().day() // swiftlint:disable:this multiline_function_chains
-            .dateTimeSeparator(.standard)
-            .time(includingFractionalSeconds: false)
-            .timeZone(separator: .colon)
-
-        static func parseDate(_ string: String) throws -> Date {
-            if let date = try? Date(string, strategy: dateFormat) {
-                return date
-            }
-            // tolerate other ISO8601 offset spellings (e.g. "Z", or no colon in the offset)
-            return try Date(string, strategy: .iso8601)
-        }
-    }
-
-
-    /// A single sum or min/max/avg entry in a bucketed (hourly/daily) single-month stats document
-    fileprivate struct StatEntry: Codable {
-        enum CodingKeys: String, Swift.CodingKey {
-            case start, end, unit, sum, min, max, avg
-        }
-
-        enum StatsValues {
-            case sum(Double)
-            case minMaxAvg(min: Double, max: Double, avg: Double)
-
-            init(from container: KeyedDecodingContainer<CodingKeys>) throws {
-                if container.contains(.sum) {
-                    self = .sum(try container.decode(Double.self, forKey: .sum))
-                } else {
-                    let min = try container.decode(Double.self, forKey: .min)
-                    let max = try container.decode(Double.self, forKey: .max)
-                    let avg = try container.decode(Double.self, forKey: .avg)
-                    self = .minMaxAvg(min: min, max: max, avg: avg)
-                }
-            }
-
-            func encode(to container: inout KeyedEncodingContainer<CodingKeys>) throws {
-                switch self {
-                case .sum(let sum):
-                    try container.encode(sum, forKey: .sum)
-                case let .minMaxAvg(min, max, avg):
-                    try container.encode(min, forKey: .min)
-                    try container.encode(max, forKey: .max)
-                    try container.encode(avg, forKey: .avg)
-                }
-            }
-        }
-
-        let start: Date
-        let end: Date
-        let unit: HKUnit
-        let values: StatsValues
-
-        init(start: Date, end: Date, unit: HKUnit, values: StatsValues) {
-            self.start = start
-            self.end = end
-            self.unit = unit
-            self.values = values
-        }
-
-        init(from decoder: any Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.start = try StatsWireFormat.parseDate(container.decode(String.self, forKey: .start))
-            self.end = try StatsWireFormat.parseDate(container.decode(String.self, forKey: .end))
-            self.unit = try container.decode(HKUnit.self, forKey: .unit)
-            self.values = try .init(from: container)
-        }
-
-        func encode(to encoder: any Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(start.formatted(StatsWireFormat.dateFormat), forKey: .start)
-            try container.encode(end.formatted(StatsWireFormat.dateFormat), forKey: .end)
-            try container.encode(unit, forKey: .unit)
-            try values.encode(to: &container)
-        }
-    }
-
-
-    /// A single reading in an individual-samples single-month stats document
-    struct QuantitySampleEntry: Codable {
-        enum CodingKeys: String, Swift.CodingKey {
-            case date, unit, value, provenance
-        }
-
-        let date: Date
-        let unit: HKUnit
-        let value: Double
-        let provenance: StatsDocument.Provenance?
-
-        init(date: Date, unit: HKUnit, value: Double, provenance: StatsDocument.Provenance? = nil) {
-            self.date = date
-            self.unit = unit
-            self.value = value
-            self.provenance = provenance
-        }
-
-        init(from decoder: any Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.date = try StatsWireFormat.parseDate(container.decode(String.self, forKey: .date))
-            self.unit = try container.decode(HKUnit.self, forKey: .unit)
-            self.value = try container.decode(Double.self, forKey: .value)
-            self.provenance = try container.decodeIfPresent(StatsDocument.Provenance.self, forKey: .provenance)
-        }
-
-        func encode(to encoder: any Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(date.formatted(StatsWireFormat.dateFormat), forKey: .date)
-            try container.encode(unit, forKey: .unit)
-            try container.encode(value, forKey: .value)
-            try container.encodeIfPresent(provenance, forKey: .provenance)
-        }
-    }
-
-
-    /// A single sys/dia reading pair in the blood-pressure single-month stats document
-    struct BloodPressureSampleEntry: Codable {
-        enum CodingKeys: String, Swift.CodingKey {
-            case date, unit, systolic, diastolic, provenance
-        }
-
-        let date: Date
-        let unit: HKUnit
-        let systolic: Double
-        let diastolic: Double
-        let provenance: StatsDocument.Provenance?
-
-        init(date: Date, unit: HKUnit, systolic: Double, diastolic: Double, provenance: StatsDocument.Provenance? = nil) {
-            self.date = date
-            self.unit = unit
-            self.systolic = systolic
-            self.diastolic = diastolic
-            self.provenance = provenance
-        }
-
-        init(from decoder: any Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.date = try StatsWireFormat.parseDate(container.decode(String.self, forKey: .date))
-            self.unit = try container.decode(HKUnit.self, forKey: .unit)
-            self.systolic = try container.decode(Double.self, forKey: .systolic)
-            self.diastolic = try container.decode(Double.self, forKey: .diastolic)
-            self.provenance = try container.decodeIfPresent(StatsDocument.Provenance.self, forKey: .provenance)
-        }
-
-        func encode(to encoder: any Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(date.formatted(StatsWireFormat.dateFormat), forKey: .date)
-            try container.encode(unit, forKey: .unit)
-            try container.encode(systolic, forKey: .systolic)
-            try container.encode(diastolic, forKey: .diastolic)
-            try container.encodeIfPresent(provenance, forKey: .provenance)
         }
     }
 }

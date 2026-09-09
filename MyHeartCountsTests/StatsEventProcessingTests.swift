@@ -10,6 +10,7 @@ import Foundation
 import HealthKit
 @testable import MyHeartCounts
 import SpeziHealthKit
+import SpeziHealthKitUI
 import Testing
 
 
@@ -19,7 +20,7 @@ struct StatsEventProcessingTests {
     private var range: Range<Date> { date(0)..<date(24) }
 
     @Test
-    func workoutsRetainActiveDurationAndDeduplicateMirrorsAcrossMonths() throws {
+    func workoutsRetainActiveDurationAcrossMonthsAndResolveCompetingSources() throws {
         let workout = workout(id: "shared", hour: 1)
         let output = try StatsStore.Request.workouts(in: .init(range)).process([
             document(.workouts, [healthKit: [workout]]),
@@ -30,13 +31,16 @@ struct StatsEventProcessingTests {
         #expect(output.elements.first?.endDate == date(2))
         #expect(output.elements.first?.activityType == .walking)
         #expect(output.contributingSourceIDs == [healthKit])
+        #expect(output.diagnostics.count == 1)
     }
 
     @Test
-    func recordingsUseHalfOpenStartDateBoundsAndPreserveEndDate() throws {
-        var incomplete = ecg(id: "incomplete", hour: 23)
-        incomplete.endDate = date(25).ISO8601Format()
-        let recordings = [ecg(id: "before", hour: -1), ecg(id: "inside", hour: 0), ecg(id: "after", hour: 24), incomplete]
+    func recordingsRequireBothEndpointsInsideTheHalfOpenRange() throws {
+        let recordings: [StatsDocument.Entry] = [
+            ecg(id: "before", hour: -1), ecg(id: "inside", hour: 0), ecg(id: "after", hour: 24),
+            .electrocardiogram(.init(id: "at-end", date: date(23), endDate: date(24))),
+            .electrocardiogram(.init(id: "incomplete", date: date(23), endDate: date(25)))
+        ]
         let output = try StatsStore.Request.electrocardiograms(in: .init(range)).process([
             document(.electrocardiograms, [healthKit: recordings])
         ])
@@ -45,48 +49,61 @@ struct StatsEventProcessingTests {
     }
 
     @Test
-    func independentRecordingsAtTheSameInstantAreRetainedButUnknownCopiesCompete() throws {
-        var first = ecg(id: "first", hour: 2)
-        var second = ecg(id: "second", hour: 2)
-        let unknown = document(.electrocardiograms, [healthKit: [first], "other": [second]])
-        let preferred = try StatsStore.Request.electrocardiograms(in: .init(range)).process([unknown])
-        #expect(preferred.elements.map(\.id) == ["first"])
-        #expect(preferred.diagnostics.count == 1)
+    func simultaneousRecordingsCompeteAcrossSources() throws {
+        let recordings = document(.electrocardiograms, [healthKit: [ecg(id: "first", hour: 2)], "other": [ecg(id: "second", hour: 2)]])
+        let automatic = try StatsStore.Request.electrocardiograms(in: .init(range)).process([recordings])
+        #expect(automatic.elements.map(\.id) == ["first"])
+        #expect(automatic.diagnostics.count == 1)
         #expect(throws: StatsStore.Processor.Error.self) {
-            try StatsStore.Request.electrocardiograms(in: .init(range), sourcePolicy: .mergeCompatible).process([unknown])
+            try StatsStore.Request.electrocardiograms(in: .init(range), sourcePolicy: .mergeCompatible).process([recordings])
         }
-        first.provenance = .init(origins: ["device-a"], observationID: "first")
-        second.provenance = .init(origins: ["device-b"], observationID: "second")
-        let independent = document(.electrocardiograms, [healthKit: [first], "other": [second]])
-        let merged = try StatsStore.Request.electrocardiograms(in: .init(range)).process([independent])
-        #expect(Set(merged.elements.map(\.id)) == ["first", "second"])
-        let only = try StatsStore.Request.electrocardiograms(in: .init(range), sourcePolicy: .only("other")).process([independent])
+        let preferred = try StatsStore.Request.electrocardiograms(in: .init(range), sourcePolicy: .preferred(["other"])).process([recordings])
+        #expect(preferred.elements.map(\.id) == ["second"])
+        let only = try StatsStore.Request.electrocardiograms(in: .init(range), sourcePolicy: .only("other")).process([recordings])
         #expect(only.elements.map(\.id) == ["second"])
+        #expect(only.diagnostics.isEmpty)
+    }
+
+    @Test
+    func sameSourceRecordingsAndDifferentInstantsRemainDistinctWithoutIdentityDeduplication() throws {
+        let output = try StatsStore.Request.electrocardiograms(in: .init(range)).process([
+            document(.electrocardiograms, [
+                healthKit: [ecg(id: "same-id", hour: 2), ecg(id: "distinct", hour: 2)],
+                "other": [ecg(id: "same-id", hour: 3)]
+            ])
+        ])
+        #expect(output.elements.count == 3)
+        #expect(output.elements.filter { $0.id == "same-id" }.count == 2)
+        #expect(output.elements.filter { $0.date == date(2) }.count == 2)
+        #expect(output.contributingSourceIDs == [healthKit, "other"])
+        #expect(output.diagnostics.isEmpty)
     }
 
     @Test
     func malformedEventsAreDiagnosedWithoutDiscardingValidEntries() throws {
-        var missingIdentity = workout(id: "no-identity", hour: 0)
-        missingIdentity.provenance = nil
-        var inconsistentDuration = workout(id: "duration", hour: 1)
-        inconsistentDuration.duration = 800
-        var invalidEnd = workout(id: "end", hour: 2)
-        invalidEnd.endDate = date(1).ISO8601Format()
-        var invalidUnit = workout(id: "unit", hour: 3)
-        invalidUnit = .init(
-            date: invalidUnit.date,
-            value: 900,
-            unit: "kg",
-            provenance: invalidUnit.provenance,
-            endDate: invalidUnit.endDate,
-            duration: 900,
-            activityType: HKWorkoutActivityType.walking.rawValue
-        )
-        let output = try StatsStore.Request.workouts(in: .init(range)).process([
-            document(.workouts, [healthKit: [missingIdentity, inconsistentDuration, invalidEnd, invalidUnit, workout(id: "valid", hour: 4)]])
-        ])
+        let entries: [StatsDocument.Entry] = [
+            workout(id: "", hour: 0),
+            .workout(.init(id: "negative-duration", date: date(1), endDate: date(2), duration: -1, activityType: .walking)),
+            .workout(.init(id: "infinite-duration", date: date(1), endDate: date(2), duration: .infinity, activityType: .walking)),
+            .workout(.init(id: "invalid-end", date: date(2), endDate: date(1), duration: 900, activityType: .walking)),
+            .quantity(.init(date: date(3), unit: .second(), value: 900)),
+            .aggregate(.init(start: date(3), end: date(4), unit: .second(), values: .sum(900))),
+            .electrocardiogram(.init(id: "wrong-event", date: date(3), endDate: date(4))),
+            workout(id: "valid", hour: 4)
+        ]
+        let output = try StatsStore.Request.workouts(in: .init(range)).process([document(.workouts, [healthKit: entries])])
         #expect(output.elements.map(\.id) == ["valid"])
-        #expect(output.diagnostics == [.malformedEntryCount(4)])
+        #expect(output.diagnostics == [.malformedEntryCount(7)])
+    }
+
+    @Test
+    func quantityRequestsRejectEventPayloadsEvenWhenUnitsAreCompatible() throws {
+        let steps = StatsDocument(metric: "steps", entriesBySourceId: [
+            healthKit: [ecg(id: "wrong-shape", hour: 2), .quantity(.init(date: date(3), unit: .count(), value: 500))]
+        ])
+        let output = try StatsStore.Request.quantity(metric: .steps, timeRange: .init(range), aggregationKind: .sum).process([steps])
+        #expect(output.elements.map { $0.value(as: .count()) } == [500])
+        #expect(output.diagnostics == [.malformedEntryCount(1)])
     }
 
     private func date(_ hour: Int) -> Date {
@@ -98,24 +115,10 @@ struct StatsEventProcessingTests {
     }
 
     private func workout(id: String, hour: Int) -> StatsDocument.Entry {
-        .init(
-            date: date(hour).ISO8601Format(),
-            value: 900,
-            unit: "s",
-            provenance: .init(origins: [], observationID: id),
-            endDate: date(hour + 1).ISO8601Format(),
-            duration: 900,
-            activityType: HKWorkoutActivityType.walking.rawValue
-        )
+        .workout(.init(id: id, date: date(hour), endDate: date(hour + 1), duration: 900, activityType: .walking))
     }
 
     private func ecg(id: String, hour: Int) -> StatsDocument.Entry {
-        .init(
-            date: date(hour).ISO8601Format(),
-            value: 1,
-            unit: "count",
-            provenance: .init(origins: [], observationID: id),
-            endDate: date(hour).addingTimeInterval(30).ISO8601Format()
-        )
+        .electrocardiogram(.init(id: id, date: date(hour), endDate: date(hour).addingTimeInterval(30)))
     }
 }

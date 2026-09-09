@@ -52,8 +52,6 @@ extension StatsStore.Processor {
             var result = contained[0]
             result.range = range
             result.sources = Set(contained.flatMap(\.sources))
-            result.origins = Set(contained.flatMap(\.origins))
-            result.observationID = nil
             result.average = combinedAverage(contained)
             result.amount = try reducedAmount(contained, average: result.average, range: range, input: input, diagnostics: &diagnostics)
             return result

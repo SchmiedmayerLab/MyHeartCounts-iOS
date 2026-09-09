@@ -44,8 +44,7 @@ struct ParticipationStatsTests {
         let request = ParticipationStatsProvider.quantityRequest(
             .steps, in: date(0)..<date(24), aggregation: .sum, calendar: calendar
         )
-        var entry = bucket(-12, amount: 2_000)
-        entry.end = date(36).ISO8601Format()
+        let entry = StatsDocument.Entry.aggregate(.init(start: date(-12), end: date(36), unit: .count(), values: .sum(2_000)))
         let result = try request.process([StatsDocument(metric: "steps", entriesBySourceId: ["com.apple.HealthKit": [entry]])])
         #expect(result.diagnostics.contains(.unalignedInterval))
         #expect(!ParticipationStatsProvider.isUsable(snapshot(result.elements, diagnostics: result.diagnostics)))
@@ -178,11 +177,7 @@ struct ParticipationStatsTests {
     }
 
     private func bucket(_ hour: Double, amount: Double) -> StatsDocument.Entry {
-        var entry = StatsDocument.Entry(unit: "count")
-        entry.start = date(hour).ISO8601Format()
-        entry.end = date(hour + 1).ISO8601Format()
-        entry.sum = amount
-        return entry
+        .aggregate(.init(start: date(hour), end: date(hour + 1), unit: .count(), values: .sum(amount)))
     }
 
     private func sample(_ metric: HealthStatsMetric, value: Double, start: Double, end: Double) -> QuantitySample {

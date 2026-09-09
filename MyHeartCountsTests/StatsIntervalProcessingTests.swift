@@ -38,8 +38,8 @@ struct StatsIntervalProcessingTests {
     @Test
     func weightedAveragesRetainWeightsAcrossSourcesAndIntervals() throws {
         let sources = [
-            healthKit: [weightedBucket(0, amount: 60, weight: 1, origin: "A"), weightedBucket(1, amount: 100, weight: 2, origin: "A")],
-            "wearable": [weightedBucket(0, amount: 90, weight: 3, origin: "B")]
+            healthKit: [weightedBucket(0, amount: 60, weight: 1), weightedBucket(1, amount: 100, weight: 2)],
+            "wearable": [weightedBucket(0, amount: 90, weight: 3)]
         ]
         let result = try StatsStore.Processor.quantity(
             documents: [document(.heartRate, sources)],
@@ -58,8 +58,8 @@ struct StatsIntervalProcessingTests {
     @Test
     func fullYearOfAlignedHourlySourcesPreservesEveryWeightedBucket() throws {
         let sources = [
-            healthKit: (0..<8_760).map { weightedBucket(Double($0), amount: 60, weight: 1, origin: "A") },
-            "wearable": (0..<8_760).map { weightedBucket(Double($0), amount: 90, weight: 3, origin: "B") }
+            healthKit: (0..<8_760).map { weightedBucket(Double($0), amount: 60, weight: 1) },
+            "wearable": (0..<8_760).map { weightedBucket(Double($0), amount: 90, weight: 3) }
         ]
         let result = try StatsStore.Processor.quantity(
             documents: [document(.heartRate, sources)],
@@ -137,9 +137,8 @@ struct StatsIntervalProcessingTests {
 extension StatsIntervalProcessingTests {
     @Test
     func shiftedTimeZoneBucketsApproximateDailyAndHourlySums() throws {
-        var entry = bucket(23.25, amount: 100, unit: "count")
-        entry.start = "1970-01-02T05:00:00+05:45"
-        entry.end = "1970-01-02T06:00:00+05:45"
+        let json = #"{"start":"1970-01-02T05:00:00+05:45","end":"1970-01-02T06:00:00+05:45","sum":100,"unit":"count"}"#
+        let entry = try JSONDecoder().decode(StatsDocument.Entry.self, from: Data(json.utf8))
         for frequency in [HealthKitStatisticsQuery.AggregationInterval.hour, .day] {
             let result = try StatsStore.Processor.quantity(
                 documents: [document(.steps, [healthKit: [entry]])],
@@ -155,7 +154,7 @@ extension StatsIntervalProcessingTests {
 
     @Test
     func sevenDayStepsClipBoundaryBucketsAndKeepOnlyPopulatedDays() throws {
-        let entries = [bucket(-0.5, amount: 100, unit: "count"), bucket(24, amount: 300, unit: "count"), bucket(167.5, amount: 200, unit: "count")]
+        let entries = [sumBucket(-0.5, amount: 100), sumBucket(24, amount: 300), sumBucket(167.5, amount: 200)]
         let result = try StatsStore.Processor.quantity(
             documents: [document(.steps, [healthKit: entries])],
             metric: .steps,
@@ -189,7 +188,7 @@ extension StatsIntervalProcessingTests {
 
     @Test
     func approximateAveragesAndExtremaDoNotInventPartialBucketWeights() throws {
-        let entries = [weightedBucket(0, amount: 100, weight: 100, origin: "A"), weightedBucket(23.5, amount: 60, weight: 1, origin: "A")]
+        let entries = [weightedBucket(0, amount: 100, weight: 100), weightedBucket(23.5, amount: 60, weight: 1)]
         for kind in [StatisticsAggregationOption.avg, .min, .max] {
             let result = try StatsStore.Processor.quantity(
                 documents: [document(.heartRate, [healthKit: entries])],
@@ -217,22 +216,21 @@ extension StatsIntervalProcessingTests {
         StatsDocument(metric: metric.id.rawValue, entriesBySourceId: sources)
     }
 
-    private func bucket(_ hour: Double, amount: Double, unit: String = "count/min") -> StatsDocument.Entry {
-        var entry = StatsDocument.Entry(unit: unit)
-        entry.start = date(hour).ISO8601Format()
-        entry.end = date(hour + 1).ISO8601Format()
-        entry.sum = amount
-        entry.min = amount
-        entry.max = amount
-        entry.avg = amount
-        return entry
+    private func sumBucket(_ hour: Double, amount: Double, unit: HKUnit = .count()) -> StatsDocument.Entry {
+        .aggregate(StatsDocument.Aggregate(start: date(hour), end: date(hour + 1), unit: unit, values: .sum(amount)))
     }
 
-    private func weightedBucket(_ hour: Double, amount: Double, weight: Double, origin: String) -> StatsDocument.Entry {
-        var entry = bucket(hour, amount: amount)
-        entry.average = StatsDocument.Average(numerator: amount * weight, denominator: weight, weighting: "test.temporal.v1")
-        entry.provenance = StatsDocument.Provenance(origins: [origin], observationID: nil)
-        return entry
+    private func bucket(_ hour: Double, amount: Double, average: StatsDocument.Average? = nil) -> StatsDocument.Entry {
+        .aggregate(StatsDocument.Aggregate(
+            start: date(hour),
+            end: date(hour + 1),
+            unit: .count().unitDivided(by: .minute()),
+            values: .minMaxAvg(min: amount, max: amount, avg: amount, average: average)
+        ))
+    }
+
+    private func weightedBucket(_ hour: Double, amount: Double, weight: Double) -> StatsDocument.Entry {
+        bucket(hour, amount: amount, average: StatsDocument.Average(numerator: amount * weight, denominator: weight, weighting: "test.temporal.v1"))
     }
 
     private func interval(

@@ -16,27 +16,34 @@ import SpeziHealthKitUI
 extension StatsStore {
     /// Pure processing shared by one-shot reads, live subscriptions, and SwiftUI queries.
     enum Processor {
+        enum Event {
+            case workout(StatsDocument.Workout)
+            case electrocardiogram(StatsDocument.Electrocardiogram)
+
+            var endDate: Date {
+                switch self {
+                case .workout(let entry): entry.endDate
+                case .electrocardiogram(let entry): entry.endDate
+                }
+            }
+        }
+
         struct Value {
             var range: Range<Date>
             var amount: Double
             var secondaryAmount: Double?
             var average: StatsDocument.Average?
-            var origins: Set<String>
-            var observationID: String?
             var sources: Set<StatsDocument.SourceID>
-            var eventEndDate: Date?
-            var activityType: UInt?
+            var event: Event?
         }
 
         private struct Selection {
             var values: [Value] = []
-            var identities: Set<String> = []
             var bucketIndices: [Range<Date>: Int] = [:]
             var maximumBucketEnd: Date?
             var hasObservations = false
 
             mutating func append(_ value: Value) {
-                rememberIdentity(of: value)
                 if value.range.isEmpty {
                     hasObservations = true
                 } else {
@@ -44,12 +51,6 @@ extension StatsStore {
                     maximumBucketEnd = Swift.max(maximumBucketEnd ?? value.range.upperBound, value.range.upperBound)
                 }
                 values.append(value)
-            }
-
-            mutating func rememberIdentity(of value: Value) {
-                if let identity = value.observationID, !identity.isEmpty {
-                    identities.insert(identity)
-                }
             }
         }
 
@@ -161,7 +162,7 @@ extension StatsStore.Processor {
                         malformedEntries += 1
                         continue
                     }
-                    guard overlaps(range, input.timeRange), value.eventEndDate.map({ $0 < input.timeRange.upperBound }) ?? true else {
+                    guard overlaps(range, input.timeRange), value.event.map({ $0.endDate < input.timeRange.upperBound }) ?? true else {
                         continue
                     }
                     values.append(value)
@@ -191,85 +192,92 @@ extension StatsStore.Processor {
             if lhs.range.upperBound != rhs.range.upperBound {
                 return lhs.range.upperBound < rhs.range.upperBound
             }
-            if lhs.amount != rhs.amount {
-                return lhs.amount < rhs.amount
-            }
-            return (lhs.observationID ?? "") < (rhs.observationID ?? "")
+            return lhs.amount < rhs.amount
         }
     }
 
     private static func value(_ entry: StatsDocument.Entry, source: StatsDocument.SourceID, input: Input) -> Value? {
-        guard let range = entry.timeRange, let unit = HKUnit.parse(entry.unit),
-              HKQuantity(unit: unit, doubleValue: 0).is(compatibleWith: input.unit) else {
+        guard let range = entry.timeRange, HKQuantity(unit: entry.unit, doubleValue: 0).is(compatibleWith: input.unit) else {
             return nil
         }
-        let amount = if input.metricID == "blood-pressure" {
-            entry.systolic
-        } else if let value = entry.value {
-            value
-        } else {
-            switch input.aggregationKind {
-            case .sum: entry.sum
-            case .avg: entry.avg
-            case .min: entry.min
-            case .max: entry.max
+        let amounts: (primary: Double, secondary: Double?)?
+        var average: StatsDocument.Average?
+        var event: Event?
+        switch entry {
+        case .aggregate(let aggregate):
+            guard !["blood-pressure", "workouts", "electrocardiograms"].contains(input.metricID),
+                  let values = aggregateValues(aggregate.values, kind: input.aggregationKind) else {
+                return nil
             }
+            amounts = (values.amount, nil)
+            average = values.average
+        case .quantity(let quantity):
+            amounts = ["blood-pressure", "workouts", "electrocardiograms"].contains(input.metricID) ? nil : (quantity.value, nil)
+        case .bloodPressure(let pressure):
+            amounts = input.metricID == "blood-pressure" ? (pressure.systolic, pressure.diastolic) : nil
+        case .workout(let workout):
+            guard input.metricID == "workouts", !workout.id.isEmpty, workout.endDate >= workout.date,
+                  workout.duration.isFinite, workout.duration >= 0 else {
+                return nil
+            }
+            amounts = (workout.duration, nil)
+            event = .workout(workout)
+        case .electrocardiogram(let electrocardiogram):
+            guard input.metricID == "electrocardiograms", !electrocardiogram.id.isEmpty, electrocardiogram.endDate >= electrocardiogram.date else {
+                return nil
+            }
+            amounts = (1, nil)
+            event = .electrocardiogram(electrocardiogram)
         }
-        guard let amount, amount.isFinite else {
-            return nil
-        }
-        if input.metricID == "blood-pressure", entry.diastolic?.isFinite != true {
+        guard let amounts, amounts.primary.isFinite, amounts.secondary?.isFinite != false else {
             return nil
         }
         func converted(_ amount: Double) -> Double {
-            HKQuantity(unit: unit, doubleValue: amount).doubleValue(for: input.unit)
+            HKQuantity(unit: entry.unit, doubleValue: amount).doubleValue(for: input.unit)
         }
-        let average = entry.average.flatMap { average -> StatsDocument.Average? in
-            guard average.isValid, let mean = entry.avg, mean.isFinite,
-                  abs(average.numerator / average.denominator - mean) <= Swift.max(1, abs(mean)) * 1e-9 else {
-                return nil
-            }
-            // Convert the mean, not the numerator: this also handles unit conversions with an offset.
-            return StatsDocument.Average(
-                numerator: converted(average.numerator / average.denominator) * average.denominator,
-                denominator: average.denominator,
-                weighting: average.weighting
-            )
-        }
-        let value = Value(
+        return Value(
             range: range,
-            amount: converted(amount),
-            secondaryAmount: entry.diastolic.map(converted),
-            average: average,
-            origins: Set((entry.provenance?.origins ?? []).filter { !$0.isEmpty }),
-            observationID: entry.provenance?.observationID,
-            sources: [source]
+            amount: converted(amounts.primary),
+            secondaryAmount: amounts.secondary.map(converted),
+            average: convertedAverage(average, from: entry.unit, to: input.unit),
+            sources: [source],
+            event: event
         )
-        return validatedEvent(value, entry: entry, input: input)
     }
 
-    /// Event metadata stays attached while the shared source selector deduplicates observations.
-    private static func validatedEvent(_ value: Value, entry: StatsDocument.Entry, input: Input) -> Value? {
-        guard input.metricID == "workouts" || input.metricID == "electrocardiograms" else {
-            return value
+    private static func convertedAverage(_ average: StatsDocument.Average?, from sourceUnit: HKUnit, to unit: HKUnit) -> StatsDocument.Average? {
+        average.map { average in
+            // Convert the mean, not the numerator: this also handles unit conversions with an offset.
+            let mean = HKQuantity(unit: sourceUnit, doubleValue: average.numerator / average.denominator).doubleValue(for: unit)
+            return StatsDocument.Average(numerator: mean * average.denominator, denominator: average.denominator, weighting: average.weighting)
         }
-        guard value.range.isEmpty, let identity = value.observationID, !identity.isEmpty,
-              let end = entry.endDate.flatMap(StatsDocument.Entry.parseDate), end >= value.range.lowerBound else {
-            return nil
-        }
-        var value = value
-        value.eventEndDate = end
-        if input.metricID == "workouts" {
-            guard let duration = entry.duration, duration.isFinite, duration >= 0,
-                  abs(duration - value.amount) <= Swift.max(1, duration) * 1e-9,
-                  let activityType = entry.activityType, HKWorkoutActivityType(rawValue: activityType) != nil else {
+    }
+
+    private static func aggregateValues(
+        _ values: StatsDocument.Aggregate.Values, kind: StatisticsAggregationOption
+    ) -> (amount: Double, average: StatsDocument.Average?)? {
+        switch values {
+        case .sum(let amount):
+            return kind == .sum ? (amount, nil) : nil
+        case let .minMaxAvg(minimum, maximum, mean, average):
+            let amount: Double? = switch kind {
+            case .sum: nil
+            case .min: minimum
+            case .max: maximum
+            case .avg: mean
+            }
+            guard let amount else {
                 return nil
             }
-            value.activityType = activityType
-        } else if value.amount != 1 {
-            return nil
+            let validAverage = average.flatMap { average -> StatsDocument.Average? in
+                guard average.isValid, mean.isFinite,
+                      abs(average.numerator / average.denominator - mean) <= Swift.max(1, abs(mean)) * 1e-9 else {
+                    return nil
+                }
+                return average
+            }
+            return (amount, validAverage)
         }
-        return value
     }
 
     private static func sourceOrder(_ sources: Set<StatsDocument.SourceID>, policy: StatsStore.SourcePolicy) -> [StatsDocument.SourceID] {
@@ -299,16 +307,12 @@ extension StatsStore.Processor {
     static func selectedValues(documents: [StatsDocument], input: Input, diagnostics: inout [StatsStore.Diagnostic]) throws -> [Value] {
         var selected = Selection()
         for value in values(documents: documents, input: input, diagnostics: &diagnostics) {
-            if let identity = value.observationID, !identity.isEmpty, selected.identities.contains(identity) {
-                continue
-            }
-            let conflicts = conflictingIndices(for: value, in: selected, policy: input.sourcePolicy)
+            let conflicts = conflictingIndices(for: value, in: selected)
             if conflicts.isEmpty {
                 selected.append(value)
             } else if conflicts.count == 1, let index = conflicts.first,
                       let merged = mergedSources(selected.values[index], value, input: input) {
                 selected.values[index] = merged
-                selected.rememberIdentity(of: value)
             } else {
                 try fallback(value.range, input: input, diagnostics: &diagnostics)
             }
@@ -320,7 +324,7 @@ extension StatsStore.Processor {
         return selected.values.sorted { $0.range.lowerBound < $1.range.lowerBound }
     }
 
-    private static func conflictingIndices(for value: Value, in selection: Selection, policy: StatsStore.SourcePolicy) -> [Int] {
+    private static func conflictingIndices(for value: Value, in selection: Selection) -> [Int] {
         if !selection.hasObservations, !value.range.isEmpty {
             if selection.maximumBucketEnd.map({ value.range.lowerBound >= $0 }) ?? true {
                 return []
@@ -334,20 +338,10 @@ extension StatsStore.Processor {
             let existing = selection.values[index]
             if value.range.isEmpty && existing.range.isEmpty {
                 // Different instants fill gaps. Only simultaneous readings compete across sources.
-                if existing.sources == value.sources || existing.range.lowerBound != value.range.lowerBound {
-                    return false
-                }
-                if case .preferred = policy, independent(existing, value) {
-                    return existing.range.lowerBound == value.range.lowerBound
-                }
-                return !independent(existing, value)
+                return existing.sources != value.sources && existing.range.lowerBound == value.range.lowerBound
             }
             return overlaps(existing.range, value.range)
         }
-    }
-
-    private static func independent(_ lhs: Value, _ rhs: Value) -> Bool {
-        !lhs.origins.isEmpty && !rhs.origins.isEmpty && lhs.origins.isDisjoint(with: rhs.origins)
     }
 
     private static func mergedSources(_ lhs: Value, _ rhs: Value, input: Input) -> Value? {
@@ -363,7 +357,7 @@ extension StatsStore.Processor {
         case .max:
             result.amount = Swift.max(lhs.amount, rhs.amount)
         case .avg:
-            guard independent(lhs, rhs), let average = combinedAverage([lhs, rhs]) else {
+            guard let average = combinedAverage([lhs, rhs]) else {
                 return nil
             }
             result.average = average
@@ -372,12 +366,11 @@ extension StatsStore.Processor {
             return nil
         }
         result.sources.formUnion(rhs.sources)
-        result.origins.formUnion(rhs.origins)
         return result
     }
 
     private static func fallback(_ range: Range<Date>, input: Input, diagnostics: inout [StatsStore.Diagnostic]) throws {
-        let reason = "Overlapping totals, unaligned buckets, or unproven observation independence/average weighting"
+        let reason = "Competing readings, overlapping totals, unaligned buckets, or incompatible average weights"
         if input.sourcePolicy == .mergeCompatible {
             throw Error.incompatibleSources(timeRange: range, reason: reason)
         }

@@ -23,7 +23,7 @@ extension StatsStore.Request where Element == WorkoutStatsSample {
         }
     }
 
-    /// Select workouts contained in the requested range, deduplicating stable observation identities.
+    /// Select workouts contained in the requested range using the shared source-selection policy.
     static func workouts(in timeRange: HealthKitQueryTimeRange, sourcePolicy: StatsStore.SourcePolicy = .automatic) -> Self {
         let range = timeRange.range
         return Self(metricId: .workouts, timeRange: range, processor: WorkoutProcessor(timeRange: range, sourcePolicy: sourcePolicy))
@@ -62,11 +62,12 @@ extension StatsStore.Processor {
         let values = try selectedValues(documents: documents, input: input, diagnostics: &diagnostics)
         return Output(
             elements: values.compactMap { value in
-                guard let id = value.observationID, let end = value.eventEndDate,
-                      let rawType = value.activityType, let activityType = HKWorkoutActivityType(rawValue: rawType) else {
+                guard case .workout(let workout) = value.event else {
                     return nil
                 }
-                return WorkoutStatsSample(id: id, date: value.range.lowerBound, endDate: end, duration: value.amount, activityType: activityType)
+                return WorkoutStatsSample(
+                    id: workout.id, date: workout.date, endDate: workout.endDate, duration: workout.duration, activityType: workout.activityType
+                )
             },
             diagnostics: diagnostics,
             contributingSourceIDs: Set(values.flatMap(\.sources))
@@ -83,10 +84,12 @@ extension StatsStore.Processor {
         let values = try selectedValues(documents: documents, input: input, diagnostics: &diagnostics)
         return Output(
             elements: values.compactMap { value in
-                guard let id = value.observationID, let end = value.eventEndDate else {
+                guard case .electrocardiogram(let electrocardiogram) = value.event else {
                     return nil
                 }
-                return ElectrocardiogramStatsSample(id: id, date: value.range.lowerBound, endDate: end)
+                return ElectrocardiogramStatsSample(
+                    id: electrocardiogram.id, date: electrocardiogram.date, endDate: electrocardiogram.endDate
+                )
             },
             diagnostics: diagnostics,
             contributingSourceIDs: Set(values.flatMap(\.sources))
