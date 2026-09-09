@@ -3973,6 +3973,16 @@
         }
       }
     },
+    "Health Highlights" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datos destacados de salud"
+          }
+        }
+      }
+    },
     "Health Records" : {
       "localizations" : {
         "en-GB" : {
@@ -7123,16 +7133,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enfermedad vascular periférica"
-          }
-        }
-      }
-    },
-    "Personal Bests" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Récords personales"
           }
         }
       }

@@ -13,7 +13,7 @@ import SpeziHealthKitUI
 
 
 extension ParticipationStatsProvider {
-    struct HealthInputs: Sendable {
+    struct HealthSnapshots: Sendable {
         private typealias Provider = ParticipationStatsProvider
 
         var steps: StatsStore.Snapshot<QuantitySample>?
@@ -29,11 +29,11 @@ extension ParticipationStatsProvider {
         var ecgs: StatsStore.Snapshot<ElectrocardiogramStatsSample>?
 
         @MainActor
-        func healthStats(in range: Range<Date>) -> HealthStats {
+        func healthStats(in range: Range<Date>) -> ParticipationHealthStats {
             let stepSamples = Provider.samples(steps)
             let workoutSamples = Provider.samples(workouts)?.filter { $0.endDate < range.upperBound }
             let maximumHeartRate = Provider.samples(maxHeartRate)?.map { $0.value(as: .count() / .minute()) }.max()
-            return HealthStats(
+            return ParticipationHealthStats(
                 totalSteps: sum(steps, unit: .count()).flatMap { Provider.integerValue($0) },
                 totalActiveEnergyKcal: sum(energy, unit: .kilocalorie()),
                 totalDistanceWalkingRunning: sum(distance, unit: .meter()).map { .init(value: $0, unit: .meters) },
@@ -46,7 +46,7 @@ extension ParticipationStatsProvider {
                 workoutInfo: workoutSamples.map {
                     .init(numWorkouts: $0.count, totalDuration: .init(value: $0.reduce(0) { $0 + $1.duration }, unit: .seconds))
                 },
-                personalBests: HealthStats.PersonalBests(
+                highlights: ParticipationHealthStats.HealthHighlights(
                     bestDailySteps: stepSamples.flatMap(Provider.bestStepDay),
                     longestWorkout: workoutSamples.flatMap(Provider.longestWorkout),
                     maxHeartRateBPM: maximumHeartRate.flatMap { Provider.integerValue($0, rounding: .toNearestOrAwayFromZero) },
@@ -74,7 +74,7 @@ extension ParticipationStatsProvider {
         let metric: HealthStatsMetric
         let aggregation: StatisticsAggregationOption
         let daily: Bool
-        let keyPath: any WritableKeyPath<HealthInputs, StatsStore.Snapshot<QuantitySample>?> & Sendable
+        let keyPath: any WritableKeyPath<HealthSnapshots, StatsStore.Snapshot<QuantitySample>?> & Sendable
     }
 
     static var quantityQueries: [QuantityQuery] {
@@ -141,7 +141,7 @@ extension ParticipationStatsProvider {
         Int(exactly: value.rounded(rule))
     }
 
-    static func bestStepDay(_ samples: [QuantitySample]) -> HealthStats.PersonalBests.Entry<Int>? {
+    static func bestStepDay(_ samples: [QuantitySample]) -> ParticipationHealthStats.HealthHighlights.Entry<Int>? {
         samples.filter { $0.value(as: .count()) > 0 }
             .max { $0.value(as: .count()) < $1.value(as: .count()) }
             .flatMap { sample in
@@ -149,7 +149,7 @@ extension ParticipationStatsProvider {
             }
     }
 
-    static func longestWorkout(_ workouts: [WorkoutStatsSample]) -> HealthStats.LongestWorkoutInfo? {
+    static func longestWorkout(_ workouts: [WorkoutStatsSample]) -> ParticipationHealthStats.LongestWorkoutInfo? {
         workouts.max { $0.duration < $1.duration }.map {
             .init(date: $0.date, activityType: $0.activityType, duration: .init(value: $0.duration, unit: .seconds))
         }

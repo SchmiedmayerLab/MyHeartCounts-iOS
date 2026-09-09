@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 
 -->
 
-# Participation stats documents
+# Participation statistics
 
 Participation statistics and health achievements read the shared `StatsStore` layer described in [StatsQueries.md](StatsQueries.md). The HealthKit calculator maintains these additional version-zero metrics at `users/{uid}/stats/{metricId}/months/{yyyy-MM}`:
 

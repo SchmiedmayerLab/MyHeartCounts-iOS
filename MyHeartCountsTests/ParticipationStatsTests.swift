@@ -136,7 +136,7 @@ struct ParticipationStatsTests {
 
     @Test
     func liveSnapshotsReplaceBackfillAndDeletionWithoutAccumulating() {
-        var inputs = ParticipationStatsProvider.HealthInputs()
+        var inputs = ParticipationStatsProvider.HealthSnapshots()
         let range = date(0)..<date(24)
         #expect(inputs.healthStats(in: range).totalSteps == nil)
         inputs.steps = snapshot([sample(.steps, value: 10_000, start: 0, end: 24)])
@@ -153,7 +153,7 @@ struct ParticipationStatsTests {
 
     @Test
     func liveEventSnapshotsReplaceCountsAndExcludeUnfinishedEvents() {
-        var inputs = ParticipationStatsProvider.HealthInputs()
+        var inputs = ParticipationStatsProvider.HealthSnapshots()
         let completed = ElectrocardiogramStatsSample(id: "done", date: date(1), endDate: date(2))
         let unfinished = ElectrocardiogramStatsSample(id: "future", date: date(2), endDate: date(4))
         #expect(inputs.ecgCount(before: date(3)) == nil)
@@ -170,7 +170,7 @@ struct ParticipationStatsTests {
         let health = inputs.healthStats(in: date(0)..<date(3))
         #expect(health.workoutInfo?.numWorkouts == 1)
         #expect(health.workoutInfo?.totalDuration.value == 600)
-        #expect(health.personalBests.longestWorkout?.activityType == .walking)
+        #expect(health.highlights.longestWorkout?.activityType == .walking)
     }
 
     private func date(_ hour: Double) -> Date {

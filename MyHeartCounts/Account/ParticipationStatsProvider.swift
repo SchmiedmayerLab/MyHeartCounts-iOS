@@ -32,7 +32,7 @@ extension ParticipationStatsProvider {
         let enrollment: EnrollmentStats
         let appEngagement: AppEngagementStats?
         let taskEngagement: TaskEngagementStats
-        let health: HealthStats
+        let health: ParticipationHealthStats
     }
     
     
@@ -60,7 +60,7 @@ extension ParticipationStatsProvider {
     }
     
     
-    struct HealthStats: Sendable {
+    struct ParticipationHealthStats: Sendable {
         struct WorkoutInfo: Sendable {
             let numWorkouts: Int
             let totalDuration: Measurement<UnitDuration>
@@ -72,7 +72,7 @@ extension ParticipationStatsProvider {
             let duration: Measurement<UnitDuration>
         }
         
-        struct PersonalBests: Sendable {
+        struct HealthHighlights: Sendable {
             struct Entry<Value: Sendable>: Sendable { // swiftlint:disable:this nesting
                 let date: Date
                 let value: Value
@@ -92,7 +92,7 @@ extension ParticipationStatsProvider {
         let totalHeartbeats: Int?
         let totalSleepTime: Measurement<UnitDuration>?
         let workoutInfo: WorkoutInfo?
-        let personalBests: PersonalBests
+        let highlights: HealthHighlights
     }
 }
 
@@ -190,7 +190,7 @@ extension ParticipationStatsProvider {
 
     @MainActor
     private final class LiveStats {
-        var inputs = HealthInputs()
+        var inputs = HealthSnapshots()
         let context: QueryContext
         let continuation: AsyncThrowingStream<Stats, any Error>.Continuation
 
@@ -263,7 +263,7 @@ extension ParticipationStatsProvider {
     private func consume<Element>(
         _ request: StatsStore.Request<Element>,
         live: LiveStats,
-        at keyPath: any WritableKeyPath<HealthInputs, StatsStore.Snapshot<Element>?> & Sendable
+        at keyPath: any WritableKeyPath<HealthSnapshots, StatsStore.Snapshot<Element>?> & Sendable
     ) async {
         do {
             for try await snapshot in live.context.store.updates(for: request) {

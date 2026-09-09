@@ -55,8 +55,8 @@ struct ParticipationStatsView: View {
             TiledSection("Health Totals"/*, symbol: .heartFill*/) {
                 healthTotalsSection(using: stats?.health)
             }
-            TiledSection("Personal Bests"/*, symbol: .starFill*/) {
-                personalBestsSection(using: stats?.health.personalBests)
+            TiledSection("Health Highlights"/*, symbol: .starFill*/) {
+                healthHighlightsSection(using: stats?.health.highlights)
             }
             funFactsSection()
         }
@@ -200,7 +200,7 @@ extension ParticipationStatsView {
     
     @ViewBuilder
     private func healthTotalsSection( // swiftlint:disable:this function_body_length
-        using stats: ParticipationStatsProvider.HealthStats?
+        using stats: ParticipationStatsProvider.ParticipationHealthStats?
     ) -> some View {
         StatCard(
             title: "Steps",
@@ -262,7 +262,7 @@ extension ParticipationStatsView {
     }
     
     @ViewBuilder
-    private func personalBestsSection(using stats: ParticipationStatsProvider.HealthStats.PersonalBests?) -> some View {
+    private func healthHighlightsSection(using stats: ParticipationStatsProvider.ParticipationHealthStats.HealthHighlights?) -> some View {
         let dateFormat: Date.FormatStyle = .dateTime.month(.abbreviated).day()
         StatCard(
             title: "Best Step Day",
