@@ -38,8 +38,8 @@ struct StatsIntervalProcessingTests {
     @Test
     func weightedAveragesRetainWeightsAcrossSourcesAndIntervals() throws {
         let sources = [
-            healthKit: [weightedBucket(0, amount: 60, weight: 1, origin: "A"), weightedBucket(1, amount: 100, weight: 2, origin: "A")],
-            "wearable": [weightedBucket(0, amount: 90, weight: 3, origin: "B")]
+            healthKit: [weightedBucket(0, amount: 60, weight: 1), weightedBucket(1, amount: 100, weight: 2)],
+            "wearable": [weightedBucket(0, amount: 90, weight: 3)]
         ]
         let result = try StatsStore.Processor.quantity(
             documents: [document(.heartRate, sources)],
@@ -58,8 +58,8 @@ struct StatsIntervalProcessingTests {
     @Test
     func fullYearOfAlignedHourlySourcesPreservesEveryWeightedBucket() throws {
         let sources = [
-            healthKit: (0..<8_760).map { weightedBucket(Double($0), amount: 60, weight: 1, origin: "A") },
-            "wearable": (0..<8_760).map { weightedBucket(Double($0), amount: 90, weight: 3, origin: "B") }
+            healthKit: (0..<8_760).map { weightedBucket(Double($0), amount: 60, weight: 1) },
+            "wearable": (0..<8_760).map { weightedBucket(Double($0), amount: 90, weight: 3) }
         ]
         let result = try StatsStore.Processor.quantity(
             documents: [document(.heartRate, sources)],
@@ -189,7 +189,7 @@ extension StatsIntervalProcessingTests {
 
     @Test
     func approximateAveragesAndExtremaDoNotInventPartialBucketWeights() throws {
-        let entries = [weightedBucket(0, amount: 100, weight: 100, origin: "A"), weightedBucket(23.5, amount: 60, weight: 1, origin: "A")]
+        let entries = [weightedBucket(0, amount: 100, weight: 100), weightedBucket(23.5, amount: 60, weight: 1)]
         for kind in [StatisticsAggregationOption.avg, .min, .max] {
             let result = try StatsStore.Processor.quantity(
                 documents: [document(.heartRate, [healthKit: entries])],
@@ -228,10 +228,9 @@ extension StatsIntervalProcessingTests {
         return entry
     }
 
-    private func weightedBucket(_ hour: Double, amount: Double, weight: Double, origin: String) -> StatsDocument.Entry {
+    private func weightedBucket(_ hour: Double, amount: Double, weight: Double) -> StatsDocument.Entry {
         var entry = bucket(hour, amount: amount)
         entry.average = StatsDocument.Average(numerator: amount * weight, denominator: weight, weighting: "test.temporal.v1")
-        entry.provenance = StatsDocument.Provenance(origins: [origin], observationID: nil)
         return entry
     }
 

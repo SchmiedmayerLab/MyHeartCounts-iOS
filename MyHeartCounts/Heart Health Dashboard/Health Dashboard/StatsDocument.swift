@@ -25,13 +25,6 @@ struct StatsDocument: Decodable, Sendable {
         }
     }
 
-    /// The underlying datasets represented by an entry, and an optional globally namespaced observation identity.
-    /// Empty origins mean unknown provenance. Distinct storage-source identifiers alone never prove independence.
-    struct Provenance: Codable, Hashable, Sendable {
-        let origins: [String]
-        let observationID: String?
-    }
-
     struct Entry: Decodable, Sendable {
         var start: String?
         var end: String?
@@ -45,7 +38,6 @@ struct StatsDocument: Decodable, Sendable {
         var diastolic: Double?
         let unit: String
         var average: Average?
-        var provenance: Provenance?
 
         /// Empty ranges represent individual observations.
         var timeRange: Range<Date>? {

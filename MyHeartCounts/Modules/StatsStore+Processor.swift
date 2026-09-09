@@ -21,20 +21,16 @@ extension StatsStore {
             var amount: Double
             var secondaryAmount: Double?
             var average: StatsDocument.Average?
-            var origins: Set<String>
-            var observationID: String?
             var sources: Set<StatsDocument.SourceID>
         }
 
         private struct Selection {
             var values: [Value] = []
-            var identities: Set<String> = []
             var bucketIndices: [Range<Date>: Int] = [:]
             var maximumBucketEnd: Date?
             var hasObservations = false
 
             mutating func append(_ value: Value) {
-                rememberIdentity(of: value)
                 if value.range.isEmpty {
                     hasObservations = true
                 } else {
@@ -42,12 +38,6 @@ extension StatsStore {
                     maximumBucketEnd = Swift.max(maximumBucketEnd ?? value.range.upperBound, value.range.upperBound)
                 }
                 values.append(value)
-            }
-
-            mutating func rememberIdentity(of value: Value) {
-                if let identity = value.observationID, !identity.isEmpty {
-                    identities.insert(identity)
-                }
             }
         }
 
@@ -189,10 +179,7 @@ extension StatsStore.Processor {
             if lhs.range.upperBound != rhs.range.upperBound {
                 return lhs.range.upperBound < rhs.range.upperBound
             }
-            if lhs.amount != rhs.amount {
-                return lhs.amount < rhs.amount
-            }
-            return (lhs.observationID ?? "") < (rhs.observationID ?? "")
+            return lhs.amount < rhs.amount
         }
     }
 
@@ -239,8 +226,6 @@ extension StatsStore.Processor {
             amount: converted(amount),
             secondaryAmount: entry.diastolic.map(converted),
             average: average,
-            origins: Set((entry.provenance?.origins ?? []).filter { !$0.isEmpty }),
-            observationID: entry.provenance?.observationID,
             sources: [source]
         )
     }
@@ -272,16 +257,12 @@ extension StatsStore.Processor {
     private static func selectedValues(documents: [StatsDocument], input: Input, diagnostics: inout [StatsStore.Diagnostic]) throws -> [Value] {
         var selected = Selection()
         for value in values(documents: documents, input: input, diagnostics: &diagnostics) {
-            if let identity = value.observationID, !identity.isEmpty, selected.identities.contains(identity) {
-                continue
-            }
-            let conflicts = conflictingIndices(for: value, in: selected, policy: input.sourcePolicy)
+            let conflicts = conflictingIndices(for: value, in: selected)
             if conflicts.isEmpty {
                 selected.append(value)
             } else if conflicts.count == 1, let index = conflicts.first,
                       let merged = mergedSources(selected.values[index], value, input: input) {
                 selected.values[index] = merged
-                selected.rememberIdentity(of: value)
             } else {
                 try fallback(value.range, input: input, diagnostics: &diagnostics)
             }
@@ -293,7 +274,7 @@ extension StatsStore.Processor {
         return selected.values.sorted { $0.range.lowerBound < $1.range.lowerBound }
     }
 
-    private static func conflictingIndices(for value: Value, in selection: Selection, policy: StatsStore.SourcePolicy) -> [Int] {
+    private static func conflictingIndices(for value: Value, in selection: Selection) -> [Int] {
         if !selection.hasObservations, !value.range.isEmpty {
             if selection.maximumBucketEnd.map({ value.range.lowerBound >= $0 }) ?? true {
                 return []
@@ -307,20 +288,10 @@ extension StatsStore.Processor {
             let existing = selection.values[index]
             if value.range.isEmpty && existing.range.isEmpty {
                 // Different instants fill gaps. Only simultaneous readings compete across sources.
-                if existing.sources == value.sources || existing.range.lowerBound != value.range.lowerBound {
-                    return false
-                }
-                if case .preferred = policy, independent(existing, value) {
-                    return existing.range.lowerBound == value.range.lowerBound
-                }
-                return !independent(existing, value)
+                return existing.sources != value.sources && existing.range.lowerBound == value.range.lowerBound
             }
             return overlaps(existing.range, value.range)
         }
-    }
-
-    private static func independent(_ lhs: Value, _ rhs: Value) -> Bool {
-        !lhs.origins.isEmpty && !rhs.origins.isEmpty && lhs.origins.isDisjoint(with: rhs.origins)
     }
 
     private static func mergedSources(_ lhs: Value, _ rhs: Value, input: Input) -> Value? {
@@ -336,7 +307,7 @@ extension StatsStore.Processor {
         case .max:
             result.amount = Swift.max(lhs.amount, rhs.amount)
         case .avg:
-            guard independent(lhs, rhs), let average = combinedAverage([lhs, rhs]) else {
+            guard let average = combinedAverage([lhs, rhs]) else {
                 return nil
             }
             result.average = average
@@ -345,12 +316,11 @@ extension StatsStore.Processor {
             return nil
         }
         result.sources.formUnion(rhs.sources)
-        result.origins.formUnion(rhs.origins)
         return result
     }
 
     private static func fallback(_ range: Range<Date>, input: Input, diagnostics: inout [StatsStore.Diagnostic]) throws {
-        let reason = "Overlapping totals, unaligned buckets, or unproven observation independence/average weighting"
+        let reason = "Competing readings, overlapping totals, unaligned buckets, or incompatible average weights"
         if input.sourcePolicy == .mergeCompatible {
             throw Error.incompatibleSources(timeRange: range, reason: reason)
         }

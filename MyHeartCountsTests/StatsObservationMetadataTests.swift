@@ -60,7 +60,7 @@ struct StatsObservationMetadataTests {
 
     /// Changing freshness metadata preserves both processing results and generated sample identity.
     @Test
-    func metadataPreservesSamplesDiagnosticsAndProvenance() async throws {
+    func metadataPreservesSamplesDiagnosticsAndSources() async throws {
         try await withQueryTestFirestore { firestore async throws in
             let fixture = try await Fixture(firestore: firestore)
             let probe = FirestoreProcessingProbe()

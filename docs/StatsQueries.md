@@ -62,9 +62,9 @@ Metadata-only Firestore updates refresh `isFromCache` and `hasPendingWrites` wit
 
 Source selection is performed after filtering entries to the requested range. Default preference is HealthKit followed by the other source IDs in lexical order. Selection operates on individual buckets, so another source can fill missing buckets even when HealthKit has some data in the same month.
 
-Individual quantity and blood-pressure readings at different timestamps can coexist across sources, including legacy readings with unknown origins. At the same timestamp, source preference resolves competing readings unless the policy and provenance allow both. A shared `provenance.observationID` identifies a duplicate even when the copies have different timestamps. Without that shared identity, differently timestamped copies cannot be reliably deduplicated; writers should preserve the original observation's ID and timestamp.
+Individual quantity and blood-pressure readings at different timestamps can coexist across sources. At the same timestamp, source preference resolves competing readings; `.mergeCompatible` throws instead. Multiple readings within a single source are retained. The reader does not track observation identities or remove copies at different timestamps.
 
-Timestamp equality compares the exact parsed instant, including supplied fractional seconds; the reader does not truncate timestamps to whole seconds. The HealthKit stats writer currently emits whole-second dates, so a copy retaining a nonzero fractional part has a different timestamp. Preserving the shared `observationID` across ingestion paths identifies such copies despite the precision difference.
+Timestamp equality compares the exact parsed instant, including supplied fractional seconds; the reader does not truncate timestamps to whole seconds. The HealthKit stats writer currently emits whole-second dates, so a copy retaining a nonzero fractional part has a different timestamp and both readings remain in the result. HealthKit currently fetches all eligible samples; provider exclusion to prevent duplicate ingestion is planned separately.
 
 - `.automatic` combines compatible contributions and reports preferred-source fallback where merging is unsupported.
 - `.only(id)` restricts results to one source.

@@ -642,8 +642,7 @@ extension HealthKitStatsCalculator {
                     QuantitySampleEntry(
                         date: sample.startDate,
                         unit: unit,
-                        value: sample.quantity.doubleValue(for: unit),
-                        provenance: Self.provenance(for: sample)
+                        value: sample.quantity.doubleValue(for: unit)
                     )
                 }
                 try await persistence.persistStatsUpdate(
@@ -756,8 +755,7 @@ extension HealthKitStatsCalculator {
                         date: correlation.startDate,
                         unit: unit,
                         systolic: systolic.quantity.doubleValue(for: unit),
-                        diastolic: diastolic.quantity.doubleValue(for: unit),
-                        provenance: Self.provenance(for: correlation)
+                        diastolic: diastolic.quantity.doubleValue(for: unit)
                     )
                 }
                 try await persistence.persistStatsUpdate(
@@ -780,15 +778,6 @@ extension HealthKitStatsCalculator {
                 }
             }
         }
-    }
-}
-
-
-extension HealthKitStatsCalculator {
-    /// Preserve identity across recomputations without claiming independence from an external integration.
-    /// HealthKit's immediate source may itself have imported the reading from another provider.
-    static func provenance(for sample: HKObject) -> StatsDocument.Provenance {
-        StatsDocument.Provenance(origins: [], observationID: "healthkit:\(sample.uuid.uuidString.lowercased())")
     }
 }
 
@@ -879,21 +868,19 @@ extension HealthKitStatsCalculator {
 
 
     /// A single reading in an individual-samples single-month stats document
-    struct QuantitySampleEntry: Codable {
+    fileprivate struct QuantitySampleEntry: Codable {
         enum CodingKeys: String, Swift.CodingKey {
-            case date, unit, value, provenance
+            case date, unit, value
         }
 
         let date: Date
         let unit: HKUnit
         let value: Double
-        let provenance: StatsDocument.Provenance?
 
-        init(date: Date, unit: HKUnit, value: Double, provenance: StatsDocument.Provenance? = nil) {
+        init(date: Date, unit: HKUnit, value: Double) {
             self.date = date
             self.unit = unit
             self.value = value
-            self.provenance = provenance
         }
 
         init(from decoder: any Decoder) throws {
@@ -901,7 +888,6 @@ extension HealthKitStatsCalculator {
             self.date = try StatsWireFormat.parseDate(container.decode(String.self, forKey: .date))
             self.unit = try container.decode(HKUnit.self, forKey: .unit)
             self.value = try container.decode(Double.self, forKey: .value)
-            self.provenance = try container.decodeIfPresent(StatsDocument.Provenance.self, forKey: .provenance)
         }
 
         func encode(to encoder: any Encoder) throws {
@@ -909,29 +895,26 @@ extension HealthKitStatsCalculator {
             try container.encode(date.formatted(StatsWireFormat.dateFormat), forKey: .date)
             try container.encode(unit, forKey: .unit)
             try container.encode(value, forKey: .value)
-            try container.encodeIfPresent(provenance, forKey: .provenance)
         }
     }
 
 
     /// A single sys/dia reading pair in the blood-pressure single-month stats document
-    struct BloodPressureSampleEntry: Codable {
+    fileprivate struct BloodPressureSampleEntry: Codable {
         enum CodingKeys: String, Swift.CodingKey {
-            case date, unit, systolic, diastolic, provenance
+            case date, unit, systolic, diastolic
         }
 
         let date: Date
         let unit: HKUnit
         let systolic: Double
         let diastolic: Double
-        let provenance: StatsDocument.Provenance?
 
-        init(date: Date, unit: HKUnit, systolic: Double, diastolic: Double, provenance: StatsDocument.Provenance? = nil) {
+        init(date: Date, unit: HKUnit, systolic: Double, diastolic: Double) {
             self.date = date
             self.unit = unit
             self.systolic = systolic
             self.diastolic = diastolic
-            self.provenance = provenance
         }
 
         init(from decoder: any Decoder) throws {
@@ -940,7 +923,6 @@ extension HealthKitStatsCalculator {
             self.unit = try container.decode(HKUnit.self, forKey: .unit)
             self.systolic = try container.decode(Double.self, forKey: .systolic)
             self.diastolic = try container.decode(Double.self, forKey: .diastolic)
-            self.provenance = try container.decodeIfPresent(StatsDocument.Provenance.self, forKey: .provenance)
         }
 
         func encode(to encoder: any Encoder) throws {
@@ -949,7 +931,6 @@ extension HealthKitStatsCalculator {
             try container.encode(unit, forKey: .unit)
             try container.encode(systolic, forKey: .systolic)
             try container.encode(diastolic, forKey: .diastolic)
-            try container.encodeIfPresent(provenance, forKey: .provenance)
         }
     }
 }

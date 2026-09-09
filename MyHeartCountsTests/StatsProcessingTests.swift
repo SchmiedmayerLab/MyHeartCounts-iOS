@@ -80,7 +80,7 @@ struct StatsProcessingTests {
     }
 
     @Test
-    func heartRateExtremaMergeWithoutRequiringIndependentOrigins() throws {
+    func heartRateExtremaMergeAcrossAlignedBuckets() throws {
         let sources = [healthKit: [bucket(0, amount: 70)], "wearable": [bucket(0, amount: 90)]]
         let minimum = try StatsStore.Processor.quantity(
             documents: [document(.heartRate, sources)],
@@ -100,11 +100,11 @@ struct StatsProcessingTests {
     }
 
     @Test
-    func weightedAveragesCannotMergeSharedOriginsOrDifferentAlgorithms() {
-        let first = weightedBucket(0, amount: 60, weight: 1, origin: "A")
-        var differentAlgorithm = weightedBucket(0, amount: 90, weight: 3, origin: "B")
+    func weightedAveragesRequireCompatibleAlgorithmsAndWeights() {
+        let first = weightedBucket(0, amount: 60, weight: 1)
+        var differentAlgorithm = weightedBucket(0, amount: 90, weight: 3)
         differentAlgorithm.average = StatsDocument.Average(numerator: 270, denominator: 3, weighting: "other")
-        for second in [weightedBucket(0, amount: 90, weight: 3, origin: "A"), differentAlgorithm, bucket(0, amount: 90)] {
+        for second in [differentAlgorithm, bucket(0, amount: 90)] {
             #expect(throws: StatsStore.Processor.Error.self) {
                 try StatsStore.Processor.quantity(
                     documents: [document(.heartRate, [healthKit: [first], "wearable": [second]])],
@@ -139,26 +139,19 @@ struct StatsProcessingTests {
     }
 
     @Test
-    func observationsFillGapsAndDeduplicateStableIdentity() throws {
-        let first = observation(0, amount: 70, origin: "A", identity: "original:1")
-        let second = observation(1, amount: 80, origin: "B", identity: "original:2")
+    func repeatedObservationsAtDifferentInstantsAreRetained() throws {
+        let first = observation(0, amount: 70)
+        let second = observation(1, amount: 80)
         let result = try StatsStore.Processor.quantity(
-            documents: [document(.weight, [healthKit: [first], "wearable": [first, second]])],
+            documents: [document(.weight, [healthKit: [first], "wearable": [observation(2, amount: 70), second]])],
             metric: .weight,
             timeRange: range,
             aggregationKind: .avg,
             sourcePolicy: .mergeCompatible
         )
-        #expect(result.elements.map { $0.value(as: .gramUnit(with: .kilo)) } == [70, 80])
+        #expect(result.elements.map { $0.value(as: .gramUnit(with: .kilo)) } == [70, 80, 70])
+        #expect(result.elements.map(\.startDate) == [date(0), date(1), date(2)])
         #expect(result.diagnostics.isEmpty)
-        let unknown = try StatsStore.Processor.quantity(
-            documents: [document(.weight, [healthKit: [first], "wearable": [observation(0, amount: 90), observation(1, amount: 80)]])],
-            metric: .weight,
-            timeRange: range,
-            aggregationKind: .avg
-        )
-        #expect(unknown.elements.map { $0.value(as: .gramUnit(with: .kilo)) } == [70, 80])
-        #expect(unknown.diagnostics.count == 1)
     }
 
     @Test
@@ -226,22 +219,20 @@ struct StatsProcessingTests {
 
 extension StatsProcessingTests {
     @Test
-    func unknownProvenanceOnlyConflictsAtTheSameInstant() throws {
-        let first = observation(0, amount: 70, identity: "original:1")
-        var copy = first
-        copy.date = date(2).ISO8601Format()
+    func simultaneousObservationsFromDifferentSourcesCompete() throws {
+        let first = observation(0, amount: 70)
+        let documents = [document(.weight, [healthKit: [first], "wearable": [first, observation(1, amount: 80)]])]
         let result = try StatsStore.Processor.quantity(
-            documents: [document(.weight, [healthKit: [first], "wearable": [observation(1, amount: 80), copy]])],
+            documents: documents,
             metric: .weight,
             timeRange: range,
-            aggregationKind: .avg,
-            sourcePolicy: .mergeCompatible
+            aggregationKind: .avg
         )
         #expect(result.elements.map { $0.value(as: .gramUnit(with: .kilo)) } == [70, 80])
-        #expect(result.diagnostics.isEmpty)
+        #expect(result.diagnostics.count == 1)
         #expect(throws: StatsStore.Processor.Error.self) {
             try StatsStore.Processor.quantity(
-                documents: [document(.weight, [healthKit: [first], "wearable": [observation(0, amount: 80)]])],
+                documents: documents,
                 metric: .weight,
                 timeRange: range,
                 aggregationKind: .avg,
@@ -251,21 +242,56 @@ extension StatsProcessingTests {
     }
 
     @Test
-    func preferredObservationsSelectAtEachTimestampAndRetainIndependentReadings() throws {
+    func preferredObservationsSelectAtEachTimestampAndRetainOtherReadings() throws {
         let sources = [
-            healthKit: [observation(0, amount: 70, origin: "A")],
-            "wearable": [observation(0, amount: 80, origin: "B"), observation(1, amount: 90, origin: "B")]
+            healthKit: [observation(0, amount: 70)],
+            "wearable": [observation(0, amount: 80), observation(1, amount: 90)]
         ]
         let result = try StatsStore.Processor.quantity(
             documents: [document(.weight, sources)],
             metric: .weight,
             timeRange: range,
             aggregationKind: .avg,
-            sourcePolicy: .preferred([healthKit])
+            sourcePolicy: .preferred(["wearable"])
         )
-        #expect(result.elements.map { $0.value(as: .gramUnit(with: .kilo)) } == [70, 90])
-        #expect(result.contributingSourceIDs == [healthKit, "wearable"])
+        #expect(result.elements.map { $0.value(as: .gramUnit(with: .kilo)) } == [80, 90])
+        #expect(result.contributingSourceIDs == ["wearable"])
         #expect(result.diagnostics.count == 1)
+    }
+
+    @Test
+    func sameSourceObservationsAtTheSameInstantAreRetained() throws {
+        let documents = [document(.weight, [healthKit: [observation(0, amount: 70), observation(0, amount: 71), observation(0, amount: 70)]])]
+        for policy in [StatsStore.SourcePolicy.automatic, .only(healthKit), .preferred([healthKit]), .mergeCompatible] {
+            let result = try StatsStore.Processor.quantity(
+                documents: documents,
+                metric: .weight,
+                timeRange: range,
+                aggregationKind: .avg,
+                sourcePolicy: policy
+            )
+            #expect(result.elements.map { $0.value(as: .gramUnit(with: .kilo)) } == [70, 70, 71])
+            #expect(result.diagnostics.isEmpty)
+        }
+    }
+
+    @Test
+    func weightedAveragesRequireAlignedWholeBuckets() {
+        let first = weightedBucket(0, amount: 60, weight: 1)
+        for (second, requestedRange) in [
+            (weightedBucket(0.5, amount: 90, weight: 3), range),
+            (weightedBucket(0, amount: 90, weight: 3), date(0.5)..<date(1))
+        ] {
+            #expect(throws: StatsStore.Processor.Error.self) {
+                try StatsStore.Processor.quantity(
+                    documents: [document(.heartRate, [healthKit: [first], "wearable": [second]])],
+                    metric: .heartRate,
+                    timeRange: requestedRange,
+                    aggregationKind: .avg,
+                    sourcePolicy: .mergeCompatible
+                )
+            }
+        }
     }
 
     @Test
@@ -279,12 +305,12 @@ extension StatsProcessingTests {
 
     @Test
     func invalidWeightsCannotEnableSourceMerging() {
-        let first = weightedBucket(0, amount: 60, weight: 1, origin: "A")
+        let first = weightedBucket(0, amount: 60, weight: 1)
         for average in [
             StatsDocument.Average(numerator: 270, denominator: 0, weighting: "test.temporal.v1"),
             StatsDocument.Average(numerator: 200, denominator: 3, weighting: "test.temporal.v1")
         ] {
-            var second = weightedBucket(0, amount: 90, weight: 3, origin: "B")
+            var second = weightedBucket(0, amount: 90, weight: 3)
             second.average = average
             #expect(throws: StatsStore.Processor.Error.self) {
                 try StatsStore.Processor.quantity(
@@ -341,18 +367,16 @@ extension StatsProcessingTests {
         return entry
     }
 
-    private func weightedBucket(_ hour: Double, amount: Double, weight: Double, origin: String) -> StatsDocument.Entry {
+    private func weightedBucket(_ hour: Double, amount: Double, weight: Double) -> StatsDocument.Entry {
         var entry = bucket(hour, amount: amount)
         entry.average = StatsDocument.Average(numerator: amount * weight, denominator: weight, weighting: "test.temporal.v1")
-        entry.provenance = StatsDocument.Provenance(origins: [origin], observationID: nil)
         return entry
     }
 
-    private func observation(_ hour: Double, amount: Double, origin: String? = nil, identity: String? = nil) -> StatsDocument.Entry {
+    private func observation(_ hour: Double, amount: Double) -> StatsDocument.Entry {
         var entry = StatsDocument.Entry(unit: "kg")
         entry.date = date(hour).ISO8601Format()
         entry.value = amount
-        entry.provenance = StatsDocument.Provenance(origins: origin.map { [$0] } ?? [], observationID: identity)
         return entry
     }
 
