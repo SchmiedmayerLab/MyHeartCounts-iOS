@@ -119,6 +119,9 @@ The StudyBundle, consisting of a StudyDefinition and resources referenced by the
 - Localization (Other)
     - The app is deployed to users in different regions of the world. No sssumptions should be made wrt region, and all user-visible elements should use appropriate iOS APIs that produce locale-aware output, e.g., when formatting numbers.
     - This also extends to units: the app should never assume that the user wants metric or US or imperial units; instead it should use appropriate locale-based units.
+- Pull Requests:
+    - PRs created for this repository must follow the organization's [shared pull request template](https://github.com/SchmiedmayerLab/.github/blob/main/.github/pull_request_template.md).
+    - Read the current template before drafting the PR description. Preserve its section headings and checklist, and replace the instructional placeholders with content relevant to the change.
 - MHC uses SwiftLint to enforce code style rules
     - during development, the SwiftLint checks don't need to always perfectly pass; it is ok for warnings to exist in code that is actively being worked on
     - SwiftLint warnings/errors are required to be fully resolved when code is actually about to be merged into the main branch

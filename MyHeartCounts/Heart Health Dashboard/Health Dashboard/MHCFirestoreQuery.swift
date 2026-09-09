@@ -14,9 +14,7 @@ import struct ModelsR4.FHIRURI
 import struct ModelsR4.Period
 import enum ModelsR4.ResourceProxy
 import MyHeartCountsShared
-import OSLog
 import SpeziAccount
-import SpeziFoundation
 import SpeziHealthKit
 import SwiftUI
 
@@ -36,6 +34,8 @@ import SwiftUI
 @propertyWrapper
 struct MHCFirestoreQuery<Element: Sendable>: DynamicProperty {
     typealias ValueTransformer = MyHeartCountsShared.ValueTransformer
+    typealias Filter = MHCFirestoreQuerySpecification.Filter
+    typealias SortDescriptor = MHCFirestoreQuerySpecification.SortDescriptor
     
     /// The collection which should be queried
     enum Collection: Hashable, Sendable {
@@ -45,36 +45,14 @@ struct MHCFirestoreQuery<Element: Sendable>: DynamicProperty {
         case root(path: String)
     }
     
-    /// A server-side filter on the queried collection.
-    ///
-    /// Modelled as a value rather than a `FirebaseFirestore.Filter`, so that the query specification stays `Hashable`:
-    /// that is what lets the wrapper tell a genuinely changed query apart from its view merely being re-evaluated.
-    enum Filter: Hashable, Sendable {
-        /// Restricts the query to the documents whose id lies within the range.
-        case documentId(in: ClosedRange<String>)
-        
-        fileprivate var firestoreFilter: FirebaseFirestore.Filter {
-            switch self {
-            case .documentId(let range):
-                .andFilter([
-                    .whereField(FieldPath.documentID(), isGreaterOrEqualTo: range.lowerBound),
-                    .whereField(FieldPath.documentID(), isLessThanOrEqualTo: range.upperBound)
-                ])
-            }
-        }
-    }
-    
-    
     @Environment(Account.self)
     private var account: Account?
     
-    @State private var impl = Impl()
+    @State private var impl = MHCFirestoreQueryController<Element>(includeMetadataChanges: false)
     /// The firebase side of the query
     private let querySpec: FirebaseQuerySpec
     /// The client side of the query
-    private let queryPostProcessingSpec: PostQueryProcessingSpec
-    
-    private let logger = Logger(category: .init("MHCFirestoreQuery<\(Element.self)>"))
+    private let queryPostProcessingSpec: MHCFirestoreQueryProcessing<Element>
     
     var wrappedValue: [Element] {
         // we need to access the accountId here to have the query auto-update if it changes,
@@ -137,10 +115,10 @@ struct MHCFirestoreQuery<Element: Sendable>: DynamicProperty {
             sort: preDecodeSort,
             limit: preDecodeLimit
         )
-        queryPostProcessingSpec = PostQueryProcessingSpec(
+        queryPostProcessingSpec = MHCFirestoreQueryProcessing(
             decoder: decoder,
-            postDecodeSort: postDecodeSort,
-            postDecodeLimit: postDecodeLimit
+            sort: postDecodeSort,
+            limit: postDecodeLimit
         )
     }
     
@@ -166,207 +144,29 @@ struct MHCFirestoreQuery<Element: Sendable>: DynamicProperty {
         case .root:
             break
         }
-        impl.setup(querySpec: querySpec, postProcessingSpec: queryPostProcessingSpec, logger: logger)
+        guard case .root(let path) = querySpec.collection else {
+            return
+        }
+        impl.setup(
+            firestore: Firestore.firestore(),
+            query: MHCFirestoreQuerySpecification(
+                collectionPath: path, filter: querySpec.filter, sort: querySpec.sort, limit: querySpec.limit
+            ),
+            processing: queryPostProcessingSpec
+        )
     }
 }
 
 
 extension MHCFirestoreQuery {
-    struct SortDescriptor: Hashable, Sendable {
-        let fieldName: String
-        let order: SortOrder
-    }
-    
-    /// The server-side half of a query: everything that determines which documents the snapshot listener receives, and how they are filtered/sorted/etc while still in firebase-land.
-    ///
-    /// Being `Hashable` is what makes it possible to keep the listener across view updates, and to replace it exactly when the query changed.
-    fileprivate struct FirebaseQuerySpec: Hashable, Sendable {
+    private struct FirebaseQuerySpec: Hashable, Sendable {
         var collection: Collection
         var filter: Filter?
         var sort: [SortDescriptor]
         var limit: Int?
     }
-    
-    
-    /// The client-side half of a query: how the received documents are turned into elements.
-    fileprivate struct PostQueryProcessingSpec: Equatable, Sendable {
-        private let decoder: any ValueTransformer<QueryDocumentSnapshot, Element>
-        let postDecodeSort: [any SortComparator<Element>]
-        let postDecodeLimit: Int?
-        
-        init(
-            decoder: some ValueTransformer<QueryDocumentSnapshot, Element>,
-            postDecodeSort: [any SortComparator<Element>],
-            postDecodeLimit: Int?
-        ) {
-            self.decoder = decoder
-            self.postDecodeSort = postDecodeSort
-            self.postDecodeLimit = postDecodeLimit
-        }
-        
-        static func == (lhs: Self, rhs: Self) -> Bool {
-            if !lhs.decoder.isEqual(rhs.decoder) {
-                return false
-            }
-            if !lhs.postDecodeSort.elementsEqual(rhs.postDecodeSort, by: { $0.isEqual($1) }) {
-                return false
-            }
-            if lhs.postDecodeLimit != rhs.postDecodeLimit {
-                return false
-            }
-            return true
-        }
-        
-        func decode(_ document: QueryDocumentSnapshot) -> Element? {
-            try? decoder.transform(document)
-        }
-    }
 }
 
-
-extension MHCFirestoreQuery {
-    @Observable
-    @MainActor
-    fileprivate final class Impl: Sendable {
-        typealias FirebaseQuerySpec = MHCFirestoreQuery<Element>.FirebaseQuerySpec
-        typealias PostQueryProcessingSpec = MHCFirestoreQuery<Element>.PostQueryProcessingSpec
-        
-        @ObservationIgnored private var listener: (any ListenerRegistration)?
-        /// The specification the current listener was created for.
-        @ObservationIgnored private var activeQuerySpec: FirebaseQuerySpec?
-        /// Bumped whenever the listener is replaced, so that snapshots of a previous listener that are still being delivered get dropped.
-        @ObservationIgnored private var listenerGeneration = 0
-        /// The most recent snapshot, kept so that it can be decoded again when the decode parameters change.
-        @ObservationIgnored private var lastSnapshot: QuerySnapshot?
-        /// The most recently supplied processing, applied to the next decode.
-        @ObservationIgnored private var postProcessingSpec: PostQueryProcessingSpec?
-        /// snapshot generation counter, so that out-of-order decode completions can't overwrite newer data with older data
-        @ObservationIgnored private var snapshotGeneration = 0
-        private(set) var elements: [Element] = []
-        
-        func setup(querySpec: FirebaseQuerySpec, postProcessingSpec: PostQueryProcessingSpec, logger: Logger) {
-            let oldPostProcessingSpec = self.postProcessingSpec
-            // always adopt the latest processing; it is what the next decode uses.
-            self.postProcessingSpec = postProcessingSpec
-            guard querySpec == activeQuerySpec else {
-                replaceListener(with: querySpec, logger: logger)
-                return
-            }
-            if let oldPostProcessingSpec, postProcessingSpec == oldPostProcessingSpec {
-                // the view was re-evaluated, but nothing about the query changed: keep both the listener and the elements.
-                return
-            }
-            // Immediately invalidate in-flight decoding that used the previous processing specification.
-            snapshotGeneration += 1
-            let scheduledGeneration = snapshotGeneration
-            // the query is the same, but its documents need to be interpreted differently: decode the ones we already have again.
-            if let lastSnapshot {
-                let listenerGeneration = listenerGeneration
-                Task {
-                    guard scheduledGeneration == self.snapshotGeneration else {
-                        return
-                    }
-                    await process(lastSnapshot, from: listenerGeneration)
-                }
-            }
-        }
-        
-        /// Stops the query, and clears all previously-fetched elements.
-        func stop() {
-            exchange(&listener, with: nil)?.remove()
-            activeQuerySpec = nil
-            lastSnapshot = nil
-            postProcessingSpec = nil
-            // Reject callbacks and decode results from the previous query.
-            listenerGeneration += 1
-            snapshotGeneration += 1
-            // remove fetched elements
-            if !elements.isEmpty {
-                elements.removeAll()
-            }
-        }
-        
-        private func replaceListener(with querySpec: FirebaseQuerySpec, logger: Logger) {
-            listener?.remove()
-            listener = nil
-            activeQuerySpec = querySpec
-            listenerGeneration += 1
-            let listenerGeneration = listenerGeneration
-            // whatever the previous query delivered doesn't belong to this one.
-            lastSnapshot = nil
-            snapshotGeneration += 1
-            elements = []
-            var query: Query
-            switch querySpec.collection {
-            case .root(let path):
-                query = Firestore.firestore().collection(path)
-            default:
-                // unreachable
-                logger.error("[impl] skipping setup request bc input contains an unresolved path.")
-                return
-            }
-            if let filter = querySpec.filter {
-                query = query.whereFilter(filter.firestoreFilter)
-            }
-            for sortDescriptor in querySpec.sort {
-                query = query.order(by: sortDescriptor.fieldName, descending: sortDescriptor.order == .reverse)
-            }
-            if let limit = querySpec.limit, limit > 0 {
-                query = query.limit(to: limit)
-            }
-            listener = query.addSnapshotListener { @Sendable [weak self] snapshot, error in
-                guard let self else {
-                    return
-                }
-                if let snapshot {
-                    Task {
-                        await self.process(snapshot, from: listenerGeneration)
-                    }
-                } else if let error {
-                    logger.error("encountered error in firebase snapshot listener: \(error)")
-                }
-            }
-        }
-        
-        private func process(_ snapshot: QuerySnapshot, from listenerGeneration: Int) async {
-            guard listenerGeneration == self.listenerGeneration, let postProcessingSpec else {
-                // the listener that delivered this snapshot has since been replaced
-                return
-            }
-            lastSnapshot = snapshot
-            snapshotGeneration += 1
-            let generation = snapshotGeneration
-            let elements = await decode(snapshot, using: postProcessingSpec)
-            guard generation == snapshotGeneration else {
-                // a newer snapshot (or a newer set of parameters) was already processed
-                return
-            }
-            self.elements = elements
-        }
-        
-        @concurrent
-        private func decode(_ snapshot: QuerySnapshot, using spec: PostQueryProcessingSpec) async -> [Element] {
-            var elements: [Element] = []
-            elements.reserveCapacity(snapshot.documents.count)
-            for document in snapshot.documents {
-                if let element = spec.decode(document) {
-                    elements.append(element)
-                }
-            }
-            elements.sort(using: spec.postDecodeSort)
-            if let limit = spec.postDecodeLimit, limit < elements.count {
-                elements.removeFirst(elements.count - limit)
-            }
-            return elements
-        }
-        
-        // dropping a `ListenerRegistration` does not detach the listener; it needs an explicit `remove()` call.
-        // (the deinit needs to be isolated so that it can access the non-Sendable `listener` property.)
-        isolated deinit {
-            listener?.remove()
-        }
-    }
-}
 
 // MARK: Extensions
 
