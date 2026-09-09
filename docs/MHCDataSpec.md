@@ -459,6 +459,8 @@ Not all data in the user's firestore tree is written by the app; the backend als
 
 ## User Data Statistics
 
+This section is the canonical storage and wire-format contract for monthly statistics documents. The documents retain precomputed values from each data source; consumers select sources and aggregate values when reading them. See [StatsQueries.md](StatsQueries.md) for the Swift API and source policies, and [StatsAggregation.md](StatsAggregation.md) for merge rationale and HealthKit limitations.
+
 - In order to drive certain in-app functionality (e.g., the health dashboard), the app needs statistics computed/derived from the user's data
 - E.g.: the Heart Health Dashboard needs to know a bunch of data to compute its individual cardiovascular health scores
 - Since we have data sources beyond the on-device HealthKit data, we cannot implement this the easy/trivial way (by simply running a local on-device HKStatisticsQuery)
@@ -468,8 +470,8 @@ Not all data in the user's firestore tree is written by the app; the backend als
 - Conventions:
   - each metric has a well-known, stable, kebab-case identifier (e.g. `steps`, `heart-rate`; see the metrics table below), which is used both in the stats document paths and in the documents' `metric` field
     - note: these are deliberately *not* the HealthKit identifiers; the stats layer is source-agnostic
-  - all timestamps within stats documents are encoded as ISO8601 strings (incl. the UTC offset of the device's local time zone, since the bucket boundaries are computed in local time)
-  - all numeric values are stored as plain (double) numbers
+  - timestamps are ISO8601 strings with a UTC offset. The current HealthKit writer emits whole-second timestamps with the device's local offset, since its bucket boundaries use local calendar time. The reader also accepts fractional seconds and compares the exact parsed instant; it does not truncate other writers' timestamps to whole seconds.
+  - numeric values are finite double-precision numbers
   - all values are stored in fixed, locale-independent units (SI, resp. the metric's canonical unit; e.g. `count`, `count/min`, `kg`, `mmHg`), denoted by the entries' `unit` field; the client converts into locale-appropriate units for display
 
 
@@ -498,20 +500,71 @@ Constraints:
 
 
 ### High-level structure
-- we have special stats documents, at `/users/{uid}/stats/{metric}/months/{year}-{month}`, which contain hourly stats for a sample type for a month
-  - e.g. `/users/{uid}/stats/steps/months/2026-08`
-  - note: the path schema is intentionally `stats/{metric}/months/{year}-{month}` instead of e.g. `stats/{metric}/{year}/{month}`, since the iOS client SDK allows us to query all documents within a collection, but not to query all collections within a document. in the second schema, we would be unable to easily obtain a full list of all stats docs available for a metric, and would need to programmatically enumerate all possible years, to check within each year's collection. the first schema allows us to simply ask firestore for a list of all `year-month` documents within a metric.
-- each statistics document contains the following:
-  - a `version` so we can easily evolve the structure down the road
-  - the `metric` of the values in the document
-  - the entries themselves, grouped by data source (under `hourly`/`daily` for bucketed metrics, `sessions` for sleep, resp. `samples` for individual-samples metrics; see below)
-- different metrics' stats documents have different shapes, based on the specific metric's shape and needs:
-  - cumulative metrics (e.g., step count) are stored as per-interval sums
-  - high-frequency non-cumulative metrics (e.g., heart rate) are stored as per-interval min/max/avg buckets
-  - sparse/discrete measurements (e.g., blood pressure, weight) are stored as individual samples
-  - sleep is stored per sleep session, using the same shape as the interval sums, but with the entries' start/end being the session's bounds instead of a fixed interval
-    - the reason for this is that sleep sessions don't align with clock intervals (a night's sleep typically spans midnight); storing the individual sessions allows a consumer to derive whatever view it needs (incl. a per-day one), which wouldn't be possible if we split each session across the calendar days it overlaps
-    - the sessions are formed by grouping consecutive sleep analysis samples (the same way the app does it for the dashboard), and a session's value is the actual time spent asleep, which takes overlapping samples (e.g. from a phone and a watch tracking the same night) into account
+
+Documents are stored at `/users/{uid}/stats/{metric}/months/YYYY-MM`, where `YYYY-MM` is a four-digit calendar year and zero-padded month, for example `/users/{uid}/stats/steps/months/2026-08`. Keeping all month documents in a metric's `months` collection lets consumers query that history directly. The current HealthKit writer assigns hourly buckets to the month containing their start, individual readings to the month containing their date, and whole sleep sessions to the month containing their midpoint, using local calendar time.
+
+Each document contains:
+
+| Field | Contract |
+| :---- | :------- |
+| `version` | Integer `0` for the current format. |
+| `metric` | The stable metric identifier used in the path, such as `steps` or `heart-rate`. |
+| Exactly one of `hourly`, `daily`, `sessions`, `samples` | An object mapping source identifiers to arrays of entries. `hourly`/`daily` hold interval buckets, `sessions` holds whole sleep sessions, and `samples` holds individual readings. |
+
+Source identifiers are strings. The current HealthKit writer uses `com.apple.HealthKit`; external source names such as `fitbit` in the examples are illustrative, not a claim that those integrations currently write stats documents. The source key identifies a contribution to the dataset, not necessarily a single physical device or an independent set of underlying observations.
+
+Storage preserves each source's contribution separately. A HealthKit refresh replaces only the `com.apple.HealthKit` array for that metric and month, preserving other sources. Confirmed deletions can clear that array; an empty read without deletion evidence does not erase existing data, and clearing a missing month does not create an empty document. Selection, gap filling, and compatible merging happen on reads; they do not rewrite the stored source arrays.
+
+The current quantity and blood-pressure HealthKit queries do not exclude samples imported by a separately connected provider. A reading can therefore occur in both the HealthKit contribution and an external provider's contribution. Connected-provider exclusion is deferred. Sleep retains its existing Apple-system-source filter by default, with a launch option to include all HealthKit sleep sources. Source-selection details and the resulting pooling limitations are documented in [StatsQueries.md](StatsQueries.md) and [StatsAggregation.md](StatsAggregation.md).
+
+
+#### Entry shapes
+
+Entries use one of the following flat JSON shapes; the Swift equivalents are shared by the writer and reader under `StatsDocument`.
+
+| Shape | Required fields | Optional fields | Use |
+| :---- | :-------------- | :-------------- | :-- |
+| Interval sum | `start`, `end`, `unit`, `sum` | — | Cumulative metrics such as steps and exercise minutes; whole sleep sessions. |
+| Interval min/max/avg | `start`, `end`, `unit`, `min`, `max`, `avg` | `average` | High-frequency non-cumulative metrics such as heart rate. All three statistics are required. |
+| Individual quantity | `date`, `unit`, `value` | — | Weight, height, and BMI. |
+| Blood-pressure pair | `date`, `unit`, `systolic`, `diastolic` | — | One systolic/diastolic reading pair. Both values are required. |
+
+Interval bounds must parse as dates with `start < end`; they represent a start-inclusive, end-exclusive interval. Individual readings have a single timestamp. `unit` must be a valid HealthKit unit string compatible with the metric. The known fields of different shapes must not be mixed: for example, a sum cannot also contain `min`, `avg`, or `average`, and an interval cannot also contain `date` or point values. Unknown unrelated fields are tolerated. The reader skips malformed entries while retaining valid entries from the same month and reports diagnostics.
+
+Sleep uses the interval-sum shape under `sessions`: `start` and `end` are the whole session's bounds, `unit` denotes hours, and `sum` is actual time asleep in hours. Sessions are formed by grouping consecutive sleep-analysis samples; their values account for overlapping samples, such as a phone and watch recording the same night. A session's duration need not equal its time asleep. Sessions remain whole across midnight so consumers can derive the view they need.
+
+
+#### Optional average metadata
+
+Min/max/avg entries may carry an `average` object describing mergeable components of `avg`. This is an additive extension of version `0`; entries without it remain valid. Writers must omit it when they cannot establish its semantics accurately.
+
+| Field | Contract |
+| :---- | :------- |
+| `average.numerator` | Required finite number: the weighted numerator in the entry's unit combined with the weight units. |
+| `average.denominator` | Required finite number greater than zero: the total averaging weight. |
+| `average.weighting` | Required nonempty string: a stable identifier defining the complete averaging algorithm and weight units. Writers must agree on that definition before sharing an identifier. |
+
+`numerator / denominator` must reproduce `avg` in the entry's unit, allowing floating-point rounding differences. Identical `weighting` strings must not refer to different algorithms, such as observation-count weighting and time-weighted integration. Compatible averages can be pooled by adding their numerators and denominators; both components must survive further aggregation. Matching labels establish arithmetic compatibility, not independence of the underlying readings. The reader cannot detect copies across sources.
+
+This illustrative entry represents an arithmetic mean of 30 observations. It is not the HealthKit heart-rate algorithm or a claim that a current external provider writes these fields:
+
+```json
+{
+  "start": "2026-08-10T08:00:00-07:00",
+  "end": "2026-08-10T09:00:00-07:00",
+  "unit": "count/min",
+  "min": 60,
+  "max": 100,
+  "avg": 75,
+  "average": {
+    "numerator": 2250,
+    "denominator": 30,
+    "weighting": "example-observation-mean-v1"
+  }
+}
+```
+
+The current HealthKit writer emits its native `min`, `max`, and `avg` without `average` metadata. A count of HealthKit quantity-sample objects, a bucket's length, or covered sample duration does not establish the denominator of HealthKit's heart-rate average. See [StatsAggregation.md](StatsAggregation.md#healthkit-heart-rate-limitation) for that limitation and [StatsQueries.md](StatsQueries.md) for exactness, fallback, and interval policies. Syntactically valid but unusable weights are ignored by the reader, preserving the entry's ordinary statistics; malformed metadata types or missing required metadata fields make the entry malformed.
 
 
 #### Non-cumulative metric stats document
@@ -604,6 +657,24 @@ Example: step count stats document, at `/users/{uid}/stats/steps/months/2026-08`
 #### Individual-samples metric stats document
 
 In the case of sparse/discrete metrics (e.g., blood pressure, weight), each month's document simply contains the individual readings.
+
+Example: weight, at `/users/{uid}/stats/weight/months/2026-08`
+
+```json
+{
+  "version": 0,
+  "metric": "weight",
+  "samples": {
+    "com.apple.HealthKit": [
+      {
+        "date": "2026-08-10T08:41:00-07:00",
+        "unit": "kg",
+        "value": 72.5
+      }
+    ]
+  }
+}
+```
 
 Example: blood pressure, at `/users/{uid}/stats/blood-pressure/months/2026-08`
 ```jsonc

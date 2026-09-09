@@ -14,6 +14,8 @@ SPDX-License-Identifier: MIT
 
 Query API types are nested under `StatsStore`, including `Request`, `Snapshot`, `Subscription`, and the source/read/interval policies. Stored metadata types are nested under `StatsDocument`; these Swift namespaces do not change the document schema.
 
+The [User Data Statistics section of the MHC data spec](MHCDataSpec.md#user-data-statistics) is authoritative for storage locations, monthly document structure, source identifiers, and entry fields, including [optional average metadata](MHCDataSpec.md#optional-average-metadata).
+
 The HealthKit writer and stats reader share the `StatsDocument.Aggregate`, `.Quantity`, and `.BloodPressure` entry payloads. `StatsDocument.Entry` wraps them in `.aggregate`, `.quantity`, and `.bloodPressure` enum cases. Aggregates contain either a sum or a min/max/average summary, with optional average weights on the summary. Custom coding preserves the existing flat JSON fields without adding enum case names. Invalid entry shapes, dates, or units are skipped and counted while the rest of the month remains readable.
 
 ```swift
@@ -66,7 +68,7 @@ Source selection is performed after filtering entries to the requested range. De
 
 Individual quantity and blood-pressure readings at different timestamps can coexist across sources. At the same timestamp, source preference resolves competing readings; `.mergeCompatible` throws instead. Multiple readings within a single source are retained. The reader does not track observation identities or remove copies at different timestamps.
 
-Timestamp equality compares the exact parsed instant, including supplied fractional seconds; the reader does not truncate timestamps to whole seconds. The HealthKit stats writer currently emits whole-second dates, so a copy retaining a nonzero fractional part has a different timestamp and both readings remain in the result. HealthKit currently fetches all eligible samples; provider exclusion to prevent duplicate ingestion is planned separately.
+Timestamp equality compares the exact parsed instant, including supplied fractional seconds; the reader does not truncate timestamps to whole seconds. The HealthKit stats writer currently emits whole-second dates, so a copy retaining a nonzero fractional part has a different timestamp and both readings remain in the result. HealthKit stats fetching does not yet exclude samples based on connected integrations; existing metric-specific filters still apply.
 
 - `.automatic` combines compatible contributions and reports preferred-source fallback where merging is unsupported.
 - `.only(id)` restricts results to one source.

@@ -8,33 +8,19 @@ SPDX-License-Identifier: MIT
 
 -->
 
-# Stats aggregation metadata
+# Stats aggregation and source selection
 
-Monthly stats entries may carry the optional `average` field below. This field is additive: existing entries remain readable, and writers should omit metadata they cannot establish accurately.
+This guide explains how stats queries combine stored contributions and why some merges require source preference. The [User Data Statistics section of the MHC data spec](MHCDataSpec.md#user-data-statistics) is authoritative for storage locations, document structure, source identifiers, and entry fields. The [query guide](StatsQueries.md) documents the Swift APIs and their policies.
 
-The Swift metadata type is `StatsDocument.Average`; source keys use `StatsDocument.SourceID`. Nesting these types does not change the JSON field names or encoding.
+## Combining averages
 
-```json
-{
-  "start": "2026-09-07T08:00:00+02:00",
-  "end": "2026-09-07T09:00:00+02:00",
-  "unit": "count/min",
-  "min": 60,
-  "max": 100,
-  "avg": 75,
-  "average": {
-    "numerator": 2250,
-    "denominator": 30,
-    "weighting": "example-observation-mean-v1"
-  }
-}
-```
+Entries with the [optional average metadata](MHCDataSpec.md#optional-average-metadata) can be combined by summing their numerators and denominators. For example, means of 60 and 90 with compatible weights of 1 and 3 combine to `(60 × 1 + 90 × 3) / (1 + 3) = 82.5`. Taking the unweighted mean of those means would instead produce 75.
 
-`average.numerator / average.denominator` must reproduce `avg` in the entry's unit. Both numbers must be finite; the denominator must be positive. `weighting` identifies the averaging algorithm and weight units. Writers must agree on its complete semantics before using the same identifier. In this illustrative example, the numerator is the sum of 30 individual observations and the denominator is their count. It does **not** describe HealthKit heart-rate averaging.
+Weights must remain attached through subsequent interval aggregation. Cross-source heart-rate averages require matching weight labels and identical whole buckets within the requested range. These checks establish arithmetic compatibility; the reader does not detect observations copied between sources. Partial overlap cannot be resolved exactly by prorating aggregate values; consumers may explicitly opt into diagnosed interval approximations as described in [StatsQueries.md](StatsQueries.md#source-and-interval-policies).
 
-Compatible averages merge by summing their numerators and denominators. Weights must remain attached through subsequent interval aggregation; an average of already averaged buckets generally loses the original weighting. Cross-source heart-rate averages require matching weight labels and identical whole buckets within the requested range. These checks establish arithmetic compatibility; the reader does not detect observations copied between sources. Partial overlap cannot be resolved exactly by prorating aggregate values; consumers may explicitly opt into diagnosed interval approximations as described in [StatsQueries.md](StatsQueries.md).
+## Source selection
 
-HealthKit currently fetches all eligible samples, including samples written by connected providers. Provider exclusion during stats fetching is planned separately. Until then, copied readings can appear in multiple source contributions, and pooling compatible averages can count them more than once. Callers can use `.only` or `.preferred` to avoid pooling competing buckets.
+HealthKit stats fetching does not yet exclude samples based on connected integrations; existing metric-specific filters still apply. Copies can therefore appear in multiple source contributions, and pooling compatible averages can count them more than once. Callers can use `.only` or `.preferred` to avoid pooling competing buckets. These policies do not identify copies stored at different timestamps.
 
 Under `.automatic`, current HealthKit documents support the following behavior:
 
@@ -50,6 +36,6 @@ Pooling competing averages requires compatible weights on **both** contributions
 
 HealthKit heart rate uses a temporally weighted integration function, and a quantity sample may represent an entire series of underlying measurements. Counting `HKQuantitySample` objects therefore cannot provide its averaging denominator. Apple's public `HKStatistics.duration()` contract describes covered sample duration; it does not establish that this duration is the denominator used by `averageQuantity()`.
 
-The HealthKit writer consequently keeps its existing `min`, `max`, and `avg` values without adding inferred weights. Source selection remains conservative for these averages and exposes fallback diagnostics. Independent providers with trustworthy weights can use the optional `average` schema. Supporting exact pooling of HealthKit averages requires a documented mergeable representation or a separately specified averaging algorithm; it must not silently substitute a different meaning for the existing HealthKit average.
+The HealthKit writer consequently keeps its existing `min`, `max`, and `avg` values without adding inferred weights. Source selection remains conservative for these averages and exposes fallback diagnostics. Providers with trustworthy weights can use the [optional average metadata](MHCDataSpec.md#optional-average-metadata). Supporting exact pooling of HealthKit averages requires a documented mergeable representation or a separately specified averaging algorithm; it must not silently substitute a different meaning for the existing HealthKit average.
 
 Sources: [HealthKit temporal aggregation](https://developer.apple.com/documentation/healthkit/hkquantityaggregationstyle/discretetemporallyweighted), [HKStatistics duration](https://developer.apple.com/documentation/healthkit/hkstatistics/duration()), [WWDC19: Exploring New Data Representations in HealthKit](https://developer.apple.com/videos/play/wwdc2019/218/).
