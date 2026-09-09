@@ -184,38 +184,32 @@ extension StatsStore.Processor {
     }
 
     private static func value(_ entry: StatsDocument.Entry, source: StatsDocument.SourceID, input: Input) -> Value? {
-        guard let range = entry.timeRange, let unit = HKUnit.parse(entry.unit),
-              HKQuantity(unit: unit, doubleValue: 0).is(compatibleWith: input.unit) else {
+        guard let range = entry.timeRange, HKQuantity(unit: entry.unit, doubleValue: 0).is(compatibleWith: input.unit) else {
             return nil
         }
-        let amount = if input.metricID == "blood-pressure" {
-            entry.systolic
-        } else if let value = entry.value {
-            value
-        } else {
-            switch input.aggregationKind {
-            case .sum: entry.sum
-            case .avg: entry.avg
-            case .min: entry.min
-            case .max: entry.max
+        let amounts: (primary: Double, secondary: Double?)?
+        var average: StatsDocument.Average?
+        switch entry {
+        case .aggregate(let aggregate):
+            guard input.metricID != "blood-pressure", let values = aggregateValues(aggregate.values, kind: input.aggregationKind) else {
+                return nil
             }
+            amounts = (values.amount, nil)
+            average = values.average
+        case .quantity(let quantity):
+            amounts = input.metricID == "blood-pressure" ? nil : (quantity.value, nil)
+        case .bloodPressure(let pressure):
+            amounts = input.metricID == "blood-pressure" ? (pressure.systolic, pressure.diastolic) : nil
         }
-        guard let amount, amount.isFinite else {
-            return nil
-        }
-        if input.metricID == "blood-pressure", entry.diastolic?.isFinite != true {
+        guard let amounts, amounts.primary.isFinite, amounts.secondary?.isFinite != false else {
             return nil
         }
         func converted(_ amount: Double) -> Double {
-            HKQuantity(unit: unit, doubleValue: amount).doubleValue(for: input.unit)
+            HKQuantity(unit: entry.unit, doubleValue: amount).doubleValue(for: input.unit)
         }
-        let average = entry.average.flatMap { average -> StatsDocument.Average? in
-            guard average.isValid, let mean = entry.avg, mean.isFinite,
-                  abs(average.numerator / average.denominator - mean) <= Swift.max(1, abs(mean)) * 1e-9 else {
-                return nil
-            }
+        let convertedAverage = average.map { average in
             // Convert the mean, not the numerator: this also handles unit conversions with an offset.
-            return StatsDocument.Average(
+            StatsDocument.Average(
                 numerator: converted(average.numerator / average.denominator) * average.denominator,
                 denominator: average.denominator,
                 weighting: average.weighting
@@ -223,11 +217,38 @@ extension StatsStore.Processor {
         }
         return Value(
             range: range,
-            amount: converted(amount),
-            secondaryAmount: entry.diastolic.map(converted),
-            average: average,
+            amount: converted(amounts.primary),
+            secondaryAmount: amounts.secondary.map(converted),
+            average: convertedAverage,
             sources: [source]
         )
+    }
+
+    private static func aggregateValues(
+        _ values: StatsDocument.Aggregate.Values, kind: StatisticsAggregationOption
+    ) -> (amount: Double, average: StatsDocument.Average?)? {
+        switch values {
+        case .sum(let amount):
+            return kind == .sum ? (amount, nil) : nil
+        case let .minMaxAvg(minimum, maximum, mean, average):
+            let amount: Double? = switch kind {
+            case .sum: nil
+            case .min: minimum
+            case .max: maximum
+            case .avg: mean
+            }
+            guard let amount else {
+                return nil
+            }
+            let validAverage = average.flatMap { average -> StatsDocument.Average? in
+                guard average.isValid, mean.isFinite,
+                      abs(average.numerator / average.denominator - mean) <= Swift.max(1, abs(mean)) * 1e-9 else {
+                    return nil
+                }
+                return average
+            }
+            return (amount, validAverage)
+        }
     }
 
     private static func sourceOrder(_ sources: Set<StatsDocument.SourceID>, policy: StatsStore.SourcePolicy) -> [StatsDocument.SourceID] {

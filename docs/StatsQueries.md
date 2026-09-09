@@ -14,6 +14,8 @@ SPDX-License-Identifier: MIT
 
 Query API types are nested under `StatsStore`, including `Request`, `Snapshot`, `Subscription`, and the source/read/interval policies. Stored metadata types are nested under `StatsDocument`; these Swift namespaces do not change the document schema.
 
+The HealthKit writer and stats reader share the `StatsDocument.Aggregate`, `.Quantity`, and `.BloodPressure` entry payloads. `StatsDocument.Entry` wraps them in `.aggregate`, `.quantity`, and `.bloodPressure` enum cases. Aggregates contain either a sum or a min/max/average summary, with optional average weights on the summary. Custom coding preserves the existing flat JSON fields without adding enum case names. Invalid entry shapes, dates, or units are skipped and counted while the rest of the month remains readable.
+
 ```swift
 @Dependency(StatsStore.self) private var stats
 

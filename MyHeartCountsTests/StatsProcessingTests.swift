@@ -22,8 +22,8 @@ struct StatsProcessingTests {
     @Test
     func cumulativeBucketsFillGapsWithoutAddingOverlaps() throws {
         let documents = [
-            document(.steps, [healthKit: [bucket(0, amount: 100, unit: "count")]]),
-            document(.steps, ["wearable": [bucket(0, amount: 900, unit: "count"), bucket(1, amount: 200, unit: "count")]])
+            document(.steps, [healthKit: [sumBucket(0, amount: 100)]]),
+            document(.steps, ["wearable": [sumBucket(0, amount: 900), sumBucket(1, amount: 200)]])
         ]
         let result = try StatsStore.Processor.quantity(
             documents: documents,
@@ -38,7 +38,7 @@ struct StatsProcessingTests {
 
     @Test
     func explicitPoliciesSelectAndFillDeterministically() throws {
-        let sources = [healthKit: [bucket(0, amount: 100, unit: "count")], "wearable": [bucket(1, amount: 200, unit: "count")]]
+        let sources = [healthKit: [sumBucket(0, amount: 100)], "wearable": [sumBucket(1, amount: 200)]]
         let only = try StatsStore.Processor.quantity(
             documents: [document(.steps, sources)],
             metric: .steps,
@@ -55,7 +55,7 @@ struct StatsProcessingTests {
             sourcePolicy: .preferred(["wearable"])
         )
         #expect(preferred.elements.map { $0.value(as: .count()) } == [100, 200])
-        let ties = document(.steps, ["z": [bucket(0, amount: 300, unit: "count")], "a": [bucket(0, amount: 50, unit: "count")]])
+        let ties = document(.steps, ["z": [sumBucket(0, amount: 300)], "a": [sumBucket(0, amount: 50)]])
         let deterministic = try StatsStore.Processor.quantity(
             documents: [ties],
             metric: .steps,
@@ -67,7 +67,7 @@ struct StatsProcessingTests {
 
     @Test
     func strictPolicyRejectsCompetingCumulativeTotals() {
-        let sources = [healthKit: [bucket(0, amount: 100, unit: "count")], "wearable": [bucket(0, amount: 200, unit: "count")]]
+        let sources = [healthKit: [sumBucket(0, amount: 100)], "wearable": [sumBucket(0, amount: 200)]]
         #expect(throws: StatsStore.Processor.Error.self) {
             try StatsStore.Processor.quantity(
                 documents: [document(.steps, sources)],
@@ -102,8 +102,7 @@ struct StatsProcessingTests {
     @Test
     func weightedAveragesRequireCompatibleAlgorithmsAndWeights() {
         let first = weightedBucket(0, amount: 60, weight: 1)
-        var differentAlgorithm = weightedBucket(0, amount: 90, weight: 3)
-        differentAlgorithm.average = StatsDocument.Average(numerator: 270, denominator: 3, weighting: "other")
+        let differentAlgorithm = bucket(0, amount: 90, average: StatsDocument.Average(numerator: 270, denominator: 3, weighting: "other"))
         for second in [differentAlgorithm, bucket(0, amount: 90)] {
             #expect(throws: StatsStore.Processor.Error.self) {
                 try StatsStore.Processor.quantity(
@@ -157,8 +156,8 @@ struct StatsProcessingTests {
     @Test
     func sleepOverlapsPreferOneSessionAndFillUncoveredSessions() throws {
         let sources = [
-            healthKit: [bucket(0, amount: 0.5, unit: "hr")],
-            "wearable": [bucket(0, amount: 0.75, unit: "hr"), bucket(2, amount: 1, unit: "hr")]
+            healthKit: [sumBucket(0, amount: 0.5, unit: .hour())],
+            "wearable": [sumBucket(0, amount: 0.75, unit: .hour()), sumBucket(2, amount: 1, unit: .hour())]
         ]
         let result = try StatsStore.Processor.sleepSessions(documents: [StatsDocument(metric: "sleep", entriesBySourceId: sources)], timeRange: range)
         #expect(result.elements.map(\.hoursAsleep) == [0.5, 1])
@@ -167,14 +166,8 @@ struct StatsProcessingTests {
 
     @Test
     func bloodPressureValidatesAndConvertsUnits() throws {
-        var valid = StatsDocument.Entry(unit: "mmHg")
-        valid.date = date(0).ISO8601Format()
-        valid.systolic = 120
-        valid.diastolic = 80
-        var invalid = StatsDocument.Entry(unit: "kg")
-        invalid.date = date(1).ISO8601Format()
-        invalid.systolic = 120
-        invalid.diastolic = 80
+        let valid = StatsDocument.Entry.bloodPressure(.init(date: date(0), unit: .millimeterOfMercury(), systolic: 120, diastolic: 80))
+        let invalid = StatsDocument.Entry.bloodPressure(.init(date: date(1), unit: .gramUnit(with: .kilo), systolic: 120, diastolic: 80))
         let result = try StatsStore.Processor.bloodPressure(
             documents: [StatsDocument(metric: "blood-pressure", entriesBySourceId: [healthKit: [valid, invalid]])], timeRange: range
         )
@@ -204,7 +197,7 @@ struct StatsProcessingTests {
 
     @Test
     func mismatchedMetricsAndUnsupportedVersionsAreDiagnosed() throws {
-        let invalid = StatsDocument(version: 9, metric: "steps", entriesBySourceId: [healthKit: [bucket(0, amount: 100, unit: "count")]])
+        let invalid = StatsDocument(version: 9, metric: "steps", entriesBySourceId: [healthKit: [sumBucket(0, amount: 100)]])
         let result = try StatsStore.Processor.quantity(
             documents: [invalid, document(.heartRate, [:])],
             metric: .steps,
@@ -304,17 +297,25 @@ extension StatsProcessingTests {
     }
 
     @Test
-    func invalidWeightsCannotEnableSourceMerging() {
+    func invalidWeightsCannotEnableSourceMerging() throws {
         let first = weightedBucket(0, amount: 60, weight: 1)
         for average in [
             StatsDocument.Average(numerator: 270, denominator: 0, weighting: "test.temporal.v1"),
             StatsDocument.Average(numerator: 200, denominator: 3, weighting: "test.temporal.v1")
         ] {
-            var second = weightedBucket(0, amount: 90, weight: 3)
-            second.average = average
+            let second = bucket(0, amount: 90, average: average)
+            let documents = [document(.heartRate, [healthKit: [first], "wearable": [second]])]
+            let fallback = try StatsStore.Processor.quantity(
+                documents: documents,
+                metric: .heartRate,
+                timeRange: range,
+                aggregationKind: .avg
+            )
+            #expect(fallback.elements.first?.value(as: HKUnit.count().unitDivided(by: .minute())) == 60)
+            #expect(fallback.diagnostics.count == 1)
             #expect(throws: StatsStore.Processor.Error.self) {
                 try StatsStore.Processor.quantity(
-                    documents: [document(.heartRate, [healthKit: [first], "wearable": [second]])],
+                    documents: documents,
                     metric: .heartRate,
                     timeRange: range,
                     aggregationKind: .avg,
@@ -337,7 +338,7 @@ extension StatsProcessingTests {
             #expect(result.elements.isEmpty)
         }
         let emptyBuckets = try StatsStore.Processor.quantity(
-            documents: [document(.steps, [healthKit: [bucket(0, amount: 100, unit: "count")]])],
+            documents: [document(.steps, [healthKit: [sumBucket(0, amount: 100)]])],
             metric: .steps,
             timeRange: date(0.5)..<date(0.5),
             aggregationKind: .sum
@@ -356,28 +357,25 @@ extension StatsProcessingTests {
         StatsDocument(metric: metric.id.rawValue, entriesBySourceId: sources)
     }
 
-    private func bucket(_ hour: Double, amount: Double, unit: String = "count/min") -> StatsDocument.Entry {
-        var entry = StatsDocument.Entry(unit: unit)
-        entry.start = date(hour).ISO8601Format()
-        entry.end = date(hour + 1).ISO8601Format()
-        entry.sum = amount
-        entry.min = amount
-        entry.max = amount
-        entry.avg = amount
-        return entry
+    private func sumBucket(_ hour: Double, amount: Double, unit: HKUnit = .count()) -> StatsDocument.Entry {
+        .aggregate(StatsDocument.Aggregate(start: date(hour), end: date(hour + 1), unit: unit, values: .sum(amount)))
+    }
+
+    private func bucket(_ hour: Double, amount: Double, average: StatsDocument.Average? = nil) -> StatsDocument.Entry {
+        .aggregate(StatsDocument.Aggregate(
+            start: date(hour),
+            end: date(hour + 1),
+            unit: .count().unitDivided(by: .minute()),
+            values: .minMaxAvg(min: amount, max: amount, avg: amount, average: average)
+        ))
     }
 
     private func weightedBucket(_ hour: Double, amount: Double, weight: Double) -> StatsDocument.Entry {
-        var entry = bucket(hour, amount: amount)
-        entry.average = StatsDocument.Average(numerator: amount * weight, denominator: weight, weighting: "test.temporal.v1")
-        return entry
+        bucket(hour, amount: amount, average: StatsDocument.Average(numerator: amount * weight, denominator: weight, weighting: "test.temporal.v1"))
     }
 
     private func observation(_ hour: Double, amount: Double) -> StatsDocument.Entry {
-        var entry = StatsDocument.Entry(unit: "kg")
-        entry.date = date(hour).ISO8601Format()
-        entry.value = amount
-        return entry
+        .quantity(StatsDocument.Quantity(date: date(hour), unit: .gramUnit(with: .kilo), value: amount))
     }
 
     private func interval(_ interval: HealthKitStatisticsQuery.AggregationInterval) -> StatsStore.AggregationInterval {

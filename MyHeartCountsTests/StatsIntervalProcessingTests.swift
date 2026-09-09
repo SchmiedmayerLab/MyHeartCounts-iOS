@@ -137,9 +137,8 @@ struct StatsIntervalProcessingTests {
 extension StatsIntervalProcessingTests {
     @Test
     func shiftedTimeZoneBucketsApproximateDailyAndHourlySums() throws {
-        var entry = bucket(23.25, amount: 100, unit: "count")
-        entry.start = "1970-01-02T05:00:00+05:45"
-        entry.end = "1970-01-02T06:00:00+05:45"
+        let json = #"{"start":"1970-01-02T05:00:00+05:45","end":"1970-01-02T06:00:00+05:45","sum":100,"unit":"count"}"#
+        let entry = try JSONDecoder().decode(StatsDocument.Entry.self, from: Data(json.utf8))
         for frequency in [HealthKitStatisticsQuery.AggregationInterval.hour, .day] {
             let result = try StatsStore.Processor.quantity(
                 documents: [document(.steps, [healthKit: [entry]])],
@@ -155,7 +154,7 @@ extension StatsIntervalProcessingTests {
 
     @Test
     func sevenDayStepsClipBoundaryBucketsAndKeepOnlyPopulatedDays() throws {
-        let entries = [bucket(-0.5, amount: 100, unit: "count"), bucket(24, amount: 300, unit: "count"), bucket(167.5, amount: 200, unit: "count")]
+        let entries = [sumBucket(-0.5, amount: 100), sumBucket(24, amount: 300), sumBucket(167.5, amount: 200)]
         let result = try StatsStore.Processor.quantity(
             documents: [document(.steps, [healthKit: entries])],
             metric: .steps,
@@ -217,21 +216,21 @@ extension StatsIntervalProcessingTests {
         StatsDocument(metric: metric.id.rawValue, entriesBySourceId: sources)
     }
 
-    private func bucket(_ hour: Double, amount: Double, unit: String = "count/min") -> StatsDocument.Entry {
-        var entry = StatsDocument.Entry(unit: unit)
-        entry.start = date(hour).ISO8601Format()
-        entry.end = date(hour + 1).ISO8601Format()
-        entry.sum = amount
-        entry.min = amount
-        entry.max = amount
-        entry.avg = amount
-        return entry
+    private func sumBucket(_ hour: Double, amount: Double, unit: HKUnit = .count()) -> StatsDocument.Entry {
+        .aggregate(StatsDocument.Aggregate(start: date(hour), end: date(hour + 1), unit: unit, values: .sum(amount)))
+    }
+
+    private func bucket(_ hour: Double, amount: Double, average: StatsDocument.Average? = nil) -> StatsDocument.Entry {
+        .aggregate(StatsDocument.Aggregate(
+            start: date(hour),
+            end: date(hour + 1),
+            unit: .count().unitDivided(by: .minute()),
+            values: .minMaxAvg(min: amount, max: amount, avg: amount, average: average)
+        ))
     }
 
     private func weightedBucket(_ hour: Double, amount: Double, weight: Double) -> StatsDocument.Entry {
-        var entry = bucket(hour, amount: amount)
-        entry.average = StatsDocument.Average(numerator: amount * weight, denominator: weight, weighting: "test.temporal.v1")
-        return entry
+        bucket(hour, amount: amount, average: StatsDocument.Average(numerator: amount * weight, denominator: weight, weighting: "test.temporal.v1"))
     }
 
     private func interval(

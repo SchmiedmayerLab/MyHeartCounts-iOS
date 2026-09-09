@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import HealthKit
 
 
 /// Read-side model of a monthly stats document. Optional merge metadata extends the existing version-zero format.
@@ -25,34 +26,53 @@ struct StatsDocument: Decodable, Sendable {
         }
     }
 
-    struct Entry: Decodable, Sendable {
-        var start: String?
-        var end: String?
-        var sum: Double?
-        var min: Double?
-        var max: Double?
-        var avg: Double?
-        var date: String?
-        var value: Double?
-        var systolic: Double?
-        var diastolic: Double?
-        let unit: String
-        var average: Average?
+    /// The same entry payloads are encoded by the HealthKit writer and decoded by stats queries.
+    enum Entry: Codable, Sendable {
+        case aggregate(Aggregate)
+        case quantity(Quantity)
+        case bloodPressure(BloodPressure)
+
+        private enum CodingKeys: String, CodingKey {
+            case start, end, systolic, diastolic
+        }
+
+        var unit: HKUnit {
+            switch self {
+            case .aggregate(let entry): entry.unit
+            case .quantity(let entry): entry.unit
+            case .bloodPressure(let entry): entry.unit
+            }
+        }
 
         /// Empty ranges represent individual observations.
         var timeRange: Range<Date>? {
-            if let date = date.flatMap(Self.parseDate), start == nil, end == nil {
-                return date..<date
+            switch self {
+            case .aggregate(let entry):
+                entry.start < entry.end ? entry.start..<entry.end : nil
+            case .quantity(let entry):
+                entry.date..<entry.date
+            case .bloodPressure(let entry):
+                entry.date..<entry.date
             }
-            guard let start = start.flatMap(Self.parseDate), let end = end.flatMap(Self.parseDate), start < end, date == nil else {
-                return nil
-            }
-            return start..<end
         }
 
-        private static func parseDate(_ string: String) -> Date? {
-            (try? Date(string, strategy: .iso8601))
-                ?? (try? Date(string, strategy: .iso8601.time(includingFractionalSeconds: true)))
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if container.contains(.start) || container.contains(.end) {
+                self = .aggregate(try Aggregate(from: decoder))
+            } else if container.contains(.systolic) || container.contains(.diastolic) {
+                self = .bloodPressure(try BloodPressure(from: decoder))
+            } else {
+                self = .quantity(try Quantity(from: decoder))
+            }
+        }
+
+        func encode(to encoder: any Encoder) throws {
+            switch self {
+            case .aggregate(let entry): try entry.encode(to: encoder)
+            case .quantity(let entry): try entry.encode(to: encoder)
+            case .bloodPressure(let entry): try entry.encode(to: encoder)
+            }
         }
     }
 
