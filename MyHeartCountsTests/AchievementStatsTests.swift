@@ -88,6 +88,20 @@ struct AchievementStatsTests {
 
     @Test
     @MainActor
+    func weeklyEnrollmentMilestoneIsRegisteredWithItsStableIdentity() throws {
+        let manager = AchievementsManager()
+        Achievement.registerDefaultAchievements(with: manager)
+        let milestone = try #require(manager.achievements.first { $0.id == "participation-streak-1-weekOfYear" })
+        #expect(milestone.subcategory == .enrollmentDuration)
+        var state = AchievementsManager.State()
+        state.record(.enrollmentDurationInDays, value: 7, timestamp: date(0), allAchievements: manager.achievements)
+        #expect(unlockDate(milestone, in: state) == nil)
+        state.record(.enrollmentDurationInWeeks, value: 1, timestamp: date(24), allAchievements: manager.achievements)
+        #expect(unlockDate(milestone, in: state) == date(24))
+    }
+
+    @Test
+    @MainActor
     func logoutClearsProgressAndRejectsFurtherRecording() async throws {
         let manager = AchievementsManager()
         let goal = achievement(.dailyStepCount, target: 10_000)

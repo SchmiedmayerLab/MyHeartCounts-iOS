@@ -57,7 +57,13 @@ extension StatsStore.Processor {
     static func workouts(
         documents: [StatsDocument], timeRange: Range<Date>, sourcePolicy: StatsStore.SourcePolicy = .automatic
     ) throws -> Output<WorkoutStatsSample> {
-        let input = Input(metricID: "workouts", timeRange: timeRange, sourcePolicy: sourcePolicy, unit: .second(), aggregationKind: .sum)
+        let input = Input(
+            metricID: HealthKitStatsCalculator.MetricID.workouts.rawValue,
+            timeRange: timeRange,
+            sourcePolicy: sourcePolicy,
+            unit: .second(),
+            aggregationKind: .sum
+        )
         var diagnostics: [StatsStore.Diagnostic] = []
         let values = try selectedValues(documents: documents, input: input, diagnostics: &diagnostics)
         return Output(
@@ -78,7 +84,11 @@ extension StatsStore.Processor {
         documents: [StatsDocument], timeRange: Range<Date>, sourcePolicy: StatsStore.SourcePolicy = .automatic
     ) throws -> Output<ElectrocardiogramStatsSample> {
         let input = Input(
-            metricID: "electrocardiograms", timeRange: timeRange, sourcePolicy: sourcePolicy, unit: .count(), aggregationKind: .sum
+            metricID: HealthKitStatsCalculator.MetricID.electrocardiograms.rawValue,
+            timeRange: timeRange,
+            sourcePolicy: sourcePolicy,
+            unit: .count(),
+            aggregationKind: .sum
         )
         var diagnostics: [StatsStore.Diagnostic] = []
         let values = try selectedValues(documents: documents, input: input, diagnostics: &diagnostics)

@@ -39,10 +39,8 @@ struct HomeTab: RootViewTab {
             .navigationTitle("My Heart Counts")
             .toolbar {
                 accountToolbarItem
-                if FeatureFlags.enableStatsAndAchievements {
-                    ToolbarItem {
-                        ParticipationStatsButton()
-                    }
+                ToolbarItem {
+                    ParticipationStatsButton()
                 }
             }
         }

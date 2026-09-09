@@ -71,10 +71,8 @@ final class MyHeartCountsDelegate: SpeziAppDelegate {
             NotificationsManager()
             AccountFeatureFlags()
             DemoSetup()
-            if FeatureFlags.enableStatsAndAchievements {
-                ParticipationStatsProvider()
-                AchievementsManager()
-            }
+            ParticipationStatsProvider()
+            AchievementsManager()
         }
     }
     

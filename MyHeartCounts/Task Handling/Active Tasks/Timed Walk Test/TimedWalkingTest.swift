@@ -257,18 +257,18 @@ extension TimedWalkingTest {
         }
         result = try await stop(inProgressTest: result, isRecoveredTest: false)
         if !discardResult {
+            if let achievements {
+                switch result.test {
+                case .sixMinuteWalkTest:
+                    achievements.record(.complete6MinWalkTest, timestamp: result.endDate)
+                case .twelveMinuteRunTest:
+                    achievements.record(.complete12MinRunTest, timestamp: result.endDate)
+                default:
+                    break
+                }
+            }
             do {
                 try await standard.uploadHealthObservation(result)
-                if let achievements {
-                    switch result.test {
-                    case .sixMinuteWalkTest:
-                        achievements.record(.complete6MinWalkTest, timestamp: result.endDate)
-                    case .twelveMinuteRunTest:
-                        achievements.record(.complete12MinRunTest, timestamp: result.endDate)
-                    default:
-                        break
-                    }
-                }
             } catch {
                 logger.error("Uploading TimedWalkTest failed: \(error)")
             }
