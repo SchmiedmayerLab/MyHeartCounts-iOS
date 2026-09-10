@@ -10,6 +10,8 @@
 
 import Foundation
 import HealthKit
+import struct ModelsR4.FHIRPrimitive
+import struct ModelsR4.FHIRString
 import MyHeartCountsShared
 import SpeziHealthKit
 import SpeziHealthKitUI
@@ -90,7 +92,9 @@ extension MHCSampleType {
 
 struct CustomQuantitySampleType: Hashable, Identifiable, Sendable {
     let id: String
+    let shortId: String
     let canonicalUnit: HKUnit
+    let canonicalUnitUCUM: UCUM
     let displayTitle: LocalizedStringResource
     let displayUnit: HKUnit
     let aggregationKind: StatisticsAggregationOption
@@ -98,14 +102,18 @@ struct CustomQuantitySampleType: Hashable, Identifiable, Sendable {
     
     init(
         id: String,
+        shortId: String,
         canonicalUnit: HKUnit,
+        canonicalUnitUCUM: UCUM,
         displayTitle: LocalizedStringResource,
         displayUnit: HKUnit? = nil,
         aggregationKind: StatisticsAggregationOption,
         preferredTintColor: Color
     ) {
         self.id = id
+        self.shortId = shortId
         self.canonicalUnit = canonicalUnit
+        self.canonicalUnitUCUM = canonicalUnitUCUM
         self.displayTitle = displayTitle
         self.displayUnit = displayUnit ?? canonicalUnit
         self.aggregationKind = aggregationKind
@@ -117,7 +125,9 @@ struct CustomQuantitySampleType: Hashable, Identifiable, Sendable {
 extension CustomQuantitySampleType {
     static let bloodLipids = Self(
         id: "MHCCustomSampleTypeBloodLipidMeasurement",
+        shortId: "blood-lipids",
         canonicalUnit: .gramUnit(with: .milli) / .literUnit(with: .deci),
+        canonicalUnitUCUM: UCUM(code: "mL/dL", unit: "mL/dL"),
         displayTitle: "Blood Lipids",
         aggregationKind: .avg,
         preferredTintColor: .red
@@ -125,7 +135,9 @@ extension CustomQuantitySampleType {
     
     static let dietMEPAScore = Self(
         id: "MHCCustomSampleTypeDietMEPAScore",
+        shortId: "diet-mepa-score",
         canonicalUnit: .count(),
+        canonicalUnitUCUM: UCUM(code: "{score}", unit: ""),
         displayTitle: "Diet",
         aggregationKind: .avg,
         preferredTintColor: .green
@@ -133,7 +145,9 @@ extension CustomQuantitySampleType {
     
     static let mentalWellbeingScore = Self(
         id: "MHCCustomSampleTypeWHO5Score",
+        shortId: "who5-score",
         canonicalUnit: .count(), // percentage???
+        canonicalUnitUCUM: UCUM(code: "{score}", unit: ""),
         displayTitle: "Mental Well Being",
         aggregationKind: .avg,
         preferredTintColor: .blue
@@ -141,7 +155,9 @@ extension CustomQuantitySampleType {
     
     static let nicotineExposure = Self(
         id: "MHCCustomSampleTypeNicotineExposure",
+        shortId: "nicotine-exposure-value",
         canonicalUnit: .count(),
+        canonicalUnitUCUM: UCUM(code: "{score}", unit: ""),
         displayTitle: "Nicotine Exposure",
         aggregationKind: .avg,
         preferredTintColor: .gray
@@ -150,7 +166,9 @@ extension CustomQuantitySampleType {
     // periphery:ignore - API
     static let bloodGlucoseFasting = Self(
         id: "MHCCustomSampleTypeBloodGlucoseFasting",
+        shortId: "blood-glucose-fasting",
         canonicalUnit: .count(),
+        canonicalUnitUCUM: UCUM(code: "{count}", unit: ""),
         displayTitle: "Blood Glucose (Fasting)",
         displayUnit: .count(),
         aggregationKind: .avg,
@@ -160,7 +178,9 @@ extension CustomQuantitySampleType {
     // periphery:ignore - API
     static let bloodGlucoseA1c = Self(
         id: "MHCCustomSampleTypeBloodGlucoseA1c",
+        shortId: "blood-glucose-a1c",
         canonicalUnit: HKUnit(from: "mmol/L"),
+        canonicalUnitUCUM: UCUM(code: "mmol/L", unit: "mmol/L"),
         displayTitle: "Blood Glucose (A1c)",
         displayUnit: { () -> HKUnit in
             switch Locale.current.measurementSystem {
@@ -233,6 +253,15 @@ enum MHCQuantitySampleType: Hashable, Identifiable, Sendable {
             return nil
         }
     }
+    
+    func displayTitle(for locale: Locale) -> String {
+        switch self {
+        case .healthKit(let sampleType):
+            sampleType.localizedTitle(in: locale.language) ?? sampleType.displayTitle
+        case .custom(let sampleType):
+            sampleType.displayTitle.localizedString(for: locale)
+        }
+    }
 }
 
 
@@ -246,7 +275,7 @@ struct QuantitySample: Hashable, Identifiable, Sendable {
     let startDate: Date
     let endDate: Date
     
-    var timeRange: Range<Date> {
+    var timeRange: Swift.Range<Date> {
         startDate..<endDate
     }
     
@@ -307,12 +336,5 @@ struct QuantitySample: Hashable, Identifiable, Sendable {
         } else {
             return "\(quantity.doubleValue(for: unit).formatted(.number.precision(.fractionLength(0...2)))) \(unit.unitString)"
         }
-    }
-}
-
-
-extension Range where Bound == Date {
-    var timeInterval: TimeInterval {
-        upperBound.timeIntervalSince(lowerBound)
     }
 }

@@ -30,6 +30,7 @@ struct UCUM: CodingProtocol {
 extension UCUM {
     static let second = Self(code: "s", unit: "s", display: "second")
     static let meter = Self(code: "m", unit: "m", display: "meter")
+    static let mmHg = Self(code: "mm[Hg]", unit: "mmHg", display: "mmHg")
 }
 
 

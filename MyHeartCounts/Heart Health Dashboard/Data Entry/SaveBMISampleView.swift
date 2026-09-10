@@ -32,6 +32,8 @@ struct SaveBMISampleView: View {
     private var healthKit
     @Environment(\.dismiss)
     private var dismiss
+    @Environment(MyHeartCountsStandard.self)
+    private var standard
     
     private let bmiSampleType = SampleType.bodyMassIndex
     private let weightSampleType = SampleType.bodyMass
@@ -171,6 +173,22 @@ struct SaveBMISampleView: View {
                 end: date
             ))
         }
-        try await healthKit.save(samples)
+        try? await healthKit.save(samples)
+        let response = try SaveQuantitySampleView.singleSampleDataEntryQuestionnaireResponse(
+            for: { () -> SaveQuantitySampleView.Input in
+                if let height, let weight {
+                    .bmi(
+                        bmi: bmi,
+                        measurements: (
+                            height: HKQuantity(unit: heightUnit, doubleValue: height),
+                            weight: HKQuantity(unit: weightUnit, doubleValue: weight)
+                        )
+                    )
+                } else {
+                    .bmi(bmi: bmi, measurements: nil)
+                }
+            }()
+        )
+        await standard.add(response, for: .bmi)
     }
 }

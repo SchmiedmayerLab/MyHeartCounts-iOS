@@ -42,20 +42,12 @@ extension LaunchOptions {
 }
 
 
-extension Version: LaunchOptionDecodable, LaunchOptionEncodable {
-    public init(decodingLaunchOption context: LaunchOptionDecodingContext) throws {
-        try context.assertNumRawArgs(.equal(1))
-        let raw = context.rawArgs[0]
-        if let version = Version(raw) {
-            self = version
-        } else {
-            throw LaunchOptionDecodingError.unableToDecode(Self.self, rawValue: raw)
-        }
-    }
+extension LaunchOptions {
+    /// Forces the app to use the new questionnaire UI from SpeziQuestionnaire, instead of using the legacy ResearchKit-based UI.
+    public static let useNewQuestionnaireUI = LaunchOption<Bool>("--useNewQuestionnaireUI", default: false)
     
-    public func launchOptionArgs(for launchOption: LaunchOption<Version>) -> [String] {
-        [launchOption.key, self.description]
-    }
+    /// Manual data entry in the dashboard should use questionnaires instead of the dedicated quantity sample entry forms.
+    public static let dashboardDataEntryUsesQuestionnaires = LaunchOption<Bool>("--dashboardDataEntryUsesQuestionnaires", default: false)
 }
 
 #endif
