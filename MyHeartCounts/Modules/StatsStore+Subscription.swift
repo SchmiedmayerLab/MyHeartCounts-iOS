@@ -210,6 +210,11 @@ extension StatsStore {
             onChange?(.success(snapshot))
         }
 
+        // needed as a workaround for https://github.com/swiftlang/swift/issues/87462
+        // can be removed when Swift 6.4 is released.
+        #if compiler(<6.4)
+        @_optimize(none)
+        #endif
         isolated deinit {
             processingTask?.cancel()
             controller.stop()
