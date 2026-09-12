@@ -16,12 +16,25 @@ import SpeziHealthKitUI
 extension StatsStore {
     /// Pure processing shared by one-shot reads, live subscriptions, and SwiftUI queries.
     enum Processor {
+        enum Event {
+            case workout(StatsDocument.Workout)
+            case electrocardiogram(StatsDocument.Electrocardiogram)
+
+            var endDate: Date {
+                switch self {
+                case .workout(let entry): entry.endDate
+                case .electrocardiogram(let entry): entry.endDate
+                }
+            }
+        }
+
         struct Value {
             var range: Range<Date>
             var amount: Double
             var secondaryAmount: Double?
             var average: StatsDocument.Average?
             var sources: Set<StatsDocument.SourceID>
+            var event: Event?
         }
 
         private struct Selection {
@@ -149,7 +162,7 @@ extension StatsStore.Processor {
                         malformedEntries += 1
                         continue
                     }
-                    guard overlaps(range, input.timeRange) else {
+                    guard overlaps(range, input.timeRange), value.event.map({ $0.endDate < input.timeRange.upperBound }) ?? true else {
                         continue
                     }
                     values.append(value)
@@ -189,17 +202,32 @@ extension StatsStore.Processor {
         }
         let amounts: (primary: Double, secondary: Double?)?
         var average: StatsDocument.Average?
+        var event: Event?
         switch entry {
         case .aggregate(let aggregate):
-            guard input.metricID != "blood-pressure", let values = aggregateValues(aggregate.values, kind: input.aggregationKind) else {
+            guard !["blood-pressure", "workouts", "electrocardiograms"].contains(input.metricID),
+                  let values = aggregateValues(aggregate.values, kind: input.aggregationKind) else {
                 return nil
             }
             amounts = (values.amount, nil)
             average = values.average
         case .quantity(let quantity):
-            amounts = input.metricID == "blood-pressure" ? nil : (quantity.value, nil)
+            amounts = ["blood-pressure", "workouts", "electrocardiograms"].contains(input.metricID) ? nil : (quantity.value, nil)
         case .bloodPressure(let pressure):
             amounts = input.metricID == "blood-pressure" ? (pressure.systolic, pressure.diastolic) : nil
+        case .workout(let workout):
+            guard input.metricID == "workouts", !workout.id.isEmpty, workout.endDate >= workout.date,
+                  workout.duration.isFinite, workout.duration >= 0 else {
+                return nil
+            }
+            amounts = (workout.duration, nil)
+            event = .workout(workout)
+        case .electrocardiogram(let electrocardiogram):
+            guard input.metricID == "electrocardiograms", !electrocardiogram.id.isEmpty, electrocardiogram.endDate >= electrocardiogram.date else {
+                return nil
+            }
+            amounts = (1, nil)
+            event = .electrocardiogram(electrocardiogram)
         }
         guard let amounts, amounts.primary.isFinite, amounts.secondary?.isFinite != false else {
             return nil
@@ -207,21 +235,22 @@ extension StatsStore.Processor {
         func converted(_ amount: Double) -> Double {
             HKQuantity(unit: entry.unit, doubleValue: amount).doubleValue(for: input.unit)
         }
-        let convertedAverage = average.map { average in
-            // Convert the mean, not the numerator: this also handles unit conversions with an offset.
-            StatsDocument.Average(
-                numerator: converted(average.numerator / average.denominator) * average.denominator,
-                denominator: average.denominator,
-                weighting: average.weighting
-            )
-        }
         return Value(
             range: range,
             amount: converted(amounts.primary),
             secondaryAmount: amounts.secondary.map(converted),
-            average: convertedAverage,
-            sources: [source]
+            average: convertedAverage(average, from: entry.unit, to: input.unit),
+            sources: [source],
+            event: event
         )
+    }
+
+    private static func convertedAverage(_ average: StatsDocument.Average?, from sourceUnit: HKUnit, to unit: HKUnit) -> StatsDocument.Average? {
+        average.map { average in
+            // Convert the mean, not the numerator: this also handles unit conversions with an offset.
+            let mean = HKQuantity(unit: sourceUnit, doubleValue: average.numerator / average.denominator).doubleValue(for: unit)
+            return StatsDocument.Average(numerator: mean * average.denominator, denominator: average.denominator, weighting: average.weighting)
+        }
     }
 
     private static func aggregateValues(
@@ -275,7 +304,7 @@ extension StatsStore.Processor {
 // MARK: Source Selection
 
 extension StatsStore.Processor {
-    private static func selectedValues(documents: [StatsDocument], input: Input, diagnostics: inout [StatsStore.Diagnostic]) throws -> [Value] {
+    static func selectedValues(documents: [StatsDocument], input: Input, diagnostics: inout [StatsStore.Diagnostic]) throws -> [Value] {
         var selected = Selection()
         for value in values(documents: documents, input: input, diagnostics: &diagnostics) {
             let conflicts = conflictingIndices(for: value, in: selected)

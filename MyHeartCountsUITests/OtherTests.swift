@@ -44,8 +44,7 @@ final class OtherTests: MHCTestCase, Sendable {
     func testLaunchKeepingData() throws {
         let credentials: SetupTestEnvironmentConfig.Credentials = .random()
         try launchAppAndEnrollIntoStudy(
-            testEnvironmentConfig: .init(resetExistingData: true, loginAndEnroll: .enable(credentials)),
-            skipGoingToHomeTab: true
+            testEnvironmentConfig: .init(resetExistingData: true, loginAndEnroll: .enable(credentials))
         )
         XCTAssert(app.staticTexts["Completed"].waitForNonExistence(timeout: 2))
         app.buttons["Read Article: Welcome to My Heart Counts"].tap()

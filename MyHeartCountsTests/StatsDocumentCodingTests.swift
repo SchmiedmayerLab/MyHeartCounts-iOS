@@ -141,6 +141,8 @@ struct StatsDocumentCodingTests {
             #expect(value.date == expectedDate)
             #expect(value.systolic == 120)
             #expect(value.diastolic == 80)
+        case .workout, .electrocardiogram:
+            Issue.record("Expected a non-event stats entry")
         }
     }
 

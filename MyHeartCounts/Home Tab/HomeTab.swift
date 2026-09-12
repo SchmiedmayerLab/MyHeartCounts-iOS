@@ -39,6 +39,9 @@ struct HomeTab: RootViewTab {
             .navigationTitle("My Heart Counts")
             .toolbar {
                 accountToolbarItem
+                ToolbarItem {
+                    ParticipationStatsButton()
+                }
             }
         }
     }

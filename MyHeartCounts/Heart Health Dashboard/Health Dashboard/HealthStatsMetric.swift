@@ -14,23 +14,28 @@ import SpeziHealthKit
 
 
 /// A metric for which the server-side stats documents exist (at `users/{uid}/stats/{metricId}/months/{yyyy-MM}`),
-/// and which maps onto a HealthKit quantity sample type displayed in the Health Dashboard.
+/// and which maps onto a HealthKit quantity sample type used by the dashboard or participation statistics.
 ///
-/// See `docs/MHCDataSpec.md` (§User Data Statistics / §Metrics) for the definition of the metrics and the documents' wire format;
+/// See `docs/StatsQueries.md` and `docs/ParticipationStats.md` for the query API and participation metrics;
 /// the write side lives in ``HealthKitStatsCalculator``.
 ///
-/// - Note: this intentionally only models the metrics that map onto `HKQuantitySample`-based dashboard tiles;
-///     sleep and blood pressure also have stats documents, but are displayed via dedicated tiles that don't go through
-///     the quantity-samples pipeline, and aren't (yet) covered by the stats-documents data source.
+/// Sleep, blood pressure, workouts, and ECGs use dedicated stats requests rather than the quantity-sample pipeline.
 struct HealthStatsMetric: Hashable, Sendable {
     static let steps = Self(id: .steps, sampleType: .stepCount)
     static let exerciseTime = Self(id: .exerciseTime, sampleType: .appleExerciseTime)
+    static let activeEnergy = Self(id: .activeEnergy, sampleType: .activeEnergyBurned)
+    static let walkingRunningDistance = Self(id: .walkingRunningDistance, sampleType: .distanceWalkingRunning)
+    static let flightsClimbed = Self(id: .flightsClimbed, sampleType: .flightsClimbed)
     static let heartRate = Self(id: .heartRate, sampleType: .heartRate)
+    static let restingHeartRate = Self(id: .restingHeartRate, sampleType: .restingHeartRate)
     static let weight = Self(id: .weight, sampleType: .bodyMass)
     static let height = Self(id: .height, sampleType: .height)
     static let bmi = Self(id: .bmi, sampleType: .bodyMassIndex)
     
-    static let all: [Self] = [.steps, .exerciseTime, .heartRate, .weight, .height, .bmi]
+    static let all: [Self] = [
+        .steps, .exerciseTime, .activeEnergy, .walkingRunningDistance, .flightsClimbed,
+        .heartRate, .restingHeartRate, .weight, .height, .bmi
+    ]
     
     /// The metric's well-known identifier, as used in the stats document paths and the documents' `metric` field.
     let id: HealthKitStatsCalculator.MetricID

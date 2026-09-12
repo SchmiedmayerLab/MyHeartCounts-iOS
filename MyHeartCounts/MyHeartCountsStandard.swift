@@ -48,6 +48,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
     @Dependency(AppState.self) private var appState
+    @Dependency(AchievementsManager.self) var achievementsManager: AchievementsManager?
     @Dependency(HealthKitStatsCalculator.self) private var healthKitStatsCalc: HealthKitStatsCalculator?
     @Dependency(StatsStore.self) private var statsStore: StatsStore?
     @Application(\.registerRemoteNotifications) private var registerRemoteNotifications
@@ -81,10 +82,8 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     }
     
     func enroll(in studyBundle: StudyBundle) async throws {
-        guard let account, let studyManager else {
-            throw NSError(domain: "edu.stanford.MyHeartCounts", code: 0, userInfo: [
-                NSLocalizedDescriptionKey: "Missing Account / StudyManager"
-            ])
+        guard let account, await account.signedIn, let studyManager else {
+            throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing Account / StudyManager")
         }
         do {
             if let enrollmentDate = await account.details?.dateOfEnrollment {
@@ -106,9 +105,16 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                 assert(account.details?.dateOfEnrollment != nil)
             }
             LocalPreferencesStore.standard[.studyActivationDate] = .now
-            _Concurrency.Task(priority: .background) {
+            Swift::Task(priority: .background) {
                 historicalUploadManager.startAutomaticExportingIfNeeded()
                 healthKitStatsCalc?.start()
+                // the .associatedAccount event below will already have called this, but it likely will have failed,
+                // since there was an account logged in, but the enrollment didn't exist yet at that point.
+                // so we call it again after creating the enrollment.
+                // this only is relevant if the user wasn't logged in and enrolled when the app was launched.
+                // all subsequent launches will go only through the `associateWithAccount()` call below, and will work correctly
+                // bc both the account and the enrollment will exist in these cases.
+                try await achievementsManager?.associateWithAccount()
             }
             await Self._updateCurrentEnrollmentInfo(studyManager)
         } catch StudyManager.StudyEnrollmentError.alreadyEnrolledInNewerStudyRevision {
@@ -135,12 +141,15 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                 }
             }
             await managedFileUpload.resumePendingUploads()
-            _Concurrency.Task {
-                await environmentTracking?.triggerAll()
-                _ = try? await registerRemoteNotifications()
+            Swift::Task {
+                async let updateEnvTracking = environmentTracking?.triggerAll()
+                async let registerNotifications = try? registerRemoteNotifications()
+                async let syncAchievements = try? achievementsManager?.associateWithAccount()
+                _ = await (updateEnvTracking, registerNotifications, syncAchievements)
             }
         case .deletingAccount:
             logger.notice("account is being deleted")
+            // not really doing anything in here since each deletion should also trigger an account disassociation, which will then be handled below
         case .disassociatingAccount:
             logger.notice("account did disassociate")
             do {
@@ -158,7 +167,10 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         logger.notice("account is being logged out")
         LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
         LocalPreferencesStore.standard[.accountDataGeneration] += 1
-        try? await notificationsManager.setFCMToken(nil)
+        async let updateFCMToken = try? notificationsManager.setFCMToken(nil)
+        async let syncAchievements = try? achievementsManager?.syncNow()
+        _ = await (updateFCMToken, syncAchievements)
+        await achievementsManager?.disassociateFromAccount()
     }
 }
 
@@ -221,6 +233,8 @@ extension MyHeartCountsStandard {
         // (flag first, then bump: a concurrent reader that snapshots the new generation must never see the flag still unset.)
         LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
         LocalPreferencesStore.standard[.accountDataGeneration] += 1
+        // Account deletion and forced sign-outs bypass the achievement teardown in willLogOut.
+        await achievementsManager?.disassociateFromAccount()
         switch context {
         case .explicitUserLogoutEvent:
             await appState.setIsLoggingOut(true)
@@ -307,7 +321,7 @@ extension MyHeartCountsStandard {
     private func clearPendingAccountData() async throws {
         await healthUploadStagingUploader.cancelAndWaitForQuiescence()
         await sensorKitFetcher.cancelAllActiveCollection()
-        
+
         func attempt(_ name: String, _ operation: () async throws -> Void) async -> Bool {
             do {
                 try await operation()

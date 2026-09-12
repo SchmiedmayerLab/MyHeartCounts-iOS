@@ -11,7 +11,6 @@ import PackageDescription
 
 
 var packageDeps: [Package.Dependency] = [
-    // Pins the study-bundle feature revision until the next Spezi release.
     .package(url: "https://github.com/SchmiedmayerLab/Spezi.git", .upToNextMinor(from: "0.2.1")),
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.93.0"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0")

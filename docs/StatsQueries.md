@@ -16,7 +16,7 @@ Query API types are nested under `StatsStore`, including `Request`, `Snapshot`, 
 
 The [User Data Statistics section of the MHC data spec](MHCDataSpec.md#user-data-statistics) is authoritative for storage locations, monthly document structure, source identifiers, and entry fields, including [optional average metadata](MHCDataSpec.md#optional-average-metadata).
 
-The HealthKit writer and stats reader share the `StatsDocument.Aggregate`, `.Quantity`, and `.BloodPressure` entry payloads. `StatsDocument.Entry` wraps them in `.aggregate`, `.quantity`, and `.bloodPressure` enum cases. Aggregates contain either a sum or a min/max/average summary, with optional average weights on the summary. Custom coding preserves the existing flat JSON fields without adding enum case names. Invalid entry shapes, dates, or units are skipped and counted while the rest of the month remains readable.
+The HealthKit writer and stats reader share the `StatsDocument.Aggregate`, `.Quantity`, `.BloodPressure`, `.Workout`, and `.Electrocardiogram` entry payloads. `StatsDocument.Entry` wraps them in corresponding enum cases. Aggregates contain either a sum or a min/max/average summary, with optional average weights on the summary. Custom coding preserves the existing flat JSON fields without adding enum case names. Invalid entry shapes, dates, or units are skipped and counted while the rest of the month remains readable.
 
 ```swift
 @Dependency(StatsStore.self) private var stats
@@ -60,13 +60,20 @@ private var samples: [QuantitySample]
 
 Metadata-only Firestore updates refresh `isFromCache` and `hasPendingWrites` without decoding the documents or rebuilding the processed samples. Changes to document data or the request still trigger processing.
 
-`StatsStore.Request.sleepSessions(in:sourcePolicy:)` and `.bloodPressure(in:sourcePolicy:)` have matching wrapper initializers. A preconstructed typed request can also be passed directly to `StatsDocumentsQuery`.
+`StatsStore.Request.sleepSessions(in:sourcePolicy:)` and `.bloodPressure(in:sourcePolicy:)` have matching wrapper initializers. `.workouts(in:sourcePolicy:)` and `.electrocardiograms(in:sourcePolicy:)` return typed event requests:
+
+```swift
+let workouts = try await stats.fetch(.workouts(in: .last(days: 7)))
+let recordings = try await stats.fetch(.electrocardiograms(in: .last(days: 7)))
+```
+
+Workout results preserve activity type and active duration, excluding pauses; ECG results preserve recording start and end dates. Both require the event's start and end inside the requested half-open range. A preconstructed typed request can also be passed directly to `StatsDocumentsQuery`.
 
 ## Source and interval policies
 
 Source selection is performed after filtering entries to the requested range. Default preference is HealthKit followed by the other source IDs in lexical order. Selection operates on individual buckets, so another source can fill missing buckets even when HealthKit has some data in the same month.
 
-Individual quantity and blood-pressure readings at different timestamps can coexist across sources. At the same timestamp, source preference resolves competing readings; `.mergeCompatible` throws instead. Multiple readings within a single source are retained. The reader does not track observation identities or remove copies at different timestamps.
+Individual quantity readings, blood-pressure readings, and workout/ECG events at different start timestamps can coexist across sources. At the same timestamp, source preference resolves competing readings; `.mergeCompatible` throws instead. Multiple readings within a single source are retained. Source selection does not track observation identities or remove copies at different timestamps; event IDs are retained only as result identity.
 
 Timestamp equality compares the exact parsed instant, including supplied fractional seconds; the reader does not truncate timestamps to whole seconds. The HealthKit stats writer currently emits whole-second dates, so a copy retaining a nonzero fractional part has a different timestamp and both readings remain in the result. HealthKit stats fetching does not yet exclude samples based on connected integrations; existing metric-specific filters still apply.
 

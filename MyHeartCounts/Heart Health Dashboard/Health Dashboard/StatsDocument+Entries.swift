@@ -13,7 +13,7 @@ import MyHeartCountsShared
 
 extension StatsDocument {
     private enum EntryCodingKeys: String, CodingKey {
-        case start, end, unit, sum, min, max, avg, average, date, value, systolic, diastolic
+        case start, end, unit, sum, min, max, avg, average, date, value, systolic, diastolic, id, endDate, duration, activityType
     }
 
     private enum WireFormat {
@@ -165,5 +165,108 @@ extension StatsDocument {
             try container.encode(systolic, forKey: .systolic)
             try container.encode(diastolic, forKey: .diastolic)
         }
+    }
+}
+
+
+extension StatsDocument {
+    /// The old event writer stored identity in a metadata object. Only its identity remains relevant when reading those months.
+    private struct LegacyEventIdentity: Decodable {
+        struct Identity: Decodable {
+            let observationID: String
+        }
+
+        let provenance: Identity
+    }
+
+    /// One workout, retaining active duration independently of its wall-clock interval.
+    struct Workout: Codable, Sendable {
+        let id: String
+        let date: Date
+        let endDate: Date
+        /// Seconds of active exercise, excluding pauses.
+        let duration: Double
+        let activityType: HKWorkoutActivityType
+
+        init(id: String, date: Date, endDate: Date, duration: Double, activityType: HKWorkoutActivityType) {
+            self.id = id
+            self.date = date
+            self.endDate = endDate
+            self.duration = duration
+            self.activityType = activityType
+        }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: EntryCodingKeys.self)
+            try WireFormat.requireShape(allowing: [.id, .date, .endDate, .unit, .value, .duration, .activityType], in: container)
+            id = try StatsDocument.eventIdentity(from: decoder, container: container)
+            date = try WireFormat.parseDate(container.decode(String.self, forKey: .date))
+            endDate = try WireFormat.parseDate(container.decode(String.self, forKey: .endDate))
+            duration = try container.decode(Double.self, forKey: .duration)
+            guard let activityType = HKWorkoutActivityType(rawValue: try container.decode(UInt.self, forKey: .activityType)) else {
+                throw DecodingError.dataCorruptedError(forKey: .activityType, in: container, debugDescription: "Invalid workout activity type")
+            }
+            self.activityType = activityType
+            let quantity = try HKQuantity(
+                unit: container.decode(HKUnit.self, forKey: .unit), doubleValue: container.decode(Double.self, forKey: .value)
+            )
+            guard !id.isEmpty, endDate >= date, duration.isFinite, duration >= 0, quantity.is(compatibleWith: .second()),
+                  abs(quantity.doubleValue(for: .second()) - duration) <= Swift.max(1, duration) * 1e-9 else {
+                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid workout stats entry"))
+            }
+        }
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: EntryCodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(date.formatted(WireFormat.dateFormat), forKey: .date)
+            try container.encode(endDate.formatted(WireFormat.dateFormat), forKey: .endDate)
+            try container.encode(HKUnit.second(), forKey: .unit)
+            try container.encode(duration, forKey: .value)
+            try container.encode(duration, forKey: .duration)
+            try container.encode(activityType.rawValue, forKey: .activityType)
+        }
+    }
+
+    /// One completed ECG recording; no waveform or classification is persisted in the stats document.
+    struct Electrocardiogram: Codable, Sendable {
+        let id: String
+        let date: Date
+        let endDate: Date
+
+        init(id: String, date: Date, endDate: Date) {
+            self.id = id
+            self.date = date
+            self.endDate = endDate
+        }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: EntryCodingKeys.self)
+            try WireFormat.requireShape(allowing: [.id, .date, .endDate, .unit, .value], in: container)
+            id = try StatsDocument.eventIdentity(from: decoder, container: container)
+            date = try WireFormat.parseDate(container.decode(String.self, forKey: .date))
+            endDate = try WireFormat.parseDate(container.decode(String.self, forKey: .endDate))
+            let quantity = try HKQuantity(
+                unit: container.decode(HKUnit.self, forKey: .unit), doubleValue: container.decode(Double.self, forKey: .value)
+            )
+            guard !id.isEmpty, endDate >= date, quantity.is(compatibleWith: .count()), quantity.doubleValue(for: .count()) == 1 else {
+                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid ECG stats entry"))
+            }
+        }
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: EntryCodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(date.formatted(WireFormat.dateFormat), forKey: .date)
+            try container.encode(endDate.formatted(WireFormat.dateFormat), forKey: .endDate)
+            try container.encode(HKUnit.count(), forKey: .unit)
+            try container.encode(1, forKey: .value)
+        }
+    }
+    private static func eventIdentity(from decoder: any Decoder, container: KeyedDecodingContainer<EntryCodingKeys>) throws -> String {
+        if let id = try container.decodeIfPresent(String.self, forKey: .id) {
+            return id
+        }
+        return try LegacyEventIdentity(from: decoder).provenance.observationID
     }
 }

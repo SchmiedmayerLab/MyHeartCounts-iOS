@@ -20,7 +20,6 @@ import SpeziLocalStorage
 import SpeziStudyDefinition
 import SwiftUI
 
-
 @Observable
 @MainActor
 final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
@@ -100,10 +99,12 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
     static let enableLiveActivities: Bool = true
     
     // swiftlint:disable attributes
+    @ObservationIgnored @Application(\.logger) private var logger
     @ObservationIgnored @StandardActor private var standard: MyHeartCountsStandard
     @ObservationIgnored @Dependency(WatchConnection.self) private var watchManager
     @ObservationIgnored @Dependency(LocalStorage.self) private var localStorage
     @ObservationIgnored @Dependency(Lifecycle.self) private var lifecycle
+    @ObservationIgnored @Dependency(AchievementsManager.self) private var achievements: AchievementsManager?
     // swiftlint:enable attributes
     
     private let hapticEngine = try? CHHapticEngine()
@@ -119,8 +120,7 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
     private(set) var relativeAltitudeMeasurements: [RelativeAltitudeMeasurement] = []
     private(set) var pedometerMeasurements: [PedometerData] = []
     private(set) var pedometerEvents: [PedometerEvent] = []
-    
-    
+
     func configure() {
         if let inProgressTest = try? localStorage.load(.inProgressTimedWalkTest) {
             try? localStorage.delete(.inProgressTimedWalkTest)
@@ -166,8 +166,7 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
             isRecoveredTest: false
         )
     }
-    
-    
+
     private func start(inProgressTest: TimedWalkingTestResult, isRecoveredTest: Bool) async throws(TestError) -> TimedWalkingTestResult? {
         switch state {
         case .idle:
@@ -212,8 +211,7 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
             throw error is CancellationError ? .cancelled : .other(error)
         }
     }
-    
-    
+
     private func recover(_ inProgressTest: TimedWalkingTestResult) async throws {
         let isStillOngoing = inProgressTest.endDate > .now
         if isStillOngoing {
@@ -225,8 +223,7 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
             _ = try await stop(inProgressTest: inProgressTest, isRecoveredTest: true)
         }
     }
-    
-    
+
     func stop(discardResult: Bool = false) async throws -> TimedWalkingTestResult? {
         switch state {
         case .idle:
@@ -244,8 +241,9 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
             return try await finalizationTask.value
         }
     }
+}
 
-
+extension TimedWalkingTest {
     private func finalize(_ session: ActiveSession, discardResult: Bool) async throws -> TimedWalkingTestResult? {
         try? localStorage.delete(.inProgressTimedWalkTest)
         defer {
@@ -259,13 +257,26 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
         }
         result = try await stop(inProgressTest: result, isRecoveredTest: false)
         if !discardResult {
-            try? await standard.uploadHealthObservation(result)
+            if let achievements {
+                switch result.test {
+                case .sixMinuteWalkTest:
+                    achievements.record(.complete6MinWalkTest, timestamp: result.endDate)
+                case .twelveMinuteRunTest:
+                    achievements.record(.complete12MinRunTest, timestamp: result.endDate)
+                default:
+                    break
+                }
+            }
+            do {
+                try await standard.uploadHealthObservation(result)
+            } catch {
+                logger.error("Uploading TimedWalkTest failed: \(error)")
+            }
             return result
         }
         return nil
     }
-    
-    
+
     /// Stops an in-progress test.
     ///
     /// - returns: The actual result of the test.
@@ -319,10 +330,7 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
         }
         return result
     }
-}
 
-
-extension TimedWalkingTest {
     private func vibrate() throws {
         guard let engine = hapticEngine else {
             return
@@ -349,7 +357,6 @@ extension TimedWalkingTest {
         }
     }
 }
-
 
 extension TimedWalkingTest {
     private func startPhoneSensorDataCollection(for session: ActiveSession) {
@@ -404,7 +411,6 @@ extension TimedWalkingTest {
     }
 }
 
-
 extension TimedWalkingTest {
     @discardableResult
     private func startLiveActivity(for test: TimedWalkingTestResult) async -> LiveActivity? {
@@ -438,7 +444,6 @@ extension TimedWalkingTest {
         }
     }
 }
-
 
 // MARK: Permission Handling
 
@@ -479,7 +484,6 @@ extension CMMotionManager {
         }
     }
 }
-
 
 // MARK: Persistence
 
