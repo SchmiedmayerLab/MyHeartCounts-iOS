@@ -6966,19 +6966,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Participation Stats cover all engagement and activity recorded.\n\nYour enrollment date is %1$(enrollmentDate)@."
+            "value" : "Participation Stats cover all engagement and activity recorded since you first enrolled into the study.\n\nYour enrollment date is %1$(enrollmentDate)@."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Participation Stats cover all engagement and activity recorded.\n\nYour enrolment date is %1$(enrollmentDate)@."
+            "value" : "Participation Stats cover all engagement and activity recorded since you first enrolled into the study.\n\nYour enrolment date is %1$(enrollmentDate)@."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las estadísticas de participación abarcan toda la interacción y actividad registradas.\n\nSu fecha de inscripción es %1$(enrollmentDate)@."
+            "value" : "Las estadísticas de participación abarcan toda la interacción y actividad registradas desde que se inscribió por primera vez en el estudio.\n\nSu fecha de inscripción es %1$(enrollmentDate)@."
           }
         }
       }

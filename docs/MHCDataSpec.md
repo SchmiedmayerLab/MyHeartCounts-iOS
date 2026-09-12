@@ -459,20 +459,43 @@ Not all data in the user's firestore tree is written by the app; the backend als
 
 ## User Data Statistics
 
-This section is the canonical storage and wire-format contract for monthly statistics documents. The documents retain precomputed values from each data source; consumers select sources and aggregate values when reading them. See [StatsQueries.md](StatsQueries.md) for the Swift API and source policies, and [StatsAggregation.md](StatsAggregation.md) for merge rationale and HealthKit limitations.
+This section is the starting point for MHC statistics and the canonical storage and wire-format contract for monthly statistics documents. These documents make precomputed metric data available to clients through the backend, including data that may be absent from a device's local health database. The format describes metrics and source contributions independently of the producer; HealthKit is the current iOS producer and supplies the concrete examples below.
 
-- In order to drive certain in-app functionality (e.g., the health dashboard), the app needs statistics computed/derived from the user's data
-- E.g.: the Heart Health Dashboard needs to know a bunch of data to compute its individual cardiovascular health scores
-- Since we have data sources beyond the on-device HealthKit data, we cannot implement this the easy/trivial way (by simply running a local on-device HKStatisticsQuery)
-- Solution: we maintain a series of well-known statistics documents, which store precomputed statistical values, that can be used by the client (eg the app) to compute whatever final statistics it needs
-- The purpose of these documents is to enable the app to be able to fetch *all* of the data it displays to the user from the cloud backend, instead of performing local fetches from e.g. HalthKit.
-- As such, we only need these stats documents for data that is being added into the app by multiple sources, and/or is not written directly into the firestore.
-- Conventions:
-  - each metric has a well-known, stable, kebab-case identifier (e.g. `steps`, `heart-rate`; see the metrics table below), which is used both in the stats document paths and in the documents' `metric` field
-    - note: these are deliberately *not* the HealthKit identifiers; the stats layer is source-agnostic
-  - timestamps are ISO8601 strings with a UTC offset. The current HealthKit writer emits whole-second timestamps with the device's local offset, since its bucket boundaries use local calendar time. The reader also accepts fractional seconds and compares the exact parsed instant; it does not truncate other writers' timestamps to whole seconds.
-  - numeric values are finite double-precision numbers
-  - all values are stored in fixed, locale-independent units (SI, resp. the metric's canonical unit; e.g. `count`, `count/min`, `kg`, `mmHg`), denoted by the entries' `unit` field; the client converts into locale-appropriate units for display
+### Concepts and current implementation
+
+Three related features use statistics:
+
+| Concept | Purpose | Data and persistence |
+| :------ | :------ | :------------------- |
+| Monthly metric statistics | Store reusable measurements, events, and aggregates, such as hourly steps or individual workouts. | Persisted at `/users/{uid}/stats/{metric}/months/YYYY-MM`, with each source's contribution stored separately. Consumers select sources and aggregate values when reading. |
+| Participation statistics | Show enrollment duration, task engagement, health totals, and highlights to the participant. | Computed in the app from the current study enrollment, local scheduler records, and monthly metric statistics. Totals and highlights have no separate persisted summary document. |
+| Achievement tracking | Record evidence and earned milestones, such as completing a task or reaching a step threshold. | The app evaluates achievement definitions and syncs trigger events, metric observations, and unlock dates to `/users/{uid}/achievementTracking/{studyId}`. This state has its own versioned schema. |
+
+Stored metric history can predate enrollment. Participation health queries use the start of the current enrollment's calendar day as their lower bound and summarize activity through the present; the same stored history can also serve dashboard queries for other date ranges. Daily totals displayed by a client can be computed from stored hourly buckets.
+
+Current engagement functionality:
+
+- Completed-task totals, questionnaire counts, articles read, and walk/run test counts come from local scheduler records for the study and enrollment range. The displayed ECG count comes from monthly ECG statistics.
+- App-launch streak tracking is not implemented. Its participation value is unavailable, and the streak cards are hidden.
+- Server-derived task-completion statistics are future work. They need synchronized task-completion evidence; their metric definitions and storage schema have not been established. Reusing the monthly metric format for future count aggregates is a possible extension, not a currently implemented contract.
+
+### Reading this documentation
+
+| Topic | Reference |
+| :---- | :-------- |
+| Document locations, complete wrapper, sources, and collection types | [High-level structure](#high-level-structure) and [entry collections](#entry-collections) below |
+| Individual entry fields and metric-specific examples | [Entry shapes](#entry-shapes), [workout and ECG events](#workout-and-ecg-events), [hourly summaries](#non-cumulative-metric-stats-document), [hourly sums](#cumulative-metric-stats-document), and [individual samples](#individual-samples-metric-stats-document) below |
+| Available metrics and units | [Metrics](#metrics) below |
+| Source selection, compatible aggregation, and average metadata | [StatsAggregation.md](StatsAggregation.md) and the [average metadata contract](#optional-average-metadata) below |
+| Swift queries, live updates, and account lifecycle | [StatsQueries.md](StatsQueries.md) |
+| Participation calculations, event handling, and achievement updates | [ParticipationStats.md](ParticipationStats.md) |
+
+### Conventions
+
+- Each metric has a stable, kebab-case identifier, such as `steps` or `heart-rate`, used in both its path and its document's `metric` field. These identifiers belong to the shared stats contract and are independent of a producer's native identifiers.
+- Timestamps are ISO8601 strings with a UTC offset. The current HealthKit writer emits whole-second timestamps with the device's local offset, since its bucket boundaries use local calendar time. The reader also accepts fractional seconds and compares the exact parsed instant; it does not truncate other writers' timestamps to whole seconds.
+- Numeric values are finite double-precision numbers.
+- Values use fixed, locale-independent units, such as `count`, `count/min`, `kg`, or `mmHg`, recorded in each entry's `unit` field. Clients convert these values into locale-appropriate units for display.
 
 
 ### What data do we need?
@@ -509,13 +532,46 @@ Each document contains:
 | :---- | :------- |
 | `version` | Integer `0` for the current format. |
 | `metric` | The stable metric identifier used in the path, such as `steps` or `heart-rate`. |
-| Exactly one of `hourly`, `daily`, `sessions`, `samples` | An object mapping source identifiers to arrays of entries. `hourly`/`daily` hold interval buckets, `sessions` holds whole sleep sessions, and `samples` holds individual readings or workout/ECG events. |
+| Exactly one of `hourly`, `daily`, `sessions`, `samples` | An object mapping source identifiers to arrays of entries; see [entry collections](#entry-collections). |
+
+For example, this complete document at `/users/{uid}/stats/steps/months/2026-08` contains one hourly step-count entry from HealthKit:
+
+```json
+{
+  "version": 0,
+  "metric": "steps",
+  "hourly": {
+    "com.apple.HealthKit": [
+      {
+        "start": "2026-08-10T07:00:00-07:00",
+        "end": "2026-08-10T08:00:00-07:00",
+        "unit": "count",
+        "sum": 2288
+      }
+    ]
+  }
+}
+```
+
+The `version` and `metric` fields describe the whole monthly document. The source map groups contributions within that document, and each array element is an individual entry with the fields defined below. Examples labeled as individual entries omit this outer wrapper.
 
 Source identifiers are strings. The current HealthKit writer uses `com.apple.HealthKit`; external source names such as `fitbit` in the examples are illustrative, not a claim that those integrations currently write stats documents. The source key identifies a contribution to the dataset, not necessarily a single physical device or an independent set of underlying observations.
 
 Storage preserves each source's contribution separately. A HealthKit refresh replaces only the `com.apple.HealthKit` array for that metric and month, preserving other sources. Confirmed deletions can clear that array; an empty read without deletion evidence does not erase existing data, and clearing a missing month does not create an empty document. Selection, gap filling, and compatible merging happen on reads; they do not rewrite the stored source arrays.
 
 The current quantity and blood-pressure HealthKit queries do not exclude samples imported by a separately connected provider. A reading can therefore occur in both the HealthKit contribution and an external provider's contribution. Connected-provider exclusion is deferred. Sleep retains its existing Apple-system-source filter by default, with a launch option to include all HealthKit sleep sources. Source-selection details and the resulting pooling limitations are documented in [StatsQueries.md](StatsQueries.md) and [StatsAggregation.md](StatsAggregation.md).
+
+
+#### Entry collections
+
+The collection key describes how entries represent time. The entry shape defines the fields within each array element.
+
+| Collection | Time representation | Current use |
+| :--------- | :------------------ | :---------- |
+| `hourly` | Hourly interval buckets containing sums or min/max/average summaries. | Steps, exercise time, active energy, walking/running distance, flights climbed, and heart rate. |
+| `daily` | Daily interval buckets containing sums or min/max/average summaries. | Supported by the reader; the current HealthKit writer does not produce this collection. Clients can derive daily results from hourly entries. |
+| `sessions` | Variable-length intervals representing whole sessions. | Sleep sessions, with the amount of time asleep stored separately from the session's elapsed duration. |
+| `samples` | Individual measurements or events, with a timestamp or event start/end. | Weight, height, BMI, resting heart rate, blood pressure, workouts, and ECGs. |
 
 
 #### Entry shapes
@@ -732,22 +788,24 @@ Example: blood pressure, at `/users/{uid}/stats/blood-pressure/months/2026-08`
 
 ### Metrics
 
-| Metric           | Id               | Shape              | Time Range |
-| :--------------- | :--------------- | :----------------- | :--------- |
-| Step Count       | `steps`          | sum                | hourly     |
-| Exercise Minutes | `exercise-time`  | sum                | hourly     |
-| Heart Rate       | `heart-rate`     | min/max/avg        | hourly     |
-| Sleep Stats      | `sleep`          | sum                | per sleep session |
-| Blood Pressure   | `blood-pressure` | individual samples | —          |
-| Weight           | `weight`         | individual samples | —          |
-| Height           | `height`         | individual samples | —          |
-| BMI              | `bmi`            | individual samples | —          |
-| Active Energy | `active-energy` | sum | hourly |
-| Walking/Running Distance | `walking-running-distance` | sum | hourly |
-| Flights Climbed | `flights-climbed` | sum | hourly |
-| Resting Heart Rate | `resting-heart-rate` | individual samples | — |
-| Workouts | `workouts` | workout events | — |
-| Electrocardiograms | `electrocardiograms` | ECG events | — |
+The iOS HealthKit calculator implements writes for every metric below, subject to available data and read authorization. The unit column gives the writer's serialized unit strings; display units may differ. `Cal` denotes kilocalories and `hr` denotes hours. Other producers can use the same contract, but this table does not establish that a backend integration currently writes these documents.
+
+| Metric | ID | Collection | Entry shape | Stored unit |
+| :----- | :-- | :--------- | :---------- | :---------- |
+| Step Count | `steps` | `hourly` | Interval sum | `count` |
+| Exercise Minutes | `exercise-time` | `hourly` | Interval sum | `min` |
+| Heart Rate | `heart-rate` | `hourly` | Interval min/max/avg | `count/min` |
+| Sleep Stats | `sleep` | `sessions` | Interval sum | `hr` |
+| Blood Pressure | `blood-pressure` | `samples` | Blood-pressure pair | `mmHg` |
+| Weight | `weight` | `samples` | Individual quantity | `kg` |
+| Height | `height` | `samples` | Individual quantity | `cm` |
+| BMI | `bmi` | `samples` | Individual quantity | `count` |
+| Active Energy | `active-energy` | `hourly` | Interval sum | `Cal` |
+| Walking/Running Distance | `walking-running-distance` | `hourly` | Interval sum | `m` |
+| Flights Climbed | `flights-climbed` | `hourly` | Interval sum | `count` |
+| Resting Heart Rate | `resting-heart-rate` | `samples` | Individual quantity | `count/min` |
+| Workouts | `workouts` | `samples` | Workout | `s` |
+| Electrocardiograms | `electrocardiograms` | `samples` | Electrocardiogram | `count` |
 
 - Note: the survey-derived scores (Diet, Mental Well Being, Nicotine Exposure) and the custom quantity samples (LDL cholesterol, blood glucose) deliberately do *not* get stats documents: they are single-source data that is already stored directly in firestore, in queryable per-sample collections, so the app can simply fetch them from there (in line with the rule above)
 
