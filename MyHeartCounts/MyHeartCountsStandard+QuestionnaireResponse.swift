@@ -20,14 +20,20 @@ extension MyHeartCountsStandard {
     func add(
         isolation: isolated (any Actor)? = #isolation,
         _ response: ModelsR4.QuestionnaireResponse,
-        for questionnaire: ModelsR4.Questionnaire
+        for questionnaire: ModelsR4.Questionnaire? = nil
     ) async {
         // shouldn't be necessary, but we had some issues with these not being properly set
         var response = response
-        response.questionnaire = questionnaire.url?.value?.url.absoluteString.asFHIRCanonicalPrimitive()
+        if let questionnaire {
+            response.questionnaire = questionnaire.url?.value?.url.absoluteString.asFHIRCanonicalPrimitive()
+        }
         response.append(extension: .mhcAppRevision, behaviour: .replace)
         let logger = await self.logger
         let id = response.identifier?.value?.value?.string ?? UUID().uuidString
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let responseJson = String(decoding: try! encoder.encode(response), as: UTF8.self) // swiftlint:disable:this all
+        logger.notice("WILL UPLOAD: \(responseJson)")
         do {
             try await firebaseConfiguration.userDocumentReference
                 .collection("questionnaireResponses")

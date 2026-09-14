@@ -29,11 +29,11 @@
       shouldUseLaunchSchemeArgsEnv = "YES">
       <TestPlans>
          <TestPlanReference
-            reference = "container:MyHeartCountsTests/MyHeartCounts Unit Tests.xctestplan">
+            reference = "container:MyHeartCountsTests/MyHeartCounts Unit Tests.xctestplan"
+            default = "YES">
          </TestPlanReference>
          <TestPlanReference
-            reference = "container:MyHeartCountsUITests/MyHeartCounts UI Tests.xctestplan"
-            default = "YES">
+            reference = "container:MyHeartCountsUITests/MyHeartCounts UI Tests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
             reference = "container:MyHeartCountsUITests/MyHeartCounts Screenshots.xctestplan">
@@ -134,6 +134,14 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--dashboardConsiderAllSleepData"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--useNewQuestionnaireUI"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--dashboardDataEntryUsesQuestionnaires"
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
