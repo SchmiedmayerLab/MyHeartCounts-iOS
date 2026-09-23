@@ -265,6 +265,7 @@ struct HealthKitRetractionTests {
         )
 
         #expect(try Self.targets(in: graph).map(\.identifier) == [conversion.primary.identifiers.primaryOutput.identifier.value])
+        #expect(graph.bundle.id == conversion.primary.bundle.id)
     }
 
     /// HealthKit states no deletion time, so the retraction occurred when the anchored query reported
@@ -282,5 +283,6 @@ struct HealthKitRetractionTests {
 
         #expect(try occurred.value?.asNSDate() == Self.detectedAt)
         #expect(try provenance.recorded.value?.asNSDate() == Self.recordedAt)
+        #expect(graph.bundle.id?.value?.string == record.nativeRecordID.uuidString)
     }
 }

@@ -393,6 +393,8 @@ struct HealthSampleProcessingTests {
             limit: 100
         ) == nil)
         #expect(drainedSampleTypes == [SampleType.stepCount.id, SampleType.heartRate.id])
+        // Ingestion stores every Bundle under its id, so each one names the sample it came from.
+        #expect(Set(bundles.compactMap { $0.id?.value?.string }) == Set(newSamples.map(\.uuid.uuidString)))
         let observations = bundles.compactMap { bundle in
             bundle.entry?.lazy.compactMap { $0.resource?.get(if: Observation.self) }.first
         }

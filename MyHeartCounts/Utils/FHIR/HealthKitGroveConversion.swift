@@ -26,6 +26,14 @@ extension HealthKitConversionOptions {
 }
 
 
+extension RepositoryID {
+    /// The Firestore document id a HealthKit record's graph is stored under.
+    init(healthKitRecord uuid: UUID) throws {
+        try self.init(uuid.uuidString)
+    }
+}
+
+
 extension FHIRExchangeStateStore {
     /// Reserves and reconstructs the complete deterministic context for one HealthKit source version.
     func healthKitConversion(
@@ -48,7 +56,8 @@ extension FHIRExchangeStateStore {
                     for: event,
                     subject: subject,
                     repository: .healthKit,
-                    converterRole: mediated ? .gateway : .assembler
+                    converterRole: mediated ? .gateway : .assembler,
+                    repositoryIDs: [.bundle: RepositoryID(healthKitRecord: sample.uuid)]
                 ),
                 options: .myHeartCounts
             )

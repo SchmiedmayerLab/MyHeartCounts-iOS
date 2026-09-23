@@ -46,7 +46,8 @@ extension FHIRExchangeStateStore {
             event: try eventContext(
                 for: event,
                 subject: subject,
-                repository: .healthKit
+                repository: .healthKit,
+                repositoryIDs: [.bundle: RepositoryID(healthKitRecord: record.nativeRecordID)]
             ),
             options: .myHeartCounts
         )
