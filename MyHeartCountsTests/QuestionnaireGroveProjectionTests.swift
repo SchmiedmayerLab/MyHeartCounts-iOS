@@ -77,7 +77,7 @@ struct FHIRExchangeIdentityScopeTests {
             """.utf8))
         }
         let scope = try store.repositoryScope(.healthKit, subject: try Self.subject)
-        #expect(scope.systemValue == "https://myheartcounts.stanford.edu/fhir/identifiers/repository")
+        #expect(scope.system.rawValue == "https://myheartcounts.stanford.edu/fhir/identifiers/repository")
         #expect(scope.value == "healthkit:3f8a1d2e-4b5c-6d7e-8f90-a1b2c3d4e5f6:participant-1")
 
         let identity = try store.identityScope().sourceRecord(
@@ -86,7 +86,7 @@ struct FHIRExchangeIdentityScopeTests {
             repositoryScope: scope,
             nativeRecordID: "9512fc92-b514-4bcc-a157-050c41dac51d"
         )
-        #expect(identity.value == "v0:store:1:3_vdE_qomxipxpR-C7cSNp4tlxgrHrMUx9A-hYVz0n0")
+        #expect(identity.identifier.identifier.value == "v0:store:1:3_vdE_qomxipxpR-C7cSNp4tlxgrHrMUx9A-hYVz0n0")
     }
 
     @Test
@@ -111,8 +111,8 @@ struct FHIRExchangeIdentityScopeTests {
             repositoryScope: scopeTwo,
             nativeRecordID: "ABC"
         )
-        #expect(recordOne == recordTwo)
-        #expect(recordOne.value.hasPrefix("v0:store:1:"))
+        #expect(recordOne.identifier == recordTwo.identifier)
+        #expect(recordOne.identifier.identifier.value.hasPrefix("v0:store:1:"))
     }
 }
 
@@ -223,9 +223,8 @@ struct QuestionnaireHealthKitProjectionTests {
     private static func samples(
         questionnaire: Questionnaire,
         response: QuestionnaireResponse,
-        store: FHIRExchangeStateStore = FHIRExchangeStateStore(),
-        onRefusal: (any Error) -> Void = { _ in }
-    ) throws -> [HKSample] {
+        store: FHIRExchangeStateStore = FHIRExchangeStateStore()
+    ) throws -> ConversionBatch<HKSample, HealthKitSampleProjectionFailure> {
         var response = response
         response.apply(writerContext: try .current(
             applicationIdentifierSystem: FHIRExchangeIdentifiers.application
@@ -243,14 +242,14 @@ struct QuestionnaireHealthKitProjectionTests {
             response: response,
             context: reservation.context
         )
-        return HealthKitSampleProjection.samples(in: graph, onRefusal: onRefusal)
+        return graph.healthKitSamples()
     }
 
     @Test
     func bloodPressureBuildsOneCorrelationWithTwoComponents() throws {
         let (questionnaire, response) = try Self.pair()
         let store = FHIRExchangeStateStore()
-        let samples = try Self.samples(questionnaire: questionnaire, response: response, store: store)
+        let samples = try Self.samples(questionnaire: questionnaire, response: response, store: store).conversions
         let correlation = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
         #expect(correlation.correlationType == HKCorrelationType(.bloodPressure))
         // Asserted per component type: an unordered value set cannot tell a swap from a match.
@@ -270,7 +269,7 @@ struct QuestionnaireHealthKitProjectionTests {
         let syncID = try #require(correlation.metadata?[HKMetadataKeySyncIdentifier] as? String)
         #expect(syncID.hasPrefix("v0:store:1:"))
         let again = try Self.samples(questionnaire: questionnaire, response: response, store: store)
-        let repeated = try #require(again.compactMap { $0 as? HKCorrelation }.first)
+        let repeated = try #require(again.conversions.compactMap { $0 as? HKCorrelation }.first)
         #expect(repeated.metadata?[HKMetadataKeySyncIdentifier] as? String == syncID)
     }
 
@@ -286,18 +285,9 @@ struct QuestionnaireHealthKitProjectionTests {
     @Test
     func oneUnprojectableMeasurementStillYieldsTheOthers() throws {
         let (questionnaire, response) = try Self.pair()
-        var refusals: [any Error] = []
-        let samples = try Self.samples(
-            questionnaire: questionnaire,
-            response: response,
-            onRefusal: { refusals.append($0) }
-        )
-        #expect(samples.compactMap { $0 as? HKCorrelation }.count == 1)
-        #expect(refusals.count == 1)
-        #expect(
-            refusals.first as? HealthKitSampleProjectionError
-                == .measurementNotMappable(id: "bone-mass")
-        )
+        let samples = try Self.samples(questionnaire: questionnaire, response: response)
+        #expect(samples.conversions.compactMap { $0 as? HKCorrelation }.count == 1)
+        #expect(samples.failures.map(\.error) == [.measurementNotMappable(id: "bone-mass")])
     }
 
     @Test

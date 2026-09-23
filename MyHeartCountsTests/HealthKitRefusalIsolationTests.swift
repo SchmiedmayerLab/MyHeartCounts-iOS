@@ -68,9 +68,11 @@ struct HealthKitRefusalIsolationTests {
 
         #expect(payload.entries.isEmpty)
         #expect(payload.refusals.map(\.sourceID) == [sample.uuid])
-        #expect(payload.refusals.first?.reason == .componentSampleRequiresCorrelation(
-            sampleType: HKQuantityTypeIdentifier.bloodPressureSystolic.rawValue
-        ))
+        #expect(payload.refusals.first?.reason == .componentRequiresCorrelation(.bloodPressureSystolic))
+        #expect(
+            payload.refusals.first?.reason.diagnostic.code
+                == ExchangeGraphRule.healthkitInputComponentRequiresCorrelation.rawValue
+        )
     }
 
     /// A refusal has no graph to reproduce, so it releases its reservation rather than leaving the
@@ -94,18 +96,7 @@ struct HealthKitRefusalIsolationTests {
                 nativeRecordID: sample.uuid
             ),
             recordedAt: Self.start,
-            facts: FHIRExchangeEventFacts(
-                applicationToken: "edu.stanford.MyHeartCounts",
-                applicationName: "My Heart Counts",
-                applicationVersion: "1",
-                applicationBuild: "1",
-                hostToken: "host",
-                hostOperatingSystemVersion: "26.0",
-                hostName: nil,
-                hostManufacturer: "Apple",
-                hostModelNumber: nil,
-                researchStudyIDs: []
-            )
+            facts: .current()
         )
         #expect(laterEvent.sequence == 2)
     }

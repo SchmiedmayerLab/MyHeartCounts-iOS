@@ -8,7 +8,6 @@
 
 import Foundation
 import GroveFHIRContract
-import GroveHealthKitFHIR
 import GroveQuestionnaireFHIR
 import ModelsR4
 
@@ -27,15 +26,15 @@ extension FHIRExchangeStateStore {
         conversionInstant: Date
     ) throws -> QuestionnaireConversionReservation {
         let eventKey = questionnaireEventKey(subject: subject, responseID: responseID)
-        let event = try event(key: eventKey, recordedAt: conversionInstant, facts: .current)
-        return try QuestionnaireConversionReservation(
+        let event = try event(key: eventKey, recordedAt: conversionInstant, facts: .current())
+        let scope = try identityScope()
+        return QuestionnaireConversionReservation(
             eventKey: eventKey,
             context: QuestionnaireExtractionContext(
                 patient: Patient(identifier: [subject.identity.fhirIdentifier]),
-                eventIdentifier: eventIdentifier(for: event),
-                identityScope: identityScope(),
-                repositoryScope: repositoryScope(.questionnaire, subject: subject),
-                entryNodeIdentifierSystem: FHIRExchangeIdentifiers.entryNode,
+                eventIdentifier: try eventIdentifier(for: event, in: scope),
+                identityScope: scope,
+                repositoryScope: try repositoryScope(.questionnaire, subject: subject),
                 conversionInstant: event.recordedAt
             )
         )

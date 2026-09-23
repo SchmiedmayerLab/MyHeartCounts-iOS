@@ -250,7 +250,7 @@ extension TasksList {
             do {
                 questionnaire = try GroveQuestionnaire.Questionnaire(
                     fhirQuestionnaire,
-                    evaluationInstant: .now,
+                    clock: .live(in: .current),
                     using: .init(locale: studyManager.preferredLocale)
                 )
             } catch {

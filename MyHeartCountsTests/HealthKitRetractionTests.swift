@@ -27,7 +27,16 @@ struct HealthKitRetractionTests {
         let role: String?
     }
 
-    private static let deletedAt = Date(timeIntervalSince1970: 1_788_000_000)
+    /// The addition path's own coordinates for one spelled-out output.
+    private struct Output {
+        let role: String
+        let discriminator: String
+        let resourceType: ResourceType
+        let targetRole: RetractionTargetRole
+    }
+
+    private static let detectedAt = Date(timeIntervalSince1970: 1_788_000_000)
+    private static let recordedAt = Date(timeIntervalSince1970: 1_788_000_060)
 
     private static var subject: FHIRExchangeSubject {
         get throws {
@@ -44,7 +53,7 @@ struct HealthKitRetractionTests {
         HealthKitDeletedRecord(
             sourceTypeIdentifier: sourceType,
             nativeRecordID: try #require(UUID(uuidString: "9512FC92-B514-4BCC-A157-050C41DAC51D")),
-            deletedAt: deletedAt
+            detectedAt: detectedAt
         )
     }
 
@@ -75,24 +84,32 @@ struct HealthKitRetractionTests {
         }
     }
 
+    private static func sourceRecord(
+        of record: HealthKitDeletedRecord,
+        in store: FHIRExchangeStateStore,
+        subject: FHIRExchangeSubject
+    ) throws -> SourceRecordIdentity {
+        try store.identityScope().sourceRecord(
+            adapterID: "healthkit",
+            sourceType: record.sourceTypeIdentifier,
+            repositoryScope: try store.repositoryScope(.healthKit, subject: subject),
+            nativeRecordID: record.nativeRecordID.uuidString.lowercased()
+        )
+    }
+
     /// The target the addition path's own coordinates produce for one spelled-out output.
     private static func expected(
-        _ output: HealthKitRetraction.Output,
+        _ output: Output,
         of record: HealthKitDeletedRecord,
         in store: FHIRExchangeStateStore,
         subject: FHIRExchangeSubject
     ) throws -> DescribedTarget {
-        let identifier = try store.identityScope().sourceOutput(
-            adapterID: "healthkit",
-            sourceType: record.sourceTypeIdentifier,
-            repositoryScope: try store.repositoryScope(.healthKit, subject: subject),
-            nativeRecordID: record.nativeRecordID.uuidString.lowercased(),
-            outputRole: output.role,
-            outputDiscriminator: output.discriminator
-        )
+        let identifier = try sourceRecord(of: record, in: store, subject: subject)
+            .output(role: output.role, discriminator: output.discriminator)
+            .identifier
         return DescribedTarget(
             identifier: identifier.value,
-            system: identifier.systemValue,
+            system: identifier.system.rawValue,
             resourceType: output.resourceType.rawValue,
             role: output.targetRole.rawValue
         )
@@ -103,7 +120,7 @@ struct HealthKitRetractionTests {
         in store: FHIRExchangeStateStore,
         subject: FHIRExchangeSubject
     ) throws -> ExchangeGraph {
-        try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: deletedAt)).graph
+        try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: recordedAt)).graph
     }
 
     @Test
@@ -112,14 +129,9 @@ struct HealthKitRetractionTests {
         let subject = try Self.subject
         let record = try Self.record()
         let graph = try Self.retraction(of: record, in: store, subject: subject)
-        let expectedSourceRecord = try store.identityScope().sourceRecord(
-            adapterID: "healthkit",
-            sourceType: record.sourceTypeIdentifier,
-            repositoryScope: try store.repositoryScope(.healthKit, subject: subject),
-            nativeRecordID: record.nativeRecordID.uuidString.lowercased()
-        )
+        let expectedSourceRecord = try Self.sourceRecord(of: record, in: store, subject: subject)
         let expected = try Self.expected(
-            .init(role: "step-count", discriminator: "single", resourceType: .observation, targetRole: .primaryOutput),
+            Output(role: "step-count", discriminator: "single", resourceType: .observation, targetRole: .primaryOutput),
             of: record,
             in: store,
             subject: subject
@@ -127,7 +139,7 @@ struct HealthKitRetractionTests {
 
         #expect(
             try Self.provenance(in: graph).entity?.first?.what.identifier?.value?.value?.string
-                == expectedSourceRecord.value
+                == expectedSourceRecord.identifier.identifier.value
         )
         #expect(try Self.targets(in: graph) == [expected])
     }
@@ -157,7 +169,7 @@ struct HealthKitRetractionTests {
         let subject = try Self.subject
         let record = try Self.record(sourceType: HKWorkoutType.workoutType().identifier)
         let expected = try Self.expected(
-            .init(role: "workout", discriminator: "session", resourceType: .observation, targetRole: .primaryOutput),
+            Output(role: "workout", discriminator: "session", resourceType: .observation, targetRole: .primaryOutput),
             of: record,
             in: store,
             subject: subject
@@ -179,12 +191,7 @@ struct HealthKitRetractionTests {
         let subject = try Self.subject
         let record = try Self.record(sourceType: sourceType)
         let expected = try Self.expected(
-            .init(
-                role: "clinical-record",
-                discriminator: "single",
-                resourceType: .documentReference,
-                targetRole: .sourceArtifact
-            ),
+            Output(role: "clinical-record", discriminator: "single", resourceType: .documentReference, targetRole: .sourceArtifact),
             of: record,
             in: store,
             subject: subject
@@ -201,40 +208,15 @@ struct HealthKitRetractionTests {
         let subject = try Self.subject
         let record = try Self.record(sourceType: HKObjectType.electrocardiogramType().identifier)
         let expected = try [
-            Self.expected(
-                .init(
-                    role: "electrocardiogram",
-                    discriminator: "single",
-                    resourceType: .observation,
-                    targetRole: .primaryOutput
-                ),
-                of: record,
-                in: store,
-                subject: subject
-            ),
-            Self.expected(
-                .init(
-                    role: "average-heart-rate",
-                    discriminator: "single",
-                    resourceType: .observation,
-                    targetRole: .childOutput
-                ),
-                of: record,
-                in: store,
-                subject: subject
-            )
-        ]
+            Output(role: "electrocardiogram", discriminator: "single", resourceType: .observation, targetRole: .primaryOutput),
+            Output(role: "average-heart-rate", discriminator: "single", resourceType: .observation, targetRole: .childOutput)
+        ].map { try Self.expected($0, of: record, in: store, subject: subject) }
 
         #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == expected)
     }
 
-    /// A record class the app never exported has nothing to retract, so no event is spent on it.
-    ///
-    /// Routes and heartbeat series are recording documents the app has no fetch path for, while the
-    /// audiogram and food rows are published as supported though no converter binding emits them.
+    /// A record class Grove never exports has nothing to retract, so no event is spent on it.
     @Test(arguments: [
-        "HKWorkoutRouteTypeIdentifier",
-        "HKDataTypeIdentifierHeartbeatSeries",
         "HKVisionPrescriptionTypeIdentifier",
         "HKDataTypeIdentifierAudiogram",
         "HKCorrelationTypeIdentifierFood",
@@ -246,33 +228,11 @@ struct HealthKitRetractionTests {
         let retraction = try store.healthKitRetraction(
             of: try Self.record(sourceType: sourceType),
             subject: try Self.subject,
-            recordedAt: Self.deletedAt
+            recordedAt: Self.recordedAt
         )
 
         #expect(retraction == nil)
         #expect(try !store.hasPersistedStateForTesting)
-    }
-
-    /// The retraction re-derives its target from the table the converter mints from, so a row that
-    /// resolves to an Observation must resolve to one its own published measurements name.
-    @Test
-    func everyRetractedObservationRoleIsPublishedByItsOwnRow() throws {
-        let workout = HKWorkoutType.workoutType().identifier
-        for entry in HealthKitCatalog.entries {
-            guard let primary = HealthKitRetraction.outputs(forSourceType: entry.sourceTypeIdentifier).first,
-                  primary.resourceType == .observation else {
-                continue
-            }
-            #expect(
-                entry.measurements.map(\.id).contains(primary.role),
-                "\(entry.sourceTypeIdentifier) retracts '\(primary.role)', which its own row does not publish"
-            )
-            #expect(primary.targetRole == .primaryOutput)
-            #expect(
-                primary.discriminator == (entry.sourceTypeIdentifier == workout ? "session" : "single"),
-                "\(entry.sourceTypeIdentifier) retracts an unexpected output discriminator"
-            )
-        }
     }
 
     /// The end-to-end agreement the two halves of one record's lifecycle owe each other.
@@ -283,27 +243,44 @@ struct HealthKitRetractionTests {
         let sample = HKQuantitySample(
             type: HKQuantityType(.stepCount),
             quantity: HKQuantity(unit: .count(), doubleValue: 42),
-            start: Self.deletedAt,
-            end: Self.deletedAt + 60
+            start: Self.detectedAt - 3600,
+            end: Self.detectedAt - 3540
         )
         let conversion = try HealthKitConverter().convert(
             sample,
             context: try store.healthKitConversion(
                 for: sample,
                 subject: subject,
-                conversionInstant: Self.deletedAt
+                conversionInstant: Self.detectedAt - 3000
             ).context
         )
         let graph = try Self.retraction(
             of: HealthKitDeletedRecord(
                 sourceTypeIdentifier: sample.sampleType.identifier,
                 nativeRecordID: sample.uuid,
-                deletedAt: Self.deletedAt
+                detectedAt: Self.detectedAt
             ),
             in: store,
             subject: subject
         )
 
-        #expect(try Self.targets(in: graph).map(\.identifier) == [conversion.graphIdentifiers.primaryOutput.value])
+        #expect(try Self.targets(in: graph).map(\.identifier) == [conversion.primary.identifiers.primaryOutput.identifier.value])
+    }
+
+    /// HealthKit states no deletion time, so the retraction occurred when the anchored query reported
+    /// it and was recorded when the drain assembled it.
+    @Test
+    func retractionOccursAtDetectionAndIsRecordedAtAssembly() throws {
+        let store = FHIRExchangeStateStore()
+        let record = try Self.record()
+        let graph = try Self.retraction(of: record, in: store, subject: try Self.subject)
+        let provenance = try Self.provenance(in: graph)
+        guard case .dateTime(let occurred)? = provenance.occurred else {
+            Issue.record("A detected deletion occurs at one instant")
+            return
+        }
+
+        #expect(try occurred.value?.asNSDate() == Self.detectedAt)
+        #expect(try provenance.recorded.value?.asNSDate() == Self.recordedAt)
     }
 }

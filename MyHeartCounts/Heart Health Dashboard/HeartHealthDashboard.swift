@@ -14,6 +14,7 @@ import GroveHealthKit
 import GroveHealthKitUI
 import GroveQuestionnaire
 import GroveQuestionnaireFHIR
+import GroveQuestionnaireUI
 import GroveStudy
 import GroveViews
 import MHCStudyDefinition
@@ -292,7 +293,7 @@ private struct HealthDashboardQuestionnaireView: View {
         do {
             questionnaire = try GroveQuestionnaire.Questionnaire(
                 fhirQuestionnaire,
-                evaluationInstant: .now,
+                clock: .live(in: .current),
                 using: .init(locale: studyManager.preferredLocale)
             )
         } catch {

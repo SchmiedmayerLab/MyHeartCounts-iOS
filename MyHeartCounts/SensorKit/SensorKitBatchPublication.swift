@@ -9,7 +9,6 @@
 import Foundation
 import GroveFHIRContract
 import GroveFoundation
-import GroveHealthKitFHIR
 import GroveSensorKit
 import GroveSensorKitFHIR
 import MyHeartCountsShared
@@ -86,28 +85,16 @@ struct SensorKitBatchPublication: Sendable {
             batchKey: batchKey,
             sourceRecordID: sourceRecordID
         )
-        let event = try stateStore.event(key: eventKey, recordedAt: conversionInstant, facts: .current)
-        return try SensorKitRecordReservation(
+        let event = try stateStore.event(key: eventKey, recordedAt: conversionInstant, facts: .current())
+        return SensorKitRecordReservation(
             sourceRecordID: sourceRecordID,
             context: SensorKitConversionContext(
-                subject: subject.reference,
-                subjectIdentity: subject.identity,
-                converter: event.sensorApplication,
-                converterHost: event.sensorHost,
-                eventIdentifier: stateStore.eventIdentifier(for: event),
-                entryNodeIdentifierSystem: FHIRExchangeIdentifiers.entryNode,
-                identityScope: stateStore.identityScope(),
-                repositoryScope: stateStore.repositoryScope(.sensorKit, subject: subject),
+                event: try stateStore.eventContext(for: event, subject: subject, repository: .sensorKit),
                 visitLocationIdentifierSystem: FHIRExchangeIdentifiers.visitLocation,
                 sourceIdentifierDisclosurePolicy: .authorized(
                     system: FHIRExchangeIdentifiers.sensorKitSourceRecord
                 ),
-                recordingDevice: nil,
-                sourceTimeZone: event.sourceTimeZone,
-                conversionInstant: event.recordedAt,
-                researchStudies: FHIRExchangeIdentifiers.researchStudyReferences(
-                    for: event.facts.researchStudyIDs
-                )
+                sourceTimeZone: try event.sourceTimeZone
             )
         )
     }

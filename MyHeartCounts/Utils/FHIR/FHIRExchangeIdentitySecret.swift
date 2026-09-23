@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import CryptoKit
 import Foundation
 import GroveFHIRContract
 import GroveKeychainStorage
@@ -48,15 +49,19 @@ extension FHIRExchangeStateStore {
         return secret
     }
 
-    func identityScope() throws -> PseudonymousIdentityScope {
+    func identityScope() throws -> OpaqueIdentityScope {
         let secret = try identitySecret()
         let keyID = FHIRExchangeIdentifiers.identityKeyID
-        let epoch = try CanonicalPositiveDecimal(secret.epoch)
-        return try PseudonymousIdentityScope(
-            systems: FHIRExchangeIdentifiers.pseudonymousSystems(keyID: keyID, epoch: epoch),
+        let epoch = try EventSequence(String(secret.epoch))
+        return try OpaqueIdentityScope(
+            systems: DeploymentIdentifierSystems.derived(
+                root: FHIRExchangeIdentifiers.deploymentRoot,
+                keyID: keyID,
+                epoch: epoch
+            ),
             keyID: keyID,
             epoch: epoch,
-            key: secret.key
+            key: SymmetricKey(data: secret.key)
         )
     }
 

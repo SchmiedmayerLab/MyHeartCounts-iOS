@@ -157,7 +157,7 @@ private struct DebugFormImpl: View {
                     do {
                         let questionnaire = try GroveQuestionnaire.Questionnaire(
                             fhirQuestionnaire,
-                            evaluationInstant: .now,
+                            clock: .live(in: .current),
                             using: .init(locale: .init(identifier: "en-US"))
                         )
                         performTask(.answerQuestionnaire(questionnaire), context: nil)

@@ -8,12 +8,12 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveFHIRContract
 import GroveHealthKit
 import GroveHealthKitFHIR
 import HealthKit
 import ModelsR4
 import MyHeartCountsShared
-import Synchronization
 
 
 // swiftlint:disable:next file_types_order
@@ -149,8 +149,9 @@ extension HealthObservation {
         stateStore: FHIRExchangeStateStore
     ) -> PreparedHealthObservationFHIRPayload {
         try? stateStore.completeExchangeEvents(reservedEventKeys)
+        let diagnostic = reason.diagnostic
         logger.warning(
-            "Grove refused \(sample.sampleType.identifier) \(sample.uuid): \(String(describing: reason))"
+            "Grove refused \(sample.sampleType.identifier) \(sample.uuid): \(diagnostic.code) at \(diagnostic.location) (\(String(describing: reason)))"
         )
         let refusal = PreparedHealthObservationFHIRPayload.Refusal(
             sourceID: sample.uuid,
@@ -160,68 +161,35 @@ extension HealthObservation {
         return PreparedHealthObservationFHIRPayload(entries: [], refusals: [refusal])
     }
 
-    /// Converts one document-shaped sample, whose graph the caller's closure assembles.
-    ///
-    /// The document conversion type is named rather than inferred: a clinical record is also an
-    /// `HKSample`, so a closure returning ``HealthKitConversion`` would resolve to the Observation
-    /// overload and refuse every provider-issued document as platform-exclusive.
-    private static func documentPayload(
-        for sample: HKSample,
-        conversionInstant: Date,
-        subject: FHIRExchangeSubject,
-        stateStore: FHIRExchangeStateStore,
-        convert: (HealthKitConversionContext) throws -> HealthKitDocumentConversion
-    ) throws -> PreparedHealthObservationFHIRPayload {
-        let reservation = try stateStore.healthKitConversion(
-            for: sample,
-            subject: subject,
-            conversionInstant: conversionInstant
-        )
-        do {
-            let conversion = try convert(reservation.context)
-            return PreparedHealthObservationFHIRPayload(entries: [
-                Self.entry(
-                    bundle: conversion.bundle,
-                    sourceID: sample.uuid,
-                    sourceTypeIdentifier: sample.sampleType.identifier,
-                    eventKey: reservation.eventKey
-                )
-            ])
-        } catch let error as HealthKitConversionError {
-            return Self.refusal(
-                of: sample,
-                reason: error,
-                reservedEventKeys: CollectionOfOne(reservation.eventKey),
-                stateStore: stateStore
-            )
-        }
-    }
-
-    /// Grove never queries HealthKit, so an ECG's waveform and correlated symptoms are fetched here
-    /// and handed to the converter as evidence.
+    /// Converts one sample under its reserved context; Grove never queries HealthKit, so an ECG's
+    /// waveform and correlated symptoms are fetched here and each symptom gets its own event.
     private static func conversions(
         of sample: HKSample,
+        context: HealthKitConversionContext,
         using healthKit: HealthKit,
-        contextForSample: (HKSample) throws -> HealthKitConversionContext
+        reserve: (HKSample) throws -> HealthKitConversionReservation
     ) async throws -> HealthKitConversionSet {
-        guard let electrocardiogram = sample as? HKElectrocardiogram else {
-            return HealthKitConversionSet(
-                primary: try HealthKitConverter().convert(
-                    sample,
-                    context: try contextForSample(sample)
-                )
+        switch sample {
+        case let electrocardiogram as HKElectrocardiogram:
+            async let voltageMeasurements = electrocardiogram.rawVoltageMeasurements(from: healthKit.healthStore)
+            async let correlatedSymptoms = electrocardiogram.correlatedSymptomSamples(from: healthKit)
+            let record = HealthKitECGRecord(
+                electrocardiogram: electrocardiogram,
+                voltageMeasurements: try await voltageMeasurements,
+                correlatedSymptoms: try await correlatedSymptoms
             )
+            return try HealthKitConverter().convert(
+                record,
+                context: context,
+                symptomContexts: try record.correlatedSymptoms.map { try reserve($0).context }
+            )
+        case let record as HKClinicalRecord:
+            return try HealthKitConverter().convert(record, context: context)
+        case let document as HKCDADocumentSample:
+            return try HealthKitConverter().convert(document, context: context)
+        default:
+            return try HealthKitConverter().convert(sample, context: context)
         }
-        async let voltageMeasurements = electrocardiogram.rawVoltageMeasurements(
-            from: healthKit.healthStore
-        )
-        async let correlatedSymptoms = electrocardiogram.correlatedSymptomSamples(from: healthKit)
-        return try HealthKitConverter().convert(
-            electrocardiogram,
-            voltageMeasurements: try await voltageMeasurements,
-            correlatedSymptoms: try await correlatedSymptoms,
-            contextForSample: contextForSample
-        )
     }
 
     private static func samplePayload(
@@ -231,53 +199,50 @@ extension HealthObservation {
         stateStore: FHIRExchangeStateStore,
         healthKit: HealthKit
     ) async throws -> PreparedHealthObservationFHIRPayload {
-        let reservedEventKeys = Mutex<Set<String>>([])
-        let reservationFailure = Mutex<(any Error)?>(nil)
+        var reservedEventKeys: [String] = []
+        func reserve(_ sample: HKSample) throws -> HealthKitConversionReservation {
+            let reservation = try stateStore.healthKitConversion(
+                for: sample,
+                subject: subject,
+                conversionInstant: conversionInstant
+            )
+            reservedEventKeys.append(reservation.eventKey)
+            return reservation
+        }
+        let conversions: HealthKitConversionSet
         do {
-            let conversions = try await Self.conversions(
+            conversions = try await Self.conversions(
                 of: sample,
-                using: healthKit
-            ) { sourceSample in
-                do {
-                    let reservation = try stateStore.healthKitConversion(
-                        for: sourceSample,
-                        subject: subject,
-                        conversionInstant: conversionInstant
-                    )
-                    reservedEventKeys.withLock { $0.insert(reservation.eventKey) }
-                    return reservation.context
-                } catch {
-                    reservationFailure.withLock { $0 = $0 ?? error }
-                    throw error
-                }
-            }
-            return PreparedHealthObservationFHIRPayload(entries: conversions.all.map { conversion in
-                Self.entry(
-                    bundle: conversion.bundle,
-                    sourceID: conversion.localSourceUUID,
-                    sourceTypeIdentifier: conversion.localSourceTypeIdentifier,
-                    eventKey: stateStore.healthKitEventKey(
-                        subject: subject,
-                        sourceType: conversion.localSourceTypeIdentifier,
-                        nativeRecordID: conversion.localSourceUUID
-                    )
-                )
-            })
+                context: try reserve(sample).context,
+                using: healthKit,
+                reserve: reserve
+            )
         } catch let error as HealthKitConversionError {
-            // Grove narrows anything the context provider throws into an opaque conversion failure,
-            // and a locked keychain during background delivery is transient rather than a refusal.
-            // The batch fails on the original error so the anchor redelivers the record, and the
-            // reservations already made stay so the retry mints the same event identities.
-            if let reservationFailure = reservationFailure.withLock({ $0 }) {
-                throw reservationFailure
-            }
             return Self.refusal(
                 of: sample,
                 reason: error,
-                reservedEventKeys: reservedEventKeys.withLock { $0 },
+                reservedEventKeys: reservedEventKeys,
                 stateStore: stateStore
             )
         }
+        for warning in conversions.warnings {
+            let diagnostic = warning.diagnostic
+            logger.notice(
+                "Grove converted \(sample.sampleType.identifier) \(sample.uuid) with \(diagnostic.code) at \(diagnostic.location)"
+            )
+        }
+        return PreparedHealthObservationFHIRPayload(entries: conversions.all.map { conversion in
+            Self.entry(
+                bundle: conversion.bundle,
+                sourceID: conversion.source.uuid,
+                sourceTypeIdentifier: conversion.source.type.rawValue,
+                eventKey: stateStore.healthKitEventKey(
+                    subject: subject,
+                    sourceType: conversion.source.type.rawValue,
+                    nativeRecordID: conversion.source.uuid
+                )
+            )
+        })
     }
 
     private static func selfModelledPayload(
@@ -314,24 +279,6 @@ extension HealthObservation {
         using healthKit: HealthKit
     ) async throws -> PreparedHealthObservationFHIRPayload {
         switch self {
-        case let record as HKClinicalRecord:
-            return try Self.documentPayload(
-                for: record,
-                conversionInstant: conversionInstant,
-                subject: subject,
-                stateStore: stateStore
-            ) { context in
-                try HealthKitConverter().convert(record, context: context)
-            }
-        case let document as HKCDADocumentSample:
-            return try Self.documentPayload(
-                for: document,
-                conversionInstant: conversionInstant,
-                subject: subject,
-                stateStore: stateStore
-            ) { context in
-                try HealthKitConverter().convert(document, context: context)
-            }
         case let sample as HKSample:
             return try await Self.samplePayload(
                 for: sample,

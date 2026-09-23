@@ -8,8 +8,6 @@
 
 import Foundation
 import GroveFHIRContract
-import GroveHealthKitFHIR
-import GroveSensorKitFHIR
 import ModelsR4
 
 
@@ -20,18 +18,19 @@ enum FHIRExchangeIdentifiers {
         case sensorKit = "sensorkit"
     }
 
+    /// The deployment root the Grove opaque, event, and entry-node systems derive from.
+    static let deploymentRoot: IdentifierSystem = "https://myheartcounts.stanford.edu/fhir"
+
     static let application: IdentifierSystem =
         "https://myheartcounts.stanford.edu/fhir/identifiers/application"
     static let participant: IdentifierSystem =
         "https://myheartcounts.stanford.edu/fhir/identifiers/participant"
     static let researchStudy: IdentifierSystem =
         "https://myheartcounts.stanford.edu/fhir/identifiers/research-study"
+    static let researchSubject: IdentifierSystem =
+        "https://myheartcounts.stanford.edu/fhir/identifiers/research-subject"
     static let repository: IdentifierSystem =
         "https://myheartcounts.stanford.edu/fhir/identifiers/repository"
-    static let event: IdentifierSystem =
-        "https://myheartcounts.stanford.edu/fhir/identifiers/exchange-event"
-    static let entryNode: IdentifierSystem =
-        "https://myheartcounts.stanford.edu/fhir/identifiers/entry-node"
     static let healthKitNativeRecord: IdentifierSystem =
         "https://myheartcounts.stanford.edu/fhir/identifiers/healthkit-record"
     static let sensorKitSourceRecord: IdentifierSystem =
@@ -42,88 +41,83 @@ enum FHIRExchangeIdentifiers {
     /// The wire-visible key id selecting the store-bound secret every identity is minted from.
     static let identityKeyID = "store"
 
-    private static let pseudonymRoot = "https://myheartcounts.stanford.edu/fhir/identifiers/pseudonym"
+    /// The canonical of the protocol one study revision follows.
+    static func studyProtocol(studyID: String) -> FHIRPrimitive<Canonical> {
+        FHIRPrimitive(Canonical(stringLiteral: "\(deploymentRoot.rawValue)/PlanDefinition/\(studyID)"))
+    }
+}
 
-    /// The ten systems for one identity scope, each naming the key id and epoch minting under it.
-    ///
-    /// Derived from the scope rather than written out, so a system can never claim a key id or
-    /// epoch the values carried under it contradict.
-    static func pseudonymousSystems(
-        keyID: String,
-        epoch: CanonicalPositiveDecimal
-    ) throws -> PseudonymousIdentitySystems {
-        func system(_ kind: String) throws -> IdentifierSystem {
-            try IdentifierSystem("\(pseudonymRoot)/\(kind)-v0/\(keyID)/\(epoch.rawValue)")
+
+extension FHIRExchangeEventFacts {
+    var application: ApplicationDevice {
+        get throws {
+            try ApplicationDevice(
+                name: applicationName,
+                bundleIdentifier: applicationBundleIdentifier,
+                version: applicationVersion,
+                build: applicationBuild
+            )
         }
-        return try PseudonymousIdentitySystems(
-            sourceRecord: system("source-record"),
-            sourceOutput: system("source-output"),
-            writerRecord: system("writer-record"),
-            providerRecord: system("provider-record"),
-            providerOutput: system("provider-output"),
-            sourceArtifact: system("source-artifact"),
-            providerArtifact: system("provider-artifact"),
-            sourceContext: system("source-context"),
-            recordingDevice: system("recording-device"),
-            deviceSnapshot: system("device-snapshot")
-        )
     }
 
-    static func currentResearchStudyIDs() -> [String] {
-        guard let enrollment = MyHeartCountsStandard.currentEnrollmentInfo else {
+    var host: HostDevice {
+        get throws {
+            try HostDevice(
+                operatingSystemVersion: hostOperatingSystemVersion,
+                name: hostName,
+                manufacturer: hostManufacturer,
+                modelNumber: hostModelNumber
+            )
+        }
+    }
+
+    /// The enrollment the event is relevant to, stated with the exact protocol revision it ran under.
+    func studies(for subject: FHIRExchangeSubject) throws -> [StudyEnrollment] {
+        guard let study else {
             return []
         }
-        return [enrollment.studyId]
+        return [
+            try StudyEnrollment(
+                study: BusinessIdentifier(system: FHIRExchangeIdentifiers.researchStudy, value: study.id),
+                protocolURL: FHIRExchangeIdentifiers.studyProtocol(studyID: study.id),
+                protocolVersion: String(study.revision),
+                enrollment: BusinessIdentifier(
+                    system: FHIRExchangeIdentifiers.researchSubject,
+                    value: "\(study.id):\(subject.identity.value)"
+                )
+            )
+        ]
     }
+}
 
-    static func researchStudyReferences(for studyIDs: [String]) throws -> [Reference] {
-        try studyIDs.map { studyID in
-            try BusinessIdentifier(system: researchStudy, value: studyID)
-                .reference(to: .researchStudy)
-        }
+
+extension FHIRExchangeStateStore {
+    /// The complete shared context of one persisted event, rebuilt identically on every retry.
+    func eventContext(
+        for event: PersistedFHIRExchangeEvent,
+        subject: FHIRExchangeSubject,
+        repository: FHIRExchangeIdentifiers.SourceRepository,
+        converterRole: ConverterRole = .assembler,
+        repositoryIDs: [ExchangeGraphNode: RepositoryID] = [:]
+    ) throws -> ExchangeEventContext {
+        let scope = try identityScope()
+        return ExchangeEventContext(
+            subject: .logical(subject.identity),
+            event: try eventIdentifier(for: event, in: scope),
+            identityScope: scope,
+            repositoryScope: try repositoryScope(repository, subject: subject),
+            application: try event.facts.application,
+            host: try event.facts.host,
+            conversionInstant: event.recordedAt,
+            converterRole: converterRole,
+            studies: try event.facts.studies(for: subject),
+            repositoryIDs: repositoryIDs
+        )
     }
 }
 
 
 extension PersistedFHIRExchangeEvent {
-    var healthKitApplication: HealthKitApplication {
-        HealthKitApplication(
-            name: facts.applicationName,
-            bundleIdentifier: facts.applicationToken,
-            version: facts.applicationVersion ?? "0",
-            build: facts.applicationBuild
-        )
-    }
-
-    var healthKitHost: HealthKitHostDevice {
-        HealthKitHostDevice(
-            sourceDeviceToken: facts.hostToken,
-            operatingSystemVersion: facts.hostOperatingSystemVersion,
-            name: facts.hostName,
-            manufacturer: facts.hostManufacturer,
-            modelNumber: facts.hostModelNumber
-        )
-    }
-
-    var sensorApplication: SensorApplication {
-        SensorApplication(
-            sourceDeviceToken: facts.applicationToken,
-            name: facts.applicationName,
-            version: facts.applicationVersion,
-            build: facts.applicationBuild
-        )
-    }
-
-    var sensorHost: SensorHostDevice {
-        SensorHostDevice(
-            sourceDeviceToken: facts.hostToken,
-            operatingSystemVersion: facts.hostOperatingSystemVersion,
-            name: facts.hostName,
-            manufacturer: facts.hostManufacturer,
-            modelNumber: facts.hostModelNumber
-        )
-    }
-
     var sourceTimeZone: TimeZone {
         get throws {
             guard let timeZone = TimeZone(identifier: sourceTimeZoneIdentifier) else {

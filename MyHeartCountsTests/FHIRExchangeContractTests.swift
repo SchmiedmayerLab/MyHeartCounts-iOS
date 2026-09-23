@@ -28,21 +28,21 @@ struct FHIRExchangeStateTests {
         }
     }
 
-    private static let eventFacts = FHIRExchangeEventFacts(
-        applicationToken: "edu.stanford.MyHeartCounts",
-        applicationName: "My Heart Counts",
-        applicationVersion: "1",
-        applicationBuild: "1",
-        hostToken: "host",
-        hostOperatingSystemVersion: "26.0",
-        hostName: nil,
-        hostManufacturer: "Apple",
-        hostModelNumber: nil,
-        researchStudyIDs: ["study-original"]
-    )
+    private static func eventFacts(study: String? = "study-original") throws -> FHIRExchangeEventFacts {
+        FHIRExchangeEventFacts(
+            application: try ApplicationDevice(
+                name: "My Heart Counts",
+                bundleIdentifier: "edu.stanford.MyHeartCounts",
+                version: "1",
+                build: "1"
+            ),
+            host: try HostDevice(operatingSystemVersion: "26.0"),
+            study: study.map { FHIRExchangeEventFacts.Study(id: $0, revision: 1) }
+        )
+    }
 
     @Test
-    func eventReservationIsStableUntilSourceAcknowledgement() throws { // swiftlint:disable:this function_body_length
+    func eventReservationIsStableUntilSourceAcknowledgement() throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
         let key = store.healthKitEventKey(
@@ -53,22 +53,19 @@ struct FHIRExchangeStateTests {
         let first = try store.event(
             key: key,
             recordedAt: Date(timeIntervalSince1970: 1_788_000_000),
-            facts: Self.eventFacts
+            facts: Self.eventFacts()
         )
         let retry = try store.event(
             key: key,
             recordedAt: Date(timeIntervalSince1970: 1_799_000_000),
             facts: FHIRExchangeEventFacts(
-                applicationToken: "changed-on-retry",
-                applicationName: "Changed",
-                applicationVersion: "2",
-                applicationBuild: nil,
-                hostToken: "changed-host",
-                hostOperatingSystemVersion: "27.0",
-                hostName: nil,
-                hostManufacturer: nil,
-                hostModelNumber: nil,
-                researchStudyIDs: ["study-changed-during-retry"]
+                application: try ApplicationDevice(
+                    name: "Changed",
+                    bundleIdentifier: "edu.stanford.changed-on-retry",
+                    version: "2"
+                ),
+                host: try HostDevice(operatingSystemVersion: "27.0"),
+                study: FHIRExchangeEventFacts.Study(id: "study-changed-during-retry", revision: 2)
             )
         )
         #expect(retry == first)
@@ -82,23 +79,12 @@ struct FHIRExchangeStateTests {
         let laterPublication = try store.event(
             key: key,
             recordedAt: Date(timeIntervalSince1970: 1_799_000_000),
-            facts: FHIRExchangeEventFacts(
-                applicationToken: "edu.stanford.MyHeartCounts",
-                applicationName: "My Heart Counts",
-                applicationVersion: "1",
-                applicationBuild: "1",
-                hostToken: "host",
-                hostOperatingSystemVersion: "26.0",
-                hostName: nil,
-                hostManufacturer: "Apple",
-                hostModelNumber: nil,
-                researchStudyIDs: ["study-after-completion"]
-            )
+            facts: Self.eventFacts(study: "study-after-completion")
         )
         #expect(laterPublication.sequence == first.sequence + 1)
-        #expect(first.facts.researchStudyIDs == ["study-original"])
-        #expect(retry.facts.researchStudyIDs == ["study-original"])
-        #expect(laterPublication.facts.researchStudyIDs == ["study-after-completion"])
+        #expect(first.facts.study?.id == "study-original")
+        #expect(retry.facts.study?.id == "study-original")
+        #expect(laterPublication.facts.study?.id == "study-after-completion")
     }
 
     @Test
@@ -126,7 +112,7 @@ struct FHIRExchangeStateTests {
         let firstEvent = try store.event(
             key: eventKey,
             recordedAt: Date(timeIntervalSince1970: 1_788_000_001),
-            facts: Self.eventFacts
+            facts: Self.eventFacts()
         )
         try store.verifySensorRetryDigest(Data("first".utf8), batchKey: batchKey, sourceRecordID: sourceID)
         try store.verifySensorRetryDigest(Data("first".utf8), batchKey: batchKey, sourceRecordID: sourceID)
@@ -139,7 +125,7 @@ struct FHIRExchangeStateTests {
         let nextEvent = try store.event(
             key: eventKey,
             recordedAt: Date(timeIntervalSince1970: 1_788_000_002),
-            facts: Self.eventFacts
+            facts: Self.eventFacts()
         )
         #expect(nextEvent.sequence == firstEvent.sequence + 1)
     }
@@ -187,24 +173,26 @@ struct FHIRExchangeStateTests {
     }
 
     @Test
-    func pseudonymousSystemsNameTheKeyAndEpochTheirValuesCarry() throws {
+    func opaqueSystemsDeriveFromTheDeploymentRoot() throws {
         let store = FHIRExchangeStateStore()
         let scope = try store.identityScope()
-        let root = "https://myheartcounts.stanford.edu/fhir/identifiers/pseudonym"
+        let root = "https://myheartcounts.stanford.edu/fhir/NamingSystem"
 
         #expect(scope.keyID == "store")
         #expect(scope.epoch.rawValue == "1")
         let expected: [(IdentifierSystem, String)] = [
-            (scope.systems.sourceRecord, "\(root)/source-record-v0/store/1"),
-            (scope.systems.sourceOutput, "\(root)/source-output-v0/store/1"),
-            (scope.systems.writerRecord, "\(root)/writer-record-v0/store/1"),
-            (scope.systems.providerRecord, "\(root)/provider-record-v0/store/1"),
-            (scope.systems.providerOutput, "\(root)/provider-output-v0/store/1"),
-            (scope.systems.sourceArtifact, "\(root)/source-artifact-v0/store/1"),
-            (scope.systems.providerArtifact, "\(root)/provider-artifact-v0/store/1"),
-            (scope.systems.sourceContext, "\(root)/source-context-v0/store/1"),
-            (scope.systems.recordingDevice, "\(root)/recording-device-v0/store/1"),
-            (scope.systems.deviceSnapshot, "\(root)/device-snapshot-v0/store/1")
+            (scope.systems.opaque.sourceRecord, "\(root)/grove-source-record-v0/store/1"),
+            (scope.systems.opaque.sourceOutput, "\(root)/grove-source-output-v0/store/1"),
+            (scope.systems.opaque.writerRecord, "\(root)/grove-writer-record-v0/store/1"),
+            (scope.systems.opaque.providerRecord, "\(root)/grove-provider-record-v0/store/1"),
+            (scope.systems.opaque.providerOutput, "\(root)/grove-provider-output-v0/store/1"),
+            (scope.systems.opaque.sourceArtifact, "\(root)/grove-source-artifact-v0/store/1"),
+            (scope.systems.opaque.providerArtifact, "\(root)/grove-provider-artifact-v0/store/1"),
+            (scope.systems.opaque.sourceContext, "\(root)/grove-source-context-v0/store/1"),
+            (scope.systems.opaque.recordingDevice, "\(root)/grove-recording-device-v0/store/1"),
+            (scope.systems.opaque.deviceSnapshot, "\(root)/grove-device-snapshot-v0/store/1"),
+            (scope.systems.event, "\(root)/grove-event-v0"),
+            (scope.systems.entryNode, "\(root)/grove-entry-node-v0")
         ]
         for (system, literal) in expected {
             #expect(system.rawValue == literal)
@@ -216,9 +204,27 @@ struct FHIRExchangeStateTests {
             sourceType: "HKQuantityTypeIdentifierStepCount",
             repositoryScope: try store.repositoryScope(.healthKit, subject: try Self.subject),
             nativeRecordID: "9512fc92-b514-4bcc-a157-050c41dac51d"
-        )
-        #expect(record.system == scope.systems.sourceRecord)
+        ).identifier.identifier
+        #expect(record.system == scope.systems.opaque.sourceRecord)
         #expect(record.value.hasPrefix("v0:store:1:"))
+    }
+
+    /// A known enrollment travels with its exact protocol revision, and an unenrolled event names none.
+    @Test
+    func eventContextBundlesTheEnrollmentItWasReservedUnder() throws {
+        let store = FHIRExchangeStateStore()
+        let subject = try Self.subject
+        let enrolled = try store.event(key: "enrolled", recordedAt: .now, facts: Self.eventFacts())
+        let unenrolled = try store.event(key: "unenrolled", recordedAt: .now, facts: Self.eventFacts(study: nil))
+
+        let study = try #require(
+            try store.eventContext(for: enrolled, subject: subject, repository: .healthKit).studies.first
+        )
+        #expect(study.study.value == "study-original")
+        #expect(study.protocolURL.value?.url.absoluteString == "https://myheartcounts.stanford.edu/fhir/PlanDefinition/study-original")
+        #expect(study.protocolVersion == "1")
+        #expect(study.enrollment.value == "study-original:participant-test")
+        #expect(try store.eventContext(for: unenrolled, subject: subject, repository: .healthKit).studies.isEmpty)
     }
 
     @Test
@@ -228,7 +234,7 @@ struct FHIRExchangeStateTests {
             try store.event(
                 key: "schema-check",
                 recordedAt: Date(timeIntervalSince1970: 1_788_000_000),
-                facts: Self.eventFacts
+                facts: Self.eventFacts()
             )
         }
     }
@@ -246,7 +252,7 @@ struct FHIRExchangeStateTests {
         _ = try oldStore.event(
             key: eventKey,
             recordedAt: Date(timeIntervalSince1970: 1_788_000_000),
-            facts: Self.eventFacts
+            facts: Self.eventFacts()
         )
         let oldStateWasPersisted = try oldStore.hasPersistedStateForTesting
         #expect(oldStateWasPersisted)
@@ -264,21 +270,21 @@ struct FHIRExchangeStateTests {
             _ = try oldStore.event(
                 key: "late-old-account-reservation",
                 recordedAt: Date(timeIntervalSince1970: 1_788_000_001),
-                facts: Self.eventFacts
+                facts: Self.eventFacts()
             )
         }
 
         let newEvent = try newStore.event(
             key: eventKey,
             recordedAt: Date(timeIntervalSince1970: 1_788_000_002),
-            facts: Self.eventFacts
+            facts: Self.eventFacts()
         )
         try oldStore.completeExchangeEvents(CollectionOfOne(eventKey))
         try oldStore.completeSensorBatch("late-account-a-batch")
         let retry = try newStore.event(
             key: eventKey,
             recordedAt: Date(timeIntervalSince1970: 1_799_000_000),
-            facts: Self.eventFacts
+            facts: Self.eventFacts()
         )
         #expect(retry == newEvent)
     }

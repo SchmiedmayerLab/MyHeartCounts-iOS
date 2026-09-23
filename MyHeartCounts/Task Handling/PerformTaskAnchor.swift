@@ -10,6 +10,7 @@
 
 import Foundation
 import GroveQuestionnaire
+import GroveQuestionnaireUI
 import GroveScheduler
 import GroveStudy
 import GroveStudyDefinition

@@ -18,6 +18,14 @@ struct HealthKitConversionReservation: Sendable {
 }
 
 
+extension HealthKitConversionOptions {
+    /// Discloses the HealthKit UUID under MHC's own system on every output and retraction target.
+    static let myHeartCounts = Self(
+        nativeIdentifierDisclosure: .authorized(system: FHIRExchangeIdentifiers.healthKitNativeRecord)
+    )
+}
+
+
 extension FHIRExchangeStateStore {
     /// Reserves and reconstructs the complete deterministic context for one HealthKit source version.
     func healthKitConversion(
@@ -30,34 +38,19 @@ extension FHIRExchangeStateStore {
             sourceType: sample.sampleType.identifier,
             nativeRecordID: sample.uuid
         )
-        let event = try event(key: eventKey, recordedAt: conversionInstant, facts: .current)
-        return try HealthKitConversionReservation(
+        let event = try event(key: eventKey, recordedAt: conversionInstant, facts: .current())
+        // Converting a stored record does not make MHC a gateway; it mediated only the samples it wrote.
+        let mediated = sample.sourceRevision.source.bundleIdentifier == event.facts.applicationBundleIdentifier
+        return HealthKitConversionReservation(
             eventKey: eventKey,
             context: HealthKitConversionContext(
-                subject: subject.reference,
-                subjectIdentity: subject.identity,
-                converter: event.healthKitApplication,
-                converterHost: event.healthKitHost,
-                eventIdentifier: eventIdentifier(for: event),
-                entryNodeIdentifierSystem: FHIRExchangeIdentifiers.entryNode,
-                identityScope: identityScope(),
-                repositoryScope: repositoryScope(.healthKit, subject: subject),
-                sourceActor: .application,
-                // Converting a stored record does not make the converter a gateway; MHC mediated
-                // the recording only for samples it wrote itself.
-                converterWasGateway: sample.sourceRevision.source.bundleIdentifier
-                    == event.facts.applicationToken,
-                conversionInstant: event.recordedAt,
-                recordingDeviceStableUnitToken: sample.device?.localIdentifier,
-                udiDisclosurePolicy: .omit,
-                nativeIdentifierDisclosurePolicy: .authorized(
-                    system: FHIRExchangeIdentifiers.healthKitNativeRecord
+                event: try eventContext(
+                    for: event,
+                    subject: subject,
+                    repository: .healthKit,
+                    converterRole: mediated ? .gateway : .assembler
                 ),
-                routeDisclosurePolicy: .omit,
-                protocolCanonical: nil,
-                researchStudies: FHIRExchangeIdentifiers.researchStudyReferences(
-                    for: event.facts.researchStudyIDs
-                )
+                options: .myHeartCounts
             )
         )
     }

@@ -35,7 +35,7 @@ extension HealthUploadStaging {
                 of: HealthKitDeletedRecord(
                     sourceTypeIdentifier: row.sampleType,
                     nativeRecordID: row.sampleId,
-                    deletedAt: row.timestamp
+                    detectedAt: row.timestamp
                 ),
                 subject: subject,
                 recordedAt: recordedAt

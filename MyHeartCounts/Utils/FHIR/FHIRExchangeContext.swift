@@ -7,7 +7,6 @@
 //
 
 import CryptoKit
-import Darwin
 import Foundation
 import GroveFHIRContract
 import GroveHealthKitFHIR
@@ -46,36 +45,45 @@ extension FirebaseConfiguration {
 }
 
 
-/// The application and host facts one exchange event is composed from.
+/// The application, host, and study facts one exchange event is composed from.
 struct FHIRExchangeEventFacts: Codable, Equatable, Sendable {
-    /// The facts as they stand right now, for a reservation being made.
-    static var current: Self {
-        let application = HealthKitApplication.main
-        let host = FHIRExchangeRuntimeFacts.host
-        return Self(
-            applicationToken: application.bundleIdentifier,
-            applicationName: application.name,
-            applicationVersion: application.version,
-            applicationBuild: application.build,
-            hostToken: host.sourceDeviceToken,
-            hostOperatingSystemVersion: host.operatingSystemVersion,
-            hostName: host.name,
-            hostManufacturer: host.manufacturer,
-            hostModelNumber: host.modelNumber,
-            researchStudyIDs: FHIRExchangeIdentifiers.currentResearchStudyIDs()
-        )
+    struct Study: Codable, Equatable, Sendable {
+        let id: String
+        let revision: UInt
     }
 
-    let applicationToken: String
     let applicationName: String
-    let applicationVersion: String?
+    let applicationBundleIdentifier: String
+    let applicationVersion: String
     let applicationBuild: String?
-    let hostToken: String
     let hostOperatingSystemVersion: String
     let hostName: String?
     let hostManufacturer: String?
     let hostModelNumber: String?
-    let researchStudyIDs: [String]
+    let study: Study?
+
+    init(application: ApplicationDevice, host: HostDevice, study: Study?) {
+        self.applicationName = application.name
+        self.applicationBundleIdentifier = application.bundleIdentifier
+        self.applicationVersion = application.version
+        self.applicationBuild = application.build
+        self.hostOperatingSystemVersion = host.operatingSystemVersion
+        self.hostName = host.name
+        self.hostManufacturer = host.manufacturer
+        self.hostModelNumber = host.modelNumber
+        self.study = study
+    }
+
+    /// The facts as they stand right now, for a reservation being made.
+    static func current() throws -> Self {
+        Self(
+            application: try ApplicationDevice(bundle: .main),
+            host: .current(),
+            study: MyHeartCountsStandard.currentEnrollmentInfo.map {
+                Study(id: $0.studyId, revision: $0.studyRevision)
+            }
+        )
+    }
 }
 
 
@@ -85,41 +93,6 @@ struct PersistedFHIRExchangeEvent: Codable, Equatable, Sendable {
     let recordedAt: Date
     let sourceTimeZoneIdentifier: String
     let facts: FHIRExchangeEventFacts
-}
-
-
-enum FHIRExchangeRuntimeFacts {
-    static let host: HealthKitHostDevice = {
-        let version = ProcessInfo.processInfo.operatingSystemVersion
-        return HealthKitHostDevice(
-            sourceDeviceToken: "current-converter-host",
-            operatingSystemVersion: [
-                version.majorVersion,
-                version.minorVersion,
-                version.patchVersion
-            ].map(String.init).joined(separator: "."),
-            manufacturer: "Apple",
-            modelNumber: machineIdentifier
-        )
-    }()
-
-    private static var machineIdentifier: String? {
-        // A simulator's uname reports the host Mac, which is not the device the app runs as.
-        if let simulated = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"],
-           !simulated.isEmpty {
-            return simulated
-        }
-        var systemInfo = utsname()
-        guard uname(&systemInfo) == 0 else {
-            return nil
-        }
-        let capacity = MemoryLayout.size(ofValue: systemInfo.machine)
-        return withUnsafePointer(to: &systemInfo.machine) { pointer in
-            pointer.withMemoryRebound(to: CChar.self, capacity: capacity) {
-                String(validatingCString: $0)
-            }
-        }.flatMap { $0.isEmpty ? nil : $0 }
-    }
 }
 
 
@@ -324,11 +297,11 @@ final class FHIRExchangeStateStore: Sendable {
         sourceType: String,
         nativeRecordID: UUID
     ) -> String {
-        "healthkit|\(subject.identity.systemValue)|\(subject.identity.value)|\(sourceType)|\(nativeRecordID.uuidString.lowercased())"
+        "healthkit|\(subject.identity.system.rawValue)|\(subject.identity.value)|\(sourceType)|\(nativeRecordID.uuidString.lowercased())"
     }
 
     func questionnaireEventKey(subject: FHIRExchangeSubject, responseID: String) -> String {
-        "questionnaire|\(subject.identity.systemValue)|\(subject.identity.value)|\(responseID)"
+        "questionnaire|\(subject.identity.system.rawValue)|\(subject.identity.value)|\(responseID)"
     }
 
     func sensorKitBatchKey(
@@ -338,7 +311,7 @@ final class FHIRExchangeStateStore: Sendable {
         deviceProductType: String
     ) -> String {
         [
-            subject.identity.systemValue,
+            subject.identity.system.rawValue,
             subject.identity.value,
             sourceToken,
             deviceProductType,
@@ -350,15 +323,17 @@ final class FHIRExchangeStateStore: Sendable {
         "sensorkit|\(batchKey)|\(sourceRecordID.value)"
     }
 
-    func eventIdentifier(for event: PersistedFHIRExchangeEvent) throws -> ExchangeEventIdentifier {
+    func eventIdentifier(
+        for event: PersistedFHIRExchangeEvent,
+        in scope: OpaqueIdentityScope
+    ) throws -> ExchangeEventIdentifier {
         let state = try stateSnapshot()
         return try ExchangeEventIdentifier(
-            system: FHIRExchangeIdentifiers.event,
+            system: scope.systems.event,
             producerInstance: state.producerInstance,
-            sequence: event.sequence
+            sequence: EventSequence(String(event.sequence))
         )
     }
-
 
     /// Reads stable installation facts without rewriting the encrypted ledger.
     ///
