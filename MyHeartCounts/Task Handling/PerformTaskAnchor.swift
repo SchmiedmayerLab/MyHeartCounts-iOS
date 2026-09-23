@@ -154,6 +154,9 @@ private struct UserTaskPerforming: ViewModifier {
     @Environment(MHCCurrentlyActiveTask.self)
     private var currentlyActiveTask
     
+    @Environment(\.locale)
+    private var locale
+    
     func body(content: Content) -> some View {
         @Bindable var currentlyActiveTask = currentlyActiveTask
         content
@@ -163,7 +166,7 @@ private struct UserTaskPerforming: ViewModifier {
                     QuestionnaireSheet(questionnaire) { result in
                         switch result {
                         case .completed(let responses):
-                            try await submitQuestionnaire(responses, to: standard)
+                            try await submitQuestionnaire(responses, renderedIn: locale, to: standard)
                             task.markCompleted(didSucceed: true)
                         case .cancelled:
                             task.markCompleted(didSucceed: false)
@@ -212,7 +215,7 @@ extension PerformTask.Task.Action {
     var title: LocalizedStringResource {
         switch self {
         case .answerQuestionnaire(let questionnaire):
-            questionnaire.metadata.title.isEmpty ? "Questionnaire" : "\(questionnaire.metadata.title)"
+            questionnaire.displayText(\.title).map { "\($0)" } ?? "Questionnaire"
         case .article(let article):
             "\(article.title)"
         case .timedWalkTest(let test):
@@ -238,7 +241,7 @@ extension PerformTask.Task.Action {
     var instructions: LocalizedStringResource? {
         switch self {
         case .answerQuestionnaire(let questionnaire):
-            questionnaire.metadata.explainer.isEmpty ? nil : "\(questionnaire.metadata.explainer)"
+            questionnaire.displayText(\.explainer).map { "\($0)" }
         case .article:
             nil // lede?
         case .timedWalkTest:
@@ -273,5 +276,14 @@ extension PerformTask.Task.Action {
         case .ecg:
             "Take ECG"
         }
+    }
+}
+
+
+extension GroveQuestionnaire.Questionnaire {
+    /// A metadata text in the language the questionnaire sheet renders for the current locale, or `nil` when empty.
+    fileprivate func displayText(_ keyPath: KeyPath<Metadata, LocalizedText>) -> String? {
+        let text = metadata[keyPath: keyPath].resolved(in: renderingLanguage(for: .current))
+        return text.isEmpty ? nil : text
     }
 }

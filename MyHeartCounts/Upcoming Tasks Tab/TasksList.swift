@@ -239,20 +239,13 @@ extension TasksList {
         case .answerQuestionnaire(let component):
             guard let enrollment = studyManager.enrollment(withId: context.enrollmentId),
                   let studyBundle = enrollment.studyBundle,
-                  let fhirQuestionnaire = studyBundle.questionnaire(
-                    for: component.fileRef,
-                    in: studyManager.preferredLocale
-                  ) else {
+                  let fhirQuestionnaire = studyBundle.questionnaire(for: component.fileRef) else {
                 logger.error("Unable to find Questionnaire")
                 return
             }
             let questionnaire: GroveQuestionnaire.Questionnaire
             do {
-                questionnaire = try GroveQuestionnaire.Questionnaire(
-                    fhirQuestionnaire,
-                    clock: .live(in: .current),
-                    using: .init(locale: studyManager.preferredLocale)
-                )
+                questionnaire = try GroveQuestionnaire.Questionnaire(fhirQuestionnaire, clock: .live(in: .current))
             } catch {
                 logger.error("Unable to prepare Questionnaire for administration: \(error)")
                 return

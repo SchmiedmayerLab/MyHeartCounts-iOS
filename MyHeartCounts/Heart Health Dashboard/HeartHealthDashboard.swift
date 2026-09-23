@@ -255,6 +255,9 @@ private struct HealthDashboardQuestionnaireView: View {
     @Environment(\.dismiss)
     private var dismiss
     
+    @Environment(\.locale)
+    private var locale
+    
     let questionnaireName: String
     @State private var questionnaire: GroveQuestionnaire.Questionnaire?
     @State private var loadErrorDescription: String?
@@ -265,7 +268,7 @@ private struct HealthDashboardQuestionnaireView: View {
                 QuestionnaireSheet(questionnaire) { result in
                     switch result {
                     case .completed(let responses):
-                        try await submitQuestionnaire(responses, to: standard)
+                        try await submitQuestionnaire(responses, renderedIn: locale, to: standard)
                     case .cancelled:
                         break
                     }
@@ -288,19 +291,12 @@ private struct HealthDashboardQuestionnaireView: View {
     
     private func loadQuestionnaire() {
         guard let studyBundle = studyManager.studyEnrollments.first?.studyBundle,
-              let fhirQuestionnaire = studyBundle.questionnaire(
-                named: questionnaireName,
-                in: studyManager.preferredLocale
-              ) else {
+              let fhirQuestionnaire = studyBundle.questionnaire(named: questionnaireName) else {
             loadErrorDescription = "The study does not contain this questionnaire."
             return
         }
         do {
-            questionnaire = try GroveQuestionnaire.Questionnaire(
-                fhirQuestionnaire,
-                clock: .live(in: .current),
-                using: .init(locale: studyManager.preferredLocale)
-            )
+            questionnaire = try GroveQuestionnaire.Questionnaire(fhirQuestionnaire, clock: .live(in: .current))
         } catch {
             loadErrorDescription = error.localizedDescription
         }

@@ -64,7 +64,7 @@ struct AlwaysAvailableTaskActions: DynamicProperty {
                                 .studyEnrollments
                                 .first?
                                 .studyBundle?
-                                .questionnaire(for: component.fileRef, in: studyManager.preferredLocale)
+                                .questionnaire(for: component.fileRef)
                             else {
                                 return false
                             }

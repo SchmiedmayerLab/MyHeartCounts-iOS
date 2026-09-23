@@ -151,15 +151,11 @@ private struct DebugFormImpl: View {
                     let fileRef = StudyBundle.FileReference(category: .questionnaire, filename: option, fileExtension: "json")
                     guard let fhirQuestionnaire = studyManager.studyEnrollments.first?
                         .studyBundle?
-                        .questionnaire(for: fileRef, in: .enUS) else {
+                        .questionnaire(for: fileRef) else {
                         return
                     }
                     do {
-                        let questionnaire = try GroveQuestionnaire.Questionnaire(
-                            fhirQuestionnaire,
-                            clock: .live(in: .current),
-                            using: .init(locale: .init(identifier: "en-US"))
-                        )
+                        let questionnaire = try GroveQuestionnaire.Questionnaire(fhirQuestionnaire, clock: .live(in: .current))
                         performTask(.answerQuestionnaire(questionnaire), context: nil)
                     } catch {
                         logger.error("Unable to prepare debug Questionnaire: \(error)")

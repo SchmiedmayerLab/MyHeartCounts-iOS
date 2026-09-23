@@ -23,9 +23,12 @@ import OSLog
 
 
 /// Converts the main-actor questionnaire state before crossing into the app's Standard actor.
+///
+/// `locale` is the one the questionnaire was rendered in; its language becomes `QuestionnaireResponse.language`.
 @MainActor
 func submitQuestionnaire(
     _ responses: GroveQuestionnaire.QuestionnaireResponses,
+    renderedIn locale: Locale,
     to standard: MyHeartCountsStandard,
     authored: Date = .now,
     authoredTimeZone: TimeZone = .current
@@ -40,6 +43,7 @@ func submitQuestionnaire(
         author: submission.subject.reference,
         responseSource: submission.subject.reference,
         writerContext: writerContext,
+        renderedIn: locale,
         authored: authored,
         authoredTimeZone: authoredTimeZone
     )
@@ -65,11 +69,8 @@ extension MyHeartCountsStandard {
             }
             for component in bundle.studyDefinition.components {
                 guard case .questionnaire(let questionnaireComponent) = component,
-                      let questionnaire = bundle.questionnaire(
-                          for: questionnaireComponent.fileRef,
-                          in: .current
-                      ),
-                      questionnaire.canonicalIdentity?.url == canonical.url else {
+                      let questionnaire = bundle.questionnaire(for: questionnaireComponent.fileRef),
+                      questionnaire.canonicalIdentity == canonical else {
                     continue
                 }
                 return questionnaire
