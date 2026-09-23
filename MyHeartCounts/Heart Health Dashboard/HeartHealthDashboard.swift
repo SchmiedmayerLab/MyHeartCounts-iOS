@@ -215,25 +215,30 @@ extension HeartHealthDashboard {
     }
     
     
+    /// A questionnaire brings its own navigation stack; nesting it in another one hides its primary action.
+    @ViewBuilder
     static func addSampleSheet(for keyPath: KeyPath<CVHScore, ScoreResult>) -> some View {
-        NavigationStack {
-            switch keyPath {
-            case \.nicotineExposureScore:
-                HealthDashboardQuestionnaireView(questionnaireName: "NicotineExposure")
-            case \.dietScore:
-                HealthDashboardQuestionnaireView(questionnaireName: "Diet")
-            case \.mentalHealthScore:
-                HealthDashboardQuestionnaireView(questionnaireName: "WHO5")
-            case \.bodyMassIndexScore:
-                SaveBMISampleView()
-            case \.bloodLipidsScore:
-                SaveQuantitySampleView(sampleType: MHCQuantitySampleType.custom(.bloodLipids))
-            case \.bloodGlucoseScore:
-                SaveQuantitySampleView(sampleType: MHCQuantitySampleType.healthKit(.bloodGlucose))
-            case \.bloodPressureScore:
-                SaveBloodPressureSampleView()
-            default:
-                EmptyView()
+        switch keyPath {
+        case \.nicotineExposureScore:
+            HealthDashboardQuestionnaireView(questionnaireName: "NicotineExposure")
+        case \.dietScore:
+            HealthDashboardQuestionnaireView(questionnaireName: "Diet")
+        case \.mentalHealthScore:
+            HealthDashboardQuestionnaireView(questionnaireName: "WHO5")
+        default:
+            NavigationStack {
+                switch keyPath {
+                case \.bodyMassIndexScore:
+                    SaveBMISampleView()
+                case \.bloodLipidsScore:
+                    SaveQuantitySampleView(sampleType: MHCQuantitySampleType.custom(.bloodLipids))
+                case \.bloodGlucoseScore:
+                    SaveQuantitySampleView(sampleType: MHCQuantitySampleType.healthKit(.bloodGlucose))
+                case \.bloodPressureScore:
+                    SaveBloodPressureSampleView()
+                default:
+                    EmptyView()
+                }
             }
         }
     }
