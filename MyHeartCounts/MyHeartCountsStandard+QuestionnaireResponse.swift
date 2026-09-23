@@ -169,7 +169,7 @@ extension MyHeartCountsStandard {
         } catch ObservationExtractionError.noExtractableMeasurements {
             // A survey that measures nothing is the common case, not an error.
         } catch {
-            await logger.error("Error parsing & processing questionnaire response: \(error)")
+            logger.error("Error parsing & processing questionnaire response: \(error)")
         }
     }
 }
