@@ -46,7 +46,6 @@ struct PreparedHealthObservationFHIRPayload {
     /// One record the adapter permanently refuses, kept so a batch never drops it silently.
     struct Refusal: Sendable {
         let sourceID: UUID
-        let sourceTypeIdentifier: String
         let reason: HealthKitConversionError
     }
 
@@ -155,7 +154,6 @@ extension HealthObservation {
         )
         let refusal = PreparedHealthObservationFHIRPayload.Refusal(
             sourceID: sample.uuid,
-            sourceTypeIdentifier: sample.sampleType.identifier,
             reason: reason
         )
         return PreparedHealthObservationFHIRPayload(entries: [], refusals: [refusal])
