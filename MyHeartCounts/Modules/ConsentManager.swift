@@ -8,14 +8,14 @@
 
 import FirebaseStorage
 import Foundation
-import MyHeartCountsShared
 @_spi(APISupport) // dynamic module loading
-import Spezi
-import SpeziAccount
-import class SpeziConsent.ConsentDocument
-import SpeziFoundation
-import SpeziLocalization
-import SpeziStudy
+import Grove
+import GroveAccount
+import class GroveConsent.ConsentDocument
+import GroveFoundation
+import GroveLocalization
+import GroveStudy
+import MyHeartCountsShared
 import SwiftUI
 
 
@@ -23,7 +23,7 @@ import SwiftUI
 @MainActor
 final class ConsentManager: Module, EnvironmentAccessible, Sendable {
     // swiftlint:disable attributes
-    @ObservationIgnored @Application(\.spezi) private var spezi
+    @ObservationIgnored @Application(\.grove) private var grove
     @ObservationIgnored @Dependency(StudyBundleLoader.self) private var studyBundleLoader
     @ObservationIgnored @Dependency(Account.self) private var account: Account?
     @ObservationIgnored @Dependency(StudyManager.self) private var studyManager
@@ -33,7 +33,7 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
     
     
     private var isInTestEnvSetup: Bool {
-        spezi.module(SetupTestEnvironment.self)?.isInSetup ?? false
+        grove.module(SetupTestEnvironment.self)?.isInSetup ?? false
     }
     
     nonisolated init() {}

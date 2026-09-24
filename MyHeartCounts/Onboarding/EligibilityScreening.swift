@@ -6,10 +6,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Spezi
-import SpeziFoundation
-import SpeziStudy
-import SpeziViews
+import Grove
+import GroveFoundation
+import GroveStudy
+import GroveViews
 import SwiftUI
 
 
@@ -57,10 +57,10 @@ struct EligibilityScreening: View {
                 // unreachable
                 return
             }
-            if !Spezi.didLoadFirebase {
-                // load the firebase modules into Spezi, and give it a couple seconds to fully configure everything
+            if !Grove.didLoadFirebase {
+                // load the firebase modules into Grove, and give it a couple seconds to fully configure everything
                 // the crux here is that there isn't a mechanism by which Firebase would let us know when it
-                Spezi.loadFirebase(for: region)
+                Grove.loadFirebase(for: region)
                 try? await Task.sleep(for: .seconds(3))
             }
             do {

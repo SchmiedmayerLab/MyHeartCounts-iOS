@@ -9,15 +9,15 @@
 // swiftlint:disable file_types_order
 
 import Foundation
+@_spi(APISupport)
+import Grove
+import GroveAccount
+import GroveHealthKit
+import GroveSensorKit
+import GroveStudy
 import HealthKit
 import MyHeartCountsShared
 import SFSafeSymbols
-@_spi(APISupport)
-import Spezi
-import SpeziAccount
-import SpeziHealthKit
-import SpeziSensorKit
-import SpeziStudy
 import SwiftUI
 
 
@@ -44,8 +44,8 @@ extension PromptedAction {
             message: "ENABLE_SENSORKIT_SUBTITLE",
             performActionButtonTitle: "Enable"
         )
-    ) { spezi in
-        guard let sensorKit = spezi.module(SensorKit.self) else {
+    ) { grove in
+        guard let sensorKit = grove.module(SensorKit.self) else {
             return
         }
         let result = try await sensorKit.requestAccess(to: SensorKit.mhcSensors)
@@ -64,7 +64,7 @@ extension PromptedAction {
             guard HKHealthStore().supportsHealthRecords() else {
                 return .unavailable
             }
-            guard let module = context.spezi.module(ClinicalRecordPermissions.self) else {
+            guard let module = context.grove.module(ClinicalRecordPermissions.self) else {
                 return .unavailable
             }
             let authState = module.authorizationState
@@ -98,15 +98,15 @@ extension PromptedAction {
             message: "HEALTH_RECORDS_NUDGE_SUBTITLE",
             performActionButtonTitle: "Enable"
         )
-    ) { spezi in
-        try await spezi.module(ClinicalRecordPermissions.self)?.askForAuthorization(askAgainIfCancelledPreviously: true)
+    ) { grove in
+        try await grove.module(ClinicalRecordPermissions.self)?.askForAuthorization(askAgainIfCancelledPreviously: true)
     }
     
     
     private static let verifyAccountEmail = PromptedAction(
         id: .verifyAccountEmail,
         state: { context in
-            guard let details = context.spezi.module(Account.self)?.details else {
+            guard let details = context.grove.module(Account.self)?.details else {
                 // if there is no user, there is nothing to verify
                 return .unavailable
             }
@@ -127,9 +127,9 @@ extension PromptedAction {
     private static let completeDemographics = PromptedAction(
         id: .completeDemographics,
         state: { context in
-            let spezi = context.spezi
-            guard let account = spezi.module(Account.self),
-                  let studyManager = spezi.module(StudyManager.self),
+            let grove = context.grove
+            guard let account = grove.module(Account.self),
+                  let studyManager = grove.module(StudyManager.self),
                   let details = account.details,
                   !details.isIncomplete else {
                 return .unavailable

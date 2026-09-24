@@ -10,14 +10,14 @@
 
 import FirebaseFirestore
 import Foundation
+import Grove
+import GroveAccount
+import GroveFirestore
+import GroveFoundation
+import GroveHealthKit
 import HealthKit
 import MyHeartCountsShared
 import OSLog
-import Spezi
-import SpeziAccount
-import SpeziFirestore
-import SpeziFoundation
-import SpeziHealthKit
 import SwiftUI
 import Synchronization
 import UIKit
@@ -265,7 +265,7 @@ extension MHCBackgroundTasks.TaskIdentifier {
 extension HealthKitStatsCalculator {
     /* private but testable */ struct QueryAnchors {
         // Since the API doesn't support nesting yet
-        // (needs to be added in Grove, but since MHC hasn't yet done the Spezi -> Grove migration, we wouldn't be able to use it),
+        // (needs to be added in Grove),
         // we instead hardcode the effective, nested, namespace.
         // This namespace nesting allows us to be able to both delete all entries for these query anchors, while also still be able
         // to to a scoped bulk-delete of all MHC entries.
@@ -389,7 +389,7 @@ extension HealthKitStatsCalculator {
             options: HKStatisticsOptions,
             intervalComponents: DateComponents
         ) -> HKStatisticsCollectionQueryDescriptor {
-            // Spezi's time-range wrapper requires both sample endpoints to be inside the month.
+            // Grove's time-range wrapper requires both sample endpoints to be inside the month.
             // Use a native descriptor to select overlapping samples while keeping the month as the bucket anchor.
             HKStatisticsCollectionQueryDescriptor(
                 predicate: .quantitySample(type: sampleType, predicate: overlappingSamplesPredicate),

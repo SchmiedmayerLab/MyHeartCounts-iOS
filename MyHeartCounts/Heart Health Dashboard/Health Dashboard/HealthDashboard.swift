@@ -10,10 +10,10 @@
 
 import Charts
 import Foundation
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitUI
 import HealthKit
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitUI
 import SwiftUI
 
 
@@ -60,7 +60,7 @@ func healthDashboardComponentView(
 }
 
 
-extension SpeziHealthKitUI.StatisticsAggregationOption {
+extension GroveHealthKitUI.StatisticsAggregationOption {
     init(_ other: HKQuantityAggregationStyle) {
         switch other {
         case .cumulative:

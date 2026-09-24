@@ -8,9 +8,9 @@
 
 import AsyncAlgorithms
 import Foundation
+import Grove
+import GroveAccount
 import OSLog
-import Spezi
-import SpeziAccount
 import SwiftUI
 
 

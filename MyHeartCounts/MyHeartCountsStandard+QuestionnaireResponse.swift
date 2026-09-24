@@ -8,11 +8,11 @@
 
 import FHIRModelsExtensions
 @preconcurrency import FirebaseFirestore
+import Grove
+import GroveHealthKit
 import ModelsR4
 import MyHeartCountsShared
 import OSLog
-import Spezi
-import SpeziHealthKit
 
 
 extension MyHeartCountsStandard {

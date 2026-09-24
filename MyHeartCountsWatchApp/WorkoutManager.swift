@@ -7,10 +7,10 @@
 //
 
 import Foundation
+import Grove
+import GroveHealthKit
+import GroveStudyDefinition
 import HealthKit
-import Spezi
-import SpeziHealthKit
-import SpeziStudyDefinition
 import WatchKit
 
 

@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import GroveFoundation
 import MyHeartCountsShared
 import OSLog
-import SpeziFoundation
 
 
 extension SetupTestEnvironment {
@@ -23,7 +23,7 @@ extension SetupTestEnvironment {
     ///
     /// - Important: This **must** be called from ``MyHeartCounts/init()``, i.e. before the app delegate's
     ///     `willFinishLaunchingWithOptions` runs.
-    ///     (i.e. before any Spezi modules have been initialized and configured.)
+    ///     (i.e. before any Grove modules have been initialized and configured.)
     ///
     /// The underlying issue here is that several modules will perform initial setup operations based on their persisted state,
     /// which will end up running concurrently with the `SetupTestEnvironment` module's `configure()` function.

@@ -8,14 +8,14 @@
 
 import FirebaseFunctions
 import Foundation
+@_spi(APISupport)
+import Grove
+import GroveFirebaseAccount
+import GroveFoundation
+import GroveOnboarding
+import GroveViews
 import MyHeartCountsShared
 import SFSafeSymbols
-@_spi(APISupport)
-import Spezi
-import SpeziFirebaseAccount
-import SpeziFoundation
-import SpeziOnboarding
-import SpeziViews
 import SwiftUI
 
 
@@ -134,11 +134,11 @@ struct RegionComingSoon: View {
             showInvalidEmailAlert = true
             return
         }
-        if !Spezi.didLoadFirebase {
-            Spezi.loadFirebase(for: .unitedStates)
+        if !Grove.didLoadFirebase {
+            Grove.loadFirebase(for: .unitedStates)
             try? await Task.sleep(for: .seconds(1))
         }
-        guard let spezi = SpeziAppDelegate.spezi, let accountService = spezi.module(FirebaseAccountService.self) else {
+        guard let grove = GroveAppDelegate.grove, let accountService = grove.module(FirebaseAccountService.self) else {
             throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Something went wrong")
         }
         try await accountService.signUpAnonymously()

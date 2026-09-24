@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import SpeziStudyDefinition
+import GroveStudyDefinition
 import SwiftUI
 
 

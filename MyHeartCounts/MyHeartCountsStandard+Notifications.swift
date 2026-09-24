@@ -7,11 +7,11 @@
 //
 
 import Foundation
+import Grove
+import GroveFoundation
+import GroveScheduler
+import GroveStudy
 import OSLog
-import Spezi
-import SpeziFoundation
-import SpeziScheduler
-import SpeziStudy
 @preconcurrency import UserNotifications
 
 
@@ -32,7 +32,9 @@ extension MyHeartCountsStandard: NotificationHandler {
         case UNNotificationDefaultActionIdentifier:
             // the user simply tapped the notification
             let cal = Calendar.current
-            if let taskId = response.notification.request.content.userInfo[SchedulerNotifications.notificationTaskIdKey] as? String,
+            // resolves both the current key and the pre-Grove one, so notifications still pending from an
+            // earlier build keep matching
+            if let taskId = SchedulerNotifications.taskId(fromUserInfo: response.notification.request.content.userInfo),
                let task = try? await scheduler.queryTasks(for: cal.rangeOfDay(for: response.notification.date)).last(where: { $0.id == taskId }),
                let context = task.studyContext,
                let action = task.studyScheduledTaskAction {

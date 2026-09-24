@@ -11,10 +11,10 @@
 
 import FirebaseFirestore
 import Foundation
+import Grove
+import GroveFoundation
+import GroveHealthKit
 import MyHeartCountsShared
-import Spezi
-import SpeziFoundation
-import SpeziHealthKit
 
 
 @Observable
@@ -241,7 +241,7 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
         }
     }
     
-    // copied from the SpeziHealthKit UITests
+    // copied from the GroveHealthKit UITests
     func addDemoSleepSamples() async throws {  // swiftlint:disable:this function_body_length
         struct SampleDescriptor {
             let phase: SleepSession.SleepPhase

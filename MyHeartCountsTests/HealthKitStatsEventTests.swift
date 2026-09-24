@@ -8,9 +8,9 @@
 
 import FirebaseFirestore
 import Foundation
+import GroveHealthKit
 import HealthKit
 @testable import MyHeartCounts
-import SpeziHealthKit
 import Testing
 
 

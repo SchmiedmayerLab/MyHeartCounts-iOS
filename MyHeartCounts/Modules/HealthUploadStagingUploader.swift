@@ -8,20 +8,20 @@
 
 import Foundation
 import GRDB
+import Grove
+import GroveFoundation
+import GroveHealthKit
 import HealthKit
 import struct ModelsR4.FHIRPrimitive
 import struct ModelsR4.Instant
 import enum ModelsR4.ResourceProxy
 import MyHeartCountsShared
 import OSLog
-import Spezi
-import SpeziFoundation
-import SpeziHealthKit
 
 
 @Observable
 @MainActor
-final class HealthUploadStagingUploader: Spezi::Module, EnvironmentAccessible, Sendable {
+final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, Sendable {
     private struct ActiveDrain: Sendable {
         let task: Task<Void, any Error>
         let allowance: DeviceBattery.WorkAllowance

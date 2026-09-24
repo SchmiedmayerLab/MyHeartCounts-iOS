@@ -7,13 +7,13 @@
 //
 
 import Foundation
+import GroveFoundation
+import GroveSensorKit
 import ModelsR4
 import MyHeartCountsShared
 import NIOCore
 import NIOFoundationCompat
 import SensorKit
-import SpeziFoundation
-import SpeziSensorKit
 
 
 extension SRPhotoplethysmogramSample {

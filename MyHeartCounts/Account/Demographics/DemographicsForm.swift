@@ -9,13 +9,13 @@
 // swiftlint:disable file_types_order attributes discouraged_optional_boolean
 
 import Foundation
+import GroveAccount
+import GroveHealthKit
+import GroveHealthKitUI
+import GroveStudy
+import GroveViews
 import MyHeartCountsShared
 import SFSafeSymbols
-import SpeziAccount
-import SpeziHealthKit
-import SpeziHealthKitUI
-import SpeziStudy
-import SpeziViews
 import SwiftUI
 
 

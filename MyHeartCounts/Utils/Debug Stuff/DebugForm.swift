@@ -9,16 +9,16 @@
 // swiftlint:disable file_types_order attributes
 
 import Foundation
+import GroveAccount
+import GroveFoundation
+import GroveLocalStorage
+import GroveStudy
+import GroveStudyDefinition
+import GroveViews
 import SFSafeSymbols
-import SpeziAccount
-import SpeziFoundation
-import SpeziLocalStorage
-import SpeziStudy
-import SpeziStudyDefinition
-import SpeziViews
 import SwiftUI
 import UIKit
-import XCTSpeziNotificationsUI
+import XCTGroveNotificationsUI
 
 
 struct DebugForm: View {
@@ -124,8 +124,8 @@ private struct DebugFormImpl: View {
                 CheckForUpdateButton {
                     Text(verbatim: "Check for App Update")
                 }
-                AsyncButton("Spezi Dependency Graph" as String) {
-                    print(await standard.spezi.moduleDependencyGraph.dotDescription)
+                AsyncButton("Grove Dependency Graph" as String) {
+                    print(await standard.grove.moduleDependencyGraph.dotDescription)
                 }
             }
             Section {

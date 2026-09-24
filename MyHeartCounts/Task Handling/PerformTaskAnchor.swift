@@ -9,15 +9,15 @@
 // swiftlint:disable file_types_order
 
 import Foundation
+import GroveQuestionnaire
+import GroveScheduler
+import GroveStudy
+import GroveStudyDefinition
 import MHCStudyDefinition
 import struct ModelsR4.Questionnaire
 import MyHeartCountsShared
 import ResearchKitSwiftUI
 import SFSafeSymbols
-import SpeziQuestionnaire
-import SpeziScheduler
-import SpeziStudy
-import SpeziStudyDefinition
 import SwiftUI
 
 

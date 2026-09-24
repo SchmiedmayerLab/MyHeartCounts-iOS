@@ -8,12 +8,12 @@
 
 @preconcurrency import FirebaseAuth
 import Foundation
+import GroveAccount
+import GroveFirebaseAccount
+import GroveFoundation
+import GroveViews
 import MyHeartCountsShared
 import SFSafeSymbols
-import SpeziAccount
-import SpeziFirebaseAccount
-import SpeziFoundation
-import SpeziViews
 import SwiftUI
 
 

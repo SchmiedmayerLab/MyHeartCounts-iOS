@@ -8,8 +8,8 @@
 
 #if canImport(HealthKit)
 
+import GroveHealthKit
 import HealthKit
-import SpeziHealthKit
 import Testing
 
 

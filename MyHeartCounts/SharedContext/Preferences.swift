@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-import SpeziFoundation
+import GroveFoundation
 
 extension LocalPreferenceKeys {
     /// A `Bool` flag indicating of the onboarding was completed.

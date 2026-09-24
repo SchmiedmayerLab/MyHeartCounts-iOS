@@ -8,7 +8,7 @@
 
 #if !os(Linux)
 
-public import struct SpeziFoundation.Version
+public import struct GroveFoundation.Version
 
 
 extension LaunchOptions {

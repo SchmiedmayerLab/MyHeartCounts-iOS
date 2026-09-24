@@ -9,8 +9,8 @@
 // swiftlint:disable multiline_function_chains function_body_length
 
 @_spi(TestingSupport)
-import SpeziHealthKit
-import SpeziLocalization
+import GroveHealthKit
+import GroveLocalization
 import XCTest
 import XCTestExtensions
 

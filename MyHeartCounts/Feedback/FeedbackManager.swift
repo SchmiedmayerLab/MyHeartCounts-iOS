@@ -10,10 +10,10 @@
 
 @preconcurrency import FirebaseFirestore
 import Foundation
+import Grove
+import GroveAccount
+import GroveFirestore
 import OSLog
-import Spezi
-import SpeziAccount
-import SpeziFirestore
 import class UIKit.UIDevice
 
 

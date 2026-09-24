@@ -7,19 +7,19 @@
 //
 
 import Foundation
+import Grove
+import GroveAccount
+import GroveConsent
+import GroveFirebaseAccount
+import GroveFoundation
+@_spi(TestingSupport)
+import GroveHealthKit
+import GroveHealthKitBulkExport
+import GroveLocalStorage
+import GroveStudy
+import struct GroveViews.AnyLocalizedError
 import MyHeartCountsShared
 import OSLog
-import Spezi
-import SpeziAccount
-import SpeziConsent
-import SpeziFirebaseAccount
-import SpeziFoundation
-@_spi(TestingSupport)
-import SpeziHealthKit
-import SpeziHealthKitBulkExport
-import SpeziLocalStorage
-import SpeziStudy
-import struct SpeziViews.AnyLocalizedError
 
 
 /// Sets up a test environment, by logging into a test account and enrolling in the current study definition.
@@ -80,8 +80,8 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
         case .pending:
             Task { @MainActor in
                 self.state = .settingUp
-                if !Spezi.didLoadFirebase {
-                    Spezi.loadFirebase(for: .unitedStates)
+                if !Grove.didLoadFirebase {
+                    Grove.loadFirebase(for: .unitedStates)
                     try? await _Concurrency.Task.sleep(for: .seconds(1))
                 }
                 do {
@@ -129,12 +129,12 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
     /// Finalizes the reset of existing data.
     ///
     /// The destructive part of the reset will already have happened by the time this function is called.
-    /// In order to preempt various Spezi modules from performing on-load setup work (in their `configure()` functions),
+    /// In order to preempt various Grove modules from performing on-load setup work (in their `configure()` functions),
     /// the app runs ``SetupTestEnvironment/performEarlyResetIfNeeded()`` directly on launch, which deletes all
     /// on-disk data and resets as much other stuff as it can get its hands on.
     ///
     /// This function merely will clean up any remaining state that somehow still exists, or somehow got recreated, or needs live
-    /// Spezi modules to run.
+    /// Grove modules to run.
     /// It also ensures the user is fully logged out, an operation we cannot achieve in ``performEarlyResetIfNeeded()``
     /// as it requires Firebase being loaded.
     private func resetExistingData() async throws {

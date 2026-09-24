@@ -10,9 +10,9 @@
 
 @preconcurrency import FirebaseStorage
 import Foundation
-import SpeziAccount
-import SpeziFoundation
-import SpeziLocalStorage
+import GroveAccount
+import GroveFoundation
+import GroveLocalStorage
 import SwiftUI
 
 
@@ -39,7 +39,7 @@ extension AccountDetails {
     )
     var dateOfEnrollment: Date?
     
-    // NOTE: this is, for the time being, stored using SpeziLocalStorage.
+    // NOTE: this is, for the time being, stored using GroveLocalStorage.
 //    /// The date the current study actication, i.e. when the user logged in to the app and started/resumed their study participation.
 //    @AccountKey(
 //        id: "currentStudyActivationDate",

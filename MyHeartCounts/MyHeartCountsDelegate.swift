@@ -6,23 +6,23 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Grove
+import GroveFirebaseConfiguration
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitBulkExport
+import GroveNotifications
+import GroveOnboarding
+import GroveScheduler
+import GroveSensorKit
+import GroveStudy
 import OSLog
-import Spezi
-import SpeziFirebaseConfiguration
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitBulkExport
-import SpeziNotifications
-import SpeziOnboarding
-import SpeziScheduler
-import SpeziSensorKit
-import SpeziStudy
 import SwiftUI
 import UserNotifications
 
 
 @Observable
-final class MyHeartCountsDelegate: SpeziAppDelegate {
+final class MyHeartCountsDelegate: GroveAppDelegate {
     // mutated only once, from the main actor, when the app's launch sequence is finishing up.
     nonisolated(unsafe) private(set) static var didFinishLaunching = false
     

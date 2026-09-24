@@ -1,5 +1,5 @@
 {
-  "originHash" : "c2709e2cb630321f893b005ad6a4d4df8683186416f796985b0ad814559d9dc5",
+  "originHash" : "2403aaf4c2e4246fb4e3a07215ab2300de5e0bf29d2d918afdb1a99fdf2c657c",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -92,6 +92,15 @@
       }
     },
     {
+      "identity" : "grove",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SchmiedmayerLab/Grove.git",
+      "state" : {
+        "revision" : "fb13cf97f5e2f94e2c950f6d75de5c8d92c73c15",
+        "version" : "0.3.0-beta.6"
+      }
+    },
+    {
       "identity" : "grpc-binary",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/grpc-binary.git",
@@ -132,8 +141,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git",
       "state" : {
-        "revision" : "06e410c9ded3727296961dc39526aa1c49905538",
-        "version" : "0.2.5"
+        "revision" : "68b2e08015287fb29bb3ddd312598a79bfe23f48"
       }
     },
     {
@@ -197,15 +205,6 @@
       "state" : {
         "revision" : "e01b3d4f861412f8dcee8d93c417d2c2b0cdfd77",
         "version" : "7.0.0"
-      }
-    },
-    {
-      "identity" : "spezi",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SchmiedmayerLab/Spezi.git",
-      "state" : {
-        "revision" : "7fbc89d590ee29d9e73b9d700f91aa1e3d905883",
-        "version" : "0.2.1"
       }
     },
     {

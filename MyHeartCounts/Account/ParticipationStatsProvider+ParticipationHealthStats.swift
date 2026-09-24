@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import GroveHealthKit
+import GroveHealthKitUI
 import HealthKit
-import SpeziHealthKit
-import SpeziHealthKitUI
 
 
 extension ParticipationStatsProvider {

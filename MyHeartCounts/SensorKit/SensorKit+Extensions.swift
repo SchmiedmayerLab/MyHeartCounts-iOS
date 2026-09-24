@@ -7,8 +7,8 @@
 //
 
 import Foundation
+import GroveSensorKit
 import SensorKit
-import SpeziSensorKit
 
 
 extension SRWristTemperatureSession: @retroactive Identifiable {

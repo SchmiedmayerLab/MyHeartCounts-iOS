@@ -7,10 +7,10 @@
 //
 
 import Foundation
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitUI
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitUI
 import SwiftUI
 
 
