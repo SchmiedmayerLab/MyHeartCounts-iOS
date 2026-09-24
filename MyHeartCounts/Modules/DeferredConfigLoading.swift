@@ -282,6 +282,7 @@ enum DeferredConfigLoading {
                 }
                 baseModules(preferredLocale: preferredLocale)
                 HealthKitStatsCalculator()
+                StatsStore()
                 EnvironmentTracking()
                 LoadFirebaseTracking() // intentionally the very last thing!!!
             }

@@ -71,6 +71,8 @@ final class MyHeartCountsDelegate: GroveAppDelegate {
             NotificationsManager()
             AccountFeatureFlags()
             DemoSetup()
+            ParticipationStatsProvider()
+            AchievementsManager()
         }
     }
     

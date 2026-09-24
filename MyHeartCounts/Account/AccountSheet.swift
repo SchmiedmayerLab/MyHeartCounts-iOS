@@ -178,6 +178,9 @@ struct AccountSheet: View {
             .contentShape(Rectangle())
             .foregroundStyle(.textLabel)
         }
+        NavigationLink("View Participation Stats") {
+            ParticipationStatsView(enrollment: enrollment)
+        }
         PostTrialNudgesToggle()
         UpdateComorbiditiesButton()
         NavigationLink("Review Consent Forms") {

@@ -567,6 +567,8 @@
 				80F72BD92D7E00A100150FE3 /* MyHeartCountsTests */,
 			);
 			name = MyHeartCountsTests;
+			packageProductDependencies = (
+			);
 			productName = MyHeartCountsTests;
 			productReference = 653A255D28338800005D4D48 /* MyHeartCountsTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";

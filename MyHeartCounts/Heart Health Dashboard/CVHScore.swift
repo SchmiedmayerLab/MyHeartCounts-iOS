@@ -64,7 +64,17 @@ struct CVHScore: DynamicProperty {
     @StatsDocumentsQuery<QuantitySample>(metric: .exerciseTime, timeRange: .last(days: 7).offset(by: .init(day: -1)), aggregationKind: .sum)
     private var statsExerciseTime
     
-    @StatsDocumentsQuery<QuantitySample>(metric: .steps, timeRange: .last(days: 7).offset(by: .init(day: -1)), aggregationKind: .sum)
+    @StatsDocumentsQuery<QuantitySample>(
+        metric: .steps,
+        timeRange: .last(days: 7).offset(by: .init(day: -1)),
+        aggregationKind: .sum,
+        interval: .init(
+            interval: .day,
+            anchor: Calendar.current.startOfDay(for: .now),
+            calendar: .current,
+            alignmentPolicy: .approximate
+        )
+    )
     private var statsStepCount
     
     @StatsDocumentsQuery<SleepSessionStatsSample>(sleepSessionsIn: .last(days: 14))
@@ -137,21 +147,15 @@ extension CVHScore {
     var stepCountScore: ScoreResult {
         let avgText: LocalizedStringResource = "Daily Average"
         let timeRangeText: LocalizedStringResource = "Last \(7) Days"
-        // the stats documents store hourly sums; reduce them into daily sums, and average those
+        // The query returns daily sums. Average only days with data, preserving the score's denominator.
         let timeRange = HealthKitQueryTimeRange.last(days: 7).offset(by: .init(day: -1)).range
-        let cal = Calendar.current
-        let dailySums = statsStepCount.reducedIntoIntervals(
-            using: .sum,
-            over: .day,
-            anchor: cal.startOfDay(for: timeRange.lowerBound),
-            overallTimeRange: timeRange,
-            calendar: cal
-        )
+        // A coarser source cannot supply daily inputs; never interpret retained raw buckets as days.
+        let hasDailySums = !statsStepCount.isEmpty && $statsStepCount.snapshot?.diagnostics.contains(.unalignedInterval) == false
         return ScoreResult(
             "\(avgText), \(timeRangeText)",
             sampleType: .healthKit(.quantity(.stepCount)),
             timeRange: timeRange,
-            input: dailySums.isEmpty ? nil : dailySums,
+            input: hasDailySums ? statsStepCount : nil,
             value: { $0.map { $0.value(as: .count()) }.mean()?.rounded() },
             definition: .cvhStepCount
         )

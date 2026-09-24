@@ -177,6 +177,8 @@ private struct TileImpl: View {
 // MARK: SamplesProviderView
 
 private struct SamplesProviderView<Content: View>: View {
+    @Environment(\.calendar)
+    private var calendar
     private let input: DefaultHealthDashboardTile.QueryInput
     private let aggregationMode: QuantitySamplesAggregationStrategy
     private let timeRange: HealthKitQueryTimeRange
@@ -196,9 +198,17 @@ private struct SamplesProviderView<Content: View>: View {
             )
         case .statsDocuments(let metric):
             StatsDocumentsImpl(
-                samples: .init(metric: metric, timeRange: timeRange, aggregationKind: aggregationMode.kind),
-                aggregationMode: aggregationMode,
-                timeRange: timeRange,
+                samples: .init(
+                    metric: metric,
+                    timeRange: timeRange,
+                    aggregationKind: aggregationMode.kind,
+                    interval: .init(
+                        interval: aggregationMode.interval,
+                        anchor: calendar.startOfDay(for: timeRange.range.lowerBound),
+                        calendar: calendar,
+                        alignmentPolicy: .approximate
+                    )
+                ),
                 content: content
             )
         }
@@ -239,24 +249,11 @@ extension SamplesProviderView {
     }
 
     private struct StatsDocumentsImpl: View {
-        @Environment(\.calendar)
-        private var calendar
         @StatsDocumentsQuery<QuantitySample> var samples: [QuantitySample]
-        let aggregationMode: QuantitySamplesAggregationStrategy
-        let timeRange: HealthKitQueryTimeRange
         let content: @MainActor ([QuantitySample]) -> Content
         
         var body: some View {
-            // reduce the stats documents' entries into one sample per aggregation interval,
-            // mirroring what the HKStatisticsQuery-based provider produces for the HealthKit path.
-            // note that the achievable resolution is limited by what the stats documents store (e.g., hourly buckets).
-            content(samples.reducedIntoIntervals(
-                using: aggregationMode.kind,
-                over: aggregationMode.interval,
-                anchor: calendar.startOfDay(for: timeRange.range.lowerBound),
-                overallTimeRange: timeRange.range,
-                calendar: calendar
-            ))
+            content(samples)
         }
     }
     

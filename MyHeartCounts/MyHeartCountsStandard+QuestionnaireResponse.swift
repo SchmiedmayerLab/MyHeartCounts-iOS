@@ -37,6 +37,9 @@ extension MyHeartCountsStandard {
             logger.error("Could not store questionnaire response: \(error)")
         }
         await parseIfApplicable(response)
+        if let timestamp = try? response.authored?.value?.asNSDate() {
+            await achievementsManager?.record(.completeQuestionnaire, timestamp: timestamp)
+        }
     }
     
     

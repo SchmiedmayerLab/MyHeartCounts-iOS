@@ -30,6 +30,12 @@ struct HeartHealthDashboardTab: RootViewTab {
             HeartHealthDashboard()
                 .navigationTitle("MHC Heart Health")
                 .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        ParticipationStatsButton()
+                    }
+                    if #available(iOS 26, *) {
+                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                    }
                     accountToolbarItem
                 }
         }
