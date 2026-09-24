@@ -214,16 +214,18 @@ struct FHIRExchangeStateTests {
     func eventContextBundlesTheEnrollmentItWasReservedUnder() throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
-        let enrolled = try store.event(key: "enrolled", recordedAt: .now, facts: Self.eventFacts())
+        let studyID = "7C1A5E0F-3B2D-4E6A-9F8B-0D1C2E3F4A5B"
+        let enrolled = try store.event(key: "enrolled", recordedAt: .now, facts: Self.eventFacts(study: studyID))
         let unenrolled = try store.event(key: "unenrolled", recordedAt: .now, facts: Self.eventFacts(study: nil))
 
         let study = try #require(
             try store.eventContext(for: enrolled, subject: subject, repository: .healthKit).studies.first
         )
-        #expect(study.study.value == "study-original")
-        #expect(study.protocolURL.value?.url.absoluteString == "https://myheartcounts.stanford.edu/fhir/PlanDefinition/study-original")
+        let lowercased = "7c1a5e0f-3b2d-4e6a-9f8b-0d1c2e3f4a5b"
+        #expect(study.study.value == lowercased)
+        #expect(study.protocolURL.value?.url.absoluteString == "https://myheartcounts.stanford.edu/fhir/PlanDefinition/\(lowercased)")
         #expect(study.protocolVersion == "1")
-        #expect(study.enrollment.value == "study-original:participant-test")
+        #expect(study.enrollment.value == "\(lowercased):participant-test")
         #expect(try store.eventContext(for: unenrolled, subject: subject, repository: .healthKit).studies.isEmpty)
     }
 

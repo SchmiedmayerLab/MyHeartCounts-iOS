@@ -76,14 +76,15 @@ extension FHIRExchangeEventFacts {
         guard let study else {
             return []
         }
+        let studyID = study.id.lowercased()
         return [
             try StudyEnrollment(
-                study: BusinessIdentifier(system: FHIRExchangeIdentifiers.researchStudy, value: study.id),
-                protocolURL: FHIRExchangeIdentifiers.studyProtocol(studyID: study.id),
+                study: BusinessIdentifier(system: FHIRExchangeIdentifiers.researchStudy, value: studyID),
+                protocolURL: FHIRExchangeIdentifiers.studyProtocol(studyID: studyID),
                 protocolVersion: String(study.revision),
                 enrollment: BusinessIdentifier(
                     system: FHIRExchangeIdentifiers.researchSubject,
-                    value: "\(study.id):\(subject.identity.value)"
+                    value: "\(studyID):\(subject.identity.value)"
                 )
             )
         ]
