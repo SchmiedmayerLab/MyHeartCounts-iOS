@@ -53,20 +53,9 @@ extension FHIRExchangeStateStore {
             ),
             options: .myHeartCounts
         )
-        // "healthkit" is the adapter token Grove's converter mints every HealthKit source record under.
-        let sourceRecord = try context.event.identityScope.sourceRecord(
-            adapterID: "healthkit",
-            sourceType: sourceType.rawValue,
-            repositoryScope: context.event.repositoryScope,
-            nativeRecordID: record.nativeRecordID.uuidString.lowercased()
-        )
-        let retraction = try RetractionEvent(
-            targets: HealthKitConverter().retractionTargets(
-                for: HealthKitSourceRecord(uuid: record.nativeRecordID, type: sourceType),
-                context: context
-            ),
-            context: context.event,
-            sourceRecord: sourceRecord.identifier,
+        let retraction = try HealthKitConverter().retraction(
+            for: HealthKitSourceRecord(uuid: record.nativeRecordID, type: sourceType),
+            context: context,
             retractedAt: record.detectedAt
         )
         return (eventKey, retraction.graph)
