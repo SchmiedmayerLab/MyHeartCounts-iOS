@@ -10,11 +10,11 @@
 
 import Foundation
 import GroveQuestionnaire
+import GroveQuestionnaireUI
 import GroveScheduler
 import GroveStudy
 import GroveStudyDefinition
 import MHCStudyDefinition
-import struct ModelsR4.Questionnaire
 import MyHeartCountsShared
 import ResearchKitSwiftUI
 import SFSafeSymbols
@@ -39,7 +39,7 @@ struct PerformTask: DynamicProperty {
     @MainActor
     final class Task: Sendable {
         enum Action: Hashable {
-            case answerQuestionnaire(Questionnaire)
+            case answerQuestionnaire(GroveQuestionnaire.Questionnaire)
             case article(Article)
             case timedWalkTest(TimedWalkingTestConfiguration)
             case ecg
@@ -154,18 +154,21 @@ private struct UserTaskPerforming: ViewModifier {
     @Environment(MHCCurrentlyActiveTask.self)
     private var currentlyActiveTask
     
+    @Environment(\.locale)
+    private var locale
+    
     func body(content: Content) -> some View {
         @Bindable var currentlyActiveTask = currentlyActiveTask
         content
             .sheet(item: $currentlyActiveTask.task, id: \.action) { task in
                 switch task.action {
                 case .answerQuestionnaire(let questionnaire):
-                    QuestionnaireView(questionnaire: questionnaire, cancelBehavior: .cancel) { result in
+                    QuestionnaireSheet(questionnaire) { result in
                         switch result {
-                        case .completed(let response):
-                            await standard.add(response, for: questionnaire)
+                        case .completed(let responses):
+                            try await submitQuestionnaire(responses, renderedIn: locale, to: standard)
                             task.markCompleted(didSucceed: true)
-                        case .cancelled, .failed:
+                        case .cancelled:
                             task.markCompleted(didSucceed: false)
                         }
                         currentlyActiveTask.task = nil
@@ -212,7 +215,7 @@ extension PerformTask.Task.Action {
     var title: LocalizedStringResource {
         switch self {
         case .answerQuestionnaire(let questionnaire):
-            (questionnaire.title?.value?.string).map { "\($0)" } ?? "Questionnaire"
+            questionnaire.displayText(\.title).map { "\($0)" } ?? "Questionnaire"
         case .article(let article):
             "\(article.title)"
         case .timedWalkTest(let test):
@@ -238,7 +241,7 @@ extension PerformTask.Task.Action {
     var instructions: LocalizedStringResource? {
         switch self {
         case .answerQuestionnaire(let questionnaire):
-            (questionnaire.purpose?.value?.string).map { "\($0)" }
+            questionnaire.displayText(\.explainer).map { "\($0)" }
         case .article:
             nil // lede?
         case .timedWalkTest:
@@ -273,5 +276,14 @@ extension PerformTask.Task.Action {
         case .ecg:
             "Take ECG"
         }
+    }
+}
+
+
+extension GroveQuestionnaire.Questionnaire {
+    /// A metadata text in the language the questionnaire sheet renders for the current locale, or `nil` when empty.
+    fileprivate func displayText(_ keyPath: KeyPath<Metadata, LocalizedText>) -> String? {
+        let text = metadata[keyPath: keyPath].resolved(in: renderingLanguage(for: .current))
+        return text.isEmpty ? nil : text
     }
 }

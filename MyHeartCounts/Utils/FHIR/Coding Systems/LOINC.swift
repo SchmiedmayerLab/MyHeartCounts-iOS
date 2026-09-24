@@ -8,6 +8,7 @@
 
 // periphery:ignore:all
 
+import FHIRModelsExtensions
 import Foundation
 import ModelsR4
 

@@ -51,6 +51,8 @@
 		801A66142FEC47BD009182AD /* GroveStudyDefinition in Frameworks */ = {isa = PBXBuildFile; productRef = 80471E1D2E144A180049798B /* GroveStudyDefinition */; };
 		801A66152FEC47BD009182AD /* GroveSensorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80E0E3152EB27C4A00F445B6 /* GroveSensorKit */; };
 		802118D1301663AA0088582C /* GroveHealthKitFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 802118D0301663AA0088582C /* GroveHealthKitFHIR */; };
+		802118D2301663AA0088582C /* GroveFHIRContract in Frameworks */ = {isa = PBXBuildFile; productRef = 802118D0301663AA0088582D /* GroveFHIRContract */; };
+		802118D3301663AA0088582C /* GroveSensorKitFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 802118D0301663AA0088582E /* GroveSensorKitFHIR */; };
 		802CB63F2F85177A0011907F /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 802CB63E2F85177A0011907F /* AsyncAlgorithms */; };
 		8034CBE22DE6514700E7F9F6 /* GroveHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8034CBE12DE6514700E7F9F6 /* GroveHealthKit */; };
 		80404B0A2EDC635900DEA429 /* MyHeartCountsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 80404B092EDC635900DEA429 /* MyHeartCountsShared */; };
@@ -84,7 +86,6 @@
 		80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2352EC1336F00F0E453 /* ModelsDSTU2 */; };
 		80B8A2382EC1336F00F0E453 /* ModelsR4 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2372EC1336F00F0E453 /* ModelsR4 */; };
 		80BE06542DCF3A6D00171114 /* SwiftPackageList in Frameworks */ = {isa = PBXBuildFile; productRef = 80BE06532DCF3A6D00171114 /* SwiftPackageList */; };
-		80D031FB2FE52D3D0090B041 /* ResearchKitOnFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FA2FE52D3D0090B041 /* ResearchKitOnFHIR */; };
 		80D031FD2FE52D3D0090B041 /* Grove in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FC2FE52D3D0090B041 /* Grove */; };
 		80D031FF2FE52D3D0090B041 /* GroveAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FE2FE52D3D0090B041 /* GroveAccount */; };
 		80D032032FE52D3D0090B041 /* GroveFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032022FE52D3D0090B041 /* GroveFHIR */; };
@@ -99,6 +100,7 @@
 		80D0321D2FE52D3D0090B041 /* GroveLocalStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0321C2FE52D3D0090B041 /* GroveLocalStorage */; };
 		80D032212FE52D3D0090B041 /* GroveNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032202FE52D3D0090B041 /* GroveNotifications */; };
 		80D032232FE52D3D0090B041 /* GroveQuestionnaire in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032222FE52D3D0090B041 /* GroveQuestionnaire */; };
+		80D0FA022FE52D3D0090B041 /* GroveQuestionnaireUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0FA012FE52D3D0090B041 /* GroveQuestionnaireUI */; };
 		80D032252FE52D3D0090B041 /* GroveQuestionnaireFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032242FE52D3D0090B041 /* GroveQuestionnaireFHIR */; };
 		80D0322B2FE52D3D0090B041 /* GroveSensorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0322A2FE52D3D0090B041 /* GroveSensorKit */; };
 		80D032312FE52D3D0090B041 /* GroveTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032302FE52D3D0090B041 /* GroveTesting */; };
@@ -110,7 +112,6 @@
 		80D032562FE5315D0090B041 /* XCTGroveAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032552FE5315D0090B041 /* XCTGroveAccount */; };
 		80D032582FE5315D0090B041 /* XCTGroveNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032572FE5315D0090B041 /* XCTGroveNotifications */; };
 		80D0325A2FE5315D0090B041 /* XCTGroveQuestionnaire in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032592FE5315D0090B041 /* XCTGroveQuestionnaire */; };
-		80D8EE1A3027BA2800A76707 /* GroveQuestionnaireLegacy in Frameworks */ = {isa = PBXBuildFile; productRef = 80D8EE193027BA2800A76707 /* GroveQuestionnaireLegacy */; };
 		80D8EE1E3027BA3D00A76707 /* ResearchKitSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */; };
 		80E982FB2EBA463500202499 /* GroveConsent in Frameworks */ = {isa = PBXBuildFile; productRef = 805BE3CE2E060B3A001E5CA4 /* GroveConsent */; };
 		9739A0C62AD7B5730084BEA5 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 9739A0C52AD7B5730084BEA5 /* FirebaseStorage */; };
@@ -282,7 +283,6 @@
 				801A66032FEC47BD009182AD /* GroveOnboarding in Frameworks */,
 				801A66022FEC47BD009182AD /* GroveFirestore in Frameworks */,
 				801A66012FEC47BD009182AD /* GroveFirebaseStorage in Frameworks */,
-				80D8EE1A3027BA2800A76707 /* GroveQuestionnaireLegacy in Frameworks */,
 				801A66002FEC47BD009182AD /* GroveFirebaseConfiguration in Frameworks */,
 				801A65FF2FEC47BD009182AD /* GroveFirebaseAccountStorage in Frameworks */,
 				801A65FE2FEC47BD009182AD /* GroveFirebaseAccount in Frameworks */,
@@ -324,6 +324,7 @@
 				8052B8632EB9FFDF005E2D8C /* GroveSchedulerUI in Frameworks */,
 				800DF2412EBB4645001B9993 /* MyHeartCountsShared in Frameworks */,
 				80D032232FE52D3D0090B041 /* GroveQuestionnaire in Frameworks */,
+				80D0FA022FE52D3D0090B041 /* GroveQuestionnaireUI in Frameworks */,
 				80D032192FE52D3D0090B041 /* GroveKeychainStorage in Frameworks */,
 				80D032112FE52D3D0090B041 /* GroveFoundation in Frameworks */,
 				8052B85B2EB9FFDF005E2D8C /* GroveScheduler in Frameworks */,
@@ -334,12 +335,13 @@
 				807669732D772C40001B980B /* Collections in Frameworks */,
 				80471E1A2E144A180049798B /* GroveLocalization in Frameworks */,
 				802118D1301663AA0088582C /* GroveHealthKitFHIR in Frameworks */,
+				802118D2301663AA0088582C /* GroveFHIRContract in Frameworks */,
+				802118D3301663AA0088582C /* GroveSensorKitFHIR in Frameworks */,
 				2FB099B12A875DF100B20952 /* FirebaseFirestore in Frameworks */,
 				80D0321B2FE52D3D0090B041 /* GroveLicense in Frameworks */,
 				80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */,
 				807669712D772C40001B980B /* BitCollections in Frameworks */,
 				80D032332FE52D3D0090B041 /* GroveValidation in Frameworks */,
-				80D031FB2FE52D3D0090B041 /* ResearchKitOnFHIR in Frameworks */,
 				80D0321D2FE52D3D0090B041 /* GroveLocalStorage in Frameworks */,
 				807669772D772C40001B980B /* HashTreeCollections in Frameworks */,
 				80B7F0642FADF2940040F247 /* GRDB in Frameworks */,
@@ -450,6 +452,8 @@
 			);
 			name = MyHeartCounts;
 			packageProductDependencies = (
+				802118D0301663AA0088582D /* GroveFHIRContract */,
+				802118D0301663AA0088582E /* GroveSensorKitFHIR */,
 				2FBD738B2A3BD150004228E7 /* GroveScheduler */,
 				2FB099AE2A875DF100B20952 /* FirebaseAuth */,
 				2FB099B02A875DF100B20952 /* FirebaseFirestore */,
@@ -520,7 +524,6 @@
 				807423532F28E15E00113313 /* MHCStudyDefinitionExporter */,
 				802CB63E2F85177A0011907F /* AsyncAlgorithms */,
 				80B7F0632FADF2940040F247 /* GRDB */,
-				80D031FA2FE52D3D0090B041 /* ResearchKitOnFHIR */,
 				80D031FC2FE52D3D0090B041 /* Grove */,
 				80D031FE2FE52D3D0090B041 /* GroveAccount */,
 				80D032022FE52D3D0090B041 /* GroveFHIR */,
@@ -535,6 +538,7 @@
 				80D0321C2FE52D3D0090B041 /* GroveLocalStorage */,
 				80D032202FE52D3D0090B041 /* GroveNotifications */,
 				80D032222FE52D3D0090B041 /* GroveQuestionnaire */,
+				80D0FA012FE52D3D0090B041 /* GroveQuestionnaireUI */,
 				80D032242FE52D3D0090B041 /* GroveQuestionnaireFHIR */,
 				80D0322A2FE52D3D0090B041 /* GroveSensorKit */,
 				80D032302FE52D3D0090B041 /* GroveTesting */,
@@ -542,7 +546,6 @@
 				80D032342FE52D3D0090B041 /* GroveViews */,
 				80D0323C2FE52D3D0090B041 /* XCTGroveNotificationsUI */,
 				802118D0301663AA0088582C /* GroveHealthKitFHIR */,
-				80D8EE193027BA2800A76707 /* GroveQuestionnaireLegacy */,
 				80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */,
 			);
 			productName = MyHeartCounts;
@@ -1233,7 +1236,7 @@
 			repositoryURL = "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git";
 			requirement = {
 				kind = revision;
-				revision = 68b2e08015287fb29bb3ddd312598a79bfe23f48;
+				revision = 490ffab044e72c4e351d737c245e316d8609bbe9;
 			};
 		};
 		8076696C2D772C07001B980B /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
@@ -1296,11 +1299,10 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SchmiedmayerLab/Grove.git";
 			requirement = {
-				kind = exactVersion;
-				version = "0.3.0-beta.8";
+				kind = revision;
+				revision = 66f0a88e111bcf8c985f71c41890c0850d9acd73;
 			};
 			traits = (
-				ResearchKit,
 				Textual,
 				default,
 			);
@@ -1353,6 +1355,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = GroveHealthKitFHIR;
+		};
+		802118D0301663AA0088582D /* GroveFHIRContract */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveFHIRContract;
+		};
+		802118D0301663AA0088582E /* GroveSensorKitFHIR */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveSensorKitFHIR;
 		};
 		802141582D81F14000BF5D35 /* GroveOnboarding */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1604,11 +1616,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = GroveOnboarding;
 		};
-		80D031FA2FE52D3D0090B041 /* ResearchKitOnFHIR */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
-			productName = ResearchKitOnFHIR;
-		};
 		80D031FC2FE52D3D0090B041 /* Grove */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
@@ -1679,6 +1686,11 @@
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = GroveQuestionnaire;
 		};
+		80D0FA012FE52D3D0090B041 /* GroveQuestionnaireUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveQuestionnaireUI;
+		};
 		80D032242FE52D3D0090B041 /* GroveQuestionnaireFHIR */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
@@ -1733,11 +1745,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = XCTGroveQuestionnaire;
-		};
-		80D8EE193027BA2800A76707 /* GroveQuestionnaireLegacy */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
-			productName = GroveQuestionnaireLegacy;
 		};
 		80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */ = {
 			isa = XCSwiftPackageProductDependency;

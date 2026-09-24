@@ -7,53 +7,43 @@
 //
 
 import Foundation
-import GroveFoundation
 import GroveSensorKit
-import ModelsR4
-import MyHeartCountsShared
-import NIOCore
-import NIOFoundationCompat
+import GroveSensorKitFHIR
 import SensorKit
 
 
 extension SRPhotoplethysmogramSample {
     struct UploadStrategy: MHCSensorSampleUploadStrategy {
         typealias Sample = SRPhotoplethysmogramSample
-        
+
         func upload(
             _ samples: consuming some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
-            batchInfo: SensorKit.BatchInfo,
+            publication: SensorKitBatchPublication,
             for sensor: Sensor<SRPhotoplethysmogramSample>,
             to standard: MyHeartCountsStandard,
             activity: SensorKitDataFetcher.InProgressActivity
         ) async throws {
-            guard let firstSample = samples.first, let lastSample = samples.last else {
-                // nothing to do if samples is empty...
+            guard !samples.isEmpty else {
                 return
             }
-            let buffer = try BinaryEncoder.encode((consume samples).lazy.map { PPGSample($0.sample) })
-            guard let data = buffer.getData(at: buffer.readerIndex, length: buffer.readableBytes, byteTransferStrategy: .noCopy) else {
-                // should probably be unreachable
-                assertionFailure("Failed to retrieve Data for encoded PPG samples")
-                return
-            }
+            let prepared = try SensorKitPPGRecording(samples: Array(samples)).prepared()
             try await self.upload(
-                data: data,
-                fileExtension: "mhcPPG",
-                shouldCompress: false,
+                sidecar: SensorKitUploadSidecar(data: prepared.data, format: prepared.format),
+                retryEvidence: prepared.retryEvidence,
                 for: sensor,
-                deviceInfo: batchInfo.device,
+                publication: publication,
                 to: standard,
-                observationDocName: "\(batchInfo.timeRange.lowerBound.ISO8601Format())_\(batchInfo.timeRange.upperBound.ISO8601Format())",
                 activity: activity
-            ) { observation in
-                // it appears that SensorKit returns PPG samples ordered by startDate
-                // there are some cases, sometimes, where samples are out of order, but the largest discrepancy we've noticed was
-                // a sample at idx N+1 having a startDate that was ~0.008 seconds earlier than the sample at idx N.
-                observation.effective = try .period(Period(
-                    end: FHIRPrimitive(DateTime(date: lastSample.startDate)),
-                    start: FHIRPrimitive(DateTime(date: firstSample.startDate))
-                ))
+            ) { sourceRecordID, title, sidecarPath in
+                guard let sidecarPath else {
+                    throw SensorKitRecordError.missingProviderValue("photoplethysmogram.location")
+                }
+                return try prepared.sensorKitRecord(
+                    sourceRecordID: sourceRecordID,
+                    title: title,
+                    location: .sidecar(path: sidecarPath),
+                    admission: .callerAuthorizedOpaquePayload
+                )
             }
         }
     }
