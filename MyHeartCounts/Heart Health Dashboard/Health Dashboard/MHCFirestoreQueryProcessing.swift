@@ -8,8 +8,8 @@
 
 import FirebaseFirestore
 import Foundation
+import GroveFoundation
 import MyHeartCountsShared
-import SpeziFoundation
 
 
 /// One listener delivery, separating document contents from query metadata.

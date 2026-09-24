@@ -9,8 +9,8 @@
 // IDEA ideally we'd also have some of these achievements, when displayed in the UI, be buttons that directly take the user to where they can perform the action that would give them the acheivement, or maybe even directly initiates the thing?!
 
 import Foundation
+import GroveFoundation
 import SFSafeSymbols
-import SpeziFoundation
 
 
 extension Achievement.Category {

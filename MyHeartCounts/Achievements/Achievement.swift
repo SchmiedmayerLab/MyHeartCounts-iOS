@@ -7,8 +7,8 @@
 //
 
 import Foundation
+import GroveFoundation
 import SFSafeSymbols
-import SpeziFoundation
 
 
 /// A tracked goal the user can unlock by satisfying some condition.
