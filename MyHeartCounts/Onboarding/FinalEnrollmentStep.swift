@@ -40,7 +40,7 @@ struct FinalEnrollmentStep: View {
         OnboardingPage(title: "Welcome to My Heart Counts", description: "What happens next:") {
             content
         } footer: {
-            OnboardingActionsView("Start", viewState: $viewState) {
+            PageActions("Start", viewState: $viewState) {
                 try await completeStudyEnrollment()
             }
         }

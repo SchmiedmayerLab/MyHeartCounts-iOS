@@ -39,7 +39,7 @@ struct HealthRecordPermissions: View {
         OnboardingPage(symbol: Self.symbol, title: title, description: "HEALTH_RECORDS_PERMISSIONS_SUBTITLE") {
             EmptyView()
         } footer: {
-            OnboardingActionsView(
+            PageActions(
                 primaryTitle: "Review Permissions",
                 primaryViewState: $viewState,
                 primaryAction: {

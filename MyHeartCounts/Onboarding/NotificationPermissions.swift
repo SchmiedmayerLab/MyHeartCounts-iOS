@@ -27,7 +27,7 @@ struct NotificationPermissions: View {
         OnboardingPage(symbol: .bellBadge, title: "Notifications", description: "NOTIFICATION_PERMISSIONS_DESCRIPTION") {
             EmptyView()
         } footer: {
-            OnboardingActionsView("Allow Notifications", viewState: $viewState) {
+            PageActions("Allow Notifications", viewState: $viewState) {
                 await allowNotifications()
             }
         }

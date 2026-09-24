@@ -20,7 +20,7 @@ struct DemographicsStep: View {
     
     var body: some View {
         DemographicsForm(isComplete: $isComplete) {
-            OnboardingActionsView("Continue") {
+            PageActions("Continue") {
                 path.nextStep()
             }
             .disabled(!isComplete)
