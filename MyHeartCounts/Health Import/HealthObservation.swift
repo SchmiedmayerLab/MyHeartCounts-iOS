@@ -223,11 +223,13 @@ extension HealthObservation {
                 stateStore: stateStore
             )
         }
-        for warning in conversions.warnings {
-            let diagnostic = warning.diagnostic
-            logger.notice(
-                "Grove converted \(sample.sampleType.identifier) \(sample.uuid) with \(diagnostic.code) at \(diagnostic.location)"
-            )
+        for conversion in conversions.all {
+            for warning in conversion.warnings {
+                let diagnostic = warning.diagnostic
+                logger.notice(
+                    "Grove converted \(conversion.source.type.rawValue) \(conversion.source.uuid) with \(diagnostic.code) at \(diagnostic.location)"
+                )
+            }
         }
         return PreparedHealthObservationFHIRPayload(entries: conversions.all.map { conversion in
             Self.entry(
