@@ -48,6 +48,7 @@ extension HealthUploadStaging {
             case timestamp
             case sampleType
             case sampleId
+            case deletedAfter
         }
         static let databaseTableName = "pendingDeletions"
         static var timestampColumn: Column { Column(Columns.timestamp.name) }
@@ -56,6 +57,8 @@ extension HealthUploadStaging {
         let timestamp: Date
         let sampleType: String
         let sampleId: UUID
+        /// When the query before the one that reported the deletion was issued, if known.
+        let deletedAfter: Date?
     }
 
 
@@ -66,6 +69,11 @@ extension HealthUploadStaging {
         }
         migrator.registerMigration("v2") { db in
             try createDrainIndexes(in: db)
+        }
+        migrator.registerMigration("v3") { db in
+            try db.alter(table: PendingDeletionRecord.databaseTableName) {
+                $0.add(column: PendingDeletionRecord.Columns.deletedAfter.name, .text)
+            }
         }
         if let targetMigration {
             try migrator.migrate(dbQueue, upTo: targetMigration)

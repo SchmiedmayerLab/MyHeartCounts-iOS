@@ -15,6 +15,8 @@ import GroveHealthKitFHIR
 struct HealthKitDeletedRecord: Sendable {
     let sourceTypeIdentifier: String
     let nativeRecordID: UUID
+    /// When the query before the one that reported the deletion was issued, if known.
+    let deletedAfter: Date?
     /// When the anchored query reported the deletion; HealthKit never states when it happened.
     let detectedAt: Date
 }

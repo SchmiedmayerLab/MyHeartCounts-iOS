@@ -33,25 +33,24 @@ struct HealthUploadStagingMigrationTests {
             sampleId: UUID(),
             fhirJson: Data([0x00, 0x7F, 0xFF])
         )
-        let deletion = HealthUploadStaging.PendingDeletionRecord(
-            id: UUID(),
-            timestamp: timestamp,
-            sampleType: "deletion",
-            sampleId: UUID()
-        )
+        let deletionId = UUID()
         try await dbQueue.write { db in
             try sample.insert(db)
-            try deletion.insert(db)
+            try db.execute(
+                sql: "INSERT INTO pendingDeletions (id, timestamp, sampleType, sampleId) VALUES (?, ?, ?, ?)",
+                arguments: [deletionId, timestamp, "deletion", UUID()]
+            )
         }
 
         try HealthUploadStaging.applyMigrations(to: dbQueue)
         try await dbQueue.read { db in
             let sampleId = try HealthUploadStaging.PendingSampleRecord.fetchOne(db)?.id
-            let deletionId = try HealthUploadStaging.PendingDeletionRecord.fetchOne(db)?.id
+            let deletion = try HealthUploadStaging.PendingDeletionRecord.fetchOne(db)
             let timestampTypes = try timestampTypes(in: db)
             let indexes = try drainIndexes(in: db)
             #expect(sampleId == sample.id)
-            #expect(deletionId == deletion.id)
+            #expect(deletion?.id == deletionId)
+            #expect(deletion?.deletedAfter == nil)
             #expect(timestampTypes == ["TEXT", "TEXT"])
             #expect(indexes == expectedIndexes)
         }

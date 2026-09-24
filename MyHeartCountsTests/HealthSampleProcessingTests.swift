@@ -33,7 +33,8 @@ struct HealthSampleProcessingTests {
 
         func handleDeletedObjects<Sample>(
             _ deletedObjects: some Collection<HKDeletedObject> & Sendable,
-            ofType sampleType: SampleType<Sample>
+            ofType sampleType: SampleType<Sample>,
+            deletedAfter: Date?
         ) async throws -> HealthKitAnchorCommitAction? { nil }
     }
     
@@ -269,9 +270,10 @@ struct HealthSampleProcessingTests {
         let healthUploadStaging = try stagingForTesting()
         let deletedID = UUID()
         let deletion = try HKDeletedObject.make(uuid: deletedID)
+        let deletedAfter = Date(timeIntervalSince1970: 1_788_000_000)
 
-        try healthUploadStaging.add([deletion], ofType: SampleType.stepCount)
-        try healthUploadStaging.add([deletion], ofType: SampleType.stepCount)
+        try healthUploadStaging.add([deletion], ofType: SampleType.stepCount, deletedAfter: nil)
+        try healthUploadStaging.add([deletion], ofType: SampleType.stepCount, deletedAfter: deletedAfter)
 
         #expect(try healthUploadStaging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 1)
         let chunk = try #require(try healthUploadStaging.fetchNextDrainChunk(
@@ -280,6 +282,7 @@ struct HealthSampleProcessingTests {
             limit: 10
         ))
         #expect(chunk.rows.map(\.sampleId) == [deletedID])
+        #expect(chunk.rows.map(\.deletedAfter) == [deletedAfter])
     }
     
     
@@ -322,7 +325,8 @@ struct HealthSampleProcessingTests {
                 try HKDeletedObject.make(uuid: newSamples[0].uuid),
                 try HKDeletedObject.make(uuid: unmatchedDeletionId)
             ],
-            ofType: .stepCount
+            ofType: .stepCount,
+            deletedAfter: nil
         )
 
         let expectedSummary = [SampleType.stepCount.id: 1]

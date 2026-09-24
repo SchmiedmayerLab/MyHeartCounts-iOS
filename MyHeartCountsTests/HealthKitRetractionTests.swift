@@ -53,6 +53,7 @@ struct HealthKitRetractionTests {
         HealthKitDeletedRecord(
             sourceTypeIdentifier: sourceType,
             nativeRecordID: try #require(UUID(uuidString: "9512FC92-B514-4BCC-A157-050C41DAC51D")),
+            deletedAfter: nil,
             detectedAt: detectedAt
         )
     }
@@ -258,6 +259,7 @@ struct HealthKitRetractionTests {
             of: HealthKitDeletedRecord(
                 sourceTypeIdentifier: sample.sampleType.identifier,
                 nativeRecordID: sample.uuid,
+                deletedAfter: nil,
                 detectedAt: Self.detectedAt
             ),
             in: store,

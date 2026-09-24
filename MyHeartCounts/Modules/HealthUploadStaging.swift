@@ -249,7 +249,11 @@ extension HealthUploadStaging {
     }
     
     
-    func add<Sample>(_ deletions: some Collection<HKDeletedObject> & Sendable, ofType sampleType: SampleType<Sample>) throws {
+    func add<Sample>(
+        _ deletions: some Collection<HKDeletedObject> & Sendable,
+        ofType sampleType: SampleType<Sample>,
+        deletedAfter: Date?
+    ) throws {
         guard !deletions.isEmpty else {
             return
         }
@@ -266,7 +270,8 @@ extension HealthUploadStaging {
                 id: UUID(),
                 timestamp: timestamp,
                 sampleType: sampleType.id,
-                sampleId: deletion.uuid
+                sampleId: deletion.uuid,
+                deletedAfter: deletedAfter
             ))
             if pendingDeletions.count == Self.databaseWriteChunkSize {
                 try insertDeletions(
