@@ -131,11 +131,13 @@ final class StatsStore: Module, EnvironmentAccessible {
     /// Called synchronously by the app's account event handler before its asynchronous cleanup.
     func handleAccountEvent(_ event: AccountNotifications.Event) {
         switch event {
-        case .associatedAccount:
+        case .didAssociate:
             suspendedAccountID = nil
             invalidateSession()
-        case .disassociatingAccount, .deletingAccount:
+        case .didDisassociate, .willDelete:
             invalidateSession()
+        case .willLogOut:
+            break
         case let .detailsChanged(previous, current):
             if previous.accountId != current.accountId {
                 suspendedAccountID = nil

@@ -108,7 +108,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             Swift::Task(priority: .background) {
                 historicalUploadManager.startAutomaticExportingIfNeeded()
                 healthKitStatsCalc?.start()
-                // the .associatedAccount event below will already have called this, but it likely will have failed,
+                // the .didAssociate event below will already have called this, but it likely will have failed,
                 // since there was an account logged in, but the enrollment didn't exist yet at that point.
                 // so we call it again after creating the enrollment.
                 // this only is relevant if the user wasn't logged in and enrolled when the app was launched.
@@ -126,11 +126,11 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     
     // MARK: Account Stuff
     
-    func respondToEvent(_ event: AccountNotifications.Event) async {
+    func handleAccountEvent(_ event: AccountNotifications.Event) async {
         await statsStore?.handleAccountEvent(event)
         let logger = logger
         switch event {
-        case .associatedAccount(let details):
+        case .didAssociate(let details):
             logger.notice("account was associated (account id: \(details.accountId))")
             if LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] {
                 do {
@@ -147,30 +147,28 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                 async let syncAchievements = try? achievementsManager?.associateWithAccount()
                 _ = await (updateEnvTracking, registerNotifications, syncAchievements)
             }
-        case .deletingAccount:
+        case .willDelete:
             logger.notice("account is being deleted")
             // not really doing anything in here since each deletion should also trigger an account disassociation, which will then be handled below
-        case .disassociatingAccount:
+        case .didDisassociate:
             logger.notice("account did disassociate")
             do {
                 try await performLogoutCleanup(context: .explicitUserLogoutEvent)
             } catch {
                 logger.error("Unable to clear all local account data during logout: \(error)")
             }
+        case .willLogOut:
+            await statsStore?.prepareForLogout()
+            logger.notice("account is being logged out")
+            LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
+            LocalPreferencesStore.standard[.accountDataGeneration] += 1
+            async let updateFCMToken = try? notificationsManager.setFCMToken(nil)
+            async let syncAchievements = try? achievementsManager?.syncNow()
+            _ = await (updateFCMToken, syncAchievements)
+            await achievementsManager?.disassociateFromAccount()
         case .detailsChanged:
             break
         }
-    }
-    
-    func willLogOut(_ details: AccountDetails) async {
-        await statsStore?.prepareForLogout()
-        logger.notice("account is being logged out")
-        LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
-        LocalPreferencesStore.standard[.accountDataGeneration] += 1
-        async let updateFCMToken = try? notificationsManager.setFCMToken(nil)
-        async let syncAchievements = try? achievementsManager?.syncNow()
-        _ = await (updateFCMToken, syncAchievements)
-        await achievementsManager?.disassociateFromAccount()
     }
 }
 

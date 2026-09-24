@@ -33,7 +33,7 @@ struct WorkoutPreferenceSetting: View {
             formSections
             if let path {
                 Section {
-                    OnboardingActionsView("Continue", viewState: $viewState) {
+                    PageActions("Continue", viewState: $viewState) {
                         await saveToAccountDetails()
                         path.nextStep()
                     }
