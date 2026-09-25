@@ -25,7 +25,7 @@ env:
 jobs:
   mhc_app_unit_tests:
     name: App Unit Tests
-    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.5
+    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@lukas/fix-xcode-selection
     permissions:
       contents: read
     with:
@@ -202,7 +202,7 @@ jobs:
 
   mhc_utils_unit_tests:
     name: Utils Unit Tests (${{ matrix.platform.name }} ${{ matrix.config }})
-    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.5
+    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@lukas/fix-xcode-selection
     permissions:
       contents: read
     strategy:

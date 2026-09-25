@@ -30,7 +30,7 @@ jobs:
       contents: read
   periphery:
     name: Periphery
-    uses: SchmiedmayerLab/.github/.github/workflows/periphery.yml@v0.5
+    uses: SchmiedmayerLab/.github/.github/workflows/periphery.yml@lukas/fix-xcode-selection
     permissions:
       contents: read
     with:
@@ -49,7 +49,7 @@ jobs:
       pull-requests: read
   codeql:
     name: CodeQL
-    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.5
+    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@lukas/fix-xcode-selection
     permissions:
       security-events: write
       actions: read
