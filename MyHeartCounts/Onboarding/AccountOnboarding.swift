@@ -58,7 +58,7 @@ struct AccountOnboarding: View {
     
     private func advance(_ details: AccountDetails) async throws {
         if FeatureFlags.enableUKStudyTesting,
-           LocalPreferencesStore.standard[.lastUsedFirebaseConfig]?.region == .unitedKingdom,
+           DeferredConfigLoading.activeFirebaseConfig?.region == .unitedKingdom,
            details.isUKStudyTestAccount != true {
             var updates = AccountDetails()
             updates.isUKStudyTestAccount = true

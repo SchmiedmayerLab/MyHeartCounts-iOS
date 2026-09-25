@@ -85,6 +85,10 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         guard let account, await account.signedIn, let studyManager else {
             throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing Account / StudyManager")
         }
+        // Enrollment can persist study data before its async setup finishes. Keep its backend even if setup is interrupted.
+        await MainActor.run {
+            LocalPreferencesStore.standard[.enrolledFirebaseConfig] = DeferredConfigLoading.activeFirebaseConfig
+        }
         do {
             if let enrollmentDate = await account.details?.dateOfEnrollment {
                 // the user already has enrolled at some point in the past.
@@ -312,8 +316,12 @@ extension MyHeartCountsStandard {
                 await appState.setIsLoggingOut(false)
                 return
             }
+            let studyManager = await studyManager
             await logger.notice("Triggering Onboarding Flow")
             LocalPreferencesStore.standard[.onboardingFlowComplete] = false
+            if studyManager?.studyEnrollments.isEmpty != false {
+                LocalPreferencesStore.standard[.enrolledFirebaseConfig] = nil
+            }
             await appState.setIsLoggingOut(false)
         }
     }

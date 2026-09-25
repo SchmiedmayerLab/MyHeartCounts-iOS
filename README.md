@@ -120,7 +120,10 @@ In order to run and develop the My Heart Counts app locally, you'll need the fol
 
 ### Temporary UK testing
 
-Debug builds, simulator builds, and TestFlight installations can select the UK study while using the US Firebase configuration. The selected study region remains UK.
+In Debug builds, simulator builds, and TestFlight installations, select **United Kingdom** during eligibility screening, enter `pls-let-me-in-anyway` in the **Coming Soon** screen's email field, and tap **Notify Me** to test the UK study using the US Firebase configuration.
+The phrase is not sent to the waiting list. Continue through account setup with your usual test-account credentials.
+The app stores UK as the study region and uses the UK study locale. Without the phrase, UK selection keeps the normal "Coming Soon" behavior.
+The selection stays in memory until final study enrollment begins. Quitting before that step allows a fresh region selection on relaunch.
 Publish the UK bundle as `public/mhcStudyBundle-UK.spezistudybundle.tar.zst` in the same bucket as the existing US bundle.
 The UK bundle must include its own consent and other study resources; UK loading never falls back to the US bundle included in the app.
 Accounts created or used through this UK onboarding are marked with `isUKStudyTestAccount: true` in their user document.

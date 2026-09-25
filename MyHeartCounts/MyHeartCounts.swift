@@ -51,7 +51,6 @@ struct MyHeartCounts: App {
         SetupTestEnvironment.performEarlyResetIfNeeded()
         let prefs = LocalPreferencesStore.standard
         if LaunchOptions.launchOptions[.setupTestEnvironment].resetExistingData {
-            prefs[.lastUsedFirebaseConfig] = nil
             prefs[.onboardingFlowComplete] = false
         }
         switch LaunchOptions.launchOptions[.setupTestEnvironment].loginAndEnroll {

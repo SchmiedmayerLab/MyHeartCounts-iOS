@@ -29,7 +29,7 @@ extension MyHeartCounts {
                 // we don't know which firebase deployment we're connected to, so we return the one for the current region
                 return website(selector, for: Locale.current.region ?? .unitedStates)
             }
-            switch LocalPreferencesStore.standard[.lastUsedFirebaseConfig] {
+            switch DeferredConfigLoading.activeFirebaseConfig {
             case .none:
                 // should be unreachable, but we handle it like the case where we're not connected to firebase at all
                 return website(selector, for: Locale.current.region ?? .unitedStates)

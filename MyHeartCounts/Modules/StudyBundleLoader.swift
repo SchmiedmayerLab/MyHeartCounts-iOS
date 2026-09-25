@@ -24,7 +24,7 @@ final class StudyBundleLoader: Module, Sendable {
     enum LoadError: Error {
         case unableToFetchFromServer(any Error)
         case unableToDecode(any Error)
-        case noLastUsedFirebaseConfig
+        case noActiveFirebaseConfig
         case unableToCreateLocalBundle(any Error)
     }
     
@@ -137,7 +137,7 @@ final class StudyBundleLoader: Module, Sendable {
     ) async throws(LoadError) -> StudyBundle {
         let source = Source(
             selector: LaunchOptions.launchOptions[.studyBundleSelector],
-            firebaseConfig: FeatureFlags.overrideFirebaseConfig ?? LocalPreferencesStore.standard[.lastUsedFirebaseConfig]
+            firebaseConfig: FeatureFlags.overrideFirebaseConfig ?? DeferredConfigLoading.activeFirebaseConfig
         )
         if self.source != source {
             // A startup fetch or a cached US bundle must not satisfy a later UK request.
@@ -190,8 +190,8 @@ final class StudyBundleLoader: Module, Sendable {
                 let filename = firebaseConfig.region == .unitedKingdom ? "mhcStudyBundle-UK" : "mhcStudyBundle"
                 studyBundleArchiveUrl = Self.url(ofFile: "\(filename).\(StudyBundle.archiveFileExtension)", inBucket: bucket)
             } else {
-                logger.error("No last-used firebase config.")
-                throw .noLastUsedFirebaseConfig
+                logger.error("No active Firebase config.")
+                throw .noActiveFirebaseConfig
             }
         case .atUrl(let url):
             studyBundleArchiveUrl = url

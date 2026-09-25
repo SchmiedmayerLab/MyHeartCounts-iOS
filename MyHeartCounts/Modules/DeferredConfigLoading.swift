@@ -34,7 +34,9 @@ import UniformTypeIdentifiers
 
 
 extension LocalPreferenceKeys {
-    static let lastUsedFirebaseConfig = LocalPreferenceKey<DeferredConfigLoading.FirebaseConfigSelector?>(
+    /// The configuration committed when study enrollment starts, so partially completed enrollment also keeps its backend.
+    static let enrolledFirebaseConfig = LocalPreferenceKey<DeferredConfigLoading.FirebaseConfigSelector?>(
+        // Preserve the existing storage key and encoding; enrolled users need no preference migration.
         "lastUsedFirebaseConfig",
         default: nil
     )
@@ -43,6 +45,9 @@ extension LocalPreferenceKeys {
 
 enum DeferredConfigLoading {
     fileprivate static let logger = Logger(category: .init("Config"))
+
+    /// The study/backend selection for this process, including selections made during unfinished onboarding.
+    @MainActor static var activeFirebaseConfig: FirebaseConfigSelector?
     
     enum LoadingError: Error {
         case unableToLoadFirebaseConfigPlist(underlying: (any Error)? = nil)
@@ -152,7 +157,7 @@ enum DeferredConfigLoading {
             } catch {
                 throw .unableToLoadFirebaseConfigPlist(underlying: error)
             }
-            logger.notice("[\(#function)] returning config for '\(region.identifier)' in local GoogleService-Info.plist file")
+            logger.notice("[\(#function)] using '\(key)' Firebase config for study region '\(region.identifier)'")
             return FirebaseOptions(contentsOfFile: tmpUrl.path)
         case .custom(let plistNameInBundle):
             guard let bundlePlistUrl = Bundle.main.url(forResource: plistNameInBundle, withExtension: "plist") else {
@@ -177,13 +182,14 @@ enum DeferredConfigLoading {
             baseModules(preferredLocale: .autoupdatingCurrent)
         } else if let selector = FeatureFlags.overrideFirebaseConfig {
             config(for: selector)
+        } else if let selector = LocalPreferencesStore.standard[.enrolledFirebaseConfig],
+                  LocalPreferencesStore.standard[.onboardingFlowComplete] || !StudyManager().studyEnrollments.isEmpty {
+            // Completed onboarding takes the original restoration path without inspecting the study store.
+            // Otherwise, only restore an actual (possibly unfinished) enrollment, not an abandoned region selection.
+            // Leave the saved value untouched, including when it isn't restored.
+            config(for: selector)
         } else {
-            switch LocalPreferencesStore.standard[.lastUsedFirebaseConfig] {
-            case .none:
-                []
-            case .some(let selector):
-                config(for: selector)
-            }
+            []
         }
     }
     
@@ -200,6 +206,7 @@ enum DeferredConfigLoading {
     /// Returns nil if there was an issue resolving the selector.
     @MainActor
     static func config(for configSelector: FirebaseConfigSelector) -> [any Module] { // swiftlint:disable:this function_body_length
+        let configSelector = FeatureFlags.overrideFirebaseConfig ?? configSelector
         let preferredLocale = { () -> Locale in
             if let region = configSelector.region {
                 return .init(language: Locale.current.language.withRegion(nil), region: region)
@@ -211,6 +218,7 @@ enum DeferredConfigLoading {
             }
         }()
         guard !FeatureFlags.disableFirebase else {
+            activeFirebaseConfig = configSelector
             return baseModules(preferredLocale: preferredLocale)
         }
         do {
@@ -219,6 +227,7 @@ enum DeferredConfigLoading {
                 return []
             }
             logger.notice("Created FirebaseOptions for project '\(firebaseOptions.projectID ?? "")'")
+            activeFirebaseConfig = configSelector
             return Array { // swiftlint:disable:this closure_body_length
                 ConfigureFirebaseApp(/*name: "My Heart Counts", */options: firebaseOptions)
                 firestore
@@ -367,7 +376,6 @@ extension Spezi {
         guard !config.isEmpty else {
             return
         }
-        LocalPreferencesStore.standard[.lastUsedFirebaseConfig] = .region(region)
         for module in config {
             self.loadModule(module)
         }
