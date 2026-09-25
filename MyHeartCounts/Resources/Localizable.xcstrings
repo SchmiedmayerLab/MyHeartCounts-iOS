@@ -1216,7 +1216,6 @@
       }
     },
     "Another test is already active" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -1266,7 +1265,6 @@
       }
     },
     "Answer Survey Again" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -1395,7 +1393,6 @@
       }
     },
     "Article" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -3637,18 +3634,24 @@
         }
       }
     },
-    "For more information and updates, visit myheartcounts.stanford.edu" : {
+    "For more information and updates, visit %@" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For more information and updates, visit %@"
+          }
+        },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "For more information and updates, visit myheartcounts.stanford.edu"
+            "value" : "For more information and updates, visit %@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Para más información y actualizaciones, visite myheartcounts.stanford.edu"
+            "value" : "Para más información y actualizaciones, visite %@"
           }
         }
       }
@@ -7355,7 +7358,6 @@
       }
     },
     "Processing Health Data…" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -7372,7 +7374,6 @@
       }
     },
     "Processing SensorKit Data…" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -8258,7 +8259,6 @@
       }
     },
     "Read Article Again" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -9744,7 +9744,6 @@
       }
     },
     "Take Test Again" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -9971,7 +9970,6 @@
       }
     },
     "There are missing Motion Sensor permissions" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -10242,6 +10240,9 @@
           }
         }
       }
+    },
+    "UK Study Test Account" : {
+
     },
     "Unable to find Questionnaire" : {
       "localizations" : {

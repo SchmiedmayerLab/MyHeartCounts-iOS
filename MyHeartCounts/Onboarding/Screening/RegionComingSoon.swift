@@ -130,7 +130,7 @@ struct RegionComingSoon: View {
     private func notifyMe() async throws {
         if FeatureFlags.enableUKStudyTesting,
            selectedRegion == .unitedKingdom,
-           emailAddress.trimmingCharacters(in: .whitespacesAndNewlines) == "pls-let-me-in-anyway",
+           emailAddress.trimmingCharacters(in: .whitespacesAndNewlines) == "pls let me in anyway",
            let continueUKStudyTesting {
             emailTextFieldIsFocused = false
             await continueUKStudyTesting()

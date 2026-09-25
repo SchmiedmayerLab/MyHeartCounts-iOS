@@ -120,7 +120,7 @@ In order to run and develop the My Heart Counts app locally, you'll need the fol
 
 ### Temporary UK testing
 
-In Debug builds, simulator builds, and TestFlight installations, select **United Kingdom** during eligibility screening, enter `pls-let-me-in-anyway` in the **Coming Soon** screen's email field, and tap **Notify Me** to test the UK study using the US Firebase configuration.
+In Debug builds, simulator builds, and TestFlight installations, select **United Kingdom** during eligibility screening, enter `pls let me in anyway` in the **Coming Soon** screen's email field, and tap **Notify Me** to test the UK study using the US Firebase configuration.
 The phrase is not sent to the waiting list. Continue through account setup with your usual test-account credentials.
 The app tracks the Imperial study variant separately from its US Firebase backend and uses the UK study locale. Without the phrase, UK selection keeps the normal "Coming Soon" behavior.
 Both selections stay in memory until final study enrollment begins, when they are saved as `enrolledStudyVariant` and the existing `lastUsedFirebaseConfig` preference. Quitting before that step allows a fresh region selection on relaunch.
