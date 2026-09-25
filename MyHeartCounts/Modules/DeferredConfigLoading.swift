@@ -52,7 +52,7 @@ enum DeferredConfigLoading {
     /// The independent backend and study selections used together for this process. Variant changes also update observing views.
     @Observable
     @MainActor
-    private final class StudyConfiguration {
+    fileprivate final class StudyConfiguration {
         let firebaseConfig: FirebaseConfigSelector
         var studyVariant: StudyVariant
 
