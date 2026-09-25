@@ -30,6 +30,7 @@ jobs:
       contents: read
     with:
       runsonlabels: '["macOS", "self-hosted"]'
+      xcodeversion: '26.6'
       scheme: MyHeartCounts
       testplan: MyHeartCounts Unit Tests
       resultBundle: MHC-App-UnitTests.xcresult
@@ -211,6 +212,7 @@ jobs:
       fail-fast: false
     with:
       runsonlabels: '["macOS", "self-hosted"]'
+      xcodeversion: '26.6'
       path: MyHeartCountsShared
       scheme: MyHeartCountsShared-Package
       buildConfig: ${{ matrix.config }}
