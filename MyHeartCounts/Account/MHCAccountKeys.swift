@@ -122,6 +122,10 @@ extension AccountDetails {
     
     @AccountKey(id: "enableAppDebugMode", name: "Enable App Debug Mode", as: Bool.self)
     var enableDebugMode: Bool?
+
+    /// Identifies disposable accounts used for the temporary UK study on the US backend.
+    @AccountKey(id: "isUKStudyTestAccount", name: "UK Study Test Account", as: Bool.self)
+    var isUKStudyTestAccount: Bool?
     
     @AccountKey(id: "timeZone", name: "Time Zone", as: String.self)
     var timeZone: String?
@@ -150,7 +154,7 @@ extension AccountDetails {
 @KeyEntry(
     \.hasWithdrawnFromStudy,
     \.dateOfEnrollment, \.lastSignedConsentVersion, \.lastSignedConsentDate, \.didOptInToTrial,
-    \.fcmToken, \.enableDebugMode, \.timeZone, \.language, \.preferredMeasurementSystem, \.lastActiveDate,
+    \.fcmToken, \.enableDebugMode, \.isUKStudyTestAccount, \.timeZone, \.language, \.preferredMeasurementSystem, \.lastActiveDate,
     \.mostRecentOnboardingStep, \.preferredWorkoutTypes, \.preferredNudgeNotificationTime, \.postTrialNudgesOptIn
 )
 extension AccountKeys {}

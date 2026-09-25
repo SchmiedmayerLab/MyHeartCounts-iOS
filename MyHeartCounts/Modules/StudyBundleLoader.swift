@@ -28,6 +28,12 @@ final class StudyBundleLoader: Module, Sendable {
         case unableToCreateLocalBundle(any Error)
     }
     
+    /// Identifies a bundle source so cached results and in-flight downloads stay scoped to the selected study/backend.
+    private struct Source: Equatable, Sendable {
+        let selector: StudyBundleSelector
+        let firebaseConfig: DeferredConfigLoading.FirebaseConfigSelector?
+    }
+
     static let shared = StudyBundleLoader()
     
     private let logger = Logger(category: .init("StudyLoader"))
@@ -39,6 +45,8 @@ final class StudyBundleLoader: Module, Sendable {
     /// - Note: we use the Result in here, and set the Task's Failure type to Never, since Task currently only supports type-erased `any Error` failures.
     ///     (and does not support typed throws in its init, for whatever reason...)
     @ObservationIgnored @MainActor private var loadStudyBundleTask: Task<Result<StudyBundle, LoadError>, Never>?
+    /// The source associated with the cached result and current download; changing it invalidates both.
+    @ObservationIgnored @MainActor private var source: Source?
     
     @ObservationIgnored private let _studyBundle = Mutex<Result<StudyBundle, LoadError>?>(nil)
     
@@ -127,6 +135,19 @@ final class StudyBundleLoader: Module, Sendable {
     func update(
         returnCachedBundleOnError: Bool = true
     ) async throws(LoadError) -> StudyBundle {
+        let source = Source(
+            selector: LaunchOptions.launchOptions[.studyBundleSelector],
+            firebaseConfig: FeatureFlags.overrideFirebaseConfig ?? LocalPreferencesStore.standard[.lastUsedFirebaseConfig]
+        )
+        if self.source != source {
+            // A startup fetch or a cached US bundle must not satisfy a later UK request.
+            loadStudyBundleTask?.cancel()
+            loadStudyBundleTask = nil
+            self.source = source
+            withMutation(keyPath: \.studyBundle) {
+                _studyBundle.withLock { $0 = nil }
+            }
+        }
         if let loadStudyBundleTask {
             // we need to do `.result.get()` here, instead of a simple `.value`, since the throw in the later case isn't typed.
             return try await loadStudyBundleTask.result.get().get()
@@ -135,12 +156,17 @@ final class StudyBundleLoader: Module, Sendable {
             var result: Result<StudyBundle, LoadError>
             do throws(LoadError) {
                 result = .success(try await _update(
-                    using: LaunchOptions.launchOptions[.studyBundleSelector]
+                    using: source.selector,
+                    firebaseConfig: source.firebaseConfig
                 ))
             } catch {
                 result = .failure(error)
             }
             await MainActor.run {
+                guard !Task.isCancelled else {
+                    result = .failure(.unableToFetchFromServer(CancellationError()))
+                    return
+                }
                 result = _storeStudyBundleResult(result, preferCachedBundleOnError: returnCachedBundleOnError)
                 self.loadStudyBundleTask = nil
             }
@@ -151,14 +177,18 @@ final class StudyBundleLoader: Module, Sendable {
     }
     
     
-    private func _update(using selector: StudyBundleSelector) async throws(LoadError) -> StudyBundle {
+    private func _update(
+        using selector: StudyBundleSelector,
+        firebaseConfig: DeferredConfigLoading.FirebaseConfigSelector? = nil
+    ) async throws(LoadError) -> StudyBundle {
         let studyBundleArchiveUrl: URL
         switch selector {
         case .firebase:
-            if let selector = FeatureFlags.overrideFirebaseConfig ?? LocalPreferencesStore.standard[.lastUsedFirebaseConfig],
-               let options = try? DeferredConfigLoading.firebaseOptions(for: selector),
+            if let firebaseConfig,
+               let options = try? DeferredConfigLoading.firebaseOptions(for: firebaseConfig),
                let bucket = options.storageBucket {
-                studyBundleArchiveUrl = Self.url(ofFile: "mhcStudyBundle.\(StudyBundle.archiveFileExtension)", inBucket: bucket)
+                let filename = firebaseConfig.region == .unitedKingdom ? "mhcStudyBundle-UK" : "mhcStudyBundle"
+                studyBundleArchiveUrl = Self.url(ofFile: "\(filename).\(StudyBundle.archiveFileExtension)", inBucket: bucket)
             } else {
                 logger.error("No last-used firebase config.")
                 throw .noLastUsedFirebaseConfig
@@ -180,7 +210,8 @@ final class StudyBundleLoader: Module, Sendable {
         }
         do {
             return try await openDownloadedStudyBundle(at: downloadUrl)
-        } catch LoadError.unableToDecode(let underlyingDecodeError) where selector == .firebase {
+        } catch LoadError.unableToDecode(let underlyingDecodeError)
+            where selector == .firebase && firebaseConfig?.region != .unitedKingdom {
             // if we failed to decode the firebase-hosted study bundle, we try to use the bundled one as a fallback.
             // (otherwise, we simply propagate the error up the call stack.)
             do {

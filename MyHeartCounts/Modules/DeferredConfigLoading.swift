@@ -48,7 +48,7 @@ enum DeferredConfigLoading {
         case unableToLoadFirebaseConfigPlist(underlying: (any Error)? = nil)
     }
     
-    enum FirebaseConfigSelector: Codable, LaunchOptionDecodable {
+    enum FirebaseConfigSelector: Codable, Equatable, Sendable, LaunchOptionDecodable {
         /// the firebase config for the specified region should be loaded
         case region(Locale.Region)
         /// the firebase config plist with the specified name should be loaded from the main bundle
@@ -138,7 +138,8 @@ enum DeferredConfigLoading {
             case .unitedStates:
                 key = "US"
             case .unitedKingdom:
-                key = "UK"
+                // Keep the selector (and thus study locale) UK; only borrow the US backend for testing.
+                key = FeatureFlags.enableUKStudyTesting ? "US" : "UK"
             default:
                 logger.error("[\(#function)] invalid region input '\(region.identifier)'. returning nil")
                 return nil
@@ -270,6 +271,7 @@ enum DeferredConfigLoading {
                         .manual(\.language),
                         .manual(\.preferredMeasurementSystem),
                         // internal stuff
+                        .manual(\.isUKStudyTestAccount),
                         .manual(\.enableDebugMode)
                     ]
                 )

@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+@_spi(APISupport)
 import Spezi
 import SpeziFoundation
 import SpeziStudy
@@ -16,11 +17,11 @@ import SwiftUI
 struct EligibilityScreening: View {
     @Environment(StudyBundleLoader.self)
     private var studyLoader
-    
+
     private let components: [any ScreeningComponent] = [
         AgeAtLeast(style: .toggle, minAge: 18),
         IsFromRegion(
-            enabledRegions: [.unitedStates],
+            enabledRegions: FeatureFlags.enableUKStudyTesting ? [.unitedStates, .unitedKingdom] : [.unitedStates],
             comingSoonRegions: [.unitedKingdom]
         ),
         // We ask if the user speaks the current language.
@@ -62,6 +63,14 @@ struct EligibilityScreening: View {
                 // the crux here is that there isn't a mechanism by which Firebase would let us know when it
                 Spezi.loadFirebase(for: region)
                 try? await Task.sleep(for: .seconds(3))
+            } else if FeatureFlags.enableUKStudyTesting,
+                      FeatureFlags.overrideFirebaseConfig == nil,
+                      let previousRegion = LocalPreferencesStore.standard[.lastUsedFirebaseConfig]?.region,
+                      [.unitedStates, .unitedKingdom].contains(previousRegion),
+                      let studyManager = SpeziAppDelegate.spezi?.module(StudyManager.self) {
+                // Both test variants use the same backend. Keep the study selection in sync when going back in onboarding.
+                LocalPreferencesStore.standard[.lastUsedFirebaseConfig] = .region(region)
+                studyManager.preferredLocale = Locale(language: Locale.current.language.withRegion(nil), region: region)
             }
             do {
                 try await studyLoader.update()

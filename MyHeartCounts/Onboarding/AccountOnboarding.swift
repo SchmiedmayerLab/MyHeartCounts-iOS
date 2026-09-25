@@ -12,6 +12,7 @@ import FirebaseFunctions
 import SFSafeSymbols
 import SpeziAccount
 import class SpeziConsent.ConsentDocument
+import SpeziFoundation
 import SpeziOnboarding
 import SpeziViews
 import SwiftUI
@@ -22,6 +23,7 @@ struct AccountOnboarding: View {
     @Environment(ManagedNavigationStack.Path.self) private var path
     @Environment(MyHeartCountsStandard.self) private var standard
     @Environment(ConsentManager.self) private var consentManager
+    @Environment(Account.self) private var account
     // swiftlint:enable attributes
     
     @State private var consentDoc: ConsentDocument?
@@ -55,6 +57,13 @@ struct AccountOnboarding: View {
     }
     
     private func advance(_ details: AccountDetails) async throws {
+        if FeatureFlags.enableUKStudyTesting,
+           LocalPreferencesStore.standard[.lastUsedFirebaseConfig]?.region == .unitedKingdom,
+           details.isUKStudyTestAccount != true {
+            var updates = AccountDetails()
+            updates.isUKStudyTestAccount = true
+            try await account.accountService.updateAccountDetails(AccountModifications(modifiedDetails: updates))
+        }
         let consentDoc = try await consentDocumentToSign()
         if details.hasWithdrawnFromStudy == true {
             path.append {

@@ -13,6 +13,15 @@ import SpeziFoundation
 
 /// A collection of feature flags for My Heart Counts.
 enum FeatureFlags {
+    /// Temporary UK enrollment against the US backend, only for TestFlight installations.
+    static var enableUKStudyTesting: Bool {
+        #if targetEnvironment(simulator)
+        false
+        #else
+        Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+        #endif
+    }
+
     /// Disables the Firebase interactions, including the login/sign-up step and the Firebase Firestore upload.
     ///
     /// - Note: This takes precedence over all other firebase-related flags.
