@@ -31,6 +31,7 @@ jobs:
     with:
       runsonlabels: '["macOS", "self-hosted"]'
       xcodeversion: '26.6'
+      destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
       scheme: MyHeartCounts
       testplan: MyHeartCounts Unit Tests
       resultBundle: MHC-App-UnitTests.xcresult
@@ -210,7 +211,7 @@ jobs:
         config: [Debug, Release]
         platform:
           - name: iOS
-            destination: 'platform=iOS Simulator,name=iPhone 17 Pro'
+            destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
           - name: macOS
             destination: 'platform=macOS,arch=arm64'
       fail-fast: false
