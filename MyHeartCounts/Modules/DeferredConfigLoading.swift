@@ -85,15 +85,6 @@ enum DeferredConfigLoading {
         /// the firebase config plist at the specified URL should be loaded
         case customUrl(URL)
         
-        var region: Locale.Region? {
-            switch self {
-            case .region(let region):
-                region
-            case .custom, .customUrl:
-                nil
-            }
-        }
-        
         /// Decodes a `FirebaseConfigSelector` from a launch option value
         ///
         /// `--firebaseConfig region=US`
