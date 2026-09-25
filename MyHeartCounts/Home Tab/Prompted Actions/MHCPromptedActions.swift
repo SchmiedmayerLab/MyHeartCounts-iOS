@@ -17,7 +17,6 @@ import Spezi
 import SpeziAccount
 import SpeziHealthKit
 import SpeziSensorKit
-import SpeziStudy
 import SwiftUI
 
 
@@ -129,7 +128,6 @@ extension PromptedAction {
         state: { context in
             let spezi = context.spezi
             guard let account = spezi.module(Account.self),
-                  let studyManager = spezi.module(StudyManager.self),
                   let details = account.details,
                   !details.isIncomplete else {
                 return .unavailable
@@ -137,7 +135,7 @@ extension PromptedAction {
             let data = DemographicsData()
             data.populate(from: account)
             let layout = demographicsLayout(
-                region: studyManager.preferredLocale.region ?? .unitedStates,
+                studyVariant: DeferredConfigLoading.activeStudyVariant ?? .stanford,
                 didOptInToTrial: details.didOptInToTrial == true
             )
             switch layout.completionState(in: data) {

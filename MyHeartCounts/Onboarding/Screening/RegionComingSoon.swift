@@ -86,7 +86,7 @@ struct RegionComingSoon: View {
                 .buttonStyleGlassProminent()
             }
             Spacer(minLength: 24)
-            Link2(MyHeartCounts.website(.homepage, for: selectedRegion)) {
+            Link2(MyHeartCounts.website(.homepage, for: selectedRegion == .unitedKingdom ? .imperial : .stanford)) {
                 HStack {
                     Text("INELIGIBLE_LEARN_MORE")
                     Spacer()

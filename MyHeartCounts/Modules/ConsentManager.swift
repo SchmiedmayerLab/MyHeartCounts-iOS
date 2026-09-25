@@ -164,8 +164,7 @@ extension ConsentManager {
 extension StudyManager {
     var defaultLanguageFallbackLocale: LocalizationKey {
         guard let region = preferredLocale.region else {
-            // unreachable in regular usage bc we always set a region (based on the firebase config) when loading the module.
-            // only reachable when the firebase config is manually overwritten to point directly to a plist file.
+            // Unreachable during study participation: the study variant always supplies a region.
             return .enUS
         }
         return switch region {

@@ -17,23 +17,21 @@ extension MyHeartCounts {
         case privacyPolicy
     }
     
-    /// Returns the official My Heart Counts study website, for the specified region.
+    /// Returns the official My Heart Counts study website for the specified study variant.
     ///
-    /// - parameter region: The region whose website should be returned. If omitted, the region is determined based on the app's available context.
+    /// - parameter variant: Defaults to the active study variant, or Stanford before a variant has been selected.
     @MainActor
-    static func website(_ selector: WebsiteSelector, for region: Locale.Region? = nil) -> URL {
-        switch region {
-        case .none:
-            return website(selector, for: DeferredConfigLoading.activeStudyVariant?.region ?? Locale.current.region ?? .unitedStates)
-        case .some(.unitedKingdom):
-            // TASK: swap out for UK websites once available
+    static func website(_ selector: WebsiteSelector, for variant: StudyVariant? = nil) -> URL {
+        switch variant ?? DeferredConfigLoading.activeStudyVariant ?? .stanford {
+        case .imperial:
             return switch selector {
             case .homepage:
-                "https://myheartcounts.stanford.edu"
+                "https://www.imperial.ac.uk/nhli/research/my-heart-counts/"
             case .privacyPolicy:
+                // TASK: Replace this placeholder with the Imperial study's privacy policy once available.
                 "https://myheartcounts.stanford.edu/privacy"
             }
-        case .some:
+        case .stanford:
             return switch selector {
             case .homepage:
                 "https://myheartcounts.stanford.edu"

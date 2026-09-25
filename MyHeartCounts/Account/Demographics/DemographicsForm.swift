@@ -14,7 +14,6 @@ import SFSafeSymbols
 import SpeziAccount
 import SpeziHealthKit
 import SpeziHealthKitUI
-import SpeziStudy
 import SpeziViews
 import SwiftUI
 
@@ -69,8 +68,6 @@ struct DemographicsForm<Footer: View>: View {
 // MARK: Form Implementation
 
 private struct Impl<Footer: View>: View {
-    @Environment(\.locale) private var locale
-    @Environment(StudyManager.self) private var studyManager
     @Environment(DemographicsData.self) private var data
     
     let didOptInToTrial: Bool
@@ -80,13 +77,11 @@ private struct Impl<Footer: View>: View {
     @AccountFeatureFlagQuery(.isDebugModeEnabled) private var debugModeEnabled
     
     @State private var viewState: ViewState = .idle
-    @State private var regionOverride: Locale.Region?
+    @State private var studyVariantOverride: StudyVariant?
     @State private var trialOptInOverride: Bool?
     
-    private var region: Locale.Region {
-        // if no override is set, we use `studyManager.preferredLocale`,
-        // which will be set to the region selected during the onboarding.
-        regionOverride ?? studyManager.preferredLocale.region ?? .unitedStates
+    private var studyVariant: StudyVariant {
+        studyVariantOverride ?? DeferredConfigLoading.activeStudyVariant ?? .stanford
     }
     
     var body: some View {
@@ -97,7 +92,7 @@ private struct Impl<Footer: View>: View {
             Section {
                 ReadFromHealthKitButton(viewState: $viewState)
             }
-            let layout = demographicsLayout(region: region, didOptInToTrial: trialOptInOverride ?? didOptInToTrial)
+            let layout = demographicsLayout(studyVariant: studyVariant, didOptInToTrial: trialOptInOverride ?? didOptInToTrial)
             layout.view
                 .onChange(of: data.updateCounter, initial: true) { _, _ in
                     isComplete = layout.isComplete(in: data)
@@ -115,16 +110,12 @@ private struct Impl<Footer: View>: View {
     
     private var debugSection: some View {
         Section {
-            Picker("Override Region" as String, selection: $regionOverride) {
-                ForEach([Locale.Region?.none, .unitedStates, .unitedKingdom, .germany], id: \.self) { region in
-                    if let region {
-                        Text(region.localizedName(in: locale, includeEmoji: .front))
-                    } else {
-                        Text("Disable Override" as String)
-                    }
-                }
+            Picker("Override Study Variant" as String, selection: $studyVariantOverride) {
+                Text("Disable Override" as String).tag(StudyVariant?.none)
+                Text("Stanford" as String).tag(StudyVariant?.some(.stanford))
+                Text("Imperial" as String).tag(StudyVariant?.some(.imperial))
             }
-            LabeledContent("Effective Region" as String, value: region.localizedName(in: locale, includeEmoji: .front))
+            LabeledContent("Effective Study Variant" as String, value: studyVariant.rawValue.capitalized)
             Picker("TrialOptIn" as String, selection: $trialOptInOverride) {
                 Text("Default (\(didOptInToTrial))" as String).tag(Bool?.none)
                 Divider()
@@ -202,7 +193,7 @@ extension Impl {
     private var testingSupportToolbarItem: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Menu {
-                TestingSupportActions(viewState: $viewState)
+                TestingSupportActions(studyVariant: studyVariant, viewState: $viewState)
             } label: {
                 Text("Testing Support")
             }
@@ -216,6 +207,7 @@ extension Impl {
         @Environment(HealthKit.self) private var healthKit
         @Environment(DemographicsData.self) private var data
         
+        let studyVariant: StudyVariant
         @Binding var viewState: ViewState
         
         var body: some View {
@@ -248,12 +240,19 @@ extension Impl {
                 data[\.height] = HKQuantity(unit: .meterUnit(with: .centi), doubleValue: 186)
                 data[\.weight] = HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: 67)
                 data[\.raceEthnicity] = .white
-                data[\.latinoStatus] = LatinoStatusOption.options[0]
                 data[\.bloodType] = .aPositive
                 data[\.comorbidities] = .init()
-                data[\.usRegion] = .dc
-                data[\.usEducationLevel] = EducationStatusUS.options[0]
-                data[\.usHouseholdIncome] = HouseholdIncomeUS.options[0]
+                switch studyVariant {
+                case .stanford:
+                    data[\.latinoStatus] = LatinoStatusOption.options[0]
+                    data[\.usRegion] = .dc
+                    data[\.usEducationLevel] = EducationStatusUS.options[0]
+                    data[\.usHouseholdIncome] = HouseholdIncomeUS.options[0]
+                case .imperial:
+                    data[\.ukRegion] = .england(.init(name: "London"))
+                    data[\.ukEducationLevel] = EducationStatusUK.options[0]
+                    data[\.ukHouseholdIncome] = HouseholdIncomeUK.options[0]
+                }
                 data[\.stageOfChange] = StageOfChangeOption.allOptions[0]
             }
             Divider()

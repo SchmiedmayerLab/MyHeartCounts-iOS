@@ -32,4 +32,12 @@ enum StudyVariant: String, Codable, Sendable {
         case .imperial: "mhcStudyBundle-UK"
         }
     }
+
+    /// The variant's news feed within the connected backend's Storage bucket.
+    var newsStoragePath: String {
+        switch self {
+        case .stanford: "/public/news/"
+        case .imperial: "/public/news-UK/"
+        }
+    }
 }

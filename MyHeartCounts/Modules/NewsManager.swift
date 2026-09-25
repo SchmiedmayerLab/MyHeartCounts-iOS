@@ -52,8 +52,9 @@ final class NewsManager: Module, EnvironmentAccessible {
                 logger.trace("TOTAL TIME SPENT FETCHING AND PROCESSING NEWS: \(endTS - startTS)")
             }
             let locale = studyManager.preferredLocale
+            let studyVariant = DeferredConfigLoading.activeStudyVariant ?? .stanford
             let storage = Storage.storage()
-            let newsFolder = storage.reference(withPath: "/public/news/")
+            let newsFolder = storage.reference(withPath: studyVariant.newsStoragePath)
             guard let newsArticleFiles = try? await newsFolder.listAll() else {
                 return
             }
@@ -93,7 +94,11 @@ final class NewsManager: Module, EnvironmentAccessible {
                             logger.trace("DOWNLOAD DURATION: \(endTS - startTS)")
                             let doc = try MarkdownDocument(contentsOf: tmpUrl)
                             try? FileManager.default.removeItem(at: tmpUrl)
-                            let article = Article(id: doc.metadata["id"].flatMap(UUID.init(uuidString:)) ?? UUID(), doc)
+                            let article = Article(
+                                id: doc.metadata["id"].flatMap(UUID.init(uuidString:)) ?? UUID(),
+                                doc,
+                                studyVariant: studyVariant
+                            )
                             return article.status == .published ? article : nil
                         } catch {
                             logger.error("Error processing news article: \(error)")

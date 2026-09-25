@@ -128,6 +128,8 @@ At launch, an existing backend preference without a study variant defaults to St
 The feature flag only controls access to the temporary enrollment path. Removing it or adding a UK backend does not change an enrolled participant's saved backend or variant.
 Publish the UK bundle as `public/mhcStudyBundle-UK.spezistudybundle.tar.zst` in the same bucket as the existing US bundle.
 The UK bundle must include its own consent and other study resources; UK loading never falls back to the US bundle included in the app.
+News is also selected by study variant: Stanford uses `public/news/`, and Imperial uses `public/news-UK/` in the connected backend's bucket. Publish Imperial articles there; an empty feed does not fall back to Stanford news.
+Articles can specify a `headerImage` in their metadata. Without one, Stanford keeps its existing default image and Imperial uses no institutional image.
 Accounts created or used with the Imperial variant on the US backend through this UK onboarding are marked with `isUKStudyTestAccount: true` in their user document.
 These accounts are disposable: delete and recreate them when moving to the real UK deployment, and reset the app's local data.
 For Release builds on a device, the temporary feature requires the TestFlight sandbox receipt.
