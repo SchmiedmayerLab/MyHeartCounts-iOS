@@ -13,10 +13,10 @@ import SpeziFoundation
 
 /// A collection of feature flags for My Heart Counts.
 enum FeatureFlags {
-    /// Temporary UK enrollment against the US backend, only for TestFlight installations.
+    /// Temporary UK enrollment against the US backend in Debug builds, the simulator, and TestFlight installations.
     static var enableUKStudyTesting: Bool {
-        #if targetEnvironment(simulator)
-        false
+        #if DEBUG || targetEnvironment(simulator)
+        true
         #else
         Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
         #endif

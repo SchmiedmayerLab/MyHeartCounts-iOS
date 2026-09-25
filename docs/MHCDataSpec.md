@@ -54,7 +54,7 @@ SPDX-License-Identifier: MIT
 | `lastActiveDate` | `Date` | Timestamp when the user last opened the app. Does not get updated when the app is launched in the background |
 | `fcmToken` | `String` | The app's FCM token |
 | `enableAppDebugMode` | `Bool` | Whether the app's debug mode should be enabled for the user |
-| `isUKStudyTestAccount` | `Bool` | Set to `true` by the app after account creation/login in the temporary TestFlight UK onboarding that uses the US backend, before consent. Remains set if the account is subsequently used for US onboarding; absent or `false` means it has not been marked. Identifies disposable test accounts for later deletion, not accounts to migrate to the eventual UK deployment. |
+| `isUKStudyTestAccount` | `Bool` | Set to `true` by the app after account creation/login in the temporary UK onboarding that uses the US backend (Debug builds, simulator builds, and TestFlight), before consent. Remains set if the account is subsequently used for US onboarding; absent or `false` means it has not been marked. Identifies disposable test accounts for later deletion, not accounts to migrate to the eventual UK deployment. |
 | `timeZone` | `String` | Last-seen device time zone |
 | `language` | `String` | Last-seen device/app language |
 | `preferredMeasurementSystem` | `String` | Last-seen preferred measurement system (e.g., `metric`, `ussystem`, or `uksystem`) |

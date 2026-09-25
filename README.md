@@ -118,14 +118,14 @@ In order to run and develop the My Heart Counts app locally, you'll need the fol
         - (this option will disable the historical health data collection, improving performance when running the app on a real device)
 3. Run the application in Xcode.
 
-### Temporary UK testing in TestFlight
+### Temporary UK testing
 
-TestFlight installations can select the UK study while using the US Firebase configuration. The selected study region remains UK.
+Debug builds, simulator builds, and TestFlight installations can select the UK study while using the US Firebase configuration. The selected study region remains UK.
 Publish the UK bundle as `public/mhcStudyBundle-UK.spezistudybundle.tar.zst` in the same bucket as the existing US bundle.
 The UK bundle must include its own consent and other study resources; UK loading never falls back to the US bundle included in the app.
 Accounts created or used through this UK onboarding are marked with `isUKStudyTestAccount: true` in their user document.
 These accounts are disposable: delete and recreate them when moving to the real UK deployment, and reset the app's local data.
-The temporary feature uses the TestFlight sandbox receipt and is disabled in the simulator and when that receipt is absent.
+For Release builds on a device, the temporary feature requires the TestFlight sandbox receipt.
 
 > [!NOTE]  
 > Please make sure not to commit and push any of the SensorKit, Code Signing, and run argument changes listed above; these changes are only required for local development.
