@@ -35,6 +35,7 @@ jobs:
       contents: read
     with:
       runsonlabels: '["macOS", "self-hosted"]'
+      xcode-version: '26.6'
       strict: false
       # we need to exclude this bc FHIRModels doesn't compile for older watch models (pre series 4).
       # not a problem for MHC, since our iOS 18 / watchOS 11 deployment target means that we don't
@@ -57,4 +58,4 @@ jobs:
       codeql: true
       scheme: MyHeartCounts
       test: false
-      xcodeversion: 26.4
+      xcodeversion: '26.6'

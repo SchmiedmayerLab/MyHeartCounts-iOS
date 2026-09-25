@@ -30,6 +30,8 @@ jobs:
       contents: read
     with:
       runsonlabels: '["macOS", "self-hosted"]'
+      xcodeversion: '26.6'
+      destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
       scheme: MyHeartCounts
       testplan: MyHeartCounts Unit Tests
       resultBundle: MHC-App-UnitTests.xcresult
@@ -50,6 +52,8 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
+      - name: Use selected Xcode for this job
+        run: echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
       - name: Resolve test products cache key
         id: toolchain
         run: |
@@ -120,6 +124,8 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
+      - name: Use selected Xcode for this job
+        run: echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
       - name: Resolve test products cache key
         id: toolchain
         run: |
@@ -205,12 +211,13 @@ jobs:
         config: [Debug, Release]
         platform:
           - name: iOS
-            destination: 'platform=iOS Simulator,name=iPhone 17 Pro'
+            destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
           - name: macOS
             destination: 'platform=macOS,arch=arm64'
       fail-fast: false
     with:
       runsonlabels: '["macOS", "self-hosted"]'
+      xcodeversion: '26.6'
       path: MyHeartCountsShared
       scheme: MyHeartCountsShared-Package
       buildConfig: ${{ matrix.config }}

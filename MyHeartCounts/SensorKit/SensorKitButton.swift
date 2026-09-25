@@ -116,7 +116,7 @@ private struct SensorKitSheet: View {
                     let fileRef = StudyBundle.FileReference(category: .informationalArticle, filename: "SensorKit", fileExtension: "md")
                     presentedArticle = studyManager.studyEnrollments.first?.studyBundle?
                         .resolve(fileRef, in: studyManager.preferredLocale)
-                        .flatMap { Article(contentsOf: $0) }
+                        .flatMap { Article(contentsOf: $0, studyVariant: DeferredConfigLoading.activeStudyVariant ?? .stanford) }
                 } label: {
                     Label("How to Manage SensorKit", systemSymbol: .textPage)
                 }
