@@ -55,6 +55,20 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     // swiftlint:disable attributes
     
     init() {}
+
+    /// Adopts an account's variant without committing a backend selection during unfinished onboarding.
+    @MainActor
+    static func synchronizeStudyVariant(for account: Account) {
+        // Read the current details; a queued account event can contain an older snapshot.
+        guard let details = account.details, !details.isIncomplete, let variant = details.studyVariant else {
+            return
+        }
+        DeferredConfigLoading.setActiveStudyVariant(variant)
+        let prefs = LocalPreferencesStore.standard
+        if prefs[.enrolledFirebaseConfig] != nil, prefs[.enrolledStudyVariant] != variant {
+            prefs[.enrolledStudyVariant] = variant
+        }
+    }
     
     @MainActor
     func configure() {
@@ -85,6 +99,8 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         guard let account, await account.signedIn, let studyManager else {
             throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing Account / StudyManager")
         }
+        // Enrollment can persist study data before its async setup finishes. Keep its backend even if setup is interrupted.
+        await DeferredConfigLoading.persistActiveConfiguration()
         do {
             if let enrollmentDate = await account.details?.dateOfEnrollment {
                 // the user already has enrolled at some point in the past.
@@ -131,6 +147,9 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         let logger = logger
         switch event {
         case .didAssociate(let details):
+            if let account {
+                await Self.synchronizeStudyVariant(for: account)
+            }
             logger.notice("account was associated (account id: \(details.accountId))")
             if LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] {
                 do {
@@ -167,7 +186,9 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             _ = await (updateFCMToken, syncAchievements)
             await achievementsManager?.disassociateFromAccount()
         case .detailsChanged:
-            break
+            if let account {
+                await Self.synchronizeStudyVariant(for: account)
+            }
         }
     }
 }
@@ -310,8 +331,12 @@ extension MyHeartCountsStandard {
                 await appState.setIsLoggingOut(false)
                 return
             }
+            let studyManager = await studyManager
             await logger.notice("Triggering Onboarding Flow")
             LocalPreferencesStore.standard[.onboardingFlowComplete] = false
+            if studyManager?.studyEnrollments.isEmpty != false {
+                DeferredConfigLoading.clearEnrolledConfiguration()
+            }
             await appState.setIsLoggingOut(false)
         }
     }
