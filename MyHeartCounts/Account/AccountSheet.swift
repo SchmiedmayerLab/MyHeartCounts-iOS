@@ -28,6 +28,7 @@ struct AccountSheet: View {
     @Environment(HistoricalHealthSamplesExportManager.self) private var historicalDataExportMgr
     @Environment(ManagedFileUpload.self) private var managedFileUpload
     @Environment(SensorKitDataFetcher.self) private var sensorKitDataFetcher
+    @Environment(StudyManager.self) private var studyManager
     // swiftlint:enable attributes
     
     @State private var isInSetup = false
@@ -196,12 +197,13 @@ struct AccountSheet: View {
     @ViewBuilder
     private func makeEnrolledStudyRow(for enrollment: StudyEnrollment) -> some View {
         if let studyInfo = enrollment.studyBundle?.studyDefinition.metadata {
+            let locale = LocalizationKey(locale: studyManager.preferredLocale) ?? .enUS
             VStack(alignment: .leading) {
-                if let title = studyInfo.title[.current] {
+                if let title = studyInfo.title[locale] {
                     Text(title)
                         .font(.headline)
                 }
-                if let explainer = studyInfo.shortExplanationText[.current] {
+                if let explainer = studyInfo.shortExplanationText[locale] {
                     Text(explainer)
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
@@ -337,12 +339,4 @@ extension AccountOverviewOperationLabels {
         confirmationAlertMessage: "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose.",
         confirmationAlertSubmitButton: "Withdraw"
     )
-}
-
-
-extension LocalizationKey {
-    static var current: Self {
-        let locale = Locale.current
-        return LocalizationKey(language: locale.language, region: locale.region ?? .unitedStates)
-    }
 }

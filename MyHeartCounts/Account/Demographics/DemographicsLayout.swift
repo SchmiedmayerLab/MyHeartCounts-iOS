@@ -25,7 +25,7 @@ import SwiftUI
 /// 2. Leaf Components, which represent actual data entry fields the user is asked to fill out.
 ///
 /// Since the list of enabled demgraphics fields, and within a single field the question of whether it should be required or optional,
-/// are non-static and depend on factors such as the user's specific enrollment region and whether the user has opted in to the trial,
+/// are non-static and depend on factors such as the user's study variant and whether the user has opted in to the trial,
 /// the demographics layout as a whole is parametrized over these conditions.
 protocol DemographicsComponent {
     associatedtype View: SwiftUI.View
@@ -84,12 +84,12 @@ enum DemographicsComponentCompletionState: Hashable {
 
 /// Creates a ``DemographicsComponent`` representing the demographics form as a whole.
 ///
-/// - parameter region: the firebase region the user is enrolled with.
+/// - parameter studyVariant: the study variant determining which demographics fields to collect, independent of the Firebase deployment.
 /// - parameter didOptInToTrial: whether the user opted in to participate in the trial.
 @MainActor
 @DemographicsLayoutBuilder
 func demographicsLayout( // swiftlint:disable:this function_body_length
-    region: Locale.Region,
+    studyVariant: StudyVariant,
     didOptInToTrial: Bool
 ) -> some DemographicsComponent {
     Section { // swiftlint:disable:this closure_body_length
@@ -149,7 +149,7 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                 }
             }
         }
-        if region == .unitedStates {
+        if studyVariant == .stanford {
             LeafComponent(\.latinoStatus) { binding, completionState in
                 makeSimpleValuePickerRow(
                     "Are you Hispanic/Latino?",
@@ -182,8 +182,8 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
         }
     }
     Section { // swiftlint:disable:this closure_body_length
-        switch region {
-        case .unitedStates:
+        switch studyVariant {
+        case .stanford:
             LeafComponent(\.usRegion, isRequired: false) { binding, completionState in
                 NavigationLink {
                     USRegionPicker(selection: binding)
@@ -209,7 +209,7 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                     completionState: completionState
                 )
             }
-        case .unitedKingdom:
+        case .imperial:
             LeafComponent(\.ukRegion, isRequired: false) { binding, completionState in
                 NavigationLink {
                     UKRegionPicker(selection: binding)
@@ -236,11 +236,9 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                     completionState: completionState
                 )
             }
-        default:
-            _EmptyComponent()
         }
     }
-    if region == .unitedKingdom {
+    if studyVariant == .imperial {
         LeafComponent(\.nhsNumber, isRequired: false) { binding, _ in
             let binding = binding.withDefault(NHSNumber(unchecked: ""))
             SwiftUI.Section {

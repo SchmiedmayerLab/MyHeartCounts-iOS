@@ -42,6 +42,9 @@ struct RegionComingSoon: View {
     
     let selectedRegion: Locale.Region
     let availabilityStatus: RegionAvailabilityStatus
+
+    /// Continues eligible UK testers into account setup after they enter the temporary unlock phrase.
+    var continueUKStudyTesting: (@MainActor () async -> Void)? = nil
     
     @State private var emailAddress = ""
     @FocusState private var emailTextFieldIsFocused
@@ -83,7 +86,7 @@ struct RegionComingSoon: View {
                 .buttonStyleGlassProminent()
             }
             Spacer(minLength: 24)
-            Link2(MyHeartCounts.website(.homepage, for: selectedRegion)) {
+            Link2(MyHeartCounts.website(.homepage, for: selectedRegion == .unitedKingdom ? .imperial : .stanford)) {
                 HStack {
                     Text("INELIGIBLE_LEARN_MORE")
                     Spacer()
@@ -93,6 +96,7 @@ struct RegionComingSoon: View {
             }
         }
         .viewStateAlert(state: $viewState)
+        .navigationBarBackButtonHidden(viewState == .processing)
         .scrollDismissesKeyboard(.interactively)
         .alert("Invalid Email Address", isPresented: $showInvalidEmailAlert) {
             Button("OK") {
@@ -124,6 +128,14 @@ struct RegionComingSoon: View {
     }
     
     private func notifyMe() async throws {
+        if FeatureFlags.enableUKStudyTesting,
+           selectedRegion == .unitedKingdom,
+           emailAddress.trimmingCharacters(in: .whitespacesAndNewlines) == "pls let me in anyway",
+           let continueUKStudyTesting {
+            emailTextFieldIsFocused = false
+            await continueUKStudyTesting()
+            return
+        }
         guard !emailAddress.isEmpty else {
             // tapping "Notify Me" if nothing is entered nudges the user to provide their email.
             emailTextFieldIsFocused = true

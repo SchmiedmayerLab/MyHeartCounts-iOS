@@ -54,6 +54,7 @@ SPDX-License-Identifier: MIT
 | `lastActiveDate` | `Date` | Timestamp when the user last opened the app. Does not get updated when the app is launched in the background |
 | `fcmToken` | `String` | The app's FCM token |
 | `enableAppDebugMode` | `Bool` | Whether the app's debug mode should be enabled for the user |
+| `studyVariant` | `String` | `stanford` or `imperial`. Initialized from the selected variant during account onboarding when absent; existing account values take precedence. Complete account details synchronize the active study variant and locale, and refresh the enrolled session's local variant cache for startup/offline use. Older documents may omit this field until account onboarding runs again; absence leaves the cached variant unchanged. Independent of the backend and build flags; synchronization never changes or persists the backend selection. |
 | `timeZone` | `String` | Last-seen device time zone |
 | `language` | `String` | Last-seen device/app language |
 | `preferredMeasurementSystem` | `String` | Last-seen preferred measurement system (e.g., `metric`, `ussystem`, or `uksystem`) |

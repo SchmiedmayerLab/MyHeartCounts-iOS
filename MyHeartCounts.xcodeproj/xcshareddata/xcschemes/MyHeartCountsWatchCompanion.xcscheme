@@ -60,7 +60,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8054D9832DE54F8800458CD9"
             BuildableName = "MyHeartCountsWatchApp.app"
-            BlueprintName = "MyHeartCountsWatchApp"
             ReferencedContainer = "container:MyHeartCounts.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -77,7 +76,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8054D9832DE54F8800458CD9"
             BuildableName = "MyHeartCountsWatchApp.app"
-            BlueprintName = "MyHeartCountsWatchApp"
             ReferencedContainer = "container:MyHeartCounts.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

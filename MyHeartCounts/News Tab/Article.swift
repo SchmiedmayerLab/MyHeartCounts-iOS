@@ -130,23 +130,25 @@ extension Article.ImageReference: RawRepresentable, Codable {
 
 
 extension Article {
-    init?(_ other: StudyDefinition.InformationalComponent, in studyBundle: StudyBundle, locale: Locale) {
+    init?(_ other: StudyDefinition.InformationalComponent, in studyBundle: StudyBundle, locale: Locale, studyVariant: StudyVariant) {
         guard let url = studyBundle.resolve(other.fileRef, in: locale),
               let markdownDoc = try? MarkdownDocument(contentsOf: url) else {
             return nil
         }
-        self.init(id: other.id, markdownDoc)
+        self.init(id: other.id, markdownDoc, studyVariant: studyVariant)
     }
     
     
     /// Creates a new Article from a `MarkdownDocument`, extracting information from the document's metadata.
+    /// Stanford articles retain their default image; Imperial articles without an explicit image use no institutional branding.
     init(
         id: UUID,
         _ doc: MarkdownDocument,
-        defaultStatus: Status = .published,
-        fallbackHeaderImage: ImageReference? = .asset("stanford")
+        studyVariant: StudyVariant,
+        defaultStatus: Status = .published
     ) {
         let metadata = doc.metadata
+        let fallbackHeaderImage: ImageReference? = studyVariant == .stanford ? .asset("stanford") : nil
         self.init(
             id: id,
             status: metadata["status"].flatMap(Status.init(rawValue:)) ?? defaultStatus,
@@ -162,12 +164,12 @@ extension Article {
         )
     }
     
-    init?(contentsOf url: URL) {
+    init?(contentsOf url: URL, studyVariant: StudyVariant) {
         guard let document = try? MarkdownDocument(contentsOf: url),
               let id = document.metadata["id"].flatMap({ UUID(uuidString: $0) }) else {
             return nil
         }
-        self.init(id: id, document)
+        self.init(id: id, document, studyVariant: studyVariant)
     }
 }
 
