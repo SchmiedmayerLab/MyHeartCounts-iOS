@@ -14,7 +14,6 @@ import Grove
 import GroveAccount
 import GroveHealthKit
 import GroveSensorKit
-import GroveStudy
 import HealthKit
 import MyHeartCountsShared
 import SFSafeSymbols
@@ -129,7 +128,6 @@ extension PromptedAction {
         state: { context in
             let grove = context.grove
             guard let account = grove.module(Account.self),
-                  let studyManager = grove.module(StudyManager.self),
                   let details = account.details,
                   !details.isIncomplete else {
                 return .unavailable
@@ -137,7 +135,7 @@ extension PromptedAction {
             let data = DemographicsData()
             data.populate(from: account)
             let layout = demographicsLayout(
-                region: studyManager.preferredLocale.region ?? .unitedStates,
+                studyVariant: DeferredConfigLoading.activeStudyVariant ?? .stanford,
                 didOptInToTrial: details.didOptInToTrial == true
             )
             switch layout.completionState(in: data) {

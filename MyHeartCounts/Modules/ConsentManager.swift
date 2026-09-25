@@ -30,6 +30,7 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
     // swiftlint:enable attributes
     
     @MainActor var pendingConsentDoc: ConsentDocument?
+    @ObservationIgnored private var lastConsentLocale: Locale?
     
     
     private var isInTestEnvSetup: Bool {
@@ -46,12 +47,17 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
     
     @MainActor
     private func doUpdate() async {
-        let (studyBundle, _) = withObservationTracking {
-            (studyBundleLoader.studyBundle?.value, account?.details)
+        let (studyBundle, _, locale) = withObservationTracking {
+            (studyBundleLoader.studyBundle?.value, account?.details, studyManager.preferredLocale)
         } onChange: { [weak self] in
             Task {
                 await self?.doUpdate()
             }
+        }
+        if lastConsentLocale != locale {
+            // Different regional consent documents can share a version number.
+            pendingConsentDoc = nil
+            lastConsentLocale = locale
         }
         guard LocalPreferencesStore.standard[.onboardingFlowComplete], !isInTestEnvSetup else {
             // we never want this to trigger during the regular onboarding, as it could interfere with the flow there.
@@ -164,8 +170,7 @@ extension ConsentManager {
 extension StudyManager {
     var defaultLanguageFallbackLocale: LocalizationKey {
         guard let region = preferredLocale.region else {
-            // unreachable in regular usage bc we always set a region (based on the firebase config) when loading the module.
-            // only reachable when the firebase config is manually overwritten to point directly to a plist file.
+            // Unreachable during study participation: the study variant always supplies a region.
             return .enUS
         }
         return switch region {

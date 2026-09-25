@@ -223,7 +223,12 @@ extension TasksList {
         case .presentInformationalStudyComponent(let component):
             guard let enrollment = studyManager.enrollment(withId: context.enrollmentId),
                   let studyBundle = enrollment.studyBundle,
-                  let article = Article(component, in: studyBundle, locale: studyManager.preferredLocale) else {
+                  let article = Article(
+                    component,
+                    in: studyBundle,
+                    locale: studyManager.preferredLocale,
+                    studyVariant: DeferredConfigLoading.activeStudyVariant ?? .stanford
+                  ) else {
                 logger.error("Error fetching & loading & procesing Article")
                 return
             }

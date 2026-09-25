@@ -79,8 +79,8 @@ final class MHCBackgroundTasks: Module, EnvironmentAccessible, @unchecked Sendab
         //
         // This matters because the Firebase-dependent modules are deferred-loaded: on the launch during which the user picks a region,
         // they get configured well after the launch sequence completed, so their registrations would be exactly the too-late kind.
-        // Rejecting them is safe. `lastUsedFirebaseConfig` is set from then on, so every subsequent launch — foreground or background —
-        // loads these modules as part of the launch sequence, registers their tasks during `willFinishLaunching`, and submits them
+        // Once study enrollment starts, the enrolled Firebase configuration is restored on subsequent launches — foreground or background.
+        // These modules then load as part of the launch sequence, register their tasks during `willFinishLaunching`, and submit them
         // the first time the scene phase becomes `.background` (which, via `Lifecycle`'s `initial: true` tracking, also happens on
         // background launches). The only cost is that these tasks stay unregistered for the rest of the one session in which the
         // region was picked.

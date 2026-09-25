@@ -118,6 +118,23 @@ In order to run and develop the My Heart Counts app locally, you'll need the fol
         - (this option will disable the historical health data collection, improving performance when running the app on a real device)
 3. Run the application in Xcode.
 
+### Temporary UK testing
+
+In Debug builds, simulator builds, and TestFlight installations, select **United Kingdom** during eligibility screening, enter `pls let me in anyway` in the **Coming Soon** screen's email field, and tap **Notify Me** to test the UK study using the US Firebase configuration.
+The phrase is not sent to the waiting list. Continue through account setup with your usual test-account credentials.
+The app tracks the Imperial study variant separately from its US Firebase backend and uses the UK study locale. Without the phrase, UK selection keeps the normal "Coming Soon" behavior.
+Both selections stay in memory until final study enrollment begins, when they are saved as `enrolledStudyVariant` and the existing `lastUsedFirebaseConfig` preference. Quitting before that step allows a fresh region selection on relaunch.
+At launch, an existing backend preference without a study variant defaults to Stanford; the backend preference is left unchanged. Older UK test installations that stored `region(GB)` should reset their local data before using this approach.
+The feature flag only controls access to the temporary enrollment path. Removing it or adding a UK backend does not change an enrolled participant's saved backend or variant.
+Both variants use the shared `public/mhcStudyBundle.spezistudybundle.tar.zst` archive in the connected backend's bucket and the existing app-bundled fallback if the hosted archive cannot be decoded.
+Study resources are resolved within that bundle using the variant's study locale.
+UK consent still requires an `en-GB` consent resource in the shared bundle; the checked-in bundle currently only includes US consent resources.
+News is also selected by study variant: Stanford uses `public/news/`, and Imperial uses `public/news-UK/` in the connected backend's bucket. Publish Imperial articles there; an empty feed does not fall back to Stanford news.
+Articles can specify a `headerImage` in their metadata. Without one, Stanford keeps its existing default image and Imperial uses no institutional image.
+When advancing account onboarding after creation/login, the app fills in a missing `studyVariant` field (`stanford` or `imperial`) from the selected variant; an existing account value takes precedence. Startup uses the local variant cache, then synchronizes the active variant and study locale when complete account details arrive. For enrolled sessions, this also refreshes `enrolledStudyVariant`; missing account metadata leaves the cache unchanged. Synchronization never changes or persists a backend selection.
+Temporary Imperial accounts on the US backend are disposable: delete and recreate them when moving to the real UK deployment, and reset the app's local data.
+For Release builds on a device, the temporary feature requires the TestFlight sandbox receipt.
+
 > [!NOTE]  
 > Please make sure not to commit and push any of the SensorKit, Code Signing, and run argument changes listed above; these changes are only required for local development.
 

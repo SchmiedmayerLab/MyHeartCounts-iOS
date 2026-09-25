@@ -34,9 +34,20 @@ final class NewsManager: Module, EnvironmentAccessible {
             await refresh()
         }
     }
+
+    /// Discards news from the previous study variant, including any in-flight results.
+    func invalidate() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        articles = []
+        loadingError = nil
+        Task {
+            await refresh()
+        }
+    }
     
     
-    func refresh() async { // swiftlint:disable:this function_body_length
+    func refresh() async { // swiftlint:disable:this function_body_length cyclomatic_complexity
         if let refreshTask {
             await refreshTask.value
             return
@@ -44,7 +55,9 @@ final class NewsManager: Module, EnvironmentAccessible {
         let logger = logger
         let refreshTask = Task { // swiftlint:disable:this closure_body_length
             defer {
-                self.refreshTask = nil
+                if !Task.isCancelled {
+                    self.refreshTask = nil
+                }
             }
             let startTS = CACurrentMediaTime()
             defer {
@@ -52,8 +65,9 @@ final class NewsManager: Module, EnvironmentAccessible {
                 logger.trace("TOTAL TIME SPENT FETCHING AND PROCESSING NEWS: \(endTS - startTS)")
             }
             let locale = studyManager.preferredLocale
+            let studyVariant = DeferredConfigLoading.activeStudyVariant ?? .stanford
             let storage = Storage.storage()
-            let newsFolder = storage.reference(withPath: "/public/news/")
+            let newsFolder = storage.reference(withPath: studyVariant.newsStoragePath)
             guard let newsArticleFiles = try? await newsFolder.listAll() else {
                 return
             }
@@ -93,7 +107,11 @@ final class NewsManager: Module, EnvironmentAccessible {
                             logger.trace("DOWNLOAD DURATION: \(endTS - startTS)")
                             let doc = try MarkdownDocument(contentsOf: tmpUrl)
                             try? FileManager.default.removeItem(at: tmpUrl)
-                            let article = Article(id: doc.metadata["id"].flatMap(UUID.init(uuidString:)) ?? UUID(), doc)
+                            let article = Article(
+                                id: doc.metadata["id"].flatMap(UUID.init(uuidString:)) ?? UUID(),
+                                doc,
+                                studyVariant: studyVariant
+                            )
                             return article.status == .published ? article : nil
                         } catch {
                             logger.error("Error processing news article: \(error)")
@@ -112,6 +130,9 @@ final class NewsManager: Module, EnvironmentAccessible {
             articles.removeAll(where: { $0.date == nil })
             // SAFETY: we do a force unwrap here, but we've just removed all articles that have a nil `date`.
             articles.sort(using: KeyPathComparator(\.date!, order: .reverse))
+            guard !Task.isCancelled else {
+                return
+            }
             self.articles = articles
         }
         self.refreshTask = refreshTask
