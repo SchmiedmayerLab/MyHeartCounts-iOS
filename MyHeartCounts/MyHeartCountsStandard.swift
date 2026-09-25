@@ -55,6 +55,20 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     // swiftlint:disable attributes
     
     init() {}
+
+    /// Adopts an account's variant without committing a backend selection during unfinished onboarding.
+    @MainActor
+    static func synchronizeStudyVariant(for account: Account) {
+        // Read the current details; a queued account event can contain an older snapshot.
+        guard let details = account.details, !details.isIncomplete, let variant = details.studyVariant else {
+            return
+        }
+        DeferredConfigLoading.setActiveStudyVariant(variant)
+        let prefs = LocalPreferencesStore.standard
+        if prefs[.enrolledFirebaseConfig] != nil, prefs[.enrolledStudyVariant] != variant {
+            prefs[.enrolledStudyVariant] = variant
+        }
+    }
     
     @MainActor
     func configure() {
@@ -133,6 +147,9 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         let logger = logger
         switch event {
         case .associatedAccount(let details):
+            if let account {
+                await Self.synchronizeStudyVariant(for: account)
+            }
             logger.notice("account was associated (account id: \(details.accountId))")
             if LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] {
                 do {
@@ -160,7 +177,9 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                 logger.error("Unable to clear all local account data during logout: \(error)")
             }
         case .detailsChanged:
-            break
+            if let account {
+                await Self.synchronizeStudyVariant(for: account)
+            }
         }
     }
     

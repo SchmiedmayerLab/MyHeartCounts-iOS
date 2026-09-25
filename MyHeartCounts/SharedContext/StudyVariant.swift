@@ -8,6 +8,7 @@
 
 import Foundation
 import SpeziLocalization
+import SpeziStudy
 
 
 /// The study protocol and regional resources, independent of the Firebase deployment hosting them.
@@ -24,13 +25,6 @@ enum StudyVariant: String, Codable, Sendable {
 
     var preferredLocale: Locale {
         Locale(language: Locale.current.language.withRegion(nil), region: region)
-    }
-
-    var studyBundleFilename: String {
-        switch self {
-        case .stanford: "mhcStudyBundle"
-        case .imperial: "mhcStudyBundle-UK"
-        }
     }
 
     /// The variant's news feed within the connected backend's Storage bucket.

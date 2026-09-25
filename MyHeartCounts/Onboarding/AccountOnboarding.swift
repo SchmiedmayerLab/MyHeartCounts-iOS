@@ -21,7 +21,6 @@ import SwiftUI
 struct AccountOnboarding: View {
     // swiftlint:disable attributes
     @Environment(ManagedNavigationStack.Path.self) private var path
-    @Environment(MyHeartCountsStandard.self) private var standard
     @Environment(ConsentManager.self) private var consentManager
     @Environment(Account.self) private var account
     // swiftlint:enable attributes
@@ -30,19 +29,19 @@ struct AccountOnboarding: View {
     
     var body: some View {
         VStack {
-            AccountSetup { details in
+            AccountSetup { _ in
                 Task {
                     await Task.yield()
                     // Placing the nextStep() call inside this task will ensure that the sheet dismiss animation is
                     // played till the end before we navigate to the next step.
-                    try? await advance(details)
+                    try? await advance()
                 }
             } header: {
                 AccountSetupHeader()
             } continue: {
                 // action if the user already is logged in
                 OnboardingActionsView("Next") {
-                    try await advance(standard.account?.details ?? AccountDetails())
+                    try await advance()
                 }
             }
             // NOTE: ideally we'd have this be semantically part of the AccountSetup (pushed all the way to the bottom),
@@ -56,13 +55,16 @@ struct AccountOnboarding: View {
         .toolbar(.visible)
     }
     
-    private func advance(_ details: AccountDetails) async throws {
-        if FeatureFlags.enableUKStudyTesting,
-           DeferredConfigLoading.activeStudyVariant == .imperial,
-           DeferredConfigLoading.activeFirebaseConfig?.region == .unitedStates,
-           details.isUKStudyTestAccount != true {
+    private func advance() async throws {
+        await account.waitForAccountDetailsReady()
+        try Task.checkCancellation()
+        guard let details = account.details else {
+            return
+        }
+        MyHeartCountsStandard.synchronizeStudyVariant(for: account)
+        if details.studyVariant == nil, let studyVariant = DeferredConfigLoading.activeStudyVariant {
             var updates = AccountDetails()
-            updates.isUKStudyTestAccount = true
+            updates.studyVariant = studyVariant
             try await account.accountService.updateAccountDetails(AccountModifications(modifiedDetails: updates))
         }
         let consentDoc = try await consentDocumentToSign()

@@ -54,7 +54,7 @@ SPDX-License-Identifier: MIT
 | `lastActiveDate` | `Date` | Timestamp when the user last opened the app. Does not get updated when the app is launched in the background |
 | `fcmToken` | `String` | The app's FCM token |
 | `enableAppDebugMode` | `Bool` | Whether the app's debug mode should be enabled for the user |
-| `isUKStudyTestAccount` | `Bool` | Set to `true` by the app after account creation/login with the Imperial study variant and US backend in the temporary UK onboarding (entered using the unlock phrase on the UK Coming Soon screen in Debug builds, simulator builds, and TestFlight), before consent. Remains set if the account is subsequently used for Stanford onboarding; absent or `false` means it has not been marked. Identifies disposable test accounts for later deletion, not accounts to migrate to the eventual UK deployment. The marker does not select the study variant or backend; those selections are stored independently in local preferences. |
+| `studyVariant` | `String` | `stanford` or `imperial`. Initialized from the selected variant during account onboarding when absent; existing account values take precedence. Complete account details synchronize the active study variant and locale, and refresh the enrolled session's local variant cache for startup/offline use. Older documents may omit this field until account onboarding runs again; absence leaves the cached variant unchanged. Independent of the backend and build flags; synchronization never changes or persists the backend selection. |
 | `timeZone` | `String` | Last-seen device time zone |
 | `language` | `String` | Last-seen device/app language |
 | `preferredMeasurementSystem` | `String` | Last-seen preferred measurement system (e.g., `metric`, `ussystem`, or `uksystem`) |

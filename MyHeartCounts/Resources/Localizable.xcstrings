@@ -9624,6 +9624,16 @@
         }
       }
     },
+    "Study Variant" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Variante del estudio"
+          }
+        }
+      }
+    },
     "Success" : {
       "localizations" : {
         "en-GB" : {
@@ -10240,9 +10250,6 @@
           }
         }
       }
-    },
-    "UK Study Test Account" : {
-
     },
     "Unable to find Questionnaire" : {
       "localizations" : {

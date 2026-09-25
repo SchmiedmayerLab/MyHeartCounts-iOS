@@ -34,9 +34,20 @@ final class NewsManager: Module, EnvironmentAccessible {
             await refresh()
         }
     }
+
+    /// Discards news from the previous study variant, including any in-flight results.
+    func invalidate() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        articles = []
+        loadingError = nil
+        Task {
+            await refresh()
+        }
+    }
     
     
-    func refresh() async { // swiftlint:disable:this function_body_length
+    func refresh() async { // swiftlint:disable:this function_body_length cyclomatic_complexity
         if let refreshTask {
             await refreshTask.value
             return
@@ -44,7 +55,9 @@ final class NewsManager: Module, EnvironmentAccessible {
         let logger = logger
         let refreshTask = Task { // swiftlint:disable:this closure_body_length
             defer {
-                self.refreshTask = nil
+                if !Task.isCancelled {
+                    self.refreshTask = nil
+                }
             }
             let startTS = CACurrentMediaTime()
             defer {
@@ -117,6 +130,9 @@ final class NewsManager: Module, EnvironmentAccessible {
             articles.removeAll(where: { $0.date == nil })
             // SAFETY: we do a force unwrap here, but we've just removed all articles that have a nil `date`.
             articles.sort(using: KeyPathComparator(\.date!, order: .reverse))
+            guard !Task.isCancelled else {
+                return
+            }
             self.articles = articles
         }
         self.refreshTask = refreshTask

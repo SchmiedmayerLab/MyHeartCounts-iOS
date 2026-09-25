@@ -41,7 +41,7 @@ extension LocalPreferenceKeys {
         default: nil
     )
 
-    /// The enrolled study variant, stored separately from the Firebase deployment.
+    /// The enrolled study variant cached for startup and offline use, refreshed from account details when available.
     static let enrolledStudyVariant = LocalPreferenceKey<StudyVariant?>("enrolledStudyVariant")
 }
 
@@ -49,10 +49,17 @@ extension LocalPreferenceKeys {
 enum DeferredConfigLoading {
     fileprivate static let logger = Logger(category: .init("Config"))
 
-    /// The independent backend and study selections used together for this process.
-    struct StudyConfiguration: Equatable, Sendable {
+    /// The independent backend and study selections used together for this process. Variant changes also update observing views.
+    @Observable
+    @MainActor
+    private final class StudyConfiguration {
         let firebaseConfig: FirebaseConfigSelector
         var studyVariant: StudyVariant
+
+        init(firebaseConfig: FirebaseConfigSelector, studyVariant: StudyVariant) {
+            self.firebaseConfig = firebaseConfig
+            self.studyVariant = studyVariant
+        }
     }
 
     /// Includes temporary onboarding selections; persisted only when study enrollment starts.
@@ -253,6 +260,7 @@ enum DeferredConfigLoading {
                         // additional values stored using the `FirestoreAccountStorage` within our Standard implementation
                         .manual(\.dateOfBirth),
                         // account mgmt
+                        .manual(\.studyVariant),
                         .manual(\.didOptInToTrial),
                         .manual(\.futureStudies),
                         .manual(\.hasWithdrawnFromStudy),
@@ -292,7 +300,6 @@ enum DeferredConfigLoading {
                         .manual(\.language),
                         .manual(\.preferredMeasurementSystem),
                         // internal stuff
-                        .manual(\.isUKStudyTestAccount),
                         .manual(\.enableDebugMode)
                     ]
                 )
@@ -356,11 +363,12 @@ extension DeferredConfigLoading {
     /// Selects another study variant on the already loaded backend.
     @MainActor
     static func setActiveStudyVariant(_ variant: StudyVariant) {
-        guard activeConfiguration != nil else {
+        guard let activeConfiguration, activeConfiguration.studyVariant != variant else {
             return
         }
-        activeConfiguration?.studyVariant = variant
+        activeConfiguration.studyVariant = variant
         SpeziAppDelegate.spezi?.module(StudyManager.self)?.preferredLocale = variant.preferredLocale
+        SpeziAppDelegate.spezi?.module(NewsManager.self)?.invalidate()
     }
 
     /// Saves both selections before enrollment can persist study data.

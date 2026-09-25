@@ -97,6 +97,9 @@ private struct Impl<Footer: View>: View {
                 .onChange(of: data.updateCounter, initial: true) { _, _ in
                     isComplete = layout.isComplete(in: data)
                 }
+                .onChange(of: studyVariant) { _, _ in
+                    isComplete = layout.isComplete(in: data)
+                }
             footer()
         }
         .accessibilityIdentifier("DemographicsForm")
