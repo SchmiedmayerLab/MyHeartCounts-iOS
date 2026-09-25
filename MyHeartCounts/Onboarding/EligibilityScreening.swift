@@ -6,10 +6,8 @@
 // SPDX-License-Identifier: MIT
 //
 
-@_spi(APISupport)
 import Spezi
 import SpeziFoundation
-import SpeziStudy
 import SpeziViews
 import SwiftUI
 
@@ -58,7 +56,7 @@ struct EligibilityScreening: View {
                 // unreachable
                 return
             }
-            if await loadStudy(for: region, path: path) {
+            if await loadStudy(variant: .stanford, backendRegion: region, path: path) {
                 path.nextStep()
             }
         } else {
@@ -68,7 +66,7 @@ struct EligibilityScreening: View {
                 case .ineligible(.regionNotYetSupportedButComingSoon(let region)) where results.count == 2:
                     path.append {
                         RegionComingSoon(selectedRegion: region, availabilityStatus: .comingSoon) {
-                            if await loadStudy(for: .unitedKingdom, path: path) {
+                            if await loadStudy(variant: .imperial, backendRegion: .unitedStates, path: path) {
                                 path.removeLast()
                                 path.nextStep()
                             }
@@ -91,19 +89,14 @@ struct EligibilityScreening: View {
         }
     }
 
-    private func loadStudy(for region: Locale.Region, path: ManagedNavigationStack.Path) async -> Bool {
+    private func loadStudy(variant: StudyVariant, backendRegion: Locale.Region, path: ManagedNavigationStack.Path) async -> Bool {
         if !Spezi.didLoadFirebase {
             // Give the dynamically loaded Firebase modules time to finish configuring.
-            Spezi.loadFirebase(for: region)
+            Spezi.loadFirebase(for: backendRegion, studyVariant: variant)
             try? await Task.sleep(for: .seconds(3))
-        } else if FeatureFlags.enableUKStudyTesting,
-                  FeatureFlags.overrideFirebaseConfig == nil,
-                  let previousRegion = DeferredConfigLoading.activeFirebaseConfig?.region,
-                  [.unitedStates, .unitedKingdom].contains(previousRegion),
-                  let studyManager = SpeziAppDelegate.spezi?.module(StudyManager.self) {
-            // Both test variants use the same backend. Keep the study selection in sync when going back in onboarding.
-            DeferredConfigLoading.activeFirebaseConfig = .region(region)
-            studyManager.preferredLocale = Locale(language: Locale.current.language.withRegion(nil), region: region)
+        } else {
+            // Keep the study selection in sync when going back in onboarding; the loaded backend stays unchanged.
+            DeferredConfigLoading.setActiveStudyVariant(variant)
         }
         do {
             try await studyLoader.update()

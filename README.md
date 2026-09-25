@@ -122,11 +122,13 @@ In order to run and develop the My Heart Counts app locally, you'll need the fol
 
 In Debug builds, simulator builds, and TestFlight installations, select **United Kingdom** during eligibility screening, enter `pls-let-me-in-anyway` in the **Coming Soon** screen's email field, and tap **Notify Me** to test the UK study using the US Firebase configuration.
 The phrase is not sent to the waiting list. Continue through account setup with your usual test-account credentials.
-The app stores UK as the study region and uses the UK study locale. Without the phrase, UK selection keeps the normal "Coming Soon" behavior.
-The selection stays in memory until final study enrollment begins. Quitting before that step allows a fresh region selection on relaunch.
+The app tracks the Imperial study variant separately from its US Firebase backend and uses the UK study locale. Without the phrase, UK selection keeps the normal "Coming Soon" behavior.
+Both selections stay in memory until final study enrollment begins, when they are saved as `enrolledStudyVariant` and the existing `lastUsedFirebaseConfig` preference. Quitting before that step allows a fresh region selection on relaunch.
+At launch, an existing backend preference without a study variant defaults to Stanford; the backend preference is left unchanged. Older UK test installations that stored `region(GB)` should reset their local data before using this approach.
+The feature flag only controls access to the temporary enrollment path. Removing it or adding a UK backend does not change an enrolled participant's saved backend or variant.
 Publish the UK bundle as `public/mhcStudyBundle-UK.spezistudybundle.tar.zst` in the same bucket as the existing US bundle.
 The UK bundle must include its own consent and other study resources; UK loading never falls back to the US bundle included in the app.
-Accounts created or used through this UK onboarding are marked with `isUKStudyTestAccount: true` in their user document.
+Accounts created or used with the Imperial variant on the US backend through this UK onboarding are marked with `isUKStudyTestAccount: true` in their user document.
 These accounts are disposable: delete and recreate them when moving to the real UK deployment, and reset the app's local data.
 For Release builds on a device, the temporary feature requires the TestFlight sandbox receipt.
 

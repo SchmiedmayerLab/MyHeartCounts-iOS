@@ -8,7 +8,6 @@
 
 import Foundation
 import MyHeartCountsShared
-import Spezi
 import SpeziFoundation
 
 
@@ -22,23 +21,10 @@ extension MyHeartCounts {
     ///
     /// - parameter region: The region whose website should be returned. If omitted, the region is determined based on the app's available context.
     @MainActor
-    static func website(_ selector: WebsiteSelector, for region: Locale.Region? = nil) -> URL { // swiftlint:disable:this cyclomatic_complexity
+    static func website(_ selector: WebsiteSelector, for region: Locale.Region? = nil) -> URL {
         switch region {
         case .none:
-            guard Spezi.didLoadFirebase else {
-                // we don't know which firebase deployment we're connected to, so we return the one for the current region
-                return website(selector, for: Locale.current.region ?? .unitedStates)
-            }
-            switch DeferredConfigLoading.activeFirebaseConfig {
-            case .none:
-                // should be unreachable, but we handle it like the case where we're not connected to firebase at all
-                return website(selector, for: Locale.current.region ?? .unitedStates)
-            case .custom, .customUrl:
-                // development only
-                return website(selector, for: .unitedStates)
-            case .region(let region):
-                return website(selector, for: region)
-            }
+            return website(selector, for: DeferredConfigLoading.activeStudyVariant?.region ?? Locale.current.region ?? .unitedStates)
         case .some(.unitedKingdom):
             // TASK: swap out for UK websites once available
             return switch selector {

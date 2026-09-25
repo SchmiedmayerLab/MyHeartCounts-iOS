@@ -40,14 +40,31 @@ extension LocalPreferenceKeys {
         "lastUsedFirebaseConfig",
         default: nil
     )
+
+    /// The enrolled study variant, stored separately from the Firebase deployment.
+    static let enrolledStudyVariant = LocalPreferenceKey<StudyVariant?>("enrolledStudyVariant")
 }
 
 
 enum DeferredConfigLoading {
     fileprivate static let logger = Logger(category: .init("Config"))
 
-    /// The study/backend selection for this process, including selections made during unfinished onboarding.
-    @MainActor static var activeFirebaseConfig: FirebaseConfigSelector?
+    /// The independent backend and study selections used together for this process.
+    struct StudyConfiguration: Equatable, Sendable {
+        let firebaseConfig: FirebaseConfigSelector
+        var studyVariant: StudyVariant
+    }
+
+    /// Includes temporary onboarding selections; persisted only when study enrollment starts.
+    @MainActor private static var activeConfiguration: StudyConfiguration?
+
+    @MainActor static var activeFirebaseConfig: FirebaseConfigSelector? {
+        activeConfiguration?.firebaseConfig
+    }
+
+    @MainActor static var activeStudyVariant: StudyVariant? {
+        activeConfiguration?.studyVariant
+    }
     
     enum LoadingError: Error {
         case unableToLoadFirebaseConfigPlist(underlying: (any Error)? = nil)
@@ -143,8 +160,7 @@ enum DeferredConfigLoading {
             case .unitedStates:
                 key = "US"
             case .unitedKingdom:
-                // Keep the selector (and thus study locale) UK; only borrow the US backend for testing.
-                key = FeatureFlags.enableUKStudyTesting ? "US" : "UK"
+                key = "UK"
             default:
                 logger.error("[\(#function)] invalid region input '\(region.identifier)'. returning nil")
                 return nil
@@ -157,7 +173,7 @@ enum DeferredConfigLoading {
             } catch {
                 throw .unableToLoadFirebaseConfigPlist(underlying: error)
             }
-            logger.notice("[\(#function)] using '\(key)' Firebase config for study region '\(region.identifier)'")
+            logger.notice("[\(#function)] using '\(key)' Firebase config")
             return FirebaseOptions(contentsOfFile: tmpUrl.path)
         case .custom(let plistNameInBundle):
             guard let bundlePlistUrl = Bundle.main.url(forResource: plistNameInBundle, withExtension: "plist") else {
@@ -178,16 +194,17 @@ enum DeferredConfigLoading {
     
     
     @MainActor static var initialAppLaunchConfig: [any Module] {
-        if FeatureFlags.disableFirebase {
+        let studyVariant = LocalPreferencesStore.standard[.enrolledStudyVariant] ?? .stanford
+        return if FeatureFlags.disableFirebase {
             baseModules(preferredLocale: .autoupdatingCurrent)
         } else if let selector = FeatureFlags.overrideFirebaseConfig {
-            config(for: selector)
+            config(for: selector, studyVariant: studyVariant)
         } else if let selector = LocalPreferencesStore.standard[.enrolledFirebaseConfig],
                   LocalPreferencesStore.standard[.onboardingFlowComplete] || !StudyManager().studyEnrollments.isEmpty {
             // Completed onboarding takes the original restoration path without inspecting the study store.
             // Otherwise, only restore an actual (possibly unfinished) enrollment, not an abandoned region selection.
             // Leave the saved value untouched, including when it isn't restored.
-            config(for: selector)
+            config(for: selector, studyVariant: studyVariant)
         } else {
             []
         }
@@ -205,20 +222,15 @@ enum DeferredConfigLoading {
     ///
     /// Returns nil if there was an issue resolving the selector.
     @MainActor
-    static func config(for configSelector: FirebaseConfigSelector) -> [any Module] { // swiftlint:disable:this function_body_length
+    static func config( // swiftlint:disable:this function_body_length
+        for configSelector: FirebaseConfigSelector,
+        studyVariant: StudyVariant = .stanford
+    ) -> [any Module] {
         let configSelector = FeatureFlags.overrideFirebaseConfig ?? configSelector
-        let preferredLocale = { () -> Locale in
-            if let region = configSelector.region {
-                return .init(language: Locale.current.language.withRegion(nil), region: region)
-            } else {
-                logger.warning(
-                    "Unable to determine preferredLocale for configSelector \(String(describing: configSelector)). Falling back to autoupdatingCurrent"
-                )
-                return .autoupdatingCurrent
-            }
-        }()
+        let configuration = StudyConfiguration(firebaseConfig: configSelector, studyVariant: studyVariant)
+        let preferredLocale = studyVariant.preferredLocale
         guard !FeatureFlags.disableFirebase else {
-            activeFirebaseConfig = configSelector
+            activeConfiguration = configuration
             return baseModules(preferredLocale: preferredLocale)
         }
         do {
@@ -227,7 +239,7 @@ enum DeferredConfigLoading {
                 return []
             }
             logger.notice("Created FirebaseOptions for project '\(firebaseOptions.projectID ?? "")'")
-            activeFirebaseConfig = configSelector
+            activeConfiguration = configuration
             return Array { // swiftlint:disable:this closure_body_length
                 ConfigureFirebaseApp(/*name: "My Heart Counts", */options: firebaseOptions)
                 firestore
@@ -340,6 +352,38 @@ enum DeferredConfigLoading {
 }
 
 
+extension DeferredConfigLoading {
+    /// Selects another study variant on the already loaded backend.
+    @MainActor
+    static func setActiveStudyVariant(_ variant: StudyVariant) {
+        guard activeConfiguration != nil else {
+            return
+        }
+        activeConfiguration?.studyVariant = variant
+        SpeziAppDelegate.spezi?.module(StudyManager.self)?.preferredLocale = variant.preferredLocale
+    }
+
+    /// Saves both selections before enrollment can persist study data.
+    @MainActor
+    static func persistActiveConfiguration() {
+        guard let activeConfiguration else {
+            return
+        }
+        let prefs = LocalPreferencesStore.standard
+        prefs[.enrolledStudyVariant] = activeConfiguration.studyVariant
+        prefs[.enrolledFirebaseConfig] = activeConfiguration.firebaseConfig
+    }
+
+    /// Clears the saved selection after the local enrollment has been removed.
+    @MainActor
+    static func clearEnrolledConfiguration() {
+        let prefs = LocalPreferencesStore.standard
+        prefs[.enrolledFirebaseConfig] = nil
+        prefs[.enrolledStudyVariant] = nil
+    }
+}
+
+
 extension Spezi {
     fileprivate enum LoadState {
         case loaded
@@ -358,7 +402,7 @@ extension Spezi {
     }
     
     @MainActor // IDEA maybe rename this? (here and elsewhere (it's not just firebase any more))
-    static func loadFirebase(for region: Locale.Region) {
+    static func loadFirebase(for region: Locale.Region, studyVariant: StudyVariant = .stanford) {
         guard let spezi = SpeziAppDelegate.spezi else {
             fatalError("Spezi not loaded")
         }
@@ -366,13 +410,13 @@ extension Spezi {
             DeferredConfigLoading.logger.error("Did already load firebase, now asked to do it again, for a potentially different config. Will skip.")
             return
         }
-        spezi.loadFirebase(for: region)
+        spezi.loadFirebase(for: region, studyVariant: studyVariant)
     }
     
     @MainActor
-    private func loadFirebase(for region: Locale.Region) {
+    private func loadFirebase(for region: Locale.Region, studyVariant: StudyVariant) {
         DeferredConfigLoading.logger.notice("Will load firebase")
-        let config = DeferredConfigLoading.config(for: .region(region))
+        let config = DeferredConfigLoading.config(for: .region(region), studyVariant: studyVariant)
         guard !config.isEmpty else {
             return
         }

@@ -28,10 +28,11 @@ final class StudyBundleLoader: Module, Sendable {
         case unableToCreateLocalBundle(any Error)
     }
     
-    /// Identifies a bundle source so cached results and in-flight downloads stay scoped to the selected study/backend.
+    /// Identifies a bundle source so cached results and in-flight downloads stay scoped to the selected backend and study variant.
     private struct Source: Equatable, Sendable {
         let selector: StudyBundleSelector
         let firebaseConfig: DeferredConfigLoading.FirebaseConfigSelector?
+        let studyVariant: StudyVariant
     }
 
     static let shared = StudyBundleLoader()
@@ -137,10 +138,11 @@ final class StudyBundleLoader: Module, Sendable {
     ) async throws(LoadError) -> StudyBundle {
         let source = Source(
             selector: LaunchOptions.launchOptions[.studyBundleSelector],
-            firebaseConfig: FeatureFlags.overrideFirebaseConfig ?? DeferredConfigLoading.activeFirebaseConfig
+            firebaseConfig: FeatureFlags.overrideFirebaseConfig ?? DeferredConfigLoading.activeFirebaseConfig,
+            studyVariant: DeferredConfigLoading.activeStudyVariant ?? .stanford
         )
         if self.source != source {
-            // A startup fetch or a cached US bundle must not satisfy a later UK request.
+            // A startup fetch or a cached Stanford bundle must not satisfy a later Imperial request.
             loadStudyBundleTask?.cancel()
             loadStudyBundleTask = nil
             self.source = source
@@ -157,7 +159,8 @@ final class StudyBundleLoader: Module, Sendable {
             do throws(LoadError) {
                 result = .success(try await _update(
                     using: source.selector,
-                    firebaseConfig: source.firebaseConfig
+                    firebaseConfig: source.firebaseConfig,
+                    studyVariant: source.studyVariant
                 ))
             } catch {
                 result = .failure(error)
@@ -179,7 +182,8 @@ final class StudyBundleLoader: Module, Sendable {
     
     private func _update(
         using selector: StudyBundleSelector,
-        firebaseConfig: DeferredConfigLoading.FirebaseConfigSelector? = nil
+        firebaseConfig: DeferredConfigLoading.FirebaseConfigSelector? = nil,
+        studyVariant: StudyVariant = .stanford
     ) async throws(LoadError) -> StudyBundle {
         let studyBundleArchiveUrl: URL
         switch selector {
@@ -187,7 +191,7 @@ final class StudyBundleLoader: Module, Sendable {
             if let firebaseConfig,
                let options = try? DeferredConfigLoading.firebaseOptions(for: firebaseConfig),
                let bucket = options.storageBucket {
-                let filename = firebaseConfig.region == .unitedKingdom ? "mhcStudyBundle-UK" : "mhcStudyBundle"
+                let filename = studyVariant.studyBundleFilename
                 studyBundleArchiveUrl = Self.url(ofFile: "\(filename).\(StudyBundle.archiveFileExtension)", inBucket: bucket)
             } else {
                 logger.error("No active Firebase config.")
@@ -211,7 +215,7 @@ final class StudyBundleLoader: Module, Sendable {
         do {
             return try await openDownloadedStudyBundle(at: downloadUrl)
         } catch LoadError.unableToDecode(let underlyingDecodeError)
-            where selector == .firebase && firebaseConfig?.region != .unitedKingdom {
+            where selector == .firebase && studyVariant == .stanford {
             // if we failed to decode the firebase-hosted study bundle, we try to use the bundled one as a fallback.
             // (otherwise, we simply propagate the error up the call stack.)
             do {

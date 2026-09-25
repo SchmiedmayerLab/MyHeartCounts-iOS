@@ -53,6 +53,10 @@ struct MyHeartCounts: App {
         if LaunchOptions.launchOptions[.setupTestEnvironment].resetExistingData {
             prefs[.onboardingFlowComplete] = false
         }
+        if prefs[.enrolledFirebaseConfig] != nil, prefs[.enrolledStudyVariant] == nil {
+            // Existing installations predate explicit study variants. Preserve their backend selection.
+            prefs[.enrolledStudyVariant] = .stanford
+        }
         switch LaunchOptions.launchOptions[.setupTestEnvironment].loginAndEnroll {
         case .skip:
             break

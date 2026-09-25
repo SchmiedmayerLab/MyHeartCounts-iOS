@@ -13,8 +13,9 @@ import SpeziFoundation
 
 /// A collection of feature flags for My Heart Counts.
 enum FeatureFlags {
-    /// Temporary UK enrollment against the US backend in Debug builds, the simulator, and TestFlight installations.
+    /// Unlocks temporary Imperial enrollment against the US backend in Debug builds, the simulator, and TestFlight installations.
     /// Enter `pls-let-me-in-anyway` in the UK Coming Soon screen's email field to enter this mode.
+    /// Existing enrollments retain their saved study variant and backend independently of this flag.
     static var enableUKStudyTesting: Bool {
         #if DEBUG || targetEnvironment(simulator)
         true
