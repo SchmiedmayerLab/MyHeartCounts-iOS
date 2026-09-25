@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import GroveAccount
 import MyHeartCountsShared
 import Observation
-import SpeziAccount
 
 
 extension AccountDetails {

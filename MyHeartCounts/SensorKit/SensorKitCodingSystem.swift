@@ -6,8 +6,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+import GroveSensorKit
 import ModelsR4
-import SpeziSensorKit
 
 
 struct SensorKitCodingSystem: CodingProtocol {

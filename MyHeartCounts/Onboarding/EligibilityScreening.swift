@@ -6,9 +6,9 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Spezi
-import SpeziFoundation
-import SpeziViews
+import Grove
+import GroveFoundation
+import GroveViews
 import SwiftUI
 
 
@@ -90,9 +90,9 @@ struct EligibilityScreening: View {
     }
 
     private func loadStudy(variant: StudyVariant, backendRegion: Locale.Region, path: ManagedNavigationStack.Path) async -> Bool {
-        if !Spezi.didLoadFirebase {
+        if !Grove.didLoadFirebase {
             // Give the dynamically loaded Firebase modules time to finish configuring.
-            Spezi.loadFirebase(for: backendRegion, studyVariant: variant)
+            Grove.loadFirebase(for: backendRegion, studyVariant: variant)
             try? await Task.sleep(for: .seconds(3))
         } else {
             // Keep the study selection in sync when going back in onboarding; the loaded backend stays unchanged.

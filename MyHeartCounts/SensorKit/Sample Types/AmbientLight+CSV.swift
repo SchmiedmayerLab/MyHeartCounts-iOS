@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import GroveSensorKit
 import MyHeartCountsShared
 import SensorKit
-import SpeziSensorKit
 
 
 extension SRAmbientLightSample.SafeRepresentation: CSVAppendableSensorSample {

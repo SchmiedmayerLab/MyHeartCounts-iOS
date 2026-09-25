@@ -7,17 +7,17 @@
 //
 
 import Foundation
+import Grove
+import GroveAccount
+import GroveConsent
+import GroveFoundation
+import GroveHealthKitBulkExport
+import GroveLocalStorage
+import GroveNotifications
+import GroveOnboarding
+import GroveStudy
+import GroveViews
 import SFSafeSymbols
-import Spezi
-import SpeziAccount
-import SpeziConsent
-import SpeziFoundation
-import SpeziHealthKitBulkExport
-import SpeziLocalStorage
-import SpeziNotifications
-import SpeziOnboarding
-import SpeziStudy
-import SpeziViews
 import SwiftUI
 
 

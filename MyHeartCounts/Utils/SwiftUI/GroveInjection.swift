@@ -6,24 +6,24 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Spezi
+import Grove
 import SwiftUI
 
 
-struct SpeziInjectionModifier: ViewModifier {
+struct GroveInjectionModifier: ViewModifier {
     @Environment(MyHeartCountsDelegate.self)
     private var appDelegate
     
     func body(content: Content) -> some View {
         content
-            .spezi(appDelegate)
+            .grove(appDelegate)
     }
 }
 
 
 extension View {
-    /// Injects the default `Spezi` instance into the view hierarchy.
-    func injectingSpezi() -> some View {
-        self.modifier(SpeziInjectionModifier())
+    /// Injects the default `Grove` instance into the view hierarchy.
+    func injectingGrove() -> some View {
+        self.modifier(GroveInjectionModifier())
     }
 }

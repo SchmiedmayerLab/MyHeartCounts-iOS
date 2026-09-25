@@ -10,7 +10,7 @@
 
 import Algorithms
 import Foundation
-import SpeziFoundation
+import GroveFoundation
 public import SwiftUI
 
 

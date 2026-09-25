@@ -7,8 +7,8 @@
 //
 
 import Foundation
-import SpeziValidation
-import SpeziViews
+import GroveValidation
+import GroveViews
 import SwiftUI
 
 

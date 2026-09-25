@@ -7,8 +7,8 @@
 //
 
 import Foundation
+import Grove
 import Observation
-import Spezi
 
 
 extension Module where Self: Sendable {

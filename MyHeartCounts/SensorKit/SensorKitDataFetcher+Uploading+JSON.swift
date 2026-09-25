@@ -8,10 +8,10 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveHealthKitFHIR
+import GroveSensorKit
 import ModelsR4
 import MyHeartCountsShared
-import SpeziHealthKitFHIR
-import SpeziSensorKit
 
 
 /// An upload strategy that encodes a batch of samples as a JSON array of FHIR resources, uploads the file to firebase storage, and creates a corresponding FHIR Observation referencing the file.

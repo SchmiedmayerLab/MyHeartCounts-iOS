@@ -9,12 +9,12 @@
 // swiftlint:disable file_types_order
 
 import FirebaseFunctions
+import GroveAccount
+import class GroveConsent.ConsentDocument
+import GroveFoundation
+import GroveOnboarding
+import GroveViews
 import SFSafeSymbols
-import SpeziAccount
-import class SpeziConsent.ConsentDocument
-import SpeziFoundation
-import SpeziOnboarding
-import SpeziViews
 import SwiftUI
 
 
@@ -73,7 +73,7 @@ struct AccountOnboarding: View {
                 ReactivatePreviouslyWithdrawnAccount {
                     advance(consentDocToSign: consentDoc)
                 }
-                .injectingSpezi()
+                .injectingGrove()
                 .navigationBarBackButtonHidden()
             }
         } else {

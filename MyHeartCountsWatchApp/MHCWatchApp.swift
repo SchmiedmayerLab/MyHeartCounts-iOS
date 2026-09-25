@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Spezi
+import Grove
 import SwiftUI
 
 
@@ -20,7 +20,7 @@ struct MHCWatchApp: App {
             NavigationStack {
                 ContentView()
             }
-            .spezi(appDelegate)
+            .grove(appDelegate)
         }
     }
 }

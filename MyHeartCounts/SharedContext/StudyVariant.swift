@@ -7,8 +7,8 @@
 //
 
 import Foundation
-import SpeziLocalization
-import SpeziStudy
+import GroveLocalization
+import GroveStudy
 
 
 /// The study protocol and regional resources, independent of the Firebase deployment hosting them.

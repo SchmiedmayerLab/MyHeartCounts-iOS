@@ -6,12 +6,12 @@
 // SPDX-License-Identifier: MIT
 //
 
+import GroveFoundation
+import GroveScheduler
+import GroveSchedulerUI
+import GroveStudyDefinition
+import GroveViews
 import SFSafeSymbols
-import SpeziFoundation
-import SpeziScheduler
-import SpeziSchedulerUI
-import SpeziStudyDefinition
-import SpeziViews
 import SwiftUI
 
 

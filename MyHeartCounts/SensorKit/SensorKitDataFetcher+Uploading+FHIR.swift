@@ -9,8 +9,8 @@
 // periphery:ignore:all - somehow a false positive but if we add a line-specific ignore comment it doesnt get picked up correctly
 
 import FHIRModelsExtensions
+import GroveSensorKit
 import ModelsR4
-import SpeziSensorKit
 
 
 /// An upload strategy that uploads each sample as a FHIR observation.

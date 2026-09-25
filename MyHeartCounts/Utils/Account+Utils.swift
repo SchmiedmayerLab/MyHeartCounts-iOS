@@ -6,8 +6,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+import GroveAccount
 import Observation
-import SpeziAccount
 
 
 extension Account {
@@ -22,8 +22,8 @@ extension Account {
     /// Waits until the account details have been fully loaded.
     ///
     /// The purpose of this function is to have a client-side fix/workaround for https://github.com/SchmiedmayerLab/MyHeartCounts-iOS/issues/169
-    /// i.e., the issue where writes to the account details very early into the launch of the app, before they have been fully loaded by SpeziFirebase,
-    /// will somehow race with SpeziFirebase's account details loading and will leave `account.details` in an incomplete state (despite `AccountDetails.isIncomplete` being `false`).
+    /// i.e., the issue where writes to the account details very early into the launch of the app, before they have been fully loaded by GroveFirebase,
+    /// will somehow race with GroveFirebase's account details loading and will leave `account.details` in an incomplete state (despite `AccountDetails.isIncomplete` being `false`).
     /// If the first account details update waits until the details have been fully loaded, everything will work correctly.
     ///
     /// - Note: This function will only work correctly if **nothing** in the app has written account details before the initial load has completed.

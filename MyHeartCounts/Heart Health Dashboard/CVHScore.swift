@@ -8,12 +8,12 @@
 
 import Algorithms
 import Foundation
+import GroveAccount
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitUI
 import HealthKit
 import MyHeartCountsShared
-import SpeziAccount
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitUI
 import SwiftUI
 
 
@@ -318,7 +318,7 @@ extension SleepSessionStatsSample: CVHScore.ComponentSampleProtocol {}
 extension QuantitySample {
     /// Converts the sample into an (unsaved) `HKQuantitySample` of the specified type.
     /// (NOTE: `SampleType` needs to be qualified here: in this extension's scope, it'd otherwise resolve to `QuantitySample.SampleType`.)
-    fileprivate func asHKQuantitySample(of sampleType: SpeziHealthKit.SampleType<HKQuantitySample>) -> HKQuantitySample {
+    fileprivate func asHKQuantitySample(of sampleType: GroveHealthKit.SampleType<HKQuantitySample>) -> HKQuantitySample {
         HKQuantitySample(
             type: sampleType.hkSampleType,
             quantity: hkQuantity(),

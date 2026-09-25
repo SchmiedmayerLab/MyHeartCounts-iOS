@@ -10,9 +10,9 @@
 
 import BackgroundTasks
 import Foundation
+import Grove
+import GroveFoundation
 import OSLog
-import Spezi
-import SpeziFoundation
 import SwiftUI
 import Synchronization
 

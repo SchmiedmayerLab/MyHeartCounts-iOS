@@ -8,12 +8,12 @@
 
 // swiftlint:disable attributes
 
+import GroveHealthKit
+import GroveOnboarding
+import GroveStudyDefinition
+import GroveViews
 import OSLog
 import SFSafeSymbols
-import SpeziHealthKit
-import SpeziOnboarding
-import SpeziStudyDefinition
-import SpeziViews
 import SwiftUI
 
 

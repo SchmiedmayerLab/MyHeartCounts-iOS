@@ -7,8 +7,8 @@
 //
 
 import Foundation
+import GroveFoundation
 import MyHeartCountsShared
-import SpeziFoundation
 
 
 extension MyHeartCounts {

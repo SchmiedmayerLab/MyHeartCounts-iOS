@@ -6,10 +6,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Spezi
-import SpeziHealthKit
-import SpeziOnboarding
-import SpeziViews
+import Grove
+import GroveHealthKit
+import GroveOnboarding
+import GroveViews
 import SwiftUI
 
 

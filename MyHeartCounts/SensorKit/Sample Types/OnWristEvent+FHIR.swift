@@ -8,9 +8,9 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveHealthKitFHIR
+import GroveSensorKit
 import ModelsR4
-import SpeziHealthKitFHIR
-import SpeziSensorKit
 
 
 extension SensorKitOnWristEventSample: HealthObservation {
@@ -60,11 +60,11 @@ extension SensorKitOnWristEventSample: HealthObservation {
         }
         observation.value = .boolean(.init(.init(onWrist)))
         observation.append(component: ObservationComponent(
-            code: SpeziCodingSystem.watchWristLocation,
+            code: MHCCodingSystem.watchWristLocation,
             value: wristLocation.observationValue
         ))
         observation.append(component: ObservationComponent(
-            code: SpeziCodingSystem.watchCrownOrientation,
+            code: MHCCodingSystem.watchCrownOrientation,
             value: crownOrientation.observationValue
         ))
         for builder in extensions {

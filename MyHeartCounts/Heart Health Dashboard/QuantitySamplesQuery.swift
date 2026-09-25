@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-import SpeziHealthKitUI
+import GroveHealthKitUI
 
 
 /// How a collection of quantity samples should be aggregated into a collection of aggregated quantity samples

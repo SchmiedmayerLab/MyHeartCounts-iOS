@@ -8,7 +8,7 @@
 
 import BackgroundTasks
 import Foundation
-import SpeziFoundation
+import GroveFoundation
 import SwiftUI
 
 

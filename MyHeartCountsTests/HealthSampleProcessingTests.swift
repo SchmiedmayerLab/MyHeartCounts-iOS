@@ -9,15 +9,15 @@
 import AsyncAlgorithms
 import FHIRModelsExtensions
 import Foundation
+import Grove
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitFHIR
+import GroveTesting
 import HealthKit
 import ModelsR4
 @testable import MyHeartCounts
 @testable import MyHeartCountsShared
-import Spezi
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitFHIR
-import SpeziTesting
 import Testing
 
 

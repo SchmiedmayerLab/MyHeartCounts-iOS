@@ -9,10 +9,10 @@
 // swiftlint:disable file_types_order attributes discouraged_optional_boolean
 
 import Foundation
+import Grove
+import GroveAccount
+import GroveFoundation
 import MyHeartCountsShared
-import Spezi
-import SpeziAccount
-import SpeziFoundation
 import SwiftUI
 
 

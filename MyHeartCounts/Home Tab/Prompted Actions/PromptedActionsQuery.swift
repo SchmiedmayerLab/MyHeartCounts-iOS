@@ -7,12 +7,12 @@
 //
 
 import Foundation
-import MyHeartCountsShared
 @_spi(APISupport)
-import Spezi
-import SpeziFoundation
-import SpeziLocalization
-import SpeziStudy
+import Grove
+import GroveFoundation
+import GroveLocalization
+import GroveStudy
+import MyHeartCountsShared
 import SwiftUI
 
 
@@ -71,7 +71,7 @@ struct PromptedActions: DynamicProperty {
     }
     
     func state(of action: PromptedAction) -> PromptedAction.State {
-        guard let spezi = SpeziAppDelegate.spezi,
+        guard let grove = GroveAppDelegate.grove,
               let enrollment = studyEnrollments.first,
               let studyActivationDate else {
             return .unavailable
@@ -79,7 +79,7 @@ struct PromptedActions: DynamicProperty {
         let context = PromptedAction.CurrentStateContext(
             enrollmentDate: enrollment.enrollmentDate,
             studyActivationDate: studyActivationDate,
-            spezi: spezi
+            grove: grove
         )
         return action.state(context: context)
     }

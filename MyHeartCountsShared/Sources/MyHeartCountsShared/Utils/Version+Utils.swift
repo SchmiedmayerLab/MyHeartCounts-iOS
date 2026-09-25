@@ -8,7 +8,7 @@
 
 // periphery:ignore:all - API
 
-public import struct SpeziFoundation.Version
+public import struct GroveFoundation.Version
 
 
 extension Version {

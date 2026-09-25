@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import Grove
+import GroveFoundation
 import OSLog
-import Spezi
-import SpeziFoundation
 
 
 @MainActor

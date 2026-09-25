@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import SpeziValidation
+import GroveValidation
 
 
 /// A 10-digit NHS number

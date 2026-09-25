@@ -9,9 +9,9 @@
 import MyHeartCountsShared
 import XCTest
 import XCTestExtensions
+import XCTGroveAccount
+import XCTGroveNotifications
 import XCTHealthKit
-import XCTSpeziAccount
-import XCTSpeziNotifications
 
 
 @MainActor

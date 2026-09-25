@@ -8,8 +8,8 @@
 
 import Charts
 import Foundation
-import SpeziFoundation
-import SpeziHealthKit
+import GroveFoundation
+import GroveHealthKit
 import SwiftUI
 
 

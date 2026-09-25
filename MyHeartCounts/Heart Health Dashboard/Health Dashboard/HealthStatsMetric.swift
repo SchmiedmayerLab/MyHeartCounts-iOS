@@ -9,8 +9,8 @@
 // swiftlint:disable file_types_order
 
 import Foundation
+import GroveHealthKit
 import HealthKit
-import SpeziHealthKit
 
 
 /// A metric for which the server-side stats documents exist (at `users/{uid}/stats/{metricId}/months/{yyyy-MM}`),

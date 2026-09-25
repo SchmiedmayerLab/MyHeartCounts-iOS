@@ -7,11 +7,11 @@
 //
 
 import Foundation
-import Spezi
-import SpeziFirebaseConfiguration
-import SpeziFoundation
-import SpeziOnboarding
-import SpeziViews
+import Grove
+import GroveFirebaseConfiguration
+import GroveFoundation
+import GroveOnboarding
+import GroveViews
 import SwiftUI
 
 

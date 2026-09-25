@@ -6,12 +6,12 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Grove
+import GroveConsent
+import GroveFoundation
+import GroveOnboarding
+import GroveViews
 import SFSafeSymbols
-import Spezi
-import SpeziConsent
-import SpeziFoundation
-import SpeziOnboarding
-import SpeziViews
 import SwiftUI
 
 
@@ -43,7 +43,7 @@ struct ConsentDisclaimers: View {
             OnboardingLearnMore(title: step.title, learnMoreText: step.learnMoreText)
         }
         .onboardingStep(step.stepId)
-        .injectingSpezi()
+        .injectingGrove()
     }
     
     private var actionButtons: some View {
@@ -75,7 +75,7 @@ struct ConsentDisclaimers: View {
             path.append {
                 ComprehensionScreening(consentDoc: consentDoc)
                     .onboardingStep(.comprehension)
-                    .injectingSpezi()
+                    .injectingGrove()
             }
         }
     }

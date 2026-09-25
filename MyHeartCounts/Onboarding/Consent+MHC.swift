@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-import SpeziConsent
+import GroveConsent
 
 
 extension ConsentDocument.UserResponses {

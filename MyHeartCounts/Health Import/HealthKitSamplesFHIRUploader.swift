@@ -7,10 +7,10 @@
 //
 
 import Foundation
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitBulkExport
-import SpeziHealthKitFHIR
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitBulkExport
+import GroveHealthKitFHIR
 
 
 struct HealthKitSamplesFHIRUploader: BatchProcessor {

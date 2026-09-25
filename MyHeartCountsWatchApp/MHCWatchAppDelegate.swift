@@ -6,12 +6,12 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Grove
+import GroveFoundation
+import GroveHealthKit
 import HealthKit
-import Spezi
-import SpeziFoundation
-import SpeziHealthKit
 
-final class MHCWatchAppDelegate: SpeziAppDelegate {
+final class MHCWatchAppDelegate: GroveAppDelegate {
     override var configuration: Configuration {
         Configuration(standard: MHCWatchAppStandard()) {
             HealthKit {

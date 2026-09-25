@@ -8,14 +8,14 @@
 
 import FirebaseCore
 import FirebaseFunctions
+import GroveAccount
+import GroveHealthKitBulkExport
+import GroveLicense
+import GroveSensorKit
+import GroveStudy
+import GroveViews
 import MyHeartCountsShared
 import SFSafeSymbols
-import SpeziAccount
-import SpeziHealthKitBulkExport
-import SpeziLicense
-import SpeziSensorKit
-import SpeziStudy
-import SpeziViews
 import SwiftUI
 
 

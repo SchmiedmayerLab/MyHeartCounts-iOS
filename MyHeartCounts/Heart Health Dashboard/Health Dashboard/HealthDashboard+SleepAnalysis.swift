@@ -8,9 +8,9 @@
 
 import Charts
 import Foundation
+import GroveFoundation
+import GroveHealthKit
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziHealthKit
 import SwiftUI
 
 
