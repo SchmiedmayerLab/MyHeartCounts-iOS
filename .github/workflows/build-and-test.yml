@@ -51,6 +51,8 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
+      - name: Use selected Xcode for this job
+        run: echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
       - name: Resolve test products cache key
         id: toolchain
         run: |
@@ -121,6 +123,8 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
+      - name: Use selected Xcode for this job
+        run: echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
       - name: Resolve test products cache key
         id: toolchain
         run: |
