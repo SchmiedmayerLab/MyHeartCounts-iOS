@@ -8,6 +8,7 @@
 
 import Foundation
 import GroveFoundation
+import MHCStudyDefinition
 import MyHeartCountsShared
 
 

@@ -116,6 +116,9 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
             desc = "\(#function) will reset existing data"
             try await resetExistingData()
         }
+        if let variant = FeatureFlags.studyVariantOverride {
+            try DeferredConfigLoading.setActiveStudyVariant(variant)
+        }
         switch config.loginAndEnroll {
         case .skip:
             break
@@ -212,6 +215,7 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
             details.password = credentials.password
             details.name = PersonNameComponents(givenName: "Leland", familyName: "Stanford")
             details.genderIdentity = .male
+            details.studyVariant = DeferredConfigLoading.activeStudyVariant
             do {
                 try await accountService.signUp(with: details)
             } catch {
@@ -223,6 +227,15 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
             throw error
         }
         await account.waitForAccountDetailsReady()
+        try MyHeartCountsStandard.synchronizeStudyVariant(for: account)
+        guard let studyVariant = DeferredConfigLoading.activeStudyVariant else {
+            throw DeferredConfigLoading.StudyVariantError.missingConfiguration
+        }
+        if account.details?.studyVariant == nil {
+            var updates = AccountDetails()
+            updates.studyVariant = studyVariant
+            try await accountService.updateAccountDetails(AccountModifications(modifiedDetails: updates))
+        }
         desc = "\(#function) will update study bundle loader"
         // this is important, bc if we're developing locally the study bundle might've been updated since the last time the app was launched.
         let studyBundle = try await studyBundleLoader.update()

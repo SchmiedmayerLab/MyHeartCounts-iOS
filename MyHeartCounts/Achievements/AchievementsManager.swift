@@ -569,6 +569,9 @@ extension AchievementsManager {
     /// Call  ``disassociateFromAccount()`` to clear the association (e.g., in response to user logout), in which case the next call to this function will set up a new one.
     @MainActor
     func associateWithAccount() async throws {
+        guard account != nil else {
+            throw NSError(localizedDescription: "No Account")
+        }
         let requestedSession = try trackingSession()
         guard associatedSession != requestedSession || remoteChangesObserver == nil else {
             return

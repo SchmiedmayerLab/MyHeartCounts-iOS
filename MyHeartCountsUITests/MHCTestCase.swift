@@ -12,6 +12,7 @@ import Foundation
 import GroveFoundation
 import GroveLocalization
 import HealthKit
+import MHCStudyDefinition
 import MHCStudyDefinitionExporter
 import MyHeartCountsShared
 import XCTest
@@ -36,6 +37,10 @@ class MHCTestCase: XCTestCase, Sendable {
         case no
         case auto
     }
+
+    private enum FixtureError: Error {
+        case studyVariantMismatch(expected: StudyVariant, actual: StudyVariant)
+    }
     
     static let enableHealthRecords = false // temporarily disabled
     
@@ -52,6 +57,7 @@ class MHCTestCase: XCTestCase, Sendable {
     ///
     /// Gets reset after every run, in order to isolate each run's study bundles.
     private(set) var studyBundleUrl: URL!
+    private var studyBundleVariant: StudyVariant?
     private(set) var appLocale: Locale!
     /// How many times the app was launched as part of the test currently being executed.
     /// - Note: Only counts launches via ``launchAppAndEnrollIntoStudy``
@@ -73,10 +79,6 @@ class MHCTestCase: XCTestCase, Sendable {
             self.likelyHasUndecidedPermissions = true
         }
         try FileManager.default.createDirectory(at: Self.tempDir, withIntermediateDirectories: true)
-        // note that we intentionally export the study bundle as a package (rather than an archive),
-        // so that tests can tinker with the contents if they want to.
-        // e.g., the consent renewal tests use this to simulate the consent version updating between launches.
-        studyBundleUrl = try MHCStudyDefinitionExporter::export(to: Self.tempDir, as: .package)
     }
     
     override func tearDown() async throws {
@@ -85,7 +87,11 @@ class MHCTestCase: XCTestCase, Sendable {
         _app = nil
         appLocale = nil
         launchCounter = 0
-        try FileManager.default.removeItem(at: studyBundleUrl)
+        if let studyBundleUrl, FileManager.default.itemExists(at: studyBundleUrl) {
+            try FileManager.default.removeItem(at: studyBundleUrl)
+        }
+        studyBundleUrl = nil
+        studyBundleVariant = nil
     }
     
     override class func tearDown() {
@@ -95,6 +101,7 @@ class MHCTestCase: XCTestCase, Sendable {
     
     /// Launches the app and puts it in a state where the participant is logged in and enrolled into the study.
     ///
+    /// - parameter studyVariant: The study variant exported and selected for the test. Must remain the same across relaunches within a test.
     /// - parameter enableDebugMode: Whether the app should force-enable its debug mode for this launch. Defaults to `false`.
     /// - parameter handlePermissionPrompts: Whether permission prompts for notifications, HealthKit, etc should be waited for and handled as part of launching the app.
     ///     Defaults to `.auto`, in which case the function will intelligently decide if permission prompts are likely to appear as part of the launch, and await and handle them as needed.
@@ -106,6 +113,7 @@ class MHCTestCase: XCTestCase, Sendable {
     /// - parameter extraLaunchArgs: Additional arguments that will be appended to the app's launch arguments. `nil` values will be skipped.
     func launchAppAndEnrollIntoStudy( // swiftlint:disable:this function_body_length
         skip: Bool = false,
+        studyVariant: StudyVariant = .stanford,
         locale: Locale = .enUS,
         enableDebugMode: Bool = false,
         testEnvironmentConfig: SetupTestEnvironmentConfig = .init(resetExistingData: true, loginAndEnroll: .enable(.random())),
@@ -123,11 +131,23 @@ class MHCTestCase: XCTestCase, Sendable {
         if skip {
             throw XCTSkip()
         }
+        // note that we intentionally export the study bundle as a package (rather than an archive),
+        // so that tests can tinker with the contents if they want to.
+        // e.g., the consent renewal tests use this to simulate the consent version updating between launches.
+        if let studyBundleVariant {
+            guard studyBundleVariant == studyVariant else {
+                throw FixtureError.studyVariantMismatch(expected: studyBundleVariant, actual: studyVariant)
+            }
+        } else {
+            studyBundleUrl = try MHCStudyDefinitionExporter::export(studyVariant, to: Self.tempDir, as: .package)
+            studyBundleVariant = studyVariant
+        }
         appLocale = locale
         app.launchArguments = Array {
             "--useFirebaseEmulator"
             testEnvironmentConfig.launchOptionArgs(for: .setupTestEnvironment)
             StudyBundleSelector.atUrl(studyBundleUrl).launchOptionArgs(for: .studyBundleSelector)
+            Optional(studyVariant).launchOptionArgs(for: .studyVariant)
             "--disableAutomaticBulkHealthExport"
             enableDebugMode.launchOptionArgs(for: .forceEnableDebugMode)
             enableHealthRecords.launchOptionArgs(for: .enableHealthRecords)

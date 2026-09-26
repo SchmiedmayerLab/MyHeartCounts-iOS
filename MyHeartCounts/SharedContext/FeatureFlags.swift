@@ -8,11 +8,21 @@
 
 import Foundation
 import GroveFoundation
+import MHCStudyDefinition
 import MyHeartCountsShared
 
 
 /// A collection of feature flags for My Heart Counts.
 enum FeatureFlags {
+    /// Selects the variant for fresh test enrollments, including bundles loaded from a URL.
+    static var studyVariantOverride: StudyVariant? {
+        #if DEBUG
+        LaunchOptions.launchOptions[.studyVariant]
+        #else
+        nil
+        #endif
+    }
+
     /// Unlocks temporary Imperial enrollment against the US backend in Debug builds, the simulator, and TestFlight installations.
     /// Enter `pls let me in anyway` in the UK Coming Soon screen's email field to enter this mode.
     /// Existing enrollments retain their saved study variant and backend independently of this flag.

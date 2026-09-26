@@ -15,6 +15,7 @@ import GroveAccount
 import GroveHealthKit
 import GroveSensorKit
 import HealthKit
+import MHCStudyDefinition
 import MyHeartCountsShared
 import SFSafeSymbols
 import SwiftUI

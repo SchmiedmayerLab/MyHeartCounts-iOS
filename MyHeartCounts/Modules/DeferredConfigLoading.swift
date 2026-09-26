@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-// swiftlint:disable type_contents_order file_types_order
+// swiftlint:disable type_contents_order file_types_order file_length
 
 import class FirebaseCore.FirebaseOptions
 import class FirebaseFirestore.FirestoreSettings
@@ -25,6 +25,7 @@ import GroveFoundation
 import GroveLocalization
 import GroveSensorKit
 import GroveStudy
+import MHCStudyDefinition
 import MyHeartCountsShared
 import Observation
 import OSLog
@@ -41,25 +42,43 @@ extension LocalPreferenceKeys {
         default: nil
     )
 
-    /// The enrolled study variant cached for startup and offline use, refreshed from account details when available.
+    /// The enrolled study variant, retained unchanged until the local enrollment is removed.
     static let enrolledStudyVariant = LocalPreferenceKey<StudyVariant?>("enrolledStudyVariant")
 }
 
 
-enum DeferredConfigLoading {
+enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
     fileprivate static let logger = Logger(category: .init("Config"))
 
     /// The independent backend and study selections used together for this process. Variant changes also update observing views.
     @Observable
     @MainActor
-    fileprivate final class StudyConfiguration {
+    final class StudyConfiguration {
         let firebaseConfig: FirebaseConfigSelector
-        var studyVariant: StudyVariant
+        private(set) var studyVariant: StudyVariant
 
         init(firebaseConfig: FirebaseConfigSelector, studyVariant: StudyVariant) {
             self.firebaseConfig = firebaseConfig
             self.studyVariant = studyVariant
         }
+
+        func selectStudyVariant(_ variant: StudyVariant, enrolledVariant: StudyVariant?) throws {
+            if let enrolledVariant, enrolledVariant != variant {
+                throw StudyVariantError.mismatch(expected: enrolledVariant, actual: variant)
+            }
+            studyVariant = variant
+        }
+
+        func persist(in prefs: LocalPreferencesStore) throws {
+            try selectStudyVariant(studyVariant, enrolledVariant: prefs[.enrolledStudyVariant])
+            prefs[.enrolledStudyVariant] = studyVariant
+            prefs[.enrolledFirebaseConfig] = firebaseConfig
+        }
+    }
+
+    enum StudyVariantError: Error, Equatable {
+        case missingConfiguration
+        case mismatch(expected: StudyVariant, actual: StudyVariant)
     }
 
     /// Includes temporary onboarding selections; persisted only when study enrollment starts.
@@ -77,13 +96,24 @@ enum DeferredConfigLoading {
         case unableToLoadFirebaseConfigPlist(underlying: (any Error)? = nil)
     }
     
-    enum FirebaseConfigSelector: Codable, Equatable, Sendable, LaunchOptionDecodable {
+    enum FirebaseConfigSelector: Codable, Equatable, Sendable, LaunchOptionDecodable, CustomStringConvertible {
         /// the firebase config for the specified region should be loaded
         case region(Locale.Region)
         /// the firebase config plist with the specified name should be loaded from the main bundle
         case custom(plistNameInBundle: String)
         /// the firebase config plist at the specified URL should be loaded
         case customUrl(URL)
+        
+        var description: String {
+            switch self {
+            case .region(let region):
+                "region(\(region))"
+            case .custom(let plistNameInBundle):
+                "plistInBundle(\(plistNameInBundle))"
+            case .customUrl(let url):
+                "url(\(url))"
+            }
+        }
         
         /// Decodes a `FirebaseConfigSelector` from a launch option value
         ///
@@ -225,6 +255,7 @@ enum DeferredConfigLoading {
         studyVariant: StudyVariant = .stanford
     ) -> [any Module] {
         let configSelector = FeatureFlags.overrideFirebaseConfig ?? configSelector
+        let studyVariant = LocalPreferencesStore.standard[.enrolledStudyVariant] ?? FeatureFlags.studyVariantOverride ?? studyVariant
         let configuration = StudyConfiguration(firebaseConfig: configSelector, studyVariant: studyVariant)
         let preferredLocale = studyVariant.preferredLocale
         guard !FeatureFlags.disableFirebase else {
@@ -351,26 +382,31 @@ enum DeferredConfigLoading {
 
 
 extension DeferredConfigLoading {
-    /// Selects another study variant on the already loaded backend.
+    /// Resolves the variant before enrollment; an existing enrollment cannot change variants.
     @MainActor
-    static func setActiveStudyVariant(_ variant: StudyVariant) {
-        guard let activeConfiguration, activeConfiguration.studyVariant != variant else {
+    static func setActiveStudyVariant(_ variant: StudyVariant) throws {
+        guard let activeConfiguration else {
+            throw StudyVariantError.missingConfiguration
+        }
+        if let override = FeatureFlags.studyVariantOverride, override != variant {
+            throw StudyVariantError.mismatch(expected: override, actual: variant)
+        }
+        let previousVariant = activeConfiguration.studyVariant
+        try activeConfiguration.selectStudyVariant(variant, enrolledVariant: LocalPreferencesStore.standard[.enrolledStudyVariant])
+        guard previousVariant != variant else {
             return
         }
-        activeConfiguration.studyVariant = variant
         GroveAppDelegate.grove?.module(StudyManager.self)?.preferredLocale = variant.preferredLocale
         GroveAppDelegate.grove?.module(NewsManager.self)?.invalidate()
     }
 
     /// Saves both selections before enrollment can persist study data.
     @MainActor
-    static func persistActiveConfiguration() {
+    static func persistActiveConfiguration() throws {
         guard let activeConfiguration else {
-            return
+            throw StudyVariantError.missingConfiguration
         }
-        let prefs = LocalPreferencesStore.standard
-        prefs[.enrolledStudyVariant] = activeConfiguration.studyVariant
-        prefs[.enrolledFirebaseConfig] = activeConfiguration.firebaseConfig
+        try activeConfiguration.persist(in: .standard)
     }
 
     /// Clears the saved selection after the local enrollment has been removed.

@@ -11,6 +11,7 @@
 import Foundation
 import GroveFoundation
 import GroveStudyDefinition
+import MHCStudyDefinition
 import MyHeartCountsShared
 import SwiftUI
 

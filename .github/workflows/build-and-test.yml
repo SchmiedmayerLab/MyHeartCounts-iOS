@@ -274,6 +274,7 @@ jobs:
     with:
       path: MyHeartCountsShared
       build_configuration: ${{ matrix.config }}
+      build_flags: '--build-system native'
       runs_on_labels: '["ubuntu-latest"]'
       artifact_name: ${{ format('MHC-Shared-UnitTests-Linux-{0}.lcov', matrix.config) }}
   uploadcoveragereport:
