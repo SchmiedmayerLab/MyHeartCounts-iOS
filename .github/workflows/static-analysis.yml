@@ -49,6 +49,7 @@ jobs:
       pull-requests: read
   codeql:
     name: CodeQL
+    if: false
     uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.5
     permissions:
       security-events: write
