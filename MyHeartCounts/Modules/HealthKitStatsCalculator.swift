@@ -86,18 +86,18 @@ final class HealthKitStatsCalculator: ServiceModule, EnvironmentAccessible, @unc
     func run() async {
         if await account.details != nil {
             // currently already signed in. issue here is that the account events don't replay,
-            // so if the initial `associatedAccount` event fired before this module's `run()`
+            // so if the initial `didAssociate` event fired before this module's `run()`
             // function was called we'd miss it.
             start()
         }
         for await event in accountNotifications.events {
             switch event {
-            case .associatedAccount:
+            case .didAssociate:
                 start()
-            case .disassociatingAccount:
+            case .didDisassociate:
                 stop()
                 queryAnchors.resetAll()
-            case .detailsChanged, .deletingAccount:
+            case .detailsChanged, .willLogOut, .willDelete:
                 break
             }
         }

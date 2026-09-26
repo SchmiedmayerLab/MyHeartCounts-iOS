@@ -47,7 +47,7 @@ struct ConsentDisclaimers: View {
     }
     
     private var actionButtons: some View {
-        OnboardingActionsView(
+        PageActions(
             primaryTitle: "Continue",
             primaryAction: {
                 next()

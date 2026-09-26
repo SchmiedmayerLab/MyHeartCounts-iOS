@@ -29,6 +29,10 @@ fi
 
 cd "$GITHUB_WORKSPACE"
 
+# Both xcodebuild and xcbeautify must stream output while the shard is running.
+export NSUnbufferedIO=YES
+
+# xcbeautify hides test starts, so echo those directly to the CI log as well.
 xcodebuild \
     test-without-building \
     -testProductsPath "$TEST_PRODUCTS_PATH" \
@@ -40,4 +44,11 @@ xcodebuild \
     -test-iterations 2 \
     -test-repetition-relaunch-enabled YES \
     "${only_testing_args[@]}" \
+| awk '
+    /^Test Case .* started\.$/ {
+        print > "/dev/stderr"
+        fflush("/dev/stderr")
+    }
+    { print; fflush() }
+' \
 | xcbeautify

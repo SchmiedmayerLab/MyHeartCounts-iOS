@@ -34,7 +34,7 @@ struct HealthKitPermissions: View {
         OnboardingPage(symbol: .heartTextSquare, title: title, description: "HEALTHKIT_PERMISSIONS_SUBTITLE") {
             EmptyView()
         } footer: {
-            OnboardingActionsView(
+            PageActions(
                 primaryTitle: "Continue",
                 primaryViewState: $viewState,
                 primaryAction: {
