@@ -42,7 +42,7 @@ xcodebuild \
     -parallel-testing-enabled NO \
     -retry-tests-on-failure \
     -test-iterations 2 \
-    -test-repetition-relaunch-enabled NO \
+    -test-repetition-relaunch-enabled YES \
     "${only_testing_args[@]}" \
 | awk '
     /^Test Case .* started\.$/ {

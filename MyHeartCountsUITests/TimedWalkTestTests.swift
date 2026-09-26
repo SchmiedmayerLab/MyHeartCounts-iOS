@@ -143,7 +143,12 @@ final class TimedWalkTestTests: MHCTestCase {
 extension MHCTestCase {
     func handleMotionAndFitnessAccessPrompt(timeout: Duration) {
         let app = XCUIApplication.springboard
-        let alert = app.alerts.element(matching: "label LIKE %@", "“*” would like to access your Motion & Fitness activity.")
+        let alertTitlePattern = if ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 {
+            "Allow “*” to access your motion and fitness activity?"
+        } else {
+            "“*” would like to access your Motion & Fitness activity."
+        }
+        let alert = app.alerts.element(matching: "label LIKE %@", alertTitlePattern)
         if alert.waitForExistence(timeout: timeout.timeInterval) {
             // wait a little longer. sometimes the "exists" above resolves to true while the alert is still being presented,
             // in which case the tap is a little too early and doesn't actually get registered.

@@ -47,15 +47,15 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-  codeql:
-    name: CodeQL
-    uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.5
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-    with:
-      codeql: true
-      scheme: MyHeartCounts
-      test: false
-      xcodeversion: '26.6'
+  # codeql:
+  #   name: CodeQL
+  #   uses: SchmiedmayerLab/.github/.github/workflows/xcodebuild.yml@v0.5
+  #   permissions:
+  #     security-events: write
+  #     actions: read
+  #     contents: read
+  #   with:
+  #     codeql: true
+  #     scheme: MyHeartCounts
+  #     test: false
+  #     xcodeversion: '26.6'

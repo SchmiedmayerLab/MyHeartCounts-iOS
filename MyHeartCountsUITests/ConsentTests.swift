@@ -59,6 +59,7 @@ final class ConsentTests: MHCTestCase, Sendable {
         
         // check that the consent we just signed is showing up in the Account Sheet
         openAccountSheet()
+        app.swipeUp()
         XCTAssert(app.staticTexts["Review Consent Forms"].waitForExistence(timeout: 2))
         app.staticTexts["Review Consent Forms"].tap()
         XCTAssert(app.collectionViews.cells.staticTexts["My Heart Counts Consent Form"].waitForExistence(timeout: 2))
