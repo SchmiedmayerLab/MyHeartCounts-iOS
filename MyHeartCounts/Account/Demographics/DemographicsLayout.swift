@@ -10,6 +10,7 @@
 
 import Foundation
 import GroveHealthKit
+import MHCStudyDefinition
 import MyHeartCountsShared
 import SwiftUI
 

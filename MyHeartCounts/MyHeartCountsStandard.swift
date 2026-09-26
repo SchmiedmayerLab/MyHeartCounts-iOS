@@ -22,6 +22,7 @@ import GroveQuestionnaire
 import GroveScheduler
 import GroveSensorKit
 import GroveStudy
+import MHCStudyDefinition
 import OSLog
 @preconcurrency import PDFKit.PDFDocument
 import SwiftUI

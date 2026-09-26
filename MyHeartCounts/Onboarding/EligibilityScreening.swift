@@ -9,6 +9,7 @@
 import Grove
 import GroveFoundation
 import GroveViews
+import MHCStudyDefinition
 import SwiftUI
 
 

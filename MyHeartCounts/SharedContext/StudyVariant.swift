@@ -9,13 +9,10 @@
 import Foundation
 import GroveLocalization
 import GroveStudy
+import MHCStudyDefinition
 
 
-/// The study protocol and regional resources, independent of the Firebase deployment hosting them.
-enum StudyVariant: String, Codable, Sendable {
-    case stanford
-    case imperial
-
+extension StudyVariant {
     var region: Locale.Region {
         switch self {
         case .stanford: .unitedStates

@@ -1230,8 +1230,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git";
 			requirement = {
-				branch = "codex/uk-test-consent";
-				kind = branch;
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.2.5;
 			};
 		};
 		8076696C2D772C07001B980B /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {

@@ -8,6 +8,7 @@
 
 import Grove
 import GroveFoundation
+import MHCStudyDefinition
 import MyHeartCountsShared
 import OSLog
 import SwiftUI

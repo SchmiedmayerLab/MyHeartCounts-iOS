@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-// swiftlint:disable type_contents_order file_types_order
+// swiftlint:disable type_contents_order file_types_order file_length
 
 import class FirebaseCore.FirebaseOptions
 import class FirebaseFirestore.FirestoreSettings
@@ -25,6 +25,7 @@ import GroveFoundation
 import GroveLocalization
 import GroveSensorKit
 import GroveStudy
+import MHCStudyDefinition
 import MyHeartCountsShared
 import Observation
 import OSLog
