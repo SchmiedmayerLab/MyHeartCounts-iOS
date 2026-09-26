@@ -53,7 +53,7 @@ extension LaunchOptions {
     /// - a `URL`, which can be either a web url (https) or a local file system url.
     ///
     /// See ``StudyBundleSelector`` for more information.
-    public static let studyBundleSelector = LaunchOption<StudyBundleSelector>("--studyBundle", default: .firebase)
+    public static let studyBundleSelector = LaunchOption<StudyBundleSelector>("--studyBundle", default: .bundledWithApp)
 }
 
 #endif
