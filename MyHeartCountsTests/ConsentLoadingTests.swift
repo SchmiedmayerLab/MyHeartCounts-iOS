@@ -43,7 +43,7 @@ struct ConsentLoadingTests {
         try expectAllEqual(to: "Hey en-US!", [
             Locale(identifier: "en-US"),
             Locale(languageCode: .english, languageRegion: .unitedStates),
-            Locale(language: .init(languageCode: .english, script: nil, region: .unitedStates), region: .unitedStates),
+            Locale(language: .init(languageCode: .english, script: nil, region: .unitedStates), region: .unitedStates)
 //            Locale(language: .init(languageCode: .english, script: nil, region: nil), region: .unitedStates)
         ])
         try expectAllEqual(to: "Hey es-US!", [
@@ -54,7 +54,7 @@ struct ConsentLoadingTests {
             Locale(identifier: "en-UK"),
             Locale(identifier: "en-GB"),
             Locale(languageCode: .english, languageRegion: .unitedKingdom),
-            Locale(language: .init(languageCode: .english, script: nil, region: .unitedKingdom), region: .unitedKingdom),
+            Locale(language: .init(languageCode: .english, script: nil, region: .unitedKingdom), region: .unitedKingdom)
 //            Locale(language: .init(languageCode: .english, script: nil, region: nil), region: .unitedKingdom)
         ])
     }
