@@ -46,7 +46,7 @@ extension LocalPreferenceKeys {
 }
 
 
-enum DeferredConfigLoading {
+enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
     fileprivate static let logger = Logger(category: .init("Config"))
 
     /// The independent backend and study selections used together for this process. Variant changes also update observing views.
@@ -77,13 +77,24 @@ enum DeferredConfigLoading {
         case unableToLoadFirebaseConfigPlist(underlying: (any Error)? = nil)
     }
     
-    enum FirebaseConfigSelector: Codable, Equatable, Sendable, LaunchOptionDecodable {
+    enum FirebaseConfigSelector: Codable, Equatable, Sendable, LaunchOptionDecodable, CustomStringConvertible {
         /// the firebase config for the specified region should be loaded
         case region(Locale.Region)
         /// the firebase config plist with the specified name should be loaded from the main bundle
         case custom(plistNameInBundle: String)
         /// the firebase config plist at the specified URL should be loaded
         case customUrl(URL)
+        
+        var description: String {
+            switch self {
+            case .region(let region):
+                "region(\(region))"
+            case .custom(let plistNameInBundle):
+                "plistInBundle(\(plistNameInBundle))"
+            case .customUrl(let url):
+                "url(\(url))"
+            }
+        }
         
         /// Decodes a `FirebaseConfigSelector` from a launch option value
         ///
