@@ -7,9 +7,18 @@
 //
 
 import Foundation
+import GroveAccount
 import GroveLocalization
 import GroveStudy
 import MHCStudyDefinition
+
+
+extension AccountDetails {
+    /// Accounts enrolled before the variant field existed belong to the original Stanford study.
+    var existingStudyVariant: StudyVariant? {
+        studyVariant ?? (dateOfEnrollment != nil ? .stanford : nil)
+    }
+}
 
 
 extension StudyVariant {

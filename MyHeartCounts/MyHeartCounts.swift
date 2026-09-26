@@ -8,6 +8,7 @@
 
 import Grove
 import GroveFoundation
+import GroveStudy
 import MHCStudyDefinition
 import MyHeartCountsShared
 import OSLog
@@ -54,7 +55,8 @@ struct MyHeartCounts: App {
         if LaunchOptions.launchOptions[.setupTestEnvironment].resetExistingData {
             prefs[.onboardingFlowComplete] = false
         }
-        if prefs[.enrolledFirebaseConfig] != nil, prefs[.enrolledStudyVariant] == nil {
+        if prefs[.enrolledFirebaseConfig] != nil, prefs[.enrolledStudyVariant] == nil,
+           prefs[.onboardingFlowComplete] || !StudyManager().studyEnrollments.isEmpty {
             // Existing installations predate explicit study variants. Preserve their backend selection.
             prefs[.enrolledStudyVariant] = .stanford
         }

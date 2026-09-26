@@ -42,7 +42,7 @@ public enum StudyBundleSelector: Hashable {
 extension StudyBundleSelector: LaunchOptionDecodable, LaunchOptionEncodable {
     public init(decodingLaunchOption context: LaunchOptionDecodingContext) throws {
         try context.assertNumRawArgs(.equal(1))
-        if let (source, variant) = Self.parseSourceAndVariant(context.rawArgs[0]) {
+        if let (source, variant) = try Self.parseSourceAndVariant(context.rawArgs[0]) {
             let variant = variant ?? .stanford // if the variant is omitted we default it to stanford
             switch source {
             case "firebase":
@@ -57,16 +57,19 @@ extension StudyBundleSelector: LaunchOptionDecodable, LaunchOptionEncodable {
         }
     }
     
-    private static func parseSourceAndVariant(_ input: String) -> (String, StudyVariant?)? {
+    private static func parseSourceAndVariant(_ input: String) throws -> (String, StudyVariant?)? {
+        let source = String(input.prefix { $0 != ":" })
+        guard source == "firebase" || source == "bundledWithApp" else {
+            return nil
+        }
         guard let colonIdx = input.firstIndex(of: ":") else {
             // no colon
             // important that we only return nil for the variant if it was omitted, and not if it failed to parse
             return (input, nil)
         }
-        let source = String(input[..<colonIdx])
         let variantPart = input[colonIdx...].dropFirst()
         guard let variant = StudyVariant(rawValue: String(variantPart)) else {
-            return nil
+            throw LaunchOptionDecodingError.unableToDecode(StudyVariant.self, rawValue: String(variantPart))
         }
         return (source, variant)
     }

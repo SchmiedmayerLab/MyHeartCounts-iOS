@@ -91,15 +91,17 @@ struct EligibilityScreening: View {
     }
 
     private func loadStudy(variant: StudyVariant, backendRegion: Locale.Region, path: ManagedNavigationStack.Path) async -> Bool {
-        if !Grove.didLoadFirebase {
-            // Give the dynamically loaded Firebase modules time to finish configuring.
-            Grove.loadFirebase(for: backendRegion, studyVariant: variant)
-            try? await Task.sleep(for: .seconds(3))
-        } else {
-            // Keep the study selection in sync when going back in onboarding; the loaded backend stays unchanged.
-            DeferredConfigLoading.setActiveStudyVariant(variant)
-        }
         do {
+            if !Grove.didLoadFirebase {
+                // Give the dynamically loaded Firebase modules time to finish configuring.
+                Grove.loadFirebase(for: backendRegion, studyVariant: variant)
+                try? await Task.sleep(for: .seconds(3))
+            } else {
+                try DeferredConfigLoading.setActiveStudyVariant(variant)
+            }
+            guard DeferredConfigLoading.activeStudyVariant != nil else {
+                throw DeferredConfigLoading.StudyVariantError.missingConfiguration
+            }
             try await studyLoader.update()
             return true
         } catch {

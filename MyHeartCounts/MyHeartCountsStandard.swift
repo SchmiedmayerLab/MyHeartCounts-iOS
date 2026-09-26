@@ -57,18 +57,14 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     
     init() {}
 
-    /// Adopts an account's variant without committing a backend selection during unfinished onboarding.
+    /// Resolves returning accounts before enrollment and validates their variant thereafter.
     @MainActor
-    static func synchronizeStudyVariant(for account: Account) {
+    static func synchronizeStudyVariant(for account: Account) throws {
         // Read the current details; a queued account event can contain an older snapshot.
-        guard let details = account.details, !details.isIncomplete, let variant = details.studyVariant else {
+        guard let details = account.details, !details.isIncomplete, let variant = details.existingStudyVariant else {
             return
         }
-        DeferredConfigLoading.setActiveStudyVariant(variant)
-        let prefs = LocalPreferencesStore.standard
-        if prefs[.enrolledFirebaseConfig] != nil, prefs[.enrolledStudyVariant] != variant {
-            prefs[.enrolledStudyVariant] = variant
-        }
+        try DeferredConfigLoading.setActiveStudyVariant(variant)
     }
     
     @MainActor
@@ -101,7 +97,8 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing Account / StudyManager")
         }
         // Enrollment can persist study data before its async setup finishes. Keep its backend even if setup is interrupted.
-        await DeferredConfigLoading.persistActiveConfiguration()
+        try await Self.synchronizeStudyVariant(for: account)
+        try await DeferredConfigLoading.persistActiveConfiguration()
         do {
             if let enrollmentDate = await account.details?.dateOfEnrollment {
                 // the user already has enrolled at some point in the past.
@@ -142,14 +139,26 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     }
     
     // MARK: Account Stuff
+
+    private func validateAccountStudyVariant() async -> Bool {
+        do {
+            if let account {
+                try await Self.synchronizeStudyVariant(for: account)
+            }
+            return true
+        } catch {
+            logger.error("Ignoring conflicting account study variant: \(error)")
+            return false
+        }
+    }
     
     func handleAccountEvent(_ event: AccountNotifications.Event) async {
         await statsStore?.handleAccountEvent(event)
         let logger = logger
         switch event {
         case .didAssociate(let details):
-            if let account {
-                await Self.synchronizeStudyVariant(for: account)
+            guard await validateAccountStudyVariant() else {
+                return
             }
             logger.notice("account was associated (account id: \(details.accountId))")
             if LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] {
@@ -187,9 +196,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             _ = await (updateFCMToken, syncAchievements)
             await achievementsManager?.disassociateFromAccount()
         case .detailsChanged:
-            if let account {
-                await Self.synchronizeStudyVariant(for: account)
-            }
+            _ = await validateAccountStudyVariant()
         }
     }
 }
@@ -304,6 +311,9 @@ extension MyHeartCountsStandard {
                     await logger.error("Error unenrolling from study: \(error)")
                 }
             }
+            if studyManager.studyEnrollments.isEmpty {
+                DeferredConfigLoading.clearEnrolledConfiguration()
+            }
         }.result
     }
 
@@ -332,12 +342,8 @@ extension MyHeartCountsStandard {
                 await appState.setIsLoggingOut(false)
                 return
             }
-            let studyManager = await studyManager
             await logger.notice("Triggering Onboarding Flow")
             LocalPreferencesStore.standard[.onboardingFlowComplete] = false
-            if studyManager?.studyEnrollments.isEmpty != false {
-                DeferredConfigLoading.clearEnrolledConfiguration()
-            }
             await appState.setIsLoggingOut(false)
         }
     }
