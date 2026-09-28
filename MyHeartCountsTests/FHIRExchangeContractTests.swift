@@ -361,12 +361,13 @@ extension FHIRExchangeStateTests {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
         let start = Date(timeIntervalSince1970: 1_788_000_000)
-        let samples = (0..<3).map { index in
-            HKQuantitySample(
+        let samples: [HKQuantitySample] = (0..<3).map { (index: Int) -> HKQuantitySample in
+            let sampleStart = start.addingTimeInterval(TimeInterval(index) * 60)
+            return HKQuantitySample(
                 type: HKQuantityType(.stepCount),
                 quantity: HKQuantity(unit: .count(), doubleValue: Double(index + 1)),
-                start: start + Double(index) * 60,
-                end: start + Double(index) * 60 + 30
+                start: sampleStart,
+                end: sampleStart.addingTimeInterval(30)
             )
         }
         let batch = try HealthKitConversionBatch(
@@ -379,13 +380,13 @@ extension FHIRExchangeStateTests {
             type: HKQuantityType(.stepCount),
             quantity: HKQuantity(unit: .count(), doubleValue: 4),
             start: start,
-            end: start + 30
+            end: start.addingTimeInterval(30)
         )
         let onDemand = try batch.reservation(for: unreserved)
 
         for (index, sample) in samples.enumerated() {
             let reservation = try batch.reservation(for: sample)
-            let single = try store.healthKitConversion(for: sample, subject: subject, conversionInstant: start + 3600)
+            let single = try store.healthKitConversion(for: sample, subject: subject, conversionInstant: start.addingTimeInterval(3600))
             #expect(reservation.eventKey == single.eventKey)
             #expect(reservation.context.event.event == single.context.event.event)
             #expect(reservation.context.event.event.sequence.rawValue == String(index + 1))
