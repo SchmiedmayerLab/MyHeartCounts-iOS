@@ -40,7 +40,7 @@ struct NotificationPermissions: View {
         do {
             // Notification Authorization is not available in the preview simulator.
             if ProcessInfo.processInfo.isPreviewSimulator {
-                try await _Concurrency.Task.sleep(for: .seconds(0.75))
+                try await Swift::Task.sleep(for: .seconds(0.75))
             } else {
                 try await notificationsManager.requestNotificationPermissions()
             }

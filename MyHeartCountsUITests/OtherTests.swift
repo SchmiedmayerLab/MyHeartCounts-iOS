@@ -13,7 +13,7 @@ import XCTestExtensions
 import XCTHealthKit
 
 
-final class OtherTests: MHCTestCase, Sendable {
+final class OtherTests: MHCTestCase, @unchecked Sendable {
     func testSkippingClinicalRecordsAuthorization() throws {
         guard MHCTestCase.enableHealthRecords else {
             throw XCTSkip("Health Records Testing disabled")

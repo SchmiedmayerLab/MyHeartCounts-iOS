@@ -82,7 +82,7 @@ struct PerformTask: DynamicProperty {
     ///     If you want this behaviour, use ``callAsFunction(_:context:)`` instead.
     func callAsFunction(_ action: Task.Action) async -> Bool {
         guard currentlyActiveTask.task == nil else {
-            print("Error: Attempted to initiate a new active task, while one was already ongoing. Ignoring.")
+            logger.warning("Error: Attempted to initiate a new active task, while one was already ongoing. Ignoring.")
             return false
         }
         return await withCheckedContinuation { continuation in
@@ -95,14 +95,18 @@ struct PerformTask: DynamicProperty {
     
     /// Initiates a task action, and attempts to complete a corresponding `Event` in response.
     func callAsFunction(_ action: Task.Action, context: Event? = nil) {
-        _Concurrency.Task {
+        Swift::Task {
             guard await self(action) else {
                 return
             }
-            if let context {
-                try context.complete()
-            } else {
-                try reportCompletion(of: action)
+            do {
+                if let context {
+                    try context.complete()
+                } else {
+                    try reportCompletion(of: action)
+                }
+            } catch {
+                logger.error("Event completion failed: \(error)")
             }
         }
     }

@@ -30,7 +30,7 @@ extension HealthUploadStaging {
         var identifiers: [UUID] = []
         var eventKeys = Set<String>()
         for row in rows {
-            try _Concurrency.Task.checkCancellation()
+            try Swift::Task.checkCancellation()
             guard let retraction = try stateStore.healthKitRetraction(
                 of: HealthKitDeletedRecord(
                     sourceTypeIdentifier: row.sampleType,

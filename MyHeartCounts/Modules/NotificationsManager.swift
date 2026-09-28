@@ -46,7 +46,7 @@ final class NotificationsManager: NSObject, Module, EnvironmentAccessible, Senda
             return
         }
         Task {
-            try await setup()
+            try? await setup()
         }
     }
     
@@ -107,7 +107,11 @@ extension NotificationsManager: NotificationTokenHandler {
             guard let fcmToken = try? await messaging.token() else {
                 return
             }
-            try await setFCMToken(fcmToken)
+            do {
+                try await setFCMToken(fcmToken)
+            } catch {
+                logger.error("Failed to set FCM token: \(error)")
+            }
         }
     }
     
