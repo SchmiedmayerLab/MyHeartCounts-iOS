@@ -165,7 +165,7 @@ extension HealthObservation {
         of sample: HKSample,
         context: HealthKitConversionContext,
         using healthKit: HealthKit,
-        reserve: (HKSample) throws -> HealthKitConversionReservation
+        reserve: ([HKSample]) throws -> [HealthKitConversionContext]
     ) async throws -> HealthKitConversionSet {
         switch sample {
         case let electrocardiogram as HKElectrocardiogram:
@@ -179,7 +179,7 @@ extension HealthObservation {
             return try HealthKitConverter().convert(
                 record,
                 context: context,
-                symptomContexts: try record.correlatedSymptoms.map { try reserve($0).context }
+                symptomContexts: try reserve(record.correlatedSymptoms)
             )
         case let record as HKClinicalRecord:
             return try HealthKitConverter().convert(record, context: context)
@@ -192,26 +192,20 @@ extension HealthObservation {
 
     private static func samplePayload(
         for sample: HKSample,
-        conversionInstant: Date,
-        subject: FHIRExchangeSubject,
-        stateStore: FHIRExchangeStateStore,
+        in batch: HealthKitConversionBatch,
         healthKit: HealthKit
     ) async throws -> PreparedHealthObservationFHIRPayload {
         var reservedEventKeys: [String] = []
-        func reserve(_ sample: HKSample) throws -> HealthKitConversionReservation {
-            let reservation = try stateStore.healthKitConversion(
-                for: sample,
-                subject: subject,
-                conversionInstant: conversionInstant
-            )
-            reservedEventKeys.append(reservation.eventKey)
-            return reservation
+        func reserve(_ samples: [HKSample]) throws -> [HealthKitConversionContext] {
+            let reservations = try batch.reservations(for: samples)
+            reservedEventKeys.append(contentsOf: reservations.map(\.eventKey))
+            return reservations.map(\.context)
         }
         let conversions: HealthKitConversionSet
         do {
             conversions = try await Self.conversions(
                 of: sample,
-                context: try reserve(sample).context,
+                context: try reserve([sample])[0],
                 using: healthKit,
                 reserve: reserve
             )
@@ -220,7 +214,7 @@ extension HealthObservation {
                 of: sample,
                 reason: error,
                 reservedEventKeys: reservedEventKeys,
-                stateStore: stateStore
+                stateStore: batch.stateStore
             )
         }
         for conversion in conversions.all {
@@ -236,8 +230,8 @@ extension HealthObservation {
                 bundle: conversion.bundle,
                 sourceID: conversion.source.uuid,
                 sourceTypeIdentifier: conversion.source.type.rawValue,
-                eventKey: stateStore.healthKitEventKey(
-                    subject: subject,
+                eventKey: batch.stateStore.healthKitEventKey(
+                    subject: batch.subject,
                     sourceType: conversion.source.type.rawValue,
                     nativeRecordID: conversion.source.uuid
                 )
@@ -272,25 +266,24 @@ extension HealthObservation {
     ///
     /// A record the adapter permanently refuses is reported as a refusal rather than thrown, so one
     /// unconvertible sample never costs its batch or its sample type's ingestion.
+    ///
+    /// Callers converting many observations reserve them up front in one ``HealthKitConversionBatch``,
+    /// which keeps the per-sample cost free of encrypted ledger passes.
     func prepareFHIRPayload(
-        conversionInstant: Date,
-        subject: FHIRExchangeSubject,
-        stateStore: FHIRExchangeStateStore,
+        in batch: HealthKitConversionBatch,
         using healthKit: HealthKit
     ) async throws -> PreparedHealthObservationFHIRPayload {
         switch self {
         case let sample as HKSample:
             return try await Self.samplePayload(
                 for: sample,
-                conversionInstant: conversionInstant,
-                subject: subject,
-                stateStore: stateStore,
+                in: batch,
                 healthKit: healthKit
             )
         case let observation as any SelfModelledHealthObservation:
             return try Self.selfModelledPayload(
                 for: observation,
-                conversionInstant: conversionInstant
+                conversionInstant: batch.conversionInstant
             )
         default:
             throw NSError(
@@ -298,6 +291,23 @@ extension HealthObservation {
                 localizedDescription: "No FHIR representation for '\(sampleTypeIdentifier)'"
             )
         }
+    }
+
+    /// Produces the FHIR payload of this observation alone, reserving in a batch of its own.
+    func prepareFHIRPayload(
+        conversionInstant: Date,
+        subject: FHIRExchangeSubject,
+        stateStore: FHIRExchangeStateStore,
+        using healthKit: HealthKit
+    ) async throws -> PreparedHealthObservationFHIRPayload {
+        let samples: [HKSample] = (self as? HKSample).map { [$0] } ?? []
+        let batch = try HealthKitConversionBatch(
+            reserving: samples,
+            subject: subject,
+            conversionInstant: conversionInstant,
+            stateStore: stateStore
+        )
+        return try await prepareFHIRPayload(in: batch, using: healthKit)
     }
 }
 

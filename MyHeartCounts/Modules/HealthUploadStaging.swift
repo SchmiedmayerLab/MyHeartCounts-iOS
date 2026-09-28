@@ -204,17 +204,18 @@ extension HealthUploadStaging {
     ) async throws -> HealthKitFHIRReservationReceipt {
         let subject = try await resolvedSubject()
         let stateStore = resolvedStateStore(accountDataGeneration: writeContext.accountDataGeneration)
+        let conversionBatch = try HealthKitConversionBatch(
+            reserving: samples.compactMap { $0 as? HKSample },
+            subject: subject,
+            conversionInstant: ingestionTimestamp,
+            stateStore: stateStore
+        )
         var pendingSamples: [PendingSampleRecord] = []
         var eventKeys = Set<String>()
         pendingSamples.reserveCapacity(Self.databaseWriteChunkSize)
         for observation in consume samples {
             try Task.checkCancellation()
-            let payload = try await observation.prepareFHIRPayload(
-                conversionInstant: ingestionTimestamp,
-                subject: subject,
-                stateStore: stateStore,
-                using: healthKit
-            )
+            let payload = try await observation.prepareFHIRPayload(in: conversionBatch, using: healthKit)
             for entry in payload.entries {
                 if let eventKey = entry.eventKey {
                     eventKeys.insert(eventKey)

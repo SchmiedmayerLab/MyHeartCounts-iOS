@@ -96,6 +96,15 @@ struct PersistedFHIRExchangeEvent: Codable, Equatable, Sendable {
 }
 
 
+/// Events reserved in one ledger transaction, with the fact their identifiers are minted under.
+struct FHIRExchangeEventReservations: Sendable {
+    /// The ledger's producer instance, so a batch identifies its events without reading it again.
+    let producerInstance: UUID
+    /// One event per requested key, in request order.
+    let events: [PersistedFHIRExchangeEvent]
+}
+
+
 enum FHIRExchangeStateError: Error, Equatable {
     case retryContentChanged(sourceRecordID: String)
     case invalidPersistedTimeZone(String)
@@ -227,20 +236,12 @@ final class FHIRExchangeStateStore: Sendable {
         sourceTimeZone: TimeZone = .current,
         facts: FHIRExchangeEventFacts
     ) throws -> PersistedFHIRExchangeEvent {
-        try withState { state in
-            if let persisted = state.events[key] {
-                return persisted
-            }
-            let event = PersistedFHIRExchangeEvent(
-                sequence: state.nextEventSequence,
-                recordedAt: recordedAt,
-                sourceTimeZoneIdentifier: sourceTimeZone.identifier,
-                facts: facts
-            )
-            state.nextEventSequence += 1
-            state.events[key] = event
-            return event
-        }
+        try events(
+            forKeys: [key],
+            recordedAt: recordedAt,
+            sourceTimeZone: sourceTimeZone,
+            facts: facts
+        ).events[0]
     }
 
     /// Persists the first digest observed at a durable SensorKit coordinate and rejects drift.
@@ -327,12 +328,7 @@ final class FHIRExchangeStateStore: Sendable {
         for event: PersistedFHIRExchangeEvent,
         in scope: OpaqueIdentityScope
     ) throws -> ExchangeEventIdentifier {
-        let state = try stateSnapshot()
-        return try ExchangeEventIdentifier(
-            system: scope.systems.event,
-            producerInstance: state.producerInstance,
-            sequence: EventSequence(String(event.sequence))
-        )
+        try Self.eventIdentifier(for: event, producerInstance: producerInstance(), in: scope)
     }
 
     /// Reads stable installation facts without rewriting the encrypted ledger.
@@ -408,6 +404,85 @@ final class FHIRExchangeStateStore: Sendable {
             }
             try body(&state)
             stored = state
+        }
+    }
+}
+
+
+// MARK: Batch Reservation
+
+extension FHIRExchangeStateStore {
+    /// Mints an event's identifier from a producer instance already read, e.g. by a reservation.
+    static func eventIdentifier(
+        for event: PersistedFHIRExchangeEvent,
+        producerInstance: UUID,
+        in scope: OpaqueIdentityScope
+    ) throws -> ExchangeEventIdentifier {
+        try ExchangeEventIdentifier(
+            system: scope.systems.event,
+            producerInstance: producerInstance,
+            sequence: EventSequence(String(event.sequence))
+        )
+    }
+
+    /// The installation's producer instance, read without rewriting the encrypted ledger.
+    func producerInstance() throws -> UUID {
+        try stateSnapshot().producerInstance
+    }
+
+    /// Reserves the events of a whole batch in one ledger transaction.
+    ///
+    /// A key that already holds a reservation returns it unchanged without consuming a sequence
+    /// number; new keys are minted consecutive sequences in input order. Every reservation is
+    /// durable before this returns. When all keys are already reserved, as on an exact retry, the
+    /// encrypted ledger is only read, never rewritten.
+    func events(
+        forKeys keys: [String],
+        recordedAt: Date,
+        sourceTimeZone: TimeZone = .current,
+        facts: FHIRExchangeEventFacts
+    ) throws -> FHIRExchangeEventReservations {
+        if let reserved = try existingEvents(forKeys: keys) {
+            return reserved
+        }
+        return try withState { state in
+            var events: [PersistedFHIRExchangeEvent] = []
+            events.reserveCapacity(keys.count)
+            for key in keys {
+                if let persisted = state.events[key] {
+                    events.append(persisted)
+                    continue
+                }
+                let event = PersistedFHIRExchangeEvent(
+                    sequence: state.nextEventSequence,
+                    recordedAt: recordedAt,
+                    sourceTimeZoneIdentifier: sourceTimeZone.identifier,
+                    facts: facts
+                )
+                state.nextEventSequence += 1
+                state.events[key] = event
+                events.append(event)
+            }
+            return FHIRExchangeEventReservations(producerInstance: state.producerInstance, events: events)
+        }
+    }
+
+    /// The reservations for `keys` if every one of them already exists, read without a write-back.
+    private func existingEvents(forKeys keys: [String]) throws -> FHIRExchangeEventReservations? {
+        try withStorage(readOnly: true) { stored -> FHIRExchangeEventReservations? in
+            guard let loaded = stored else {
+                return nil
+            }
+            let state = try validated(loaded)
+            var events: [PersistedFHIRExchangeEvent] = []
+            events.reserveCapacity(keys.count)
+            for key in keys {
+                guard let persisted = state.events[key] else {
+                    return nil
+                }
+                events.append(persisted)
+            }
+            return FHIRExchangeEventReservations(producerInstance: state.producerInstance, events: events)
         }
     }
 }
