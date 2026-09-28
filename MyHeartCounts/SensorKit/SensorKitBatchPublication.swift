@@ -78,6 +78,15 @@ struct SensorKitBatchPublication: Sendable {
         return try reservation(for: sourceRecordID)
     }
 
+    /// Releases the event reserved for a record Grove refused; nothing was staged or written for it.
+    ///
+    /// Best-effort and idempotent, like HealthKit refusals: completing the acknowledged batch removes it anyway.
+    func release(_ reservation: SensorKitRecordReservation) {
+        try? stateStore.completeExchangeEvents([
+            stateStore.sensorKitEventKey(batchKey: batchKey, sourceRecordID: reservation.sourceRecordID)
+        ])
+    }
+
     private func reservation(
         for sourceRecordID: SensorKitSourceRecordID
     ) throws -> SensorKitRecordReservation {
@@ -125,5 +134,20 @@ extension MyHeartCountsStandard {
         try fhirExchangeStateStore(
             accountDataGeneration: accountDataGeneration
         ).completeSensorBatch(batchKey)
+    }
+
+    /// Drops the retry-only state of every batch of `sensor` once Grove abandoned its pending batches.
+    ///
+    /// The abandoned range is fetched again under fresh acquisition coordinates, so none of those
+    /// batches can ever be retried. The key of an abandoned batch is unknown at this point (Grove
+    /// refuses to deliver it again), hence the state of all of the sensor's batches is dropped.
+    func abandonSensorKitBatches(for sensor: some AnySensor) async throws {
+        guard let sourceToken = SensorKitCatalog.current.entry(for: sensor)?.sourceToken else {
+            throw SensorKitRecordError.sourceTypeNotAdmitted(sensor.id)
+        }
+        let subject = try await firebaseConfiguration.fhirExchangeSubject
+        try fhirExchangeStateStore(
+            accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
+        ).abandonSensorBatches(subject: subject, sourceToken: sourceToken)
     }
 }

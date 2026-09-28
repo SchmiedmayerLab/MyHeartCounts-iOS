@@ -311,13 +311,13 @@ final class FHIRExchangeStateStore: Sendable {
         sourceToken: String,
         deviceProductType: String
     ) -> String {
-        [
-            subject.identity.system.rawValue,
-            subject.identity.value,
-            sourceToken,
-            deviceProductType,
-            acquisitionBatch.stableValue
-        ].joined(separator: "|")
+        sensorKitBatchKeyPrefix(subject: subject, sourceToken: sourceToken)
+            + [deviceProductType, acquisitionBatch.stableValue].joined(separator: "|")
+    }
+
+    /// The leading components, including the trailing separator, shared by every batch key of one source.
+    private func sensorKitBatchKeyPrefix(subject: FHIRExchangeSubject, sourceToken: String) -> String {
+        [subject.identity.system.rawValue, subject.identity.value, sourceToken, ""].joined(separator: "|")
     }
 
     func sensorKitEventKey(batchKey: String, sourceRecordID: SensorKitSourceRecordID) -> String {
@@ -483,6 +483,21 @@ extension FHIRExchangeStateStore {
                 events.append(persisted)
             }
             return FHIRExchangeEventReservations(producerInstance: state.producerInstance, events: events)
+        }
+    }
+}
+
+
+extension FHIRExchangeStateStore {
+    /// Removes the retry-only state of every batch of one SensorKit source.
+    ///
+    /// Only valid once the source's pending batches were abandoned: their records are fetched again
+    /// under fresh acquisition coordinates, so none of the removed state can be needed by a retry.
+    func abandonSensorBatches(subject: FHIRExchangeSubject, sourceToken: String) throws {
+        let batchKeyPrefix = sensorKitBatchKeyPrefix(subject: subject, sourceToken: sourceToken)
+        try withExistingState { state in
+            state.sensorRetries = state.sensorRetries.filter { !$0.value.batchKey.hasPrefix(batchKeyPrefix) }
+            state.events = state.events.filter { !$0.key.hasPrefix("sensorkit|\(batchKeyPrefix)") }
         }
     }
 }

@@ -393,3 +393,57 @@ extension FHIRExchangeStateTests {
         #expect(onDemand.context.event.event.sequence.rawValue == "4")
     }
 }
+
+
+extension FHIRExchangeStateTests {
+    @Test
+    func abandoningSensorBatchesDropsOnlyThatSourcesRetryState() throws {
+        let store = FHIRExchangeStateStore()
+        let subject = try Self.subject
+        let coordinate = SensorKit.AcquisitionBatchCoordinate(
+            cursorTimestamp: Date(timeIntervalSince1970: 1_788_000_000),
+            resetGeneration: 2,
+            sequence: 7
+        )
+        func record(of sourceToken: String) -> (batchKey: String, sourceID: SensorKitSourceRecordID) {
+            (
+                store.sensorKitBatchKey(
+                    subject: subject,
+                    acquisitionBatch: coordinate,
+                    sourceToken: sourceToken,
+                    deviceProductType: "iPhone18,1"
+                ),
+                SensorKitSourceRecordID.derived(
+                    acquisitionBatch: coordinate,
+                    sourceToken: sourceToken,
+                    deviceProductType: "iPhone18,1",
+                    recordOrdinal: 0
+                )
+            )
+        }
+        func event(for record: (batchKey: String, sourceID: SensorKitSourceRecordID)) throws -> PersistedFHIRExchangeEvent {
+            try store.event(
+                key: store.sensorKitEventKey(batchKey: record.batchKey, sourceRecordID: record.sourceID),
+                recordedAt: Date(timeIntervalSince1970: 1_788_000_001),
+                facts: Self.eventFacts()
+            )
+        }
+        let abandoned = record(of: "SRSensor.heartRate")
+        // Shares the abandoned token as a string prefix, but is a different source.
+        let unrelated = record(of: "SRSensor.heartRateSibling")
+        for entry in [abandoned, unrelated] {
+            try store.verifySensorRetryDigest(Data("first".utf8), batchKey: entry.batchKey, sourceRecordID: entry.sourceID)
+        }
+        _ = try event(for: abandoned)
+        let unrelatedEvent = try event(for: unrelated)
+
+        try store.abandonSensorBatches(subject: subject, sourceToken: "SRSensor.heartRate")
+
+        try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: abandoned.batchKey, sourceRecordID: abandoned.sourceID)
+        #expect(try event(for: abandoned).sequence == unrelatedEvent.sequence + 1)
+        #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: unrelated.sourceID.value)) {
+            try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: unrelated.batchKey, sourceRecordID: unrelated.sourceID)
+        }
+        #expect(try event(for: unrelated).sequence == unrelatedEvent.sequence)
+    }
+}
