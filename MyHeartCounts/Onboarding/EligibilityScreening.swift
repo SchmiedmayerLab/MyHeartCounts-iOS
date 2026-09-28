@@ -8,15 +8,15 @@
 
 import Grove
 import GroveFoundation
-import GroveStudy
 import GroveViews
+import MHCStudyDefinition
 import SwiftUI
 
 
 struct EligibilityScreening: View {
     @Environment(StudyBundleLoader.self)
     private var studyLoader
-    
+
     private let components: [any ScreeningComponent] = [
         AgeAtLeast(style: .toggle, minAge: 18),
         IsFromRegion(
@@ -57,26 +57,21 @@ struct EligibilityScreening: View {
                 // unreachable
                 return
             }
-            if !Grove.didLoadFirebase {
-                // load the firebase modules into Grove, and give it a couple seconds to fully configure everything
-                // the crux here is that there isn't a mechanism by which Firebase would let us know when it
-                Grove.loadFirebase(for: region)
-                try? await Task.sleep(for: .seconds(3))
+            if await loadStudy(variant: .stanford, backendRegion: region, path: path) {
+                path.nextStep()
             }
-            do {
-                try await studyLoader.update()
-            } catch {
-                path.append(customView: UnableToLoadStudyDefinitionStep())
-                return
-            }
-            path.nextStep()
         } else {
             for result in results {
                 switch result {
                 // 2 bc we want everything else to have passed
                 case .ineligible(.regionNotYetSupportedButComingSoon(let region)) where results.count == 2:
                     path.append {
-                        RegionComingSoon(selectedRegion: region, availabilityStatus: .comingSoon)
+                        RegionComingSoon(selectedRegion: region, availabilityStatus: .comingSoon) {
+                            if await loadStudy(variant: .imperial, backendRegion: .unitedStates, path: path) {
+                                path.removeLast()
+                                path.nextStep()
+                            }
+                        }
                     }
                     return
                 // 2 bc we want everything else to have passed
@@ -92,6 +87,26 @@ struct EligibilityScreening: View {
             path.append {
                 NotEligibleView()
             }
+        }
+    }
+
+    private func loadStudy(variant: StudyVariant, backendRegion: Locale.Region, path: ManagedNavigationStack.Path) async -> Bool {
+        do {
+            if !Grove.didLoadFirebase {
+                // Give the dynamically loaded Firebase modules time to finish configuring.
+                Grove.loadFirebase(for: backendRegion, studyVariant: variant)
+                try? await Task.sleep(for: .seconds(3))
+            } else {
+                try DeferredConfigLoading.setActiveStudyVariant(variant)
+            }
+            guard DeferredConfigLoading.activeStudyVariant != nil else {
+                throw DeferredConfigLoading.StudyVariantError.missingConfiguration
+            }
+            try await studyLoader.update()
+            return true
+        } catch {
+            path.append(customView: UnableToLoadStudyDefinitionStep())
+            return false
         }
     }
 }

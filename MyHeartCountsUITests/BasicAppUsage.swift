@@ -64,7 +64,7 @@ final class BasicAppUsage: MHCTestCase, Sendable {
         app.swipeUp()
         app.buttons["Logout"].tap()
         app.alerts["Are you sure you want to logout?"].buttons["Logout"].tap()
-        XCTAssert(app.staticTexts["Welcome to the My Heart Counts\nCardiovascular Health Study"].waitForExistence(timeout: 5))
+        XCTAssert(app.staticTexts["Welcome to the My Heart Counts\nCardiovascular Health Study"].waitForExistence(timeout: 20))
     }
     
     

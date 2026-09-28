@@ -135,6 +135,7 @@ jobs:
       contents: read
     with:
       runs_on_labels: '["macOS", "self-hosted"]'
+      xcode_version: '26.6'
       environment: ${{ needs.determineenvironment.outputs.environment }}
       injected_secret_file_path: 'MyHeartCounts/Supporting Files/GoogleService-Info.plist'
       setup_signing: true

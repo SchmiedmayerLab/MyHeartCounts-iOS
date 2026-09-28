@@ -13,8 +13,9 @@ import PackageDescription
 var packageDeps: [Package.Dependency] = [
     .package(
         url: "https://github.com/SchmiedmayerLab/Grove.git",
-        revision: "66f0a88e111bcf8c985f71c41890c0850d9acd73"
+        revision: "050ba883b2fdea6a91d93d2405e4121ca9a736cf"
     ),
+    .package(url: "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git", revision: "05f0a2261e95b878327419c8532a0df6fc76da34"),
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.93.0"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0")
 ]
@@ -49,6 +50,7 @@ let package = Package(
             dependencies: { () -> [Target.Dependency] in
                 var deps: [Target.Dependency] = [
                     .product(name: "GroveFoundation", package: "Grove"),
+                    .product(name: "MHCStudyDefinition", package: "MyHeartCounts-StudyDefinitions"),
                     .product(name: "NIOCore", package: "swift-nio"),
                     .product(name: "NIOFoundationCompat", package: "swift-nio")
                 ]

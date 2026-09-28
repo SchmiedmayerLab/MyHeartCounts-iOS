@@ -89,11 +89,13 @@ struct NewsTab: RootViewTab {
                 }
             }
             Section {
-                Link2(MyHeartCounts.website(.homepage)) {
+                let website = MyHeartCounts.website(.homepage)
+                let websiteHost = website.host() ?? website.absoluteString
+                Link2(website) {
                     Text({ () -> AttributedString in
-                        var str = AttributedString(localized: "For more information and updates, visit myheartcounts.stanford.edu")
+                        var str = AttributedString(localized: "For more information and updates, visit \(websiteHost)")
                         str.setAttributes(AttributeContainer().foregroundColor(TextLabelForegroundColor.textLabel.resolve(in: environment)))
-                        if let range = str.range(of: "myheartcounts.stanford.edu") {
+                        if let range = str.range(of: websiteHost) {
                             str[range].setAttributes(
                                 AttributeContainer().foregroundColor(Color.blue)
                             )

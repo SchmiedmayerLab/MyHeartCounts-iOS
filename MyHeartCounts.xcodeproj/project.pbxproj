@@ -570,8 +570,6 @@
 				80F72BD92D7E00A100150FE3 /* MyHeartCountsTests */,
 			);
 			name = MyHeartCountsTests;
-			packageProductDependencies = (
-			);
 			productName = MyHeartCountsTests;
 			productReference = 653A255D28338800005D4D48 /* MyHeartCountsTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -1236,7 +1234,7 @@
 			repositoryURL = "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git";
 			requirement = {
 				kind = revision;
-				revision = 490ffab044e72c4e351d737c245e316d8609bbe9;
+				revision = 05f0a2261e95b878327419c8532a0df6fc76da34;
 			};
 		};
 		8076696C2D772C07001B980B /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
@@ -1300,7 +1298,7 @@
 			repositoryURL = "https://github.com/SchmiedmayerLab/Grove.git";
 			requirement = {
 				kind = revision;
-				revision = 66f0a88e111bcf8c985f71c41890c0850d9acd73;
+				revision = 050ba883b2fdea6a91d93d2405e4121ca9a736cf;
 			};
 			traits = (
 				Textual,

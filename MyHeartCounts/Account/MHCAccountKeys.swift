@@ -13,12 +13,23 @@ import Foundation
 import GroveAccount
 import GroveFoundation
 import GroveLocalStorage
+import MHCStudyDefinition
 import SwiftUI
 
 
 // MARK: Study & Enrollment
 
 extension AccountDetails {
+    /// The study variant selected during account onboarding, independent of the Firebase deployment.
+    @AccountKey(
+        id: "studyVariant",
+        name: "Study Variant",
+        options: .mutable,
+        as: StudyVariant.self,
+        initial: .empty(.stanford)
+    )
+    var studyVariant: StudyVariant?
+
     @AccountKey(
         id: "hasWithdrawnFromStudy",
         name: "Has withdrawn from Study",
@@ -122,7 +133,7 @@ extension AccountDetails {
     
     @AccountKey(id: "enableAppDebugMode", name: "Enable App Debug Mode", as: Bool.self)
     var enableDebugMode: Bool?
-    
+
     @AccountKey(id: "timeZone", name: "Time Zone", as: String.self)
     var timeZone: String?
 
@@ -148,7 +159,7 @@ extension AccountDetails {
 
 
 @KeyEntry(
-    \.hasWithdrawnFromStudy,
+    \.studyVariant, \.hasWithdrawnFromStudy,
     \.dateOfEnrollment, \.lastSignedConsentVersion, \.lastSignedConsentDate, \.didOptInToTrial,
     \.fcmToken, \.enableDebugMode, \.timeZone, \.language, \.preferredMeasurementSystem, \.lastActiveDate,
     \.mostRecentOnboardingStep, \.preferredWorkoutTypes, \.preferredNudgeNotificationTime, \.postTrialNudgesOptIn

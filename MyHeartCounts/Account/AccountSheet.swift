@@ -14,6 +14,7 @@ import GroveLicense
 import GroveSensorKit
 import GroveStudy
 import GroveViews
+import MHCStudyDefinition
 import MyHeartCountsShared
 import SFSafeSymbols
 import SwiftUI
@@ -28,6 +29,7 @@ struct AccountSheet: View {
     @Environment(HistoricalHealthSamplesExportManager.self) private var historicalDataExportMgr
     @Environment(ManagedFileUpload.self) private var managedFileUpload
     @Environment(SensorKitDataFetcher.self) private var sensorKitDataFetcher
+    @Environment(StudyManager.self) private var studyManager
     // swiftlint:enable attributes
     
     @State private var isInSetup = false
@@ -123,7 +125,12 @@ struct AccountSheet: View {
     
     private var isProcessingHealthData: Bool {
         let uploadCategories = [ManagedFileUpload.Category.liveHealthUpload, .historicalHealthUpload]
-        return historicalDataExportMgr.session.map { $0.state == .running || $0.state == .paused } ?? false
+        return historicalDataExportMgr.session.map {
+            switch $0.state {
+            case .running, .paused: true
+            case .completed, .terminated: false
+            }
+        } ?? false
             || uploadCategories.contains(where: { managedFileUpload.isActive($0) })
     }
     
@@ -196,12 +203,13 @@ struct AccountSheet: View {
     @ViewBuilder
     private func makeEnrolledStudyRow(for enrollment: StudyEnrollment) -> some View {
         if let studyInfo = enrollment.studyBundle?.studyDefinition.metadata {
+            let locale = LocalizationKey(locale: studyManager.preferredLocale) ?? .enUS
             VStack(alignment: .leading) {
-                if let title = studyInfo.title[.current] {
+                if let title = studyInfo.title[locale] {
                     Text(title)
                         .font(.headline)
                 }
-                if let explainer = studyInfo.shortExplanationText[.current] {
+                if let explainer = studyInfo.shortExplanationText[locale] {
                     Text(explainer)
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
@@ -302,6 +310,8 @@ extension AccountSheet {
                         Section {
                             LabeledContent("Project ID" as String, value: FirebaseApp.app()?.options.projectID ?? "n/a")
                             LabeledContent("Account ID" as String, value: account.details?.accountId ?? "n/a")
+                            LabeledContent("Study Variant" as String, value: DeferredConfigLoading.activeStudyVariant?.rawValue ?? "n/a")
+                            LabeledContent("Study Backend" as String, value: DeferredConfigLoading.activeFirebaseConfig?.description ?? "n/a")
                         }
                         Section {
                             LabeledContent("Study Revision (enrolled)" as String, value: enrollments.first?.studyRevision.description ?? "n/a")
@@ -337,12 +347,4 @@ extension AccountOverviewOperationLabels {
         confirmationAlertMessage: "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose.",
         confirmationAlertSubmitButton: "Withdraw"
     )
-}
-
-
-extension LocalizationKey {
-    static var current: Self {
-        let locale = Locale.current
-        return LocalizationKey(language: locale.language, region: locale.region ?? .unitedStates)
-    }
 }

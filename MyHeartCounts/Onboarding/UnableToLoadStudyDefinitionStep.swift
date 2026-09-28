@@ -24,7 +24,7 @@ struct UnableToLoadStudyDefinitionStep: View {
     
     var body: some View {
         switch studyLoader.studyBundle {
-        case nil, .failure(.noLastUsedFirebaseConfig):
+        case nil, .failure(.noActiveFirebaseConfig):
             // the StudyLoader, for whatever reason, hasn't yet loaded the study.
             // it is extremely unlikely, if not even outright impossible, for us to end up in this View
             // with the loader being in this state, but just in case, we treat it as an unknown error and offer a retry functionality.

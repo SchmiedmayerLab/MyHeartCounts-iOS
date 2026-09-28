@@ -21,6 +21,7 @@ import GroveNotifications
 import GroveScheduler
 import GroveSensorKit
 import GroveStudy
+import MHCStudyDefinition
 import OSLog
 @preconcurrency import PDFKit.PDFDocument
 import SwiftUI
@@ -55,6 +56,16 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     // swiftlint:disable attributes
 
     init() {}
+
+    /// Resolves returning accounts before enrollment and validates their variant thereafter.
+    @MainActor
+    static func synchronizeStudyVariant(for account: Account) throws {
+        // Read the current details; a queued account event can contain an older snapshot.
+        guard let details = account.details, !details.isIncomplete, let variant = details.existingStudyVariant else {
+            return
+        }
+        try DeferredConfigLoading.setActiveStudyVariant(variant)
+    }
 
     /// The encrypted, installation-scoped ledger shared by every FHIR publication path.
     func fhirExchangeStateStore(accountDataGeneration: Int) -> FHIRExchangeStateStore {
@@ -93,6 +104,9 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         guard let account, await account.signedIn, let studyManager else {
             throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Missing Account / StudyManager")
         }
+        // Enrollment can persist study data before its async setup finishes. Keep its backend even if setup is interrupted.
+        try await Self.synchronizeStudyVariant(for: account)
+        try await DeferredConfigLoading.persistActiveConfiguration()
         do {
             if let enrollmentDate = await account.details?.dateOfEnrollment {
                 // the user already has enrolled at some point in the past.
@@ -133,12 +147,27 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     }
     
     // MARK: Account Stuff
+
+    private func validateAccountStudyVariant() async -> Bool {
+        do {
+            if let account {
+                try await Self.synchronizeStudyVariant(for: account)
+            }
+            return true
+        } catch {
+            logger.error("Ignoring conflicting account study variant: \(error)")
+            return false
+        }
+    }
     
     func handleAccountEvent(_ event: AccountNotifications.Event) async {
         await statsStore?.handleAccountEvent(event)
         let logger = logger
         switch event {
         case .didAssociate(let details):
+            guard await validateAccountStudyVariant() else {
+                return
+            }
             logger.notice("account was associated (account id: \(details.accountId))")
             if LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] {
                 do {
@@ -175,7 +204,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             _ = await (updateFCMToken, syncAchievements)
             await achievementsManager?.disassociateFromAccount()
         case .detailsChanged:
-            break
+            _ = await validateAccountStudyVariant()
         }
     }
 }
@@ -289,6 +318,9 @@ extension MyHeartCountsStandard {
                 } catch {
                     await logger.error("Error unenrolling from study: \(error)")
                 }
+            }
+            if studyManager.studyEnrollments.isEmpty {
+                DeferredConfigLoading.clearEnrolledConfiguration()
             }
         }.result
     }

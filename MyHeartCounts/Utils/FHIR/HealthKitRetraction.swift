@@ -56,7 +56,7 @@ extension FHIRExchangeStateStore {
         let retraction = try HealthKitConverter().retraction(
             for: HealthKitSourceRecord(uuid: record.nativeRecordID, type: sourceType),
             context: context,
-            retractedAt: record.detectedAt
+            occurred: .instant(record.detectedAt)
         )
         return (eventKey, retraction.graph)
     }
