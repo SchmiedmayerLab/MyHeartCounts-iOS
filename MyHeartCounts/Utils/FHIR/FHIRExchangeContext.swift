@@ -6,6 +6,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+// swiftlint:disable file_length
+
 import CryptoKit
 import Foundation
 import GroveFHIRContract
@@ -236,12 +238,11 @@ final class FHIRExchangeStateStore: Sendable {
         sourceTimeZone: TimeZone = .current,
         facts: FHIRExchangeEventFacts
     ) throws -> PersistedFHIRExchangeEvent {
-        try events(
-            forKeys: [key],
-            recordedAt: recordedAt,
-            sourceTimeZone: sourceTimeZone,
-            facts: facts
-        ).events[0]
+        // One transaction, no read-only probe first: SensorKit reserves records one at a time and most
+        // of them are new, so a probe would add a full ledger decrypt to nearly every call.
+        try withState { state in
+            Self.reserve([key], in: &state, recordedAt: recordedAt, sourceTimeZone: sourceTimeZone, facts: facts)[0]
+        }
     }
 
     /// Persists the first digest observed at a durable SensorKit coordinate and rejects drift.
@@ -425,6 +426,34 @@ extension FHIRExchangeStateStore {
         )
     }
 
+    /// Returns the existing event for each key, minting consecutive sequences for new keys in input order.
+    private static func reserve(
+        _ keys: [String],
+        in state: inout State,
+        recordedAt: Date,
+        sourceTimeZone: TimeZone,
+        facts: FHIRExchangeEventFacts
+    ) -> [PersistedFHIRExchangeEvent] {
+        var events: [PersistedFHIRExchangeEvent] = []
+        events.reserveCapacity(keys.count)
+        for key in keys {
+            if let persisted = state.events[key] {
+                events.append(persisted)
+                continue
+            }
+            let event = PersistedFHIRExchangeEvent(
+                sequence: state.nextEventSequence,
+                recordedAt: recordedAt,
+                sourceTimeZoneIdentifier: sourceTimeZone.identifier,
+                facts: facts
+            )
+            state.nextEventSequence += 1
+            state.events[key] = event
+            events.append(event)
+        }
+        return events
+    }
+
     /// The installation's producer instance, read without rewriting the encrypted ledger.
     func producerInstance() throws -> UUID {
         try stateSnapshot().producerInstance
@@ -446,24 +475,10 @@ extension FHIRExchangeStateStore {
             return reserved
         }
         return try withState { state in
-            var events: [PersistedFHIRExchangeEvent] = []
-            events.reserveCapacity(keys.count)
-            for key in keys {
-                if let persisted = state.events[key] {
-                    events.append(persisted)
-                    continue
-                }
-                let event = PersistedFHIRExchangeEvent(
-                    sequence: state.nextEventSequence,
-                    recordedAt: recordedAt,
-                    sourceTimeZoneIdentifier: sourceTimeZone.identifier,
-                    facts: facts
-                )
-                state.nextEventSequence += 1
-                state.events[key] = event
-                events.append(event)
-            }
-            return FHIRExchangeEventReservations(producerInstance: state.producerInstance, events: events)
+            FHIRExchangeEventReservations(
+                producerInstance: state.producerInstance,
+                events: Self.reserve(keys, in: &state, recordedAt: recordedAt, sourceTimeZone: sourceTimeZone, facts: facts)
+            )
         }
     }
 
