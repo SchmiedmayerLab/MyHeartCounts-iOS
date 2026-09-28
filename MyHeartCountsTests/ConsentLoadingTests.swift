@@ -31,7 +31,7 @@ struct ConsentLoadingTests {
                 fallbackLocale: nil
             )
         }
-        
+
         func expectAllEqual(to expectedText: String, _ locales: [Locale], _ sourceLocation: SourceLocation = #_sourceLocation) throws {
             let results = try locales.map { locale in
                 try #require(fetchConsent(for: locale), sourceLocation: sourceLocation)
@@ -39,7 +39,7 @@ struct ConsentLoadingTests {
             #expect(Set(results).count == 1, "Got non-matching results: \(results)", sourceLocation: sourceLocation)
             #expect(try #require(results.first, sourceLocation: sourceLocation) == expectedText, sourceLocation: sourceLocation)
         }
-        
+
         try expectAllEqual(to: "Hey en-US!", [
             Locale(identifier: "en-US"),
             Locale(languageCode: .english, languageRegion: .unitedStates),
@@ -70,17 +70,17 @@ extension ConsentLoadingTests {
     @dynamicMemberLookup
     private struct ManagedStudyBundle: ~Copyable {
         let bundle: StudyBundle
-        
+
         subscript<T>(dynamicMember keyPath: KeyPath<StudyBundle, T>) -> T {
             bundle[keyPath: keyPath]
         }
-        
+
         deinit {
             try? FileManager.default.removeItem(at: bundle.bundleUrl)
         }
     }
-    
-    
+
+
     private func makeStudyBundle() throws -> ManagedStudyBundle {
         let bundleUrl = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString, conformingTo: .studyBundle)
         let studyBundle = try StudyBundle.writeToDisk(

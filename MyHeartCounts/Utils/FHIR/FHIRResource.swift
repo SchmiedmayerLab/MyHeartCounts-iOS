@@ -7,10 +7,6 @@
 //
 
 import Foundation
-import GroveFHIR
-import GroveHealthKit
-import GroveHealthKitFHIR
-import HealthKit
 import ModelsDSTU2
 import ModelsR4
 
@@ -108,39 +104,5 @@ extension FHIRResource: Codable {
             try container.encode("R4", forKey: .version)
             try container.encode(resource, forKey: .resource)
         }
-    }
-}
-
-
-// MARK: Utils
-
-extension FHIRResource {
-    init(_ other: GroveFHIR.FHIRResource) {
-        switch other.versionedResource {
-        case .dstu2(let resource):
-            self = .dstu2(resource)
-        case .r4(let resource):
-            self = .r4(resource)
-        }
-    }
-}
-
-
-extension GroveFHIR.FHIRResource {
-    // periphery:ignore - API
-    init(_ other: FHIRResource) {
-        switch other {
-        case .dstu2(let resource):
-            self.init(versionedResource: .dstu2(resource), displayName: "")
-        case .r4(let resource):
-            self.init(versionedResource: .r4(resource), displayName: "")
-        }
-    }
-}
-
-
-extension FHIRResource {
-    init(_ record: HKClinicalRecord, using healthKit: HealthKit) async throws {
-        try await self.init(GroveFHIR.FHIRResource.initialize(basedOn: record, using: healthKit, loadHealthKitAttachments: true))
     }
 }

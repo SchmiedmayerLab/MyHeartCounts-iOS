@@ -125,7 +125,7 @@ struct AccountSheet: View {
     
     private var isProcessingHealthData: Bool {
         let uploadCategories = [ManagedFileUpload.Category.liveHealthUpload, .historicalHealthUpload]
-        return historicalDataExportMgr.session.map { $0.state == .running || $0.state == .paused } ?? false
+        return historicalDataExportMgr.session?.state == .running
             || uploadCategories.contains(where: { managedFileUpload.isActive($0) })
     }
     

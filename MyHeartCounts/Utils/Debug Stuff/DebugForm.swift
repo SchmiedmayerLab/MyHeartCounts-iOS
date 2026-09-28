@@ -12,6 +12,8 @@ import Foundation
 import GroveAccount
 import GroveFoundation
 import GroveLocalStorage
+import GroveQuestionnaire
+import GroveQuestionnaireFHIR
 import GroveStudy
 import GroveStudyDefinition
 import GroveViews
@@ -147,8 +149,16 @@ private struct DebugFormImpl: View {
             ForEach(options, id: \.self) { option in
                 Button(option) {
                     let fileRef = StudyBundle.FileReference(category: .questionnaire, filename: option, fileExtension: "json")
-                    if let questionnaire = studyManager.studyEnrollments.first?.studyBundle?.questionnaire(for: fileRef, in: .enUS) {
+                    guard let fhirQuestionnaire = studyManager.studyEnrollments.first?
+                        .studyBundle?
+                        .questionnaire(for: fileRef) else {
+                        return
+                    }
+                    do {
+                        let questionnaire = try GroveQuestionnaire.Questionnaire(fhirQuestionnaire, clock: .live(in: .current))
                         performTask(.answerQuestionnaire(questionnaire), context: nil)
+                    } catch {
+                        logger.error("Unable to prepare debug Questionnaire: \(error)")
                     }
                 }
             }

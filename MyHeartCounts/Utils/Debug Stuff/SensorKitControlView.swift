@@ -98,18 +98,14 @@ struct SensorKitControlView: View {
             }
             AsyncButton("Reset All" as String, role: .destructive, state: $viewState) {
                 @MainActor
-                func imp<Sample>(_ sensor: some AnySensor<Sample>) throws {
+                func imp<Sample>(_ sensor: some AnySensor<Sample>) async throws {
                     let sensor = Sensor(sensor)
-                    try sensorKit.resetQueryAnchors(for: sensor)
-                }
-                defer {
-                    Task {
-                        await updateQueryAnchorEntries()
-                    }
+                    try await sensorKit.resetQueryAnchors(for: sensor)
                 }
                 for sensor in SensorKit.allKnownSensors {
-                    try imp(sensor)
+                    try await imp(sensor)
                 }
+                await updateQueryAnchorEntries()
             }
         }
     }

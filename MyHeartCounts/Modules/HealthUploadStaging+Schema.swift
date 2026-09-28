@@ -48,6 +48,7 @@ extension HealthUploadStaging {
             case timestamp
             case sampleType
             case sampleId
+            case deletedAfter
         }
         static let databaseTableName = "pendingDeletions"
         static var timestampColumn: Column { Column(Columns.timestamp.name) }
@@ -56,6 +57,8 @@ extension HealthUploadStaging {
         let timestamp: Date
         let sampleType: String
         let sampleId: UUID
+        /// When the query before the one that reported the deletion was issued, if known.
+        let deletedAfter: Date?
     }
 
 
@@ -66,6 +69,11 @@ extension HealthUploadStaging {
         }
         migrator.registerMigration("v2") { db in
             try createDrainIndexes(in: db)
+        }
+        migrator.registerMigration("v3") { db in
+            try db.alter(table: PendingDeletionRecord.databaseTableName) {
+                $0.add(column: PendingDeletionRecord.Columns.deletedAfter.name, .text)
+            }
         }
         if let targetMigration {
             try migrator.migrate(dbQueue, upTo: targetMigration)
@@ -163,5 +171,49 @@ extension HealthUploadStaging {
                 summary[key.sampleType, default: 0] += 1
             }
         }
+    }
+}
+
+
+// MARK: Query Models
+
+extension HealthUploadStaging {
+    struct PendingRecordKey: Decodable, FetchableRecord, Hashable {
+        enum Columns: String, CodingKey, ColumnExpression {
+            case sampleType
+            case sampleId
+        }
+
+        let sampleType: String
+        let sampleId: UUID
+
+        var databaseKey: [String: (any DatabaseValueConvertible)?] {
+            [
+                Columns.sampleType.name: sampleType,
+                Columns.sampleId.name: sampleId
+            ]
+        }
+    }
+
+    struct SampleTypeCount: Decodable, FetchableRecord {
+        enum Columns: String, CodingKey, ColumnExpression {
+            case sampleType
+            case count
+        }
+
+        let sampleType: String
+        let count: Int
+    }
+
+    struct SampleTypeStats {
+        let pendingUploads: [String: Int]
+        let pendingDeletions: [String: Int]
+    }
+
+    func fetchSampleTypeStats() throws -> SampleTypeStats? {
+        SampleTypeStats(
+            pendingUploads: try fetchSampleTypeCounts(for: PendingSampleRecord.self),
+            pendingDeletions: try fetchSampleTypeCounts(for: PendingDeletionRecord.self)
+        )
     }
 }

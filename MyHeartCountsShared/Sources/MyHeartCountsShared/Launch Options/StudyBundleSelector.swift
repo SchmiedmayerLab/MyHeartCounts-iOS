@@ -19,7 +19,7 @@ public enum StudyBundleSelector: Hashable {
     case bundledWithApp(StudyVariant)
     /// The study bundle located at the specified URL.
     case atUrl(URL)
-    
+
     /// Returns a new selector, that fetches a study bundle from the same source but using the specified variant.
     ///
     /// - Note: If the selector doesn't carry any variant information, it will be returned as-is.
@@ -56,7 +56,7 @@ extension StudyBundleSelector: LaunchOptionDecodable, LaunchOptionEncodable {
             self = .atUrl(try URL(decodingLaunchOption: context))
         }
     }
-    
+
     private static func parseSourceAndVariant(_ input: String) throws -> (String, StudyVariant?)? {
         let source = String(input.prefix { $0 != ":" })
         guard source == "firebase" || source == "bundledWithApp" else {
@@ -73,7 +73,7 @@ extension StudyBundleSelector: LaunchOptionDecodable, LaunchOptionEncodable {
         }
         return (source, variant)
     }
-    
+
     public func launchOptionArgs(for launchOption: LaunchOption<StudyBundleSelector>) -> [String] {
         switch self {
         case .firebase(let variant):
