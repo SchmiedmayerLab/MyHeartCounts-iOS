@@ -64,7 +64,7 @@ struct HealthKitPermissions: View {
         do {
             // HealthKit is not available in the preview simulator.
             if ProcessInfo.processInfo.isPreviewSimulator {
-                try await _Concurrency.Task.sleep(for: .seconds(5))
+                try await Swift::Task.sleep(for: .seconds(5))
             } else {
                 let accessReqs = MyHeartCountsStandard.baselineHealthAccessReqs.merging(
                     with: .init(read: studyDefinition.allCollectedHealthData(includingOptionalSampleTypes: false))

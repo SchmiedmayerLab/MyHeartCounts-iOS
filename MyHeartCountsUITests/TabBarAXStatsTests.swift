@@ -14,7 +14,7 @@ import XCTest
 /// Diagnostic test that measures how reliably the root tab bar's accessibility identifiers
 /// show up in the XCUITest snapshot. Not part of the regular test suite semantics;
 /// it launches the app repeatedly and prints AXSTATS lines with the hit rates.
-final class TabBarAXStatsTests: MHCTestCase, Sendable {
+final class TabBarAXStatsTests: MHCTestCase, @unchecked Sendable {
     func testTabBarIdentifierStats() throws {
         let credentials: SetupTestEnvironmentConfig.Credentials = .random()
         let iterations = 10

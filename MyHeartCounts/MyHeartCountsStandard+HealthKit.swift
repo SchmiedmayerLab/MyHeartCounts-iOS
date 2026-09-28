@@ -189,7 +189,7 @@ extension MyHeartCountsStandard {
         guard !observations.isEmpty, let sampleTypeIdentifier = observations.first?.sampleTypeIdentifier else {
             return HealthKitFHIRReservationReceipt()
         }
-        try _Concurrency.Task.checkCancellation()
+        try Swift::Task.checkCancellation()
         try FHIRExchangeDestination.validateWrites(for: accountDataGeneration)
         guard observations.allSatisfy({ $0.sampleTypeIdentifier == sampleTypeIdentifier }) else {
             // in the unlikely case of the caller passing in heterogeneous health observations, we process each sample type individually
@@ -252,7 +252,7 @@ extension MyHeartCountsStandard {
             )
             var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
             for observation in consume observations {
-                try _Concurrency.Task.checkCancellation()
+                try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
                 let payload = try await prepareFHIRPayload(observation)
                 entries.append(contentsOf: payload.entries)
@@ -264,7 +264,7 @@ extension MyHeartCountsStandard {
             defer {
                 try? FileManager.default.removeItem(at: url)
             }
-            try _Concurrency.Task.checkCancellation()
+            try Swift::Task.checkCancellation()
             try destination.validateCurrentAccount()
             try await managedFileUpload.stage(
                 url,
@@ -276,7 +276,7 @@ extension MyHeartCountsStandard {
         case .directFirestore:
             var acknowledgedEventKeys = Set<String>()
             for chunk in (consume observations).chunks(ofCount: Self.directFirestoreUploadDefaultBatchSize) {
-                try _Concurrency.Task.checkCancellation()
+                try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
                 let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                     for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadStrategy: uploadStrategy)
@@ -298,7 +298,7 @@ extension MyHeartCountsStandard {
                         try batch.setData(from: entry.resource, forDocument: document)
                     }
                 }
-                try _Concurrency.Task.checkCancellation()
+                try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
                 try await batch.commit()
                 acknowledgedEventKeys.formUnion(chunkEventKeys)

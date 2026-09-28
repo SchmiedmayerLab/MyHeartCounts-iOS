@@ -32,7 +32,7 @@ import XCTHealthKit
 /// This class sets up the ``app`` property, and provides the ``launchAppAndEnrollIntoStudy`` function.
 /// It does not contain any actual tests itself. All UI test classes should inherit from `MHCTestCase`.
 @MainActor
-class MHCTestCase: XCTestCase, Sendable {
+class MHCTestCase: XCTestCase, @unchecked Sendable {
     enum HandlePermissionPrompts {
         case yes
         case no

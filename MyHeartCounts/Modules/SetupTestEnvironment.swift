@@ -82,7 +82,7 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
                 self.state = .settingUp
                 if !Grove.didLoadFirebase {
                     Grove.loadFirebase(for: .unitedStates)
-                    try? await _Concurrency.Task.sleep(for: .seconds(1))
+                    try? await Swift::Task.sleep(for: .seconds(1))
                 }
                 do {
                     try await setUp()
@@ -250,7 +250,7 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
         precondition(account.details?.dateOfEnrollment != nil)
         if ClinicalRecordPermissions.isAvailable {
             desc = "\(#function) will ask for clinical access"
-            try await _Concurrency.Task.sleep(for: .seconds(1))
+            try await Swift::Task.sleep(for: .seconds(1))
             try await clinicalRecordPermissions.askForAuthorization(askAgainIfCancelledPreviously: false)
         }
         

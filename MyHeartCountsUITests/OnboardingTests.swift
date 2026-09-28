@@ -11,7 +11,7 @@ import XCTest
 import XCTestExtensions
 
 
-final class OnboardingTests: MHCTestCase, Sendable {
+final class OnboardingTests: MHCTestCase, @unchecked Sendable {
     override func tearDown() async throws {
         app.terminate()
         // Reset HealthKit authorization after every test in this class.

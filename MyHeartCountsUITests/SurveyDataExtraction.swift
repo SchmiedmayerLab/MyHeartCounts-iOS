@@ -14,7 +14,7 @@ import XCTestExtensions
 import XCTGroveQuestionnaire
 
 
-final class ScheduledTaskTests: MHCTestCase, Sendable {
+final class ScheduledTaskTests: MHCTestCase, @unchecked Sendable {
     func testSurveyHealthDataExtraction() throws {
         try launchAppAndEnrollIntoStudy(enableDebugMode: true)
         openAccountSheet()
