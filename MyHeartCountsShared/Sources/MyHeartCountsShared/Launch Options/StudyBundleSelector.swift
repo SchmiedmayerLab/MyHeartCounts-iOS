@@ -95,8 +95,11 @@ extension LaunchOptions {
     /// - `bundledWithApp`
     /// - a `URL`, which can be either a web url (https) or a local file system url.
     ///
+    /// Defaults to ``StudyBundleSelector/firebase(_:)``. The variant is a placeholder: the loader replaces it with the
+    /// active study variant, and falls back to the bundle shipped with the app if the hosted one can't be fetched or decoded.
+    ///
     /// See ``StudyBundleSelector`` for more information.
-    public static let studyBundleSelector = LaunchOption<StudyBundleSelector>("--studyBundle", default: .bundledWithApp(.stanford))
+    public static let studyBundleSelector = LaunchOption<StudyBundleSelector>("--studyBundle", default: .firebase(.stanford))
 }
 
 #endif
