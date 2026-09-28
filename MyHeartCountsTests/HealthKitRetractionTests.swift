@@ -48,12 +48,13 @@ struct HealthKitRetractionTests {
     }
 
     private static func record(
-        sourceType: String = "HKQuantityTypeIdentifierStepCount"
+        sourceType: String = "HKQuantityTypeIdentifierStepCount",
+        deletedAfter: Date? = nil
     ) throws -> HealthKitDeletedRecord {
         HealthKitDeletedRecord(
             sourceTypeIdentifier: sourceType,
             nativeRecordID: try #require(UUID(uuidString: "9512FC92-B514-4BCC-A157-050C41DAC51D")),
-            deletedAfter: nil,
+            deletedAfter: deletedAfter,
             detectedAt: detectedAt
         )
     }
@@ -270,21 +271,40 @@ struct HealthKitRetractionTests {
         #expect(graph.bundle.id == conversion.primary.bundle.id)
     }
 
-    /// HealthKit states no deletion time, so the retraction occurred when the anchored query reported
-    /// it and was recorded when the drain assembled it.
-    @Test
-    func retractionOccursAtDetectionAndIsRecordedAtAssembly() throws {
+    /// HealthKit states no deletion time. Preserve its bounds without claiming an exact instant,
+    /// including when an old anchor or a backwards clock adjustment leaves no valid lower bound.
+    @Test(arguments: [
+        (nil, nil),
+        (Self.detectedAt - 3600, Self.detectedAt - 3600),
+        (Self.detectedAt, Self.detectedAt),
+        (Self.detectedAt + 3600, nil)
+    ] as [(Date?, Date?)])
+    func retractionPreservesDeletionBounds(deletedAfter: Date?, expectedStart: Date?) throws {
         let store = FHIRExchangeStateStore()
-        let record = try Self.record()
+        let record = try Self.record(deletedAfter: deletedAfter)
         let graph = try Self.retraction(of: record, in: store, subject: try Self.subject)
         let provenance = try Self.provenance(in: graph)
-        guard case .dateTime(let occurred)? = provenance.occurred else {
-            Issue.record("A detected deletion occurs at one instant")
+        guard case .period(let occurred)? = provenance.occurred else {
+            Issue.record("A detected deletion carries the known bounds on its occurrence")
             return
         }
 
-        #expect(try occurred.value?.asNSDate() == Self.detectedAt)
+        #expect(try occurred.start?.value?.asNSDate() == expectedStart)
+        #expect(try occurred.end?.value?.asNSDate() == Self.detectedAt)
         #expect(try provenance.recorded.value?.asNSDate() == Self.recordedAt)
         #expect(graph.bundle.id?.value?.string == record.nativeRecordID.uuidString)
+    }
+
+    @Test
+    func reassemblingRetractionPreservesEventAndTiming() throws {
+        let store = FHIRExchangeStateStore()
+        let subject = try Self.subject
+        let record = try Self.record(deletedAfter: Self.detectedAt - 3600)
+        let first = try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: Self.recordedAt))
+        let retry = try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: Self.recordedAt + 3600))
+
+        #expect(retry.eventKey == first.eventKey)
+        #expect(retry.graph.bundle == first.graph.bundle)
+        #expect(try Self.provenance(in: retry.graph).recorded.value?.asNSDate() == Self.recordedAt)
     }
 }

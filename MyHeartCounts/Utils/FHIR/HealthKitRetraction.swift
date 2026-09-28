@@ -53,10 +53,13 @@ extension FHIRExchangeStateStore {
             ),
             options: .myHeartCounts
         )
+        // A backwards clock adjustment can put the saved query time after detection. Keep the
+        // known upper bound without asserting an invalid period that would prevent draining.
+        let deletedAfter = record.deletedAfter.flatMap { $0 <= record.detectedAt ? $0 : nil }
         let retraction = try HealthKitConverter().retraction(
             for: HealthKitSourceRecord(uuid: record.nativeRecordID, type: sourceType),
             context: context,
-            occurred: .instant(record.detectedAt)
+            occurred: .period(start: deletedAfter, end: record.detectedAt)
         )
         return (eventKey, retraction.graph)
     }
