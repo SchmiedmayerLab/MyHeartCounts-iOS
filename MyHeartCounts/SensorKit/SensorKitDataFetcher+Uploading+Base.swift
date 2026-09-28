@@ -12,6 +12,7 @@ import GroveFHIRContract
 import GroveFirestore
 import GroveSensorKit
 import GroveSensorKitFHIR
+import OSLog
 
 
 struct SensorKitUploadSidecar: Sendable {
@@ -20,11 +21,49 @@ struct SensorKitUploadSidecar: Sendable {
 }
 
 
+/// Grove refused one SensorKit record: preparing or converting it threw.
+///
+/// Grove's preparation and conversion are deterministic and perform no I/O, so an exact redelivery
+/// refuses identically. The upload strategies therefore skip a refused record and still acknowledge
+/// its batch; failing the batch instead would redeliver it forever and block every newer record of
+/// the sensor. Every other error (account fence, retry ledger, staging, Firestore) aborts the batch
+/// without acknowledging it.
+struct SensorKitRecordRefusal: Error {
+    let underlying: any Error
+
+    /// Runs one step of Grove's preparation, reporting whatever it throws as a refusal of the record.
+    static func refusing<Prepared>(_ prepare: () throws -> Prepared) throws -> Prepared {
+        do {
+            return try prepare()
+        } catch {
+            throw Self(underlying: error)
+        }
+    }
+
+    /// Logs the refusal without any record content.
+    func log(for sensor: some AnySensor, recordOrdinal: Int) {
+        let reason: String = switch underlying {
+        case let error as SensorKitConversionError:
+            "\(error.diagnostic.code) at \(error.diagnostic.location)"
+        case let error as SensorKitRecordError:
+            "\(error.diagnostic.code) at \(error.diagnostic.location)"
+        default:
+            String(reflecting: type(of: underlying))
+        }
+        logger.warning("Grove refused record #\(recordOrdinal) of SensorKit sensor '\(sensor.id)': \(reason)")
+    }
+}
+
+
 extension MHCSensorSampleUploadStrategy {
     /// Publishes one Grove-prepared SensorKit record through MHC's storage backend.
     ///
     /// Grove owns the exact payload bytes and FHIR projection. MHC owns the durable sidecar upload,
     /// Firestore destination, and retry acknowledgement boundary.
+    ///
+    /// - throws: ``SensorKitRecordRefusal`` if `makeRecord` or Grove's conversion throws; the record's
+    ///     reservation is released and nothing was staged or written for it. Any other error aborts the
+    ///     batch, which must then not be acknowledged.
     func upload( // swiftlint:disable:this function_parameter_count
         sidecar: SensorKitUploadSidecar?,
         retryEvidence: Data,
@@ -51,8 +90,14 @@ extension MHCSensorSampleUploadStrategy {
         let sidecarPath = filename.map {
             ManagedFileUpload.Category(sensor).remotePath(for: $0)
         }
-        let record = try makeRecord(reservation.sourceRecordID, title, sidecarPath)
-        let conversion = try SensorKitConverter().convert(record, context: reservation.context)
+        let conversion: SensorKitConversion
+        do {
+            let record = try makeRecord(reservation.sourceRecordID, title, sidecarPath)
+            conversion = try SensorKitConverter().convert(record, context: reservation.context)
+        } catch {
+            publication.release(reservation)
+            throw SensorKitRecordRefusal(underlying: error)
+        }
 
         if let sidecar, let filename {
             // Conversion validates the complete graph before the referenced exact bytes become

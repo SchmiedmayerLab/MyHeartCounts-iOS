@@ -226,14 +226,13 @@ extension MyHeartCountsStandard {
             accountDataGeneration: accountDataGeneration
         )
         let stateStore = fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
-        func prepareFHIRPayload(
-            _ observation: some HealthObservation
-        ) async throws -> PreparedHealthObservationFHIRPayload {
-            try await observation.prepareFHIRPayload(
-                conversionInstant: conversionInstant,
+        /// Reserves the samples' exchange events in one ledger transaction before any conversion.
+        func conversionBatch(reserving samples: [HKSample]) throws -> HealthKitConversionBatch {
+            try HealthKitConversionBatch(
+                reserving: samples,
                 subject: subject,
-                stateStore: stateStore,
-                using: healthKit
+                conversionInstant: conversionInstant,
+                stateStore: stateStore
             )
         }
         let uploadStrategy = uploadStrategy ?? Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
@@ -250,11 +249,12 @@ extension MyHeartCountsStandard {
             let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                 for: .new(sampleTypeTitle: sampleTypeIdentifier, count: numObservations, uploadStrategy: uploadStrategy)
             )
+            let conversions = try conversionBatch(reserving: observations.compactMap { $0 as? HKSample })
             var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
             for observation in consume observations {
                 try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
-                let payload = try await prepareFHIRPayload(observation)
+                let payload = try await observation.prepareFHIRPayload(in: conversions, using: healthKit)
                 entries.append(contentsOf: payload.entries)
             }
             guard !entries.isEmpty else {
@@ -281,10 +281,11 @@ extension MyHeartCountsStandard {
                 let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                     for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadStrategy: uploadStrategy)
                 )
+                let conversions = try conversionBatch(reserving: chunk.compactMap { $0 as? HKSample })
                 let batch = Firestore.firestore().batch()
                 var chunkEventKeys = Set<String>()
                 for observation in chunk {
-                    let payload = try await prepareFHIRPayload(observation)
+                    let payload = try await observation.prepareFHIRPayload(in: conversions, using: healthKit)
                     for entry in payload.entries {
                         if let eventKey = entry.eventKey {
                             chunkEventKeys.insert(eventKey)
