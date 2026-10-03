@@ -40,7 +40,6 @@ struct PreparedHealthObservationFHIRPayload {
         let resource: AnyEncodable
         let sourceID: UUID
         let sourceTypeIdentifier: String
-        let eventKey: String?
     }
 
     /// One record the adapter permanently refuses, kept so a batch never drops it silently.
@@ -51,21 +50,27 @@ struct PreparedHealthObservationFHIRPayload {
 
     let entries: [Entry]
     let refusals: [Refusal]
+    /// The exchange-event reservations behind `entries`; `nil` for a payload the app modelled itself.
+    let receipt: HealthKitFHIRExporter.Receipt?
 
-    init(entries: [Entry], refusals: [Refusal] = []) {
+    init(entries: [Entry], refusals: [Refusal] = [], receipt: HealthKitFHIRExporter.Receipt? = nil) {
         self.entries = entries
         self.refusals = refusals
+        self.receipt = receipt
     }
 }
 
 
 /// Retry-only event reservations released only after Grove commits the corresponding source cursor.
 struct HealthKitFHIRReservationReceipt: Sendable {
-    let eventKeys: Set<String>
-    private let stateStore: FHIRExchangeStateStore?
+    private let receipts: [HealthKitFHIRExporter.Receipt]
+
+    var isEmpty: Bool {
+        receipts.isEmpty
+    }
 
     var anchorCommitAction: HealthKitAnchorCommitAction? {
-        guard stateStore != nil, !eventKeys.isEmpty else {
+        guard !receipts.isEmpty else {
             return nil
         }
         return HealthKitAnchorCommitAction {
@@ -74,28 +79,26 @@ struct HealthKitFHIRReservationReceipt: Sendable {
     }
 
     init() {
-        self.stateStore = nil
-        self.eventKeys = []
+        self.receipts = []
     }
 
-    init(
-        stateStore: FHIRExchangeStateStore,
-        eventKeys: some Sequence<String>
-    ) {
-        self.stateStore = stateStore
-        self.eventKeys = Set(eventKeys)
+    init(_ receipts: some Sequence<HealthKitFHIRExporter.Receipt>) {
+        self.receipts = Array(receipts)
     }
 
-    init(
-        stateStore: FHIRExchangeStateStore,
-        entries: some Sequence<PreparedHealthObservationFHIRPayload.Entry>
-    ) {
-        self.init(stateStore: stateStore, eventKeys: entries.compactMap(\.eventKey))
+    init(payloads: some Sequence<PreparedHealthObservationFHIRPayload>) {
+        self.init(payloads.compactMap(\.receipt))
+    }
+
+    init(merging receipts: some Sequence<HealthKitFHIRReservationReceipt>) {
+        self.init(receipts.flatMap(\.receipts))
     }
 
     /// Cleanup is best-effort and idempotent: the source cursor is already durable at this point.
     func completeAfterSourceAcknowledgement() {
-        try? stateStore?.completeExchangeEvents(eventKeys)
+        for receipt in receipts {
+            receipt.release()
+        }
     }
 }
 
@@ -124,119 +127,69 @@ extension TimedWalkingTestResult: SelfModelledHealthObservation {
 
 extension HealthObservation {
     private static func entry(
-        bundle: ModelsR4.Bundle,
-        sourceID: UUID,
-        sourceTypeIdentifier: String,
-        eventKey: String
+        graph: ExchangeGraph,
+        source: HealthKitFHIRExporter.Export.Source
     ) -> PreparedHealthObservationFHIRPayload.Entry {
         PreparedHealthObservationFHIRPayload.Entry(
-            resource: AnyEncodable(FHIRResource(bundle).encodableUnderlyingResource),
-            sourceID: sourceID,
-            sourceTypeIdentifier: sourceTypeIdentifier,
-            eventKey: eventKey
+            resource: AnyEncodable(FHIRResource(graph.bundle).encodableUnderlyingResource),
+            sourceID: source.uuid,
+            sourceTypeIdentifier: source.typeIdentifier
         )
     }
 
-    /// Records a permanently refused record and releases the reservations it will never use.
-    ///
-    /// The adapter's refusals are deterministic, so an exact redelivery refuses identically. Failing
-    /// the batch instead would retain the source anchor and block every newer sample of the type.
-    private static func refusal(
-        of sample: HKSample,
-        reason: HealthKitConversionError,
-        reservedEventKeys: some Sequence<String>,
-        stateStore: FHIRExchangeStateStore
-    ) -> PreparedHealthObservationFHIRPayload {
-        try? stateStore.completeExchangeEvents(reservedEventKeys)
-        let diagnostic = reason.diagnostic
-        logger.warning(
-            "Grove refused \(sample.sampleType.identifier) \(sample.uuid): \(diagnostic.code) at \(diagnostic.location) (\(String(describing: reason)))"
-        )
-        let refusal = PreparedHealthObservationFHIRPayload.Refusal(
-            sourceID: sample.uuid,
-            reason: reason
-        )
-        return PreparedHealthObservationFHIRPayload(entries: [], refusals: [refusal])
-    }
-
-    /// Converts one sample under its reserved context; Grove never queries HealthKit, so an ECG's
-    /// waveform and correlated symptoms are fetched here and each symptom gets its own event.
-    private static func conversions(
-        of sample: HKSample,
-        context: HealthKitConversionContext,
-        using healthKit: HealthKit,
-        reserve: ([HKSample]) throws -> [HealthKitConversionContext]
-    ) async throws -> HealthKitConversionSet {
-        switch sample {
-        case let electrocardiogram as HKElectrocardiogram:
-            async let voltageMeasurements = electrocardiogram.rawVoltageMeasurements(from: healthKit.healthStore)
-            async let correlatedSymptoms = electrocardiogram.correlatedSymptomSamples(from: healthKit)
-            let record = HealthKitECGRecord(
-                electrocardiogram: electrocardiogram,
-                voltageMeasurements: try await voltageMeasurements,
-                correlatedSymptoms: try await correlatedSymptoms
-            )
-            return try HealthKitConverter().convert(
-                record,
-                context: context,
-                symptomContexts: try reserve(record.correlatedSymptoms)
-            )
-        case let record as HKClinicalRecord:
-            return try HealthKitConverter().convert(record, context: context)
-        case let document as HKCDADocumentSample:
-            return try HealthKitConverter().convert(document, context: context)
-        default:
-            return try HealthKitConverter().convert(sample, context: context)
+    /// Grove never queries HealthKit, so an ECG's waveform and correlated symptoms are fetched here;
+    /// each symptom becomes an event of its own.
+    private static func record(
+        for sample: HKSample,
+        using healthKit: HealthKit
+    ) async throws -> HealthKitFHIRExporter.Record {
+        guard let electrocardiogram = sample as? HKElectrocardiogram else {
+            return .sample(sample)
         }
+        async let voltageMeasurements = electrocardiogram.rawVoltageMeasurements(from: healthKit.healthStore)
+        async let correlatedSymptoms = electrocardiogram.correlatedSymptomSamples(from: healthKit)
+        return .electrocardiogram(
+            electrocardiogram,
+            voltages: try await voltageMeasurements,
+            symptoms: try await correlatedSymptoms
+        )
     }
 
+    /// Converts one sample under the batch's exporter.
+    ///
+    /// A record the adapter permanently refuses is recorded as a refusal and its reservation is
+    /// released: the adapter's refusals are deterministic, so an exact redelivery refuses
+    /// identically, and failing the batch instead would retain the source anchor and block every
+    /// newer sample of the type.
     private static func samplePayload(
         for sample: HKSample,
-        in batch: HealthKitConversionBatch,
+        exporter: HealthKitFHIRExporter,
+        at conversionInstant: Date,
         healthKit: HealthKit
     ) async throws -> PreparedHealthObservationFHIRPayload {
-        var reservedEventKeys: [String] = []
-        func reserve(_ samples: [HKSample]) throws -> [HealthKitConversionContext] {
-            let reservations = try batch.reservations(for: samples)
-            reservedEventKeys.append(contentsOf: reservations.map(\.eventKey))
-            return reservations.map(\.context)
-        }
-        let conversions: HealthKitConversionSet
-        do {
-            conversions = try await Self.conversions(
-                of: sample,
-                context: try reserve([sample])[0],
-                using: healthKit,
-                reserve: reserve
-            )
-        } catch let error as HealthKitConversionError {
-            return Self.refusal(
-                of: sample,
-                reason: error,
-                reservedEventKeys: reservedEventKeys,
-                stateStore: batch.stateStore
-            )
-        }
-        for conversion in conversions.all {
-            for warning in conversion.warnings {
-                let diagnostic = warning.diagnostic
-                logger.notice(
-                    "Grove converted \(conversion.source.type.rawValue) \(conversion.source.uuid) with \(diagnostic.code) at \(diagnostic.location)"
+        let record = try await Self.record(for: sample, using: healthKit)
+        var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+        var refusals: [PreparedHealthObservationFHIRPayload.Refusal] = []
+        let receipt = try exporter.export(records: CollectionOfOne(record), at: conversionInstant) { export in
+            switch export.outcome {
+            case .graph(let graph):
+                for diagnostic in export.warnings {
+                    logger.notice(
+                        "Grove converted \(export.source.typeIdentifier) \(export.source.uuid) with \(diagnostic.code) at \(diagnostic.location)"
+                    )
+                }
+                entries.append(Self.entry(graph: graph, source: export.source))
+            case .refused(let reason):
+                let diagnostic = reason.diagnostic
+                logger.warning(
+                    "Grove refused \(export.source.typeIdentifier) \(export.source.uuid): \(diagnostic.code) at \(diagnostic.location) (\(String(describing: reason)))"
                 )
+                refusals.append(PreparedHealthObservationFHIRPayload.Refusal(sourceID: export.source.uuid, reason: reason))
+            case .nothingToRetract:
+                break
             }
         }
-        return PreparedHealthObservationFHIRPayload(entries: conversions.all.map { conversion in
-            Self.entry(
-                bundle: conversion.bundle,
-                sourceID: conversion.source.uuid,
-                sourceTypeIdentifier: conversion.source.type.rawValue,
-                eventKey: batch.stateStore.healthKitEventKey(
-                    subject: batch.subject,
-                    sourceType: conversion.source.type.rawValue,
-                    nativeRecordID: conversion.source.uuid
-                )
-            )
-        })
+        return PreparedHealthObservationFHIRPayload(entries: entries, refusals: refusals, receipt: receipt)
     }
 
     private static func selfModelledPayload(
@@ -251,15 +204,14 @@ extension HealthObservation {
             PreparedHealthObservationFHIRPayload.Entry(
                 resource: AnyEncodable(FHIRResource(resourceProxy.get()).encodableUnderlyingResource),
                 sourceID: observation.id,
-                sourceTypeIdentifier: observation.sampleTypeIdentifier,
-                eventKey: nil
+                sourceTypeIdentifier: observation.sampleTypeIdentifier
             )
         ])
     }
 
     /// Produces the FHIR payload persisted for this observation.
     ///
-    /// A HealthKit sample converts through the Grove HealthKit adapter, which yields an exchange
+    /// A HealthKit sample converts through the Grove HealthKit exporter, which yields an exchange
     /// Bundle holding the Observation, the recording and converting Devices, and the conversion
     /// Provenance. Provider-issued clinical FHIR remains byte-preserved inside an R4 recording-
     /// document graph. Everything without a Grove adapter is modelled by the app itself.
@@ -267,23 +219,25 @@ extension HealthObservation {
     /// A record the adapter permanently refuses is reported as a refusal rather than thrown, so one
     /// unconvertible sample never costs its batch or its sample type's ingestion.
     ///
-    /// Callers converting many observations reserve them up front in one ``HealthKitConversionBatch``,
-    /// which keeps the per-sample cost free of encrypted ledger passes.
+    /// Callers converting many observations share one exporter built by
+    /// `FHIRExchangeStateStore.healthKitExporter(subject:)`.
     func prepareFHIRPayload(
-        in batch: HealthKitConversionBatch,
+        with exporter: HealthKitFHIRExporter,
+        at conversionInstant: Date,
         using healthKit: HealthKit
     ) async throws -> PreparedHealthObservationFHIRPayload {
         switch self {
         case let sample as HKSample:
             return try await Self.samplePayload(
                 for: sample,
-                in: batch,
+                exporter: exporter,
+                at: conversionInstant,
                 healthKit: healthKit
             )
         case let observation as any SelfModelledHealthObservation:
             return try Self.selfModelledPayload(
                 for: observation,
-                conversionInstant: batch.conversionInstant
+                conversionInstant: conversionInstant
             )
         default:
             throw NSError(
@@ -293,21 +247,18 @@ extension HealthObservation {
         }
     }
 
-    /// Produces the FHIR payload of this observation alone, reserving in a batch of its own.
+    /// Produces the FHIR payload of this observation alone, with an exporter of its own.
     func prepareFHIRPayload(
         conversionInstant: Date,
         subject: FHIRExchangeSubject,
         stateStore: FHIRExchangeStateStore,
         using healthKit: HealthKit
     ) async throws -> PreparedHealthObservationFHIRPayload {
-        let samples: [HKSample] = (self as? HKSample).map { [$0] } ?? []
-        let batch = try HealthKitConversionBatch(
-            reserving: samples,
-            subject: subject,
-            conversionInstant: conversionInstant,
-            stateStore: stateStore
+        try await prepareFHIRPayload(
+            with: try stateStore.healthKitExporter(subject: subject),
+            at: conversionInstant,
+            using: healthKit
         )
-        return try await prepareFHIRPayload(in: batch, using: healthKit)
     }
 }
 

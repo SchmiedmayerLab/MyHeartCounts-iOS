@@ -90,16 +90,17 @@ struct HealthKitRefusalIsolationTests {
             using: HealthKit()
         )
 
-        let laterEvent = try stateStore.event(
-            key: stateStore.healthKitEventKey(
-                subject: subject,
-                sourceType: sample.sampleType.identifier,
-                nativeRecordID: sample.uuid
-            ),
-            recordedAt: Self.start,
-            facts: .current()
+        let later = HKQuantitySample(
+            type: HKQuantityType(.stepCount),
+            quantity: HKQuantity(unit: .count(), doubleValue: 1),
+            start: Self.start,
+            end: Self.start + 60
         )
-        #expect(laterEvent.sequence == 2)
+        var laterEvent: BusinessIdentifier?
+        _ = try stateStore.healthKitExporter(subject: subject).export([later], at: Self.start) { export in
+            laterEvent = export.graph?.event
+        }
+        #expect(laterEvent?.value.hasSuffix(":2") == true)
     }
 
     @Test

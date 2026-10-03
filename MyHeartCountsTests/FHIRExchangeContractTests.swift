@@ -70,12 +70,7 @@ struct FHIRExchangeStateTests {
         )
         #expect(retry == first)
 
-        let receipt = HealthKitFHIRReservationReceipt(
-            stateStore: store,
-            eventKeys: CollectionOfOne(key)
-        )
-        #expect(receipt.anchorCommitAction != nil)
-        receipt.completeAfterSourceAcknowledgement()
+        try store.completeExchangeEvents(CollectionOfOne(key))
         let laterPublication = try store.event(
             key: key,
             recordedAt: Date(timeIntervalSince1970: 1_799_000_000),
@@ -354,8 +349,8 @@ extension FHIRExchangeStateTests {
         #expect(retry.events == newEvents.events)
     }
 
-    /// A HealthKit batch reserves every sample before converting any, and serves each one the
-    /// context the single-sample path rebuilds for it.
+    /// A HealthKit batch reserves every sample before converting any; a redelivery of one of them,
+    /// alone or later, reproduces the event the batch minted.
     @Test
     func healthKitBatchReservesEverySampleUpFront() throws {
         let store = FHIRExchangeStateStore()
@@ -370,28 +365,29 @@ extension FHIRExchangeStateTests {
                 end: sampleStart.addingTimeInterval(30)
             )
         }
-        let batch = try HealthKitConversionBatch(
-            reserving: samples,
-            subject: subject,
-            conversionInstant: start,
-            stateStore: store
-        )
+        let exporter = try store.healthKitExporter(subject: subject)
+        func events(of samples: [HKSample], at instant: Date) throws -> [BusinessIdentifier] {
+            var events: [BusinessIdentifier] = []
+            _ = try exporter.export(samples, at: instant) { export in
+                events.append(try #require(export.graph?.event))
+            }
+            return events
+        }
+        let batch = try events(of: samples, at: start)
         let unreserved = HKQuantitySample(
             type: HKQuantityType(.stepCount),
             quantity: HKQuantity(unit: .count(), doubleValue: 4),
             start: start,
             end: start.addingTimeInterval(30)
         )
-        let onDemand = try batch.reservation(for: unreserved)
+        let onDemand = try events(of: [unreserved], at: start)
 
         for (index, sample) in samples.enumerated() {
-            let reservation = try batch.reservation(for: sample)
-            let single = try store.healthKitConversion(for: sample, subject: subject, conversionInstant: start.addingTimeInterval(3600))
-            #expect(reservation.eventKey == single.eventKey)
-            #expect(reservation.context.event.event == single.context.event.event)
-            #expect(reservation.context.event.event.sequence.rawValue == String(index + 1))
+            let single = try events(of: [sample], at: start.addingTimeInterval(3600))
+            #expect(single == [batch[index]])
+            #expect(batch[index].value.hasSuffix(":\(index + 1)"))
         }
-        #expect(onDemand.context.event.event.sequence.rawValue == "4")
+        #expect(onDemand.first?.value.hasSuffix(":4") == true)
     }
 }
 

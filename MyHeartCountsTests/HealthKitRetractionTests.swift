@@ -122,7 +122,7 @@ struct HealthKitRetractionTests {
         in store: FHIRExchangeStateStore,
         subject: FHIRExchangeSubject
     ) throws -> ExchangeGraph {
-        try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: recordedAt)).graph
+        try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: recordedAt))
     }
 
     @Test
@@ -248,14 +248,14 @@ struct HealthKitRetractionTests {
             start: Self.detectedAt - 3600,
             end: Self.detectedAt - 3540
         )
-        let conversion = try HealthKitConverter().convert(
-            sample,
-            context: try store.healthKitConversion(
-                for: sample,
-                subject: subject,
-                conversionInstant: Self.detectedAt - 3000
-            ).context
-        )
+        var conversions: [ExchangeGraph] = []
+        _ = try store.healthKitExporter(subject: subject).export([sample], at: Self.detectedAt - 3000) { export in
+            if let graph = export.graph {
+                conversions.append(graph)
+            }
+        }
+        let conversion = try #require(conversions.first)
+        let mintedOutput = try mintedSourceOutput(of: conversion, in: store)
         let graph = try Self.retraction(
             of: HealthKitDeletedRecord(
                 sourceTypeIdentifier: sample.sampleType.identifier,
@@ -267,8 +267,8 @@ struct HealthKitRetractionTests {
             subject: subject
         )
 
-        #expect(try Self.targets(in: graph).map(\.identifier) == [conversion.primary.identifiers.primaryOutput.identifier.value])
-        #expect(graph.bundle.id == conversion.primary.bundle.id)
+        #expect(try Self.targets(in: graph).map(\.identifier) == [mintedOutput])
+        #expect(graph.bundle.id == conversion.bundle.id)
     }
 
     /// HealthKit states no deletion time. Preserve its bounds without claiming an exact instant,
@@ -303,8 +303,20 @@ struct HealthKitRetractionTests {
         let first = try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: Self.recordedAt))
         let retry = try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: Self.recordedAt + 3600))
 
-        #expect(retry.eventKey == first.eventKey)
-        #expect(retry.graph.bundle == first.graph.bundle)
-        #expect(try Self.provenance(in: retry.graph).recorded.value?.asNSDate() == Self.recordedAt)
+        #expect(retry.event == first.event)
+        #expect(retry.bundle == first.bundle)
+        #expect(try Self.provenance(in: retry).recorded.value?.asNSDate() == Self.recordedAt)
     }
+}
+
+
+/// The source-output identifier the conversion minted for its primary Observation.
+private func mintedSourceOutput(of graph: ExchangeGraph, in store: FHIRExchangeStateStore) throws -> String {
+    let sourceOutputSystem = try store.identityScope().systems.opaque.sourceOutput.rawValue
+    return try #require(graph.bundle.entry?.lazy.compactMap { entry -> String? in
+        guard case .observation(let observation)? = entry.resource else {
+            return nil
+        }
+        return observation.identifier?.first { $0.system?.value?.url.absoluteString == sourceOutputSystem }?.value?.value?.string
+    }.first)
 }

@@ -42,14 +42,12 @@ extension HealthUploadStaging {
         )
         var bundles: [ModelsR4.Bundle] = []
         var identifiers: [UUID] = []
-        var eventKeys = Set<String>()
-        for (row, retraction) in zip(rows, retractions) {
-            guard let retraction else {
+        for (row, graph) in zip(rows, retractions.graphs) {
+            guard let graph else {
                 continue
             }
-            bundles.append(retraction.graph.bundle)
+            bundles.append(graph.bundle)
             identifiers.append(row.sampleId)
-            eventKeys.insert(retraction.eventKey)
         }
         guard !bundles.isEmpty else {
             return nil
@@ -57,7 +55,7 @@ extension HealthUploadStaging {
         return RetractionBatch(
             payload: try HealthUploadBatch.encoder.encode(bundles),
             identifiers: identifiers,
-            receipt: HealthKitFHIRReservationReceipt(stateStore: stateStore, eventKeys: eventKeys)
+            receipt: HealthKitFHIRReservationReceipt(retractions.receipt.map { [$0] } ?? [])
         )
     }
 }

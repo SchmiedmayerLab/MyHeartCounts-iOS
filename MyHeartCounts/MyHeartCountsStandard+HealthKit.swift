@@ -178,7 +178,7 @@ extension MyHeartCountsStandard {
             accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration],
             uploadStrategy: uploadStrategy
         )
-        assert(receipt.eventKeys.isEmpty, "public upload path left \(receipt.eventKeys.count) reservations")
+        assert(receipt.isEmpty, "public upload path left exchange-event reservations")
     }
 
     private func uploadHealthObservations( // swiftlint:disable:this function_body_length cyclomatic_complexity
@@ -207,16 +207,11 @@ extension MyHeartCountsStandard {
                         )
                     }
                 }
-                var eventKeys = Set<String>()
+                var receipts: [HealthKitFHIRReservationReceipt] = []
                 for try await receipt in taskGroup {
-                    eventKeys.formUnion(receipt.eventKeys)
+                    receipts.append(receipt)
                 }
-                return HealthKitFHIRReservationReceipt(
-                    stateStore: self.fhirExchangeStateStore(
-                        accountDataGeneration: accountDataGeneration
-                    ),
-                    eventKeys: eventKeys
-                )
+                return HealthKitFHIRReservationReceipt(merging: receipts)
             }
         }
         let conversionInstant = Date.now
@@ -226,15 +221,7 @@ extension MyHeartCountsStandard {
             accountDataGeneration: accountDataGeneration
         )
         let stateStore = fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
-        /// Reserves the samples' exchange events in one ledger transaction before any conversion.
-        func conversionBatch(reserving samples: [HKSample]) throws -> HealthKitConversionBatch {
-            try HealthKitConversionBatch(
-                reserving: samples,
-                subject: subject,
-                conversionInstant: conversionInstant,
-                stateStore: stateStore
-            )
-        }
+        let exporter = try stateStore.healthKitExporter(subject: subject)
         let uploadStrategy = uploadStrategy ?? Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
         switch uploadStrategy {
         case .queueLocally:
@@ -249,16 +236,17 @@ extension MyHeartCountsStandard {
             let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                 for: .new(sampleTypeTitle: sampleTypeIdentifier, count: numObservations, uploadStrategy: uploadStrategy)
             )
-            let conversions = try conversionBatch(reserving: observations.compactMap { $0 as? HKSample })
             var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+            var payloads: [PreparedHealthObservationFHIRPayload] = []
             for observation in consume observations {
                 try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
-                let payload = try await observation.prepareFHIRPayload(in: conversions, using: healthKit)
+                let payload = try await observation.prepareFHIRPayload(with: exporter, at: conversionInstant, using: healthKit)
                 entries.append(contentsOf: payload.entries)
+                payloads.append(payload)
             }
             guard !entries.isEmpty else {
-                return HealthKitFHIRReservationReceipt(stateStore: stateStore, entries: entries)
+                return HealthKitFHIRReservationReceipt(payloads: payloads)
             }
             let url = try HealthUploadBatch.write(entries, typePrefix: sampleTypeIdentifier)
             defer {
@@ -272,24 +260,23 @@ extension MyHeartCountsStandard {
                 accountDataGeneration: accountDataGeneration
             )
             await triggerDidUploadNotification()
-            return HealthKitFHIRReservationReceipt(stateStore: stateStore, entries: entries)
+            return HealthKitFHIRReservationReceipt(payloads: payloads)
         case .directFirestore:
-            var acknowledgedEventKeys = Set<String>()
+            var acknowledged: [HealthKitFHIRExporter.Receipt] = []
             for chunk in (consume observations).chunks(ofCount: Self.directFirestoreUploadDefaultBatchSize) {
                 try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
                 let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                     for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadStrategy: uploadStrategy)
                 )
-                let conversions = try conversionBatch(reserving: chunk.compactMap { $0 as? HKSample })
                 let batch = Firestore.firestore().batch()
-                var chunkEventKeys = Set<String>()
+                var chunkReceipts: [HealthKitFHIRExporter.Receipt] = []
                 for observation in chunk {
-                    let payload = try await observation.prepareFHIRPayload(in: conversions, using: healthKit)
+                    let payload = try await observation.prepareFHIRPayload(with: exporter, at: conversionInstant, using: healthKit)
+                    if let receipt = payload.receipt {
+                        chunkReceipts.append(receipt)
+                    }
                     for entry in payload.entries {
-                        if let eventKey = entry.eventKey {
-                            chunkEventKeys.insert(eventKey)
-                        }
                         let document = try Self.healthObservationDocument(
                             forSampleType: entry.sourceTypeIdentifier,
                             id: entry.sourceID.uuidString,
@@ -302,13 +289,10 @@ extension MyHeartCountsStandard {
                 try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
                 try await batch.commit()
-                acknowledgedEventKeys.formUnion(chunkEventKeys)
+                acknowledged.append(contentsOf: chunkReceipts)
                 await triggerDidUploadNotification()
             }
-            return HealthKitFHIRReservationReceipt(
-                stateStore: stateStore,
-                eventKeys: acknowledgedEventKeys
-            )
+            return HealthKitFHIRReservationReceipt(acknowledged)
         }
     }
 }

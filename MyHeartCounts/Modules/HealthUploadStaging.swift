@@ -12,6 +12,7 @@ import GRDB
 import Grove
 import GroveFoundation
 import GroveHealthKit
+import GroveHealthKitFHIR
 import GroveLocalStorage
 import HealthKit
 import MyHeartCountsShared
@@ -204,22 +205,17 @@ extension HealthUploadStaging {
     ) async throws -> HealthKitFHIRReservationReceipt {
         let subject = try await resolvedSubject()
         let stateStore = resolvedStateStore(accountDataGeneration: writeContext.accountDataGeneration)
-        let conversionBatch = try HealthKitConversionBatch(
-            reserving: samples.compactMap { $0 as? HKSample },
-            subject: subject,
-            conversionInstant: ingestionTimestamp,
-            stateStore: stateStore
-        )
+        let exporter = try stateStore.healthKitExporter(subject: subject)
         var pendingSamples: [PendingSampleRecord] = []
-        var eventKeys = Set<String>()
+        var receipts: [HealthKitFHIRExporter.Receipt] = []
         pendingSamples.reserveCapacity(Self.databaseWriteChunkSize)
         for observation in consume samples {
             try Task.checkCancellation()
-            let payload = try await observation.prepareFHIRPayload(in: conversionBatch, using: healthKit)
+            let payload = try await observation.prepareFHIRPayload(with: exporter, at: ingestionTimestamp, using: healthKit)
+            if let receipt = payload.receipt {
+                receipts.append(receipt)
+            }
             for entry in payload.entries {
-                if let eventKey = entry.eventKey {
-                    eventKeys.insert(eventKey)
-                }
                 let sampleType = entry.sourceTypeIdentifier == observation.sampleTypeIdentifier
                     ? commonSampleType ?? entry.sourceTypeIdentifier
                     : entry.sourceTypeIdentifier
@@ -246,7 +242,7 @@ extension HealthUploadStaging {
             accountDataGeneration: writeContext.accountDataGeneration,
             into: writeContext.dbQueue
         )
-        return HealthKitFHIRReservationReceipt(stateStore: stateStore, eventKeys: eventKeys)
+        return HealthKitFHIRReservationReceipt(receipts)
     }
     
     

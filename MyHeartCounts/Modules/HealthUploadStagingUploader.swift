@@ -92,10 +92,7 @@ enum HealthUploadBatch {
         if lhsID != rhsID {
             return lhsID < rhsID
         }
-        if lhs.sourceTypeIdentifier != rhs.sourceTypeIdentifier {
-            return lhs.sourceTypeIdentifier < rhs.sourceTypeIdentifier
-        }
-        return (lhs.eventKey ?? "") < (rhs.eventKey ?? "")
+        return lhs.sourceTypeIdentifier < rhs.sourceTypeIdentifier
     }
 }
 

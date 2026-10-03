@@ -40,19 +40,18 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         let stateStore = await standard.fhirExchangeStateStore(
             accountDataGeneration: accountDataGeneration
         )
-        let conversionBatch = try HealthKitConversionBatch(
-            reserving: samples.map { $0 as HKSample },
-            subject: subject,
-            conversionInstant: conversionInstant,
-            stateStore: stateStore
-        )
+        let exporter = try stateStore.healthKitExporter(subject: subject)
         var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+        var receipts: [HealthKitFHIRExporter.Receipt] = []
         for sample in consume samples {
             try Task.checkCancellation()
             let healthSample = sample as HKSample
             do {
-                let payload = try await healthSample.prepareFHIRPayload(in: conversionBatch, using: healthKit)
+                let payload = try await healthSample.prepareFHIRPayload(with: exporter, at: conversionInstant, using: healthKit)
                 entries.append(contentsOf: payload.entries)
+                if let receipt = payload.receipt {
+                    receipts.append(receipt)
+                }
             } catch {
                 await standard.logger.warning(
                     "Failed \(healthSample.sampleType.identifier) \(healthSample.uuid): \(String(describing: error))"
@@ -61,7 +60,7 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
             }
         }
         guard !entries.isEmpty else {
-            return HealthKitFHIRReservationReceipt(stateStore: stateStore, entries: entries)
+            return HealthKitFHIRReservationReceipt(receipts)
         }
         let compressedUrl = try HealthUploadBatch.write(entries, typePrefix: sampleType.id)
         defer {
@@ -74,7 +73,7 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
             at: compressedUrl,
             accountDataGeneration: accountDataGeneration
         )
-        return HealthKitFHIRReservationReceipt(stateStore: stateStore, entries: entries)
+        return HealthKitFHIRReservationReceipt(receipts)
     }
 
     func didPersist(_ output: HealthKitFHIRReservationReceipt) async {
