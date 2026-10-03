@@ -163,15 +163,15 @@ struct HealthKitRetractionTests {
         #expect(identifier.system?.value?.url.absoluteString == FHIRExchangeIdentifiers.healthKitNativeRecord.rawValue)
     }
 
-    /// The workout row publishes two measurements and the converter emits the session under the
-    /// first, so a deleted workout must retract that exact output rather than pass as unexported.
+    /// A workout exports its session alone, under the first of the row's two measurements, so a deleted
+    /// workout must retract that exact output rather than pass as unexported.
     @Test
     func deletedWorkoutRetractsItsSessionObservation() throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
         let record = try Self.record(sourceType: HKWorkoutType.workoutType().identifier)
         let expected = try Self.expected(
-            Output(role: "workout", discriminator: "session", resourceType: .observation, targetRole: .primaryOutput),
+            Output(role: "workout", discriminator: "single", resourceType: .observation, targetRole: .primaryOutput),
             of: record,
             in: store,
             subject: subject
