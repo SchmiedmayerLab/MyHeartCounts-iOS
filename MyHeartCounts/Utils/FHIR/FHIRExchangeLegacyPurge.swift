@@ -12,32 +12,33 @@ import OSLog
 
 
 extension LocalPreferenceKeys {
-    /// Whether the encrypted state no longer holds HealthKit reservations from before `FHIRExchangeLedger`.
-    static let didPurgeLegacyHealthKitExchangeEvents = LocalPreferenceKey<Bool>(
-        "didPurgeLegacyHealthKitExchangeEvents",
+    /// Whether the encrypted state no longer holds the exchange events older builds reserved in it.
+    static let didPurgeLegacyExchangeEvents = LocalPreferenceKey<Bool>(
+        "didPurgeLegacyExchangeEvents",
         default: false
     )
 }
 
 
 extension FHIRExchangeStateStore {
-    /// Runs ``purgeLegacyHealthKitEvents()`` until it succeeds once.
+    /// Runs ``purgeLegacyExchangeEvents()`` until it succeeds once.
     ///
-    /// Nothing is imported into `FHIRExchangeLedger`: an older converter built those reservations, so no
-    /// redelivery could reuse them. A failure, such as the encrypted state being unreadable before the first
-    /// unlock, is logged and retried at the next launch; the ledger never waits for it.
-    static func purgeLegacyHealthKitEventsOnce(
+    /// The SensorKit retry digests the state holds are kept, so a batch pending at the upgrade still fails closed on
+    /// drift; it redelivers under new events, and its Firestore documents, keyed by source record, are overwritten. A
+    /// failure, such as the encrypted state being unreadable before the first unlock, is logged and retried at the next
+    /// launch; the ledger never waits for it, and reading the state migrates it meanwhile.
+    static func purgeLegacyExchangeEventsOnce(
         in store: FHIRExchangeStateStore,
         preferences: LocalPreferencesStore = .standard
     ) {
-        guard !preferences[.didPurgeLegacyHealthKitExchangeEvents] else {
+        guard !preferences[.didPurgeLegacyExchangeEvents] else {
             return
         }
         do {
-            try store.purgeLegacyHealthKitEvents()
-            preferences[.didPurgeLegacyHealthKitExchangeEvents] = true
+            try store.purgeLegacyExchangeEvents()
+            preferences[.didPurgeLegacyExchangeEvents] = true
         } catch {
-            logger.error("Unable to purge the legacy HealthKit exchange events; retrying at the next launch: \(error)")
+            logger.error("Unable to purge the legacy exchange events; retrying at the next launch: \(error)")
         }
     }
 }

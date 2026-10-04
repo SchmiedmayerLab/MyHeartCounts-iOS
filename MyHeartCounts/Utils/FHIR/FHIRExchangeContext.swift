@@ -6,17 +6,13 @@
 // SPDX-License-Identifier: MIT
 //
 
-// swiftlint:disable file_length
-
 import CryptoKit
 import Foundation
 import GroveFHIRContract
-import GroveHealthKitFHIR
 import GroveKeychainStorage
 import GroveLocalStorage
 import GroveSensorKit
 import GroveSensorKitFHIR
-import HealthKit
 import ModelsR4
 import Synchronization
 
@@ -47,9 +43,9 @@ extension FirebaseConfiguration {
 }
 
 
-/// The application, host, and study facts one exchange event is composed from.
-struct FHIRExchangeEventFacts: Codable, Equatable, Sendable {
-    struct Study: Codable, Equatable, Sendable {
+/// The application, host, and study facts an exchange producer freezes into every event it reserves.
+struct FHIRExchangeEventFacts: Equatable, Sendable {
+    struct Study: Equatable, Sendable {
         let id: String
         let revision: UInt
     }
@@ -89,26 +85,9 @@ struct FHIRExchangeEventFacts: Codable, Equatable, Sendable {
 }
 
 
-/// Immutable event-time facts retained so an exact retry reproduces the original graph.
-struct PersistedFHIRExchangeEvent: Codable, Equatable, Sendable {
-    let sequence: UInt64
-    let recordedAt: Date
-    let sourceTimeZoneIdentifier: String
-    let facts: FHIRExchangeEventFacts
-}
-
-
-/// Events reserved in one ledger transaction, with the fact their identifiers are minted under.
-struct FHIRExchangeEventReservations: Sendable {
-    /// The ledger's producer instance, so a batch identifies its events without reading it again.
-    let producerInstance: UUID
-    /// One event per requested key, in request order.
-    let events: [PersistedFHIRExchangeEvent]
-}
-
-
 enum FHIRExchangeStateError: Error, Equatable {
     case retryContentChanged(sourceRecordID: String)
+    /// The zone a SensorKit batch was first published in no longer resolves.
     case invalidPersistedTimeZone(String)
     case unsupportedSchemaVersion(UInt)
     case staleAccountGeneration(captured: Int, current: Int)
@@ -116,10 +95,12 @@ enum FHIRExchangeStateError: Error, Equatable {
 }
 
 
-/// Encrypted installation state for deterministic Grove exchange contexts.
+/// Encrypted installation state: what a SensorKit batch's retry must reproduce.
 ///
-/// `LocalStorage` provides encryption and atomic replacement. Tests may use the in-memory
-/// initializer, while every production call site uses the same encrypted key.
+/// `LocalStorage` provides encryption and atomic replacement. The store also reaches the identity secret in the
+/// keychain. Every exchange event is reserved in ``FHIRExchangeLedger``, never here. Tests may use the in-memory
+/// initializer, which round-trips the state through the same encoding, while every production call site uses the
+/// same encrypted key.
 final class FHIRExchangeStateStore: Sendable {
     fileprivate struct State: Codable, Sendable {
         struct SensorRetry: Codable, Sendable {
@@ -136,50 +117,56 @@ final class FHIRExchangeStateStore: Sendable {
         private enum CodingKeys: String, CodingKey {
             case schemaVersion
             case accountDataGeneration
-            case producerInstance
-            case nextEventSequence
-            case events
             case sensorRetries
             case sensorBatches
         }
 
+        /// The layout this build writes.
+        ///
+        /// Layout 0 also held MHC's own exchange events, with their producer instance and counter, which Grove's
+        /// ledger in ``FHIRExchangeLedger`` replaced.
+        static let currentSchemaVersion: UInt = 1
+
         let schemaVersion: UInt
         let accountDataGeneration: Int
-        let producerInstance: UUID
-        var nextEventSequence: UInt64
-        var events: [String: PersistedFHIRExchangeEvent]
+        /// By batch key and source-record identifier.
         var sensorRetries: [String: SensorRetry]
         /// By batch key.
         var sensorBatches: [String: SensorBatch]
 
-        init(accountDataGeneration: Int, schemaVersion: UInt = 0) {
+        init(accountDataGeneration: Int, schemaVersion: UInt = Self.currentSchemaVersion) {
             self.schemaVersion = schemaVersion
             self.accountDataGeneration = accountDataGeneration
-            self.producerInstance = UUID()
-            self.nextEventSequence = 1
-            self.events = [:]
             self.sensorRetries = [:]
             self.sensorBatches = [:]
         }
 
+        /// Decodes the current layout, and migrates layout 0.
+        ///
+        /// Layout 0's retry digests are kept, so a SensorKit batch pending at the upgrade still fails closed on drift;
+        /// its events, producer instance and counter are dropped, and leave storage with the state's next write. A
+        /// later layout is never misread: it decodes empty and is refused as unsupported.
         init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            schemaVersion = try container.decode(UInt.self, forKey: .schemaVersion)
+            let schemaVersion = try container.decode(UInt.self, forKey: .schemaVersion)
+            guard schemaVersion <= Self.currentSchemaVersion else {
+                self = Self(accountDataGeneration: 0, schemaVersion: schemaVersion)
+                return
+            }
+            self.schemaVersion = Self.currentSchemaVersion
             accountDataGeneration = try container.decode(Int.self, forKey: .accountDataGeneration)
-            producerInstance = try container.decode(UUID.self, forKey: .producerInstance)
-            nextEventSequence = try container.decode(UInt64.self, forKey: .nextEventSequence)
-            events = try container.decode([String: PersistedFHIRExchangeEvent].self, forKey: .events)
             sensorRetries = try container.decode([String: SensorRetry].self, forKey: .sensorRetries)
-            // Absent from the state of builds that froze the zone with each SensorKit event instead.
+            // Absent from layout 0, which froze the zone with each SensorKit event instead.
             sensorBatches = try container.decodeIfPresent([String: SensorBatch].self, forKey: .sensorBatches) ?? [:]
         }
     }
 
+    /// The state as `LocalStorage` stores it: encoded, so tests exercise the same decoding.
     private final class MemoryBackend: Sendable {
-        let state: Mutex<State?>
+        let encoded: Mutex<Data?>
 
-        init(_ state: State?) {
-            self.state = Mutex(state)
+        init(encoded: Data?) {
+            self.encoded = Mutex(encoded)
         }
     }
 
@@ -207,10 +194,12 @@ final class FHIRExchangeStateStore: Sendable {
     let accountDataGeneration: Int
 
     #if DEBUG
-    var hasPersistedStateForTesting: Bool {
-        get throws {
-            try withStorage(readOnly: true) { $0 != nil }
+    /// The stored state as it is encoded, read without decoding it; `nil` while nothing is stored.
+    var encodedStateForTesting: Data? {
+        guard case .memory(let backend) = backend else {
+            preconditionFailure("Reading the encoded state requires an in-memory FHIR exchange store")
         }
+        return backend.encoded.withLock { $0 }
     }
     #endif
 
@@ -223,24 +212,31 @@ final class FHIRExchangeStateStore: Sendable {
     #if DEBUG
     /// An isolated in-memory store for unit tests that do not load the app's dependency graph.
     init(accountDataGeneration: Int = 0) {
-        self.backend = .memory(MemoryBackend(nil))
+        self.backend = .memory(MemoryBackend(encoded: nil))
         self.secrets = .memory(SecretMemoryBackend())
         self.accountDataGeneration = accountDataGeneration
     }
 
-    init(testingSchemaVersion: UInt, accountDataGeneration: Int = 0) {
-        self.backend = .memory(MemoryBackend(State(
+    init(testingSchemaVersion: UInt, accountDataGeneration: Int = 0) throws {
+        self.backend = .memory(MemoryBackend(encoded: try JSONEncoder().encode(State(
             accountDataGeneration: accountDataGeneration,
             schemaVersion: testingSchemaVersion
-        )))
+        ))))
         self.secrets = .memory(SecretMemoryBackend())
         self.accountDataGeneration = accountDataGeneration
     }
 
-    /// A fresh in-memory ledger that shares another store's identity secret, as a second
+    /// An in-memory store whose state is stored as `encoded`, such as the JSON an older build wrote.
+    init(testingEncodedState encoded: Data, accountDataGeneration: Int = 0) {
+        self.backend = .memory(MemoryBackend(encoded: encoded))
+        self.secrets = .memory(SecretMemoryBackend())
+        self.accountDataGeneration = accountDataGeneration
+    }
+
+    /// A fresh in-memory store that shares another store's identity secret, as a second
     /// device on the same Apple Account would.
     init(accountDataGeneration: Int = 0, secretsSharedWith other: FHIRExchangeStateStore) {
-        self.backend = .memory(MemoryBackend(nil))
+        self.backend = .memory(MemoryBackend(encoded: nil))
         self.secrets = other.secrets
         self.accountDataGeneration = accountDataGeneration
     }
@@ -262,19 +258,6 @@ final class FHIRExchangeStateStore: Sendable {
         )
     }
     #endif
-
-    func event(
-        key: String,
-        recordedAt: Date,
-        sourceTimeZone: TimeZone = .current,
-        facts: FHIRExchangeEventFacts
-    ) throws -> PersistedFHIRExchangeEvent {
-        // One transaction, no read-only probe first: SensorKit reserves records one at a time and most
-        // of them are new, so a probe would add a full ledger decrypt to nearly every call.
-        try withState { state in
-            Self.reserve([key], in: &state, recordedAt: recordedAt, sourceTimeZone: sourceTimeZone, facts: facts)[0]
-        }
-    }
 
     /// Persists the first digest observed at a durable SensorKit coordinate and rejects drift.
     func verifySensorRetryDigest(
@@ -303,30 +286,12 @@ final class FHIRExchangeStateStore: Sendable {
         }
     }
 
-    /// Atomically removes reservations whose graphs the source has durably acknowledged.
-    ///
-    /// Persisting a Bundle is not sufficient: a crash before the source cursor commit still causes
-    /// exact redelivery and must reuse the original event facts.
-    func completeExchangeEvents(_ eventKeys: some Sequence<String>) throws {
-        let eventKeys = Set(eventKeys)
-        guard !eventKeys.isEmpty else {
-            return
-        }
-        try withExistingState { state in
-            state.events = state.events.filter { !eventKeys.contains($0.key) }
-        }
-    }
-
-    /// Atomically rotates all account-bound exchange identity, retry, and event state.
+    /// Atomically rotates all account-bound retry state.
     ///
     /// The fresh state records this store's captured account generation. A late publisher carrying
     /// an older generation fails before mutation; late cleanup-only callbacks become no-ops.
     func reset() throws {
         try withStorage { $0 = State(accountDataGeneration: accountDataGeneration) }
-    }
-
-    func questionnaireEventKey(subject: FHIRExchangeSubject, responseID: String) -> String {
-        "questionnaire|\(subject.identity.system.rawValue)|\(subject.identity.value)|\(responseID)"
     }
 
     func sensorKitBatchKey(
@@ -344,27 +309,8 @@ final class FHIRExchangeStateStore: Sendable {
         [subject.identity.system.rawValue, subject.identity.value, sourceToken, ""].joined(separator: "|")
     }
 
-    func eventIdentifier(
-        for event: PersistedFHIRExchangeEvent,
-        in scope: OpaqueIdentityScope
-    ) throws -> ExchangeEventIdentifier {
-        try Self.eventIdentifier(for: event, producerInstance: producerInstance(), in: scope)
-    }
-
-    /// Reads stable installation facts without rewriting the encrypted ledger.
-    ///
-    /// The first read still initializes the state atomically so repeated read-only calls cannot
-    /// observe different producer identities.
-    private func stateSnapshot() throws -> State {
-        try withStorage(readOnly: true) { stored in
-            let state = try validated(stored ?? State(accountDataGeneration: accountDataGeneration))
-            stored = state
-            return state
-        }
-    }
-
     private func validated(_ state: State) throws -> State {
-        guard state.schemaVersion == 0 else {
+        guard state.schemaVersion == State.currentSchemaVersion else {
             throw FHIRExchangeStateError.unsupportedSchemaVersion(state.schemaVersion)
         }
         guard state.accountDataGeneration == accountDataGeneration else {
@@ -378,18 +324,10 @@ final class FHIRExchangeStateStore: Sendable {
 
     /// The one place either backend is loaded, mutated, and stored again.
     ///
-    /// `readOnly` serves already-initialized state without a write-back, so repeated fact reads do
-    /// not rewrite the encrypted ledger.
-    private func withStorage<Result>(
-        readOnly: Bool = false,
-        _ body: (inout State?) throws -> Result
-    ) throws -> Result {
+    /// A state that is loaded is stored again in the current layout, also when `body` leaves it unchanged.
+    private func withStorage<Result>(_ body: (inout State?) throws -> Result) throws -> Result {
         switch backend {
         case .encrypted(let localStorage):
-            if readOnly, let loaded = try localStorage.load(.fhirExchangeState) {
-                var stored: State? = loaded
-                return try body(&stored)
-            }
             var result: Result?
             try localStorage.modify(.fhirExchangeState) { stored in
                 result = try body(&stored)
@@ -397,7 +335,13 @@ final class FHIRExchangeStateStore: Sendable {
             // `LocalStorage.modify` always invokes the closure or throws.
             return result! // swiftlint:disable:this force_unwrapping
         case .memory(let backend):
-            return try backend.state.withLock { try body(&$0) }
+            // As `LocalStorage.modify` does: decode, transform, then encode again, or remove.
+            return try backend.encoded.withLock { encoded in
+                var stored = try encoded.map { try JSONDecoder().decode(State.self, from: $0) }
+                let result = try body(&stored)
+                encoded = try stored.map { try JSONEncoder().encode($0) }
+                return result
+            }
         }
     }
 
@@ -416,7 +360,7 @@ final class FHIRExchangeStateStore: Sendable {
             guard var state = stored else {
                 return
             }
-            guard state.schemaVersion == 0 else {
+            guard state.schemaVersion == State.currentSchemaVersion else {
                 throw FHIRExchangeStateError.unsupportedSchemaVersion(state.schemaVersion)
             }
             guard state.accountDataGeneration == accountDataGeneration else {
@@ -424,99 +368,6 @@ final class FHIRExchangeStateStore: Sendable {
             }
             try body(&state)
             stored = state
-        }
-    }
-}
-
-
-// MARK: Batch Reservation
-
-extension FHIRExchangeStateStore {
-    /// Mints an event's identifier from a producer instance already read, e.g. by a reservation.
-    static func eventIdentifier(
-        for event: PersistedFHIRExchangeEvent,
-        producerInstance: UUID,
-        in scope: OpaqueIdentityScope
-    ) throws -> ExchangeEventIdentifier {
-        try ExchangeEventIdentifier(
-            system: scope.systems.event,
-            producerInstance: producerInstance,
-            sequence: EventSequence(String(event.sequence))
-        )
-    }
-
-    /// Returns the existing event for each key, minting consecutive sequences for new keys in input order.
-    private static func reserve(
-        _ keys: [String],
-        in state: inout State,
-        recordedAt: Date,
-        sourceTimeZone: TimeZone,
-        facts: FHIRExchangeEventFacts
-    ) -> [PersistedFHIRExchangeEvent] {
-        var events: [PersistedFHIRExchangeEvent] = []
-        events.reserveCapacity(keys.count)
-        for key in keys {
-            if let persisted = state.events[key] {
-                events.append(persisted)
-                continue
-            }
-            let event = PersistedFHIRExchangeEvent(
-                sequence: state.nextEventSequence,
-                recordedAt: recordedAt,
-                sourceTimeZoneIdentifier: sourceTimeZone.identifier,
-                facts: facts
-            )
-            state.nextEventSequence += 1
-            state.events[key] = event
-            events.append(event)
-        }
-        return events
-    }
-
-    /// The installation's producer instance, read without rewriting the encrypted ledger.
-    func producerInstance() throws -> UUID {
-        try stateSnapshot().producerInstance
-    }
-
-    /// Reserves the events of a whole batch in one ledger transaction.
-    ///
-    /// A key that already holds a reservation returns it unchanged without consuming a sequence
-    /// number; new keys are minted consecutive sequences in input order. Every reservation is
-    /// durable before this returns. When all keys are already reserved, as on an exact retry, the
-    /// encrypted ledger is only read, never rewritten.
-    func events(
-        forKeys keys: [String],
-        recordedAt: Date,
-        sourceTimeZone: TimeZone = .current,
-        facts: FHIRExchangeEventFacts
-    ) throws -> FHIRExchangeEventReservations {
-        if let reserved = try existingEvents(forKeys: keys) {
-            return reserved
-        }
-        return try withState { state in
-            FHIRExchangeEventReservations(
-                producerInstance: state.producerInstance,
-                events: Self.reserve(keys, in: &state, recordedAt: recordedAt, sourceTimeZone: sourceTimeZone, facts: facts)
-            )
-        }
-    }
-
-    /// The reservations for `keys` if every one of them already exists, read without a write-back.
-    private func existingEvents(forKeys keys: [String]) throws -> FHIRExchangeEventReservations? {
-        try withStorage(readOnly: true) { stored -> FHIRExchangeEventReservations? in
-            guard let loaded = stored else {
-                return nil
-            }
-            let state = try validated(loaded)
-            var events: [PersistedFHIRExchangeEvent] = []
-            events.reserveCapacity(keys.count)
-            for key in keys {
-                guard let persisted = state.events[key] else {
-                    return nil
-                }
-                events.append(persisted)
-            }
-            return FHIRExchangeEventReservations(producerInstance: state.producerInstance, events: events)
         }
     }
 }
@@ -557,36 +408,20 @@ extension FHIRExchangeStateStore {
 
 
 extension FHIRExchangeStateStore {
-    /// Whether `key` names a HealthKit reservation from before HealthKit moved to `FHIRExchangeLedger`.
-    static func isLegacyHealthKitEventKey(_ key: String) -> Bool {
-        key.hasPrefix("healthkit|") || key.hasPrefix("healthkit-retraction|")
-    }
-
-    /// Drops the HealthKit reservations this store held before HealthKit moved to `FHIRExchangeLedger`.
+    /// Stores the state again in the current layout, so the exchange events older builds kept in it leave storage.
     ///
-    /// The rewrite also drops the HealthKit sequencer state older builds kept here, which decoding ignores.
-    /// SensorKit and questionnaire reservations, the producer instance and its counter are kept. A store
-    /// without state, or with the state of another account generation, is left untouched.
-    func purgeLegacyHealthKitEvents() throws {
-        try withExistingState { state in
-            state.events = state.events.filter { !Self.isLegacyHealthKitEventKey($0.key) }
-        }
-    }
-}
-
-
-#if DEBUG
-extension FHIRExchangeStateStore {
-    /// The keys of every reservation, read without a write-back.
-    var eventKeysForTesting: Set<String> {
-        get throws {
-            try withStorage(readOnly: true) { stored in
-                Set(stored.map { Array($0.events.keys) } ?? [])
+    /// Decoding has already kept the retry digests of every SensorKit batch still pending at the upgrade (see
+    /// `State.init(from:)`); only the events, their producer instance and counter are dropped. Nothing is imported
+    /// into ``FHIRExchangeLedger``: older builds converted those events themselves, so no redelivery could reuse them.
+    /// A store without state stays without one, and a state of a later layout is refused.
+    func purgeLegacyExchangeEvents() throws {
+        try withStorage { stored in
+            if let state = stored, state.schemaVersion != State.currentSchemaVersion {
+                throw FHIRExchangeStateError.unsupportedSchemaVersion(state.schemaVersion)
             }
         }
     }
 }
-#endif
 
 
 extension LocalStorageKeys {

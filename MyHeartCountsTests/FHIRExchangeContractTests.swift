@@ -42,43 +42,6 @@ struct FHIRExchangeStateTests {
     }
 
     @Test
-    func eventReservationIsStableUntilSourceAcknowledgement() throws {
-        let store = FHIRExchangeStateStore()
-        let subject = try Self.subject
-        let key = store.questionnaireEventKey(subject: subject, responseID: "9512fc92-b514-4bcc-a157-050c41dac51d")
-        let first = try store.event(
-            key: key,
-            recordedAt: Date(timeIntervalSince1970: 1_788_000_000),
-            facts: Self.eventFacts()
-        )
-        let retry = try store.event(
-            key: key,
-            recordedAt: Date(timeIntervalSince1970: 1_799_000_000),
-            facts: FHIRExchangeEventFacts(
-                application: try ApplicationDevice(
-                    name: "Changed",
-                    bundleIdentifier: "edu.stanford.changed-on-retry",
-                    version: "2"
-                ),
-                host: try HostDevice(operatingSystemVersion: "27.0"),
-                study: FHIRExchangeEventFacts.Study(id: "study-changed-during-retry", revision: 2)
-            )
-        )
-        #expect(retry == first)
-
-        try store.completeExchangeEvents(CollectionOfOne(key))
-        let laterPublication = try store.event(
-            key: key,
-            recordedAt: Date(timeIntervalSince1970: 1_799_000_000),
-            facts: Self.eventFacts(study: "study-after-completion")
-        )
-        #expect(laterPublication.sequence == first.sequence + 1)
-        #expect(first.facts.study?.id == "study-original")
-        #expect(retry.facts.study?.id == "study-original")
-        #expect(laterPublication.facts.study?.id == "study-after-completion")
-    }
-
-    @Test
     func sensorDigestRejectsDriftAndClearsWithAcknowledgedBatch() throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
@@ -209,13 +172,16 @@ struct FHIRExchangeStateTests {
 
     @Test
     func unsupportedPersistedSchemaFailsClosed() throws {
-        let store = FHIRExchangeStateStore(testingSchemaVersion: 1)
-        #expect(throws: FHIRExchangeStateError.unsupportedSchemaVersion(1)) {
-            try store.event(
-                key: "schema-check",
-                recordedAt: Date(timeIntervalSince1970: 1_788_000_000),
-                facts: Self.eventFacts()
+        let store = try FHIRExchangeStateStore(testingSchemaVersion: 2)
+        #expect(throws: FHIRExchangeStateError.unsupportedSchemaVersion(2)) {
+            try store.verifySensorRetryDigest(
+                Data("schema-check".utf8),
+                batchKey: "schema-check",
+                sourceRecordID: SensorKitSourceRecordID(UUID())
             )
+        }
+        #expect(throws: FHIRExchangeStateError.unsupportedSchemaVersion(2)) {
+            try store.purgeLegacyExchangeEvents()
         }
     }
 
@@ -224,45 +190,28 @@ struct FHIRExchangeStateTests {
         let oldStore = FHIRExchangeStateStore(accountDataGeneration: 7)
         let subject = try Self.subject
         let oldRepository = try oldStore.repositoryScope(.healthKit, subject: subject)
-        let eventKey = oldStore.questionnaireEventKey(subject: subject, responseID: UUID().uuidString)
-        _ = try oldStore.event(
-            key: eventKey,
-            recordedAt: Date(timeIntervalSince1970: 1_788_000_000),
-            facts: Self.eventFacts()
-        )
-        let oldStateWasPersisted = try oldStore.hasPersistedStateForTesting
-        #expect(oldStateWasPersisted)
+        let sourceID = SensorKitSourceRecordID(UUID())
+        try oldStore.verifySensorRetryDigest(Data("account-a".utf8), batchKey: "batch", sourceRecordID: sourceID)
+        #expect(oldStore.encodedStateForTesting != nil)
 
         let newStore = oldStore.testingView(accountDataGeneration: 8)
         try newStore.reset()
         // The scope is store-bound and partitioned by the subject, so the same account keeps
         // its repository across a ledger reset; a different account gets its own partition.
         let newRepository = try newStore.repositoryScope(.healthKit, subject: subject)
-        let newStateWasPersisted = try newStore.hasPersistedStateForTesting
         #expect(newRepository == oldRepository)
-        #expect(newStateWasPersisted)
+        #expect(newStore.encodedStateForTesting != nil)
 
         #expect(throws: FHIRExchangeStateError.staleAccountGeneration(captured: 7, current: 8)) {
-            _ = try oldStore.event(
-                key: "late-old-account-reservation",
-                recordedAt: Date(timeIntervalSince1970: 1_788_000_001),
-                facts: Self.eventFacts()
-            )
+            try oldStore.verifySensorRetryDigest(Data("late".utf8), batchKey: "late-batch", sourceRecordID: sourceID)
         }
 
-        let newEvent = try newStore.event(
-            key: eventKey,
-            recordedAt: Date(timeIntervalSince1970: 1_788_000_002),
-            facts: Self.eventFacts()
-        )
-        try oldStore.completeExchangeEvents(CollectionOfOne(eventKey))
-        try oldStore.completeSensorBatch("late-account-a-batch")
-        let retry = try newStore.event(
-            key: eventKey,
-            recordedAt: Date(timeIntervalSince1970: 1_799_000_000),
-            facts: Self.eventFacts()
-        )
-        #expect(retry == newEvent)
+        // The reset forgot the previous account's digest, so the new account records its own.
+        try newStore.verifySensorRetryDigest(Data("account-b".utf8), batchKey: "batch", sourceRecordID: sourceID)
+        try oldStore.completeSensorBatch("batch")
+        #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceID.value)) {
+            try newStore.verifySensorRetryDigest(Data("account-a".utf8), batchKey: "batch", sourceRecordID: sourceID)
+        }
     }
 }
 
@@ -270,64 +219,6 @@ struct FHIRExchangeStateTests {
 // MARK: Batch Reservation
 
 extension FHIRExchangeStateTests {
-    /// A batch mints consecutive sequences for its new keys in input order in one transaction.
-    @Test
-    func batchReservationMintsNewKeysInInputOrder() throws {
-        let store = FHIRExchangeStateStore()
-        let recordedAt = Date(timeIntervalSince1970: 1_788_000_000)
-        let existing = try store.event(key: "existing", recordedAt: recordedAt, facts: Self.eventFacts())
-        let batch = try store.events(
-            forKeys: ["new-a", "existing", "new-b"],
-            recordedAt: recordedAt + 60,
-            facts: Self.eventFacts(study: "study-of-the-batch")
-        )
-
-        #expect(batch.events.map(\.sequence) == [existing.sequence + 1, existing.sequence, existing.sequence + 2])
-        #expect(batch.events[1] == existing)
-        #expect(batch.events[0].recordedAt == recordedAt + 60)
-        #expect(batch.events[2].facts.study?.id == "study-of-the-batch")
-        #expect(try batch.producerInstance == store.producerInstance())
-    }
-
-    /// Keys that are all reserved already come back unchanged and consume no sequence.
-    @Test
-    func batchReservationReturnsExistingEventsWithoutConsumingSequences() throws {
-        let store = FHIRExchangeStateStore()
-        let recordedAt = Date(timeIntervalSince1970: 1_788_000_000)
-        let first = try store.events(forKeys: ["a", "b"], recordedAt: recordedAt, facts: Self.eventFacts())
-        let retry = try store.events(
-            forKeys: ["b", "a"],
-            recordedAt: recordedAt + 3600,
-            facts: Self.eventFacts(study: "study-changed-during-retry")
-        )
-
-        #expect(retry.events == [first.events[1], first.events[0]])
-        #expect(retry.producerInstance == first.producerInstance)
-        let next = try store.event(key: "c", recordedAt: recordedAt, facts: Self.eventFacts())
-        #expect(next.sequence == first.events[1].sequence + 1)
-    }
-
-    /// A late publisher of a rotated account is fenced whether its keys hit or miss the ledger.
-    @Test
-    func batchReservationRejectsStaleAccountGeneration() throws {
-        let oldStore = FHIRExchangeStateStore(accountDataGeneration: 7)
-        let recordedAt = Date(timeIntervalSince1970: 1_788_000_000)
-        _ = try oldStore.events(forKeys: ["shared"], recordedAt: recordedAt, facts: Self.eventFacts())
-        let newStore = oldStore.testingView(accountDataGeneration: 8)
-        try newStore.reset()
-        let newEvents = try newStore.events(forKeys: ["shared"], recordedAt: recordedAt, facts: Self.eventFacts())
-
-        let stale = FHIRExchangeStateError.staleAccountGeneration(captured: 7, current: 8)
-        #expect(throws: stale) {
-            try oldStore.events(forKeys: ["shared"], recordedAt: recordedAt, facts: Self.eventFacts())
-        }
-        #expect(throws: stale) {
-            try oldStore.events(forKeys: ["shared", "late"], recordedAt: recordedAt, facts: Self.eventFacts())
-        }
-        let retry = try newStore.events(forKeys: ["shared"], recordedAt: recordedAt, facts: Self.eventFacts())
-        #expect(retry.events == newEvents.events)
-    }
-
     /// A staged HealthKit delivery reserves every sample before converting any; a redelivery of one of them,
     /// alone or later, reproduces the event the delivery minted until its anchor commits.
     @Test

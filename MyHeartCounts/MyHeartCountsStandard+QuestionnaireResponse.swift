@@ -79,6 +79,34 @@ extension MyHeartCountsStandard {
         return nil
     }
 
+    /// The HealthKit samples the measurements `response` extracts land as, through `exporter`.
+    ///
+    /// Extraction has no retry to protect: the response is already durable and its exchange graph is discarded, so the
+    /// response's event is released at once, however extraction concludes.
+    ///
+    /// - returns: `nil` when the response measures nothing.
+    /// - throws: The `ObservationExtractionError` Grove refused the response with, or what the ledger threw.
+    static func healthKitSamples(
+        extractedFrom response: ModelsR4.QuestionnaireResponse,
+        answering questionnaire: ModelsR4.Questionnaire,
+        through exporter: QuestionnaireFHIRExporter,
+        at instant: Date = .now
+    ) throws -> ConversionBatch<HKSample, HealthKitSampleProjectionFailure>? {
+        var outcomes: [QuestionnaireFHIRExporter.Export.Outcome] = []
+        let receipt = try exporter.export(CollectionOfOne(.init(questionnaire: questionnaire, response: response)), at: instant) { export in
+            outcomes.append(export.outcome)
+        }
+        receipt.release()
+        switch outcomes.first {
+        case .graph(let graph):
+            return graph.healthKitSamples()
+        case .refused(.noExtractableMeasurements), nil:
+            return nil
+        case .refused(let refusal):
+            throw refusal
+        }
+    }
+
     func questionnaireSubmissionContext() async throws -> QuestionnaireSubmissionContext {
         // Read before the await: capturing it afterwards would compare the current generation with
         // itself and let an account rotation that happened during the await through.
@@ -124,7 +152,6 @@ extension MyHeartCountsStandard {
         // minted source-output identity. The bundle itself is discarded for now; the server
         // will own the exchange-side extraction.
         guard let canonical = response.questionnaireCanonicalIdentity,
-              let responseID = response.identifier?.value?.value?.string,
               let studyManager,
               let questionnaire = await Self.enrolledQuestionnaire(for: canonical, in: studyManager) else {
             return
@@ -133,26 +160,14 @@ extension MyHeartCountsStandard {
             // The submission's captured account, never the current one: an account switch between
             // the Firestore write and here must refuse, not re-target this response.
             try submission.destination.validateCurrentAccount()
-            let stateStore = fhirExchangeStateStore(
+            let exporter = try fhirExchangeStateStore(
                 accountDataGeneration: submission.destination.accountDataGeneration
-            )
-            let reservation = try stateStore.questionnaireConversion(
-                responseID: responseID,
-                subject: submission.subject,
-                conversionInstant: .now
-            )
-            // Extraction has no retry to protect: the response is already durable and the bundle is
-            // discarded, so the reservation is released however extraction concludes.
-            defer {
-                try? stateStore.completeExchangeEvents(CollectionOfOne(reservation.eventKey))
+            ).questionnaireExporter(subject: submission.subject, ledger: fhirExchangeLedger)
+            guard let samples = try Self.healthKitSamples(extractedFrom: response, answering: questionnaire, through: exporter) else {
+                // A survey that measures nothing is the common case, not an error.
+                return
             }
-            let graph = try QuestionnaireExchangeProjection.exchangeGraph(
-                questionnaire: questionnaire,
-                response: response,
-                context: reservation.context
-            )
             // One refusal (an unmapped measurement) loses that reading, never the response.
-            let samples = graph.healthKitSamples()
             for failure in samples.failures {
                 let diagnostic = failure.error.diagnostic
                 logger.error(
@@ -166,8 +181,6 @@ extension MyHeartCountsStandard {
                     logger.error("Unable to save extracted sample into HealthKit: \(error)")
                 }
             }
-        } catch ObservationExtractionError.noExtractableMeasurements {
-            // A survey that measures nothing is the common case, not an error.
         } catch {
             logger.error("Error parsing & processing questionnaire response: \(error)")
         }

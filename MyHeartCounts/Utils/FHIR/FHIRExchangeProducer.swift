@@ -8,6 +8,7 @@
 
 import Foundation
 import GroveFHIRContract
+import GroveQuestionnaireFHIR
 import GroveSensorKitFHIR
 
 
@@ -55,6 +56,20 @@ extension FHIRExchangeStateStore {
             repositoryScope: try Self.repositoryScope(.sensorKit, subject: subject, secret: secret),
             visitLocationIdentifierSystem: FHIRExchangeIdentifiers.visitLocation,
             options: .myHeartCounts
+        )
+    }
+}
+
+
+extension FHIRExchangeStateStore {
+    /// The exporter of `subject`'s questionnaire responses, reserving new events under the facts as they stand now.
+    ///
+    /// Building it reads the keychain identity secret once, and the app facts and enrollment; it opens no ledger.
+    func questionnaireExporter(subject: FHIRExchangeSubject, ledger: FHIRExchangeLedger) throws -> QuestionnaireFHIRExporter {
+        let secret = try identitySecret()
+        return QuestionnaireFHIRExporter(
+            producer: try exchangeProducer(subject: subject, ledger: ledger, facts: .current(), secret: secret),
+            repositoryScope: try Self.repositoryScope(.questionnaire, subject: subject, secret: secret)
         )
     }
 }

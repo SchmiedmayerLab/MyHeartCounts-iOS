@@ -68,9 +68,9 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         try DeferredConfigLoading.setActiveStudyVariant(variant)
     }
 
-    /// The encrypted, installation-scoped identity and SensorKit/questionnaire ledger state.
+    /// The encrypted, installation-scoped identity and SensorKit retry state.
     ///
-    /// HealthKit reserves its exchange events in ``fhirExchangeLedger`` instead.
+    /// Every exchange event is reserved in ``fhirExchangeLedger`` instead.
     func fhirExchangeStateStore(accountDataGeneration: Int) -> FHIRExchangeStateStore {
         FHIRExchangeStateStore(
             localStorage: localStorage,
@@ -86,13 +86,13 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         }
         // Best effort and independent of the ledger: the encrypted state may be unreadable before the first unlock.
         Swift::Task(priority: .utility) {
-            await purgeLegacyHealthKitExchangeEvents()
+            await purgeLegacyExchangeEvents()
         }
     }
 
-    /// Drops the HealthKit reservations the encrypted state held before HealthKit moved to ``fhirExchangeLedger``.
-    private func purgeLegacyHealthKitExchangeEvents() {
-        FHIRExchangeStateStore.purgeLegacyHealthKitEventsOnce(
+    /// Drops the exchange events the encrypted state held before every source reserved them in ``fhirExchangeLedger``.
+    private func purgeLegacyExchangeEvents() {
+        FHIRExchangeStateStore.purgeLegacyExchangeEventsOnce(
             in: fhirExchangeStateStore(accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
         )
     }
