@@ -18,6 +18,35 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
 
     let standard: MyHeartCountsStandard
 
+    /// Exports one bulk batch in one exporter call per ``HealthKitFHIRExporter/voltageBudget`` and hands its
+    /// upload file to `stage`, returning the batch's reservations.
+    ///
+    /// The bulk session releases them through ``didPersist(_:)`` only after it has durably recorded the batch
+    /// as processed, so an interrupted batch redelivers the same events.
+    static func stageBatch(
+        _ samples: [HKSample],
+        typePrefix: String,
+        using healthKit: HealthKit,
+        exporter: @Sendable () async throws -> HealthKitFHIRExporter,
+        stage: (URL) async throws -> Void
+    ) async throws -> HealthKitFHIRReservationReceipt {
+        let (url, export) = try await HealthUploadBatch.write(
+            HealthObservationBatch(samples),
+            typePrefix: typePrefix,
+            at: .now,
+            using: healthKit,
+            exporter: exporter
+        )
+        guard let url else {
+            return export.receipt
+        }
+        defer {
+            try? FileManager.default.removeItem(at: url)
+        }
+        try await stage(url)
+        return export.receipt
+    }
+
     func process<Sample>(
         _ samples: consuming [Sample],
         of sampleType: SampleType<Sample>
@@ -25,56 +54,28 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         guard !samples.isEmpty else {
             return HealthKitFHIRReservationReceipt()
         }
-        return try await storeSamples(samples, of: sampleType)
-    }
-
-    private func storeSamples<Sample>(
-        _ samples: consuming [Sample],
-        of sampleType: SampleType<Sample>
-    ) async throws -> HealthKitFHIRReservationReceipt {
         let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
         try FHIRExchangeDestination.validateWrites(for: accountDataGeneration)
         let subject = try await standard.firebaseConfiguration.fhirExchangeSubject
-        let healthKit = await standard.healthKit
-        let conversionInstant = Date.now
-        let stateStore = await standard.fhirExchangeStateStore(
-            accountDataGeneration: accountDataGeneration
-        )
+        let stateStore = await standard.fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
         let ledger = await standard.fhirExchangeLedger
-        let exporter = try stateStore.healthKitExporter(subject: subject, ledger: ledger)
-        var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
-        var receipts: [HealthKitFHIRExporter.Receipt] = []
-        for sample in consume samples {
-            try Task.checkCancellation()
-            let healthSample = sample as HKSample
-            do {
-                let payload = try await healthSample.prepareFHIRPayload(with: exporter, at: conversionInstant, using: healthKit)
-                entries.append(contentsOf: payload.entries)
-                if let receipt = payload.receipt {
-                    receipts.append(receipt)
-                }
-            } catch {
-                await standard.logger.warning(
-                    "Failed \(healthSample.sampleType.identifier) \(healthSample.uuid): \(String(describing: error))"
-                )
-                throw error
+        let standard = standard
+        let numSamples = samples.count
+        do {
+            return try await Self.stageBatch(
+                samples.map { $0 as HKSample },
+                typePrefix: sampleType.id,
+                using: await standard.healthKit
+            ) {
+                try stateStore.healthKitExporter(subject: subject, ledger: ledger)
+            } stage: { url in
+                // Staging is durable and cancellation-safe.
+                try await standard.stageHistoricalHealthKitFile(at: url, accountDataGeneration: accountDataGeneration)
             }
+        } catch {
+            await standard.logger.warning("Failed exporting \(numSamples) \(sampleType.id) samples: \(String(describing: error))")
+            throw error
         }
-        guard !entries.isEmpty else {
-            return HealthKitFHIRReservationReceipt(receipts)
-        }
-        let compressedUrl = try HealthUploadBatch.write(entries, typePrefix: sampleType.id)
-        defer {
-            try? FileManager.default.removeItem(at: compressedUrl)
-        }
-
-        // Staging is durable and cancellation-safe. Grove releases these retry reservations only
-        // after it has durably marked the source batch descriptor complete.
-        try await standard.stageHistoricalHealthKitFile(
-            at: compressedUrl,
-            accountDataGeneration: accountDataGeneration
-        )
-        return HealthKitFHIRReservationReceipt(receipts)
     }
 
     func didPersist(_ output: HealthKitFHIRReservationReceipt) async {

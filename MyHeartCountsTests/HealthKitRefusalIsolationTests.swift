@@ -59,51 +59,50 @@ struct HealthKitRefusalIsolationTests {
     @Test
     func refusalIsRecordedInsteadOfFailingTheRecord() async throws {
         let sample = Self.refusedSample
-        let stateStore = FHIRExchangeStateStore()
-        let payload = try await sample.prepareFHIRPayload(
-            conversionInstant: Self.start,
-            subject: try Self.subject,
-            stateStore: stateStore,
-            ledger: .forTesting(),
-            using: HealthKit()
-        )
+        let exporter = try FHIRExchangeStateStore().healthKitExporter(subject: try Self.subject, ledger: .forTesting())
+        var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+        let export = try await exporter.exportBatch([sample], at: Self.start, using: HealthKit()) { entry in
+            entries.append(entry)
+        }
 
-        #expect(payload.entries.isEmpty)
-        #expect(payload.refusals.map(\.sourceID) == [sample.uuid])
-        #expect(payload.refusals.first?.reason == .componentRequiresCorrelation(.bloodPressureSystolic))
+        #expect(entries.isEmpty)
+        #expect(export.refusals.map(\.sourceID) == [sample.uuid])
+        #expect(export.refusals.first?.reason == .componentRequiresCorrelation(.bloodPressureSystolic))
         #expect(
-            payload.refusals.first?.reason.diagnostic.code
+            export.refusals.first?.reason.diagnostic.code
                 == ExchangeGraphRule.healthkitInputComponentRequiresCorrelation.rawValue
         )
     }
 
-    /// A refusal has no graph to reproduce, so it releases its reservation rather than leaving the
-    /// ledger to grow: a later event takes the next sequence instead of finding the abandoned one.
+    /// M6: a refusal holds its reservation like a graph does, until the delivery's anchor commits. Re-exporting the
+    /// refused sample before then reuses its sequence; after, it takes the next one.
     @Test
-    func refusalReleasesItsReservation() async throws {
+    func refusalHoldsItsReservationUntilTheAnchorCommits() async throws {
         let sample = Self.refusedSample
-        let subject = try Self.subject
-        let stateStore = FHIRExchangeStateStore()
-        let ledger = FHIRExchangeLedger.forTesting()
-        _ = try await sample.prepareFHIRPayload(
-            conversionInstant: Self.start,
-            subject: subject,
-            stateStore: stateStore,
-            ledger: ledger,
-            using: HealthKit()
-        )
-
-        let later = HKQuantitySample(
-            type: HKQuantityType(.stepCount),
-            quantity: HKQuantity(unit: .count(), doubleValue: 1),
-            start: Self.start,
-            end: Self.start + 60
-        )
-        var laterEvent: BusinessIdentifier?
-        _ = try stateStore.healthKitExporter(subject: subject, ledger: ledger).export([later], at: Self.start) { export in
-            laterEvent = export.graph?.event
+        let staging = HealthUploadStaging.forTesting(persistence: .inMemory, subject: try Self.subject)
+        await withDependencyResolution(standard: FakeStandard()) {
+            staging
+            HealthKit()
         }
-        #expect(laterEvent?.value.hasSuffix(":2") == true)
+        let ledger = try #require(staging.testingLedger)
+
+        let delivery = try await staging.add([sample])
+        let reserved = try ledger.producerEntry()
+        #expect(try ledger.entryKeys(prefixedBy: "event/").count == 1)
+
+        let redelivery = try await staging.add([sample])
+        #expect(try ledger.producerEntry().next == reserved.next, "the redelivery reused the refused sample's reservation")
+        #expect(try ledger.entryKeys(prefixedBy: "event/").count == 1)
+
+        delivery.completeAfterSourceAcknowledgement()
+        #expect(try ledger.entryKeys(prefixedBy: "event/").count == 1, "the redelivery still holds the event")
+        redelivery.completeAfterSourceAcknowledgement()
+        #expect(try ledger.entryKeys(prefixedBy: "event/").isEmpty)
+
+        _ = try await staging.add([sample])
+        let next = try #require(UInt64(reserved.next)).advanced(by: 1)
+        #expect(try ledger.producerEntry().next == String(next), "the next export of the sample is a new event")
+        #expect(try staging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 0)
     }
 
     @Test

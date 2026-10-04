@@ -341,48 +341,26 @@ extension FHIRExchangeStateTests {
         #expect(retry.events == newEvents.events)
     }
 
-    /// A HealthKit batch reserves every sample before converting any; a redelivery of one of them,
-    /// alone or later, reproduces the event the batch minted.
+    /// A staged HealthKit delivery reserves every sample before converting any; a redelivery of one of them,
+    /// alone or later, reproduces the event the delivery minted until its anchor commits.
     @Test
-    func healthKitBatchReservesEverySampleUpFront() throws {
-        let store = FHIRExchangeStateStore()
-        let ledger = FHIRExchangeLedger.forTesting()
-        let subject = try Self.subject
-        let start = Date(timeIntervalSince1970: 1_788_000_000)
-        let samples: [HKQuantitySample] = (0..<3).map { (index: Int) -> HKQuantitySample in
-            let sampleStart = start.addingTimeInterval(TimeInterval(index) * 60)
-            return HKQuantitySample(
-                type: HKQuantityType(.stepCount),
-                quantity: HKQuantity(unit: .count(), doubleValue: Double(index + 1)),
-                start: sampleStart,
-                end: sampleStart.addingTimeInterval(30)
-            )
-        }
-        let exporter = try store.healthKitExporter(subject: subject, ledger: ledger)
-        func events(of samples: [HKSample], at instant: Date) throws -> [BusinessIdentifier] {
-            var events: [BusinessIdentifier] = []
-            _ = try exporter.export(samples, at: instant) { export in
-                events.append(try #require(export.graph?.event))
-            }
-            return events
-        }
-        let batch = try events(of: samples, at: start)
-        let unreserved = HKQuantitySample(
-            type: HKQuantityType(.stepCount),
-            quantity: HKQuantity(unit: .count(), doubleValue: 4),
-            start: start,
-            end: start.addingTimeInterval(30)
-        )
-        let onDemand = try events(of: [unreserved], at: start)
+    func healthKitBatchReservesEverySampleUpFront() async throws {
+        let staging = try await HealthUploadStaging.resolvedForTesting()
+        let samples = (0..<3).map(LedgerHarness.steps)
+        let delivery = try await staging.add(samples)
+        let batch = try staging.drainStagedSamples().mapValues(stagedEvent)
 
-        for (index, sample) in samples.enumerated() {
-            let single = try events(of: [sample], at: start.addingTimeInterval(3600))
-            #expect(single == [batch[index]])
+        for sample in samples {
+            _ = try await staging.add([sample])
+            let single = try staging.drainStagedSamples().mapValues(stagedEvent)
+            #expect(single == [sample.uuid: try #require(batch[sample.uuid])])
         }
         // New sequences follow the order of the event keys, not of the input.
-        let sequences = try batch.map { try ExchangeEventIdentifier($0).sequence.rawValue }
-        #expect(Set(sequences) == ["1", "2", "3"])
-        #expect(onDemand.first?.value.hasSuffix(":4") == true)
+        #expect(Set(batch.values.map(\.sequence.rawValue)) == ["1", "2", "3"])
+        let unreserved = LedgerHarness.steps(3)
+        _ = try await staging.add([unreserved])
+        #expect(try staging.drainStagedSamples().mapValues(stagedEvent)[unreserved.uuid]?.sequence.rawValue == "4")
+        try await delivery.commitAnchor()
     }
 }
 

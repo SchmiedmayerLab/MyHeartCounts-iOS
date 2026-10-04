@@ -115,8 +115,11 @@ extension MyHeartCountsStandard: HealthKitConstraint {
 
 
 extension MyHeartCountsStandard {
-    private enum HealthObservationUploadError: Error {
+    enum HealthObservationUploadError: Error {
         case healthDataCollectionUnavailable
+        /// A HealthKit sample was routed to ``HealthObservationUploadStrategy/directFirestore``, which takes
+        /// self-modelled observations only.
+        case unsupportedStrategy
     }
 
     enum HealthObservationUploadStrategy {
@@ -220,8 +223,6 @@ extension MyHeartCountsStandard {
             accountID: subject.identity.value,
             accountDataGeneration: accountDataGeneration
         )
-        let stateStore = fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
-        let exporter = try stateStore.healthKitExporter(subject: subject, ledger: fhirExchangeLedger)
         let uploadStrategy = uploadStrategy ?? Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
         switch uploadStrategy {
         case .queueLocally:
@@ -236,19 +237,21 @@ extension MyHeartCountsStandard {
             let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                 for: .new(sampleTypeTitle: sampleTypeIdentifier, count: numObservations, uploadStrategy: uploadStrategy)
             )
-            var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
-            var payloads: [PreparedHealthObservationFHIRPayload] = []
-            for observation in consume observations {
-                try Swift::Task.checkCancellation()
-                try destination.validateCurrentAccount()
-                let payload = try await observation.prepareFHIRPayload(with: exporter, at: conversionInstant, using: healthKit)
-                entries.append(contentsOf: payload.entries)
-                payloads.append(payload)
+            try destination.validateCurrentAccount()
+            // Only HealthKit samples build the exporter, and with it read the identity secret and the app facts.
+            let stateStore = fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
+            let ledger = fhirExchangeLedger
+            let (url, export) = try await HealthUploadBatch.write(
+                HealthObservationBatch(consume observations),
+                typePrefix: sampleTypeIdentifier,
+                at: conversionInstant,
+                using: healthKit
+            ) {
+                try stateStore.healthKitExporter(subject: subject, ledger: ledger)
             }
-            guard !entries.isEmpty else {
-                return HealthKitFHIRReservationReceipt(payloads: payloads)
+            guard let url else {
+                return export.receipt
             }
-            let url = try HealthUploadBatch.write(entries, typePrefix: sampleTypeIdentifier)
             defer {
                 try? FileManager.default.removeItem(at: url)
             }
@@ -260,39 +263,36 @@ extension MyHeartCountsStandard {
                 accountDataGeneration: accountDataGeneration
             )
             await triggerDidUploadNotification()
-            return HealthKitFHIRReservationReceipt(payloads: payloads)
+            return export.receipt
         case .directFirestore:
-            var acknowledged: [HealthKitFHIRExporter.Receipt] = []
-            for chunk in (consume observations).chunks(ofCount: Self.directFirestoreUploadDefaultBatchSize) {
+            // Self-modelled observations only: they need no exporter, so neither the identity secret, the app
+            // facts, nor the ledger.
+            let batch = try HealthObservationBatch(consume observations)
+            guard batch.samples.isEmpty else {
+                throw HealthObservationUploadError.unsupportedStrategy
+            }
+            for chunk in batch.selfModelled.chunks(ofCount: Self.directFirestoreUploadDefaultBatchSize) {
                 try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
                 let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                     for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadStrategy: uploadStrategy)
                 )
-                let batch = Firestore.firestore().batch()
-                var chunkReceipts: [HealthKitFHIRExporter.Receipt] = []
+                let firestoreBatch = Firestore.firestore().batch()
                 for observation in chunk {
-                    let payload = try await observation.prepareFHIRPayload(with: exporter, at: conversionInstant, using: healthKit)
-                    if let receipt = payload.receipt {
-                        chunkReceipts.append(receipt)
-                    }
-                    for entry in payload.entries {
-                        let document = try Self.healthObservationDocument(
-                            forSampleType: entry.sourceTypeIdentifier,
-                            id: entry.sourceID.uuidString,
-                            destination: destination
-                        )
-                        logger.notice("Uploading Health Resource to \(document.path)")
-                        try batch.setData(from: entry.resource, forDocument: document)
-                    }
+                    let document = try Self.healthObservationDocument(
+                        forSampleType: observation.sampleTypeIdentifier,
+                        id: observation.id.uuidString,
+                        destination: destination
+                    )
+                    logger.notice("Uploading Health Resource to \(document.path)")
+                    try firestoreBatch.setData(from: observation.fhirResource(issuedAt: conversionInstant), forDocument: document)
                 }
                 try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
-                try await batch.commit()
-                acknowledged.append(contentsOf: chunkReceipts)
+                try await firestoreBatch.commit()
                 await triggerDidUploadNotification()
             }
-            return HealthKitFHIRReservationReceipt(acknowledged)
+            return HealthKitFHIRReservationReceipt()
         }
     }
 }

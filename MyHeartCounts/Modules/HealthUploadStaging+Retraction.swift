@@ -9,18 +9,18 @@
 import Foundation
 import GroveFHIRContract
 import GroveFoundation
-import ModelsR4
 
 
 extension HealthUploadStaging {
     /// The retraction bundles for one drained chunk of deletions.
     ///
     /// Deletions leave as Grove Mobile Retraction Bundles minted from the same identity scope as
-    /// the additions they retract. A record whose type never produced an exported graph node has
-    /// nothing to retract and is dropped with its row.
+    /// the additions they retract, in one exporter call per chunk. Each graph's validated bytes are
+    /// spliced into the payload verbatim. A record whose type never produced an exported graph node
+    /// has nothing to retract and is dropped with its row.
     func retractionBatch(
         for rows: some Collection<PendingDeletionRecord>
-    ) async throws -> RetractionBatch? {
+    ) async throws -> RetractionBatch {
         let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
         try FHIRExchangeDestination.validateWrites(for: accountDataGeneration)
         let subject = try await resolvedSubject()
@@ -41,22 +41,22 @@ extension HealthUploadStaging {
             ledger: resolvedLedger(),
             recordedAt: recordedAt
         )
-        var bundles: [ModelsR4.Bundle] = []
+        var graphs: [ExchangeGraph] = []
         var identifiers: [UUID] = []
         for (row, graph) in zip(rows, retractions.graphs) {
             guard let graph else {
                 continue
             }
-            bundles.append(graph.bundle)
+            graphs.append(graph)
             identifiers.append(row.sampleId)
         }
-        guard !bundles.isEmpty else {
-            return nil
+        let payload = HealthUploadBatch.jsonArray(graphs) { graph in
+            graph.json
         }
         return RetractionBatch(
-            payload: try HealthUploadBatch.encoder.encode(bundles),
+            payload: graphs.isEmpty ? nil : payload,
             identifiers: identifiers,
-            receipt: HealthKitFHIRReservationReceipt(retractions.receipt.map { [$0] } ?? [])
+            receipt: retractions.receipt
         )
     }
 }

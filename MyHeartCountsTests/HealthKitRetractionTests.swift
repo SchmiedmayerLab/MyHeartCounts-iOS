@@ -123,7 +123,7 @@ struct HealthKitRetractionTests {
         ledger: FHIRExchangeLedger = .forTesting(),
         subject: FHIRExchangeSubject
     ) throws -> ExchangeGraph {
-        try #require(try store.healthKitRetraction(of: record, subject: subject, ledger: ledger, recordedAt: recordedAt))
+        try #require(try store.retraction(of: record, subject: subject, ledger: ledger, recordedAt: recordedAt))
     }
 
     @Test
@@ -229,7 +229,7 @@ struct HealthKitRetractionTests {
     func unexportedSourceTypesMintNoRetraction(sourceType: String) throws {
         let store = FHIRExchangeStateStore()
         let ledger = FHIRExchangeLedger.forTesting()
-        let retraction = try store.healthKitRetraction(
+        let retraction = try store.retraction(
             of: try Self.record(sourceType: sourceType),
             subject: try Self.subject,
             ledger: ledger,
@@ -310,15 +310,28 @@ extension HealthKitRetractionTests {
         let subject = try Self.subject
         let record = try Self.record(deletedAfter: Self.detectedAt - 3600)
         let first = try #require(
-            try store.healthKitRetraction(of: record, subject: subject, ledger: ledger, recordedAt: Self.recordedAt)
+            try store.retraction(of: record, subject: subject, ledger: ledger, recordedAt: Self.recordedAt)
         )
         let retry = try #require(
-            try store.healthKitRetraction(of: record, subject: subject, ledger: ledger, recordedAt: Self.recordedAt + 3600)
+            try store.retraction(of: record, subject: subject, ledger: ledger, recordedAt: Self.recordedAt + 3600)
         )
 
         #expect(retry.event == first.event)
         #expect(retry.bundle == first.bundle)
         #expect(try Self.provenance(in: retry).recorded.value?.asNSDate() == Self.recordedAt)
+    }
+}
+
+
+extension FHIRExchangeStateStore {
+    /// The retraction of one deleted record, as the drain retracts a chunk of one; its reservation is left unreleased.
+    fileprivate func retraction(
+        of record: HealthKitDeletedRecord,
+        subject: FHIRExchangeSubject,
+        ledger: FHIRExchangeLedger,
+        recordedAt: Date
+    ) throws -> ExchangeGraph? {
+        try healthKitRetractions(of: [record], subject: subject, ledger: ledger, recordedAt: recordedAt).graphs[0]
     }
 }
 

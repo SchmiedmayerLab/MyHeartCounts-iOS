@@ -42,8 +42,11 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
 
     /// One drained chunk of deletions, ready for the upload staging the additions use.
     struct RetractionBatch: Sendable {
-        let payload: Data
+        /// The retraction graphs as one JSON array; `nil` when nothing in the chunk had anything to retract.
+        let payload: Data?
+        /// The deleted records `payload` retracts.
         let identifiers: [UUID]
+        /// The chunk's reservations; complete it once the payload is staged and the chunk removed.
         let receipt: HealthKitFHIRReservationReceipt
     }
 
@@ -66,6 +69,8 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     @ObservationIgnored var testingStateStore: FHIRExchangeStateStore?
     /// An isolated ledger, so staging in a test never reserves in the host's exchange-event ledger.
     @ObservationIgnored var testingLedger: FHIRExchangeLedger?
+    /// The app facts new events are reserved under, so a test can change them between deliveries.
+    @ObservationIgnored var testingFacts: FHIRExchangeEventFacts?
     #endif
 
     nonisolated init(
@@ -157,6 +162,18 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
         #endif
         return fhirExchangeLedger
     }
+
+    /// The exporter of one staged batch, fenced to `accountDataGeneration`.
+    func healthKitExporter(accountDataGeneration: Int) async throws -> HealthKitFHIRExporter {
+        let subject = try await resolvedSubject()
+        let stateStore = resolvedStateStore(accountDataGeneration: accountDataGeneration)
+        #if DEBUG
+        if let testingFacts {
+            return try stateStore.healthKitExporter(subject: subject, ledger: resolvedLedger(), facts: testingFacts)
+        }
+        #endif
+        return try stateStore.healthKitExporter(subject: subject, ledger: resolvedLedger())
+    }
 }
 
 
@@ -199,7 +216,6 @@ extension HealthUploadStaging {
         }
         return try await _add(
             samples,
-            commonSampleType: commonSampleType,
             ingestionTimestamp: ingestionTimestamp,
             writeContext: DatabaseWriteContext(
                 dbQueue: dbQueue,
@@ -208,46 +224,36 @@ extension HealthUploadStaging {
         )
     }
     
+    /// Converts the batch off the caller's actor and stages one row per entry, in writes of ``databaseWriteChunkSize``.
+    ///
+    /// The exporter is built only when the batch has HealthKit samples; see ``HealthObservationBatch``.
     /// - invariant: `samples` is not empty
-    /// - invariant: each sample in `samples` is of type `commonSampleType`
+    @concurrent
     private func _add(
         _ samples: consuming some Collection<some HealthObservation> & Sendable,
-        commonSampleType: String?,
         ingestionTimestamp: Date,
         writeContext: DatabaseWriteContext
     ) async throws -> HealthKitFHIRReservationReceipt {
-        let subject = try await resolvedSubject()
-        let stateStore = resolvedStateStore(accountDataGeneration: writeContext.accountDataGeneration)
-        let exporter = try stateStore.healthKitExporter(subject: subject, ledger: resolvedLedger())
+        let batch = try HealthObservationBatch(consume samples)
         var pendingSamples: [PendingSampleRecord] = []
-        var receipts: [HealthKitFHIRExporter.Receipt] = []
         pendingSamples.reserveCapacity(Self.databaseWriteChunkSize)
-        for observation in consume samples {
-            try Task.checkCancellation()
-            let payload = try await observation.prepareFHIRPayload(with: exporter, at: ingestionTimestamp, using: healthKit)
-            if let receipt = payload.receipt {
-                receipts.append(receipt)
-            }
-            for entry in payload.entries {
-                let sampleType = entry.sourceTypeIdentifier == observation.sampleTypeIdentifier
-                    ? commonSampleType ?? entry.sourceTypeIdentifier
-                    : entry.sourceTypeIdentifier
-                let fhirJson = try HealthUploadBatch.encoder.encode(entry.resource)
-                pendingSamples.append(PendingSampleRecord(
-                    id: UUID(),
-                    timestamp: ingestionTimestamp,
-                    sampleType: sampleType,
-                    sampleId: entry.sourceID,
-                    fhirJson: try (consume fhirJson).compressed(using: Zstd.self)
-                ))
-                if pendingSamples.count == Self.databaseWriteChunkSize {
-                    try insert(
-                        pendingSamples,
-                        accountDataGeneration: writeContext.accountDataGeneration,
-                        into: writeContext.dbQueue
-                    )
-                    pendingSamples.removeAll(keepingCapacity: true)
-                }
+        let export = try await batch.export(at: ingestionTimestamp, using: healthKit) {
+            try await self.healthKitExporter(accountDataGeneration: writeContext.accountDataGeneration)
+        } receive: { entry in
+            pendingSamples.append(PendingSampleRecord(
+                id: UUID(),
+                timestamp: ingestionTimestamp,
+                sampleType: entry.sourceTypeIdentifier,
+                sampleId: entry.sourceID,
+                fhirJson: try entry.json().compressed(using: Zstd.self)
+            ))
+            if pendingSamples.count == Self.databaseWriteChunkSize {
+                try insert(
+                    pendingSamples,
+                    accountDataGeneration: writeContext.accountDataGeneration,
+                    into: writeContext.dbQueue
+                )
+                pendingSamples.removeAll(keepingCapacity: true)
             }
         }
         try insert(
@@ -255,7 +261,7 @@ extension HealthUploadStaging {
             accountDataGeneration: writeContext.accountDataGeneration,
             into: writeContext.dbQueue
         )
-        return HealthKitFHIRReservationReceipt(receipts)
+        return export.receipt
     }
     
     

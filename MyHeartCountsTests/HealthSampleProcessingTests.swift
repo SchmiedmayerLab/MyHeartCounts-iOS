@@ -61,20 +61,12 @@ struct HealthSampleProcessingTests {
             system: FHIRExchangeIdentifiers.participant,
             value: "test"
         ))
-        let stateStore = FHIRExchangeStateStore()
-        let ledger = FHIRExchangeLedger.forTesting()
-        var resources: [AnyEncodable] = []
-        for sample in samples {
-            let payload = try await sample.prepareFHIRPayload(
-                conversionInstant: startDate,
-                subject: subject,
-                stateStore: stateStore,
-                ledger: ledger,
-                using: HealthKit()
-            )
-            resources.append(contentsOf: payload.entries.map(\.resource))
+        let exporter = try FHIRExchangeStateStore().healthKitExporter(subject: subject, ledger: .forTesting())
+        var graphs: [Data] = []
+        _ = try await exporter.exportBatch(samples, at: startDate, using: HealthKit()) { entry in
+            graphs.append(try entry.json())
         }
-        let observations = try exportedObservations(from: JSONEncoder().encode(resources))
+        let observations = try exportedObservations(from: HealthUploadBatch.jsonArray(graphs) { $0 })
         #expect(observations.count == 3)
         #expect(observations.map(\.quantityValue) == [
             HKQuantity(unit: .count(), doubleValue: 12),
