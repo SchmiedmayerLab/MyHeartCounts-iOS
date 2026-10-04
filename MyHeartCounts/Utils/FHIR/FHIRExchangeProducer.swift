@@ -8,6 +8,7 @@
 
 import Foundation
 import GroveFHIRContract
+import GroveSensorKitFHIR
 
 
 extension FHIRExchangeStateStore {
@@ -31,4 +32,39 @@ extension FHIRExchangeStateStore {
             storage: ledger.storage(accountDataGeneration: accountDataGeneration)
         )
     }
+}
+
+
+extension FHIRExchangeStateStore {
+    /// The exporter of one SensorKit batch of `subject`, reserving new events under the facts as they stand now.
+    ///
+    /// Building it reads the keychain identity secret once, and the app facts and enrollment; it opens no ledger.
+    func sensorKitExporter(subject: FHIRExchangeSubject, ledger: FHIRExchangeLedger) throws -> SensorKitFHIRExporter {
+        try sensorKitExporter(subject: subject, ledger: ledger, facts: .current())
+    }
+
+    /// ``sensorKitExporter(subject:ledger:)`` reserving new events under `facts` instead of the current ones.
+    func sensorKitExporter(
+        subject: FHIRExchangeSubject,
+        ledger: FHIRExchangeLedger,
+        facts: FHIRExchangeEventFacts
+    ) throws -> SensorKitFHIRExporter {
+        let secret = try identitySecret()
+        return try SensorKitFHIRExporter(
+            producer: try exchangeProducer(subject: subject, ledger: ledger, facts: facts, secret: secret),
+            repositoryScope: try Self.repositoryScope(.sensorKit, subject: subject, secret: secret),
+            visitLocationIdentifierSystem: FHIRExchangeIdentifiers.visitLocation,
+            options: .myHeartCounts
+        )
+    }
+}
+
+
+extension SensorKitFHIRExporter.Options {
+    /// Discloses each record's SensorKit source-record identifier under MHC's own system on the record's primary output.
+    static let myHeartCounts: Self = {
+        var options = Self()
+        options.nativeIdentifier = .authorized(system: FHIRExchangeIdentifiers.sensorKitSourceRecord)
+        return options
+    }()
 }

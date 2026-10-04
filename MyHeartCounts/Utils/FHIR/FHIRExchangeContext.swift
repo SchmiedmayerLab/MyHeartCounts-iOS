@@ -127,12 +127,30 @@ final class FHIRExchangeStateStore: Sendable {
             let digest: String
         }
 
+        /// What every record of one SensorKit batch shares across its retries.
+        struct SensorBatch: Codable, Sendable {
+            /// The zone the batch states its bounds in, as first published.
+            let timeZoneIdentifier: String
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case schemaVersion
+            case accountDataGeneration
+            case producerInstance
+            case nextEventSequence
+            case events
+            case sensorRetries
+            case sensorBatches
+        }
+
         let schemaVersion: UInt
         let accountDataGeneration: Int
         let producerInstance: UUID
         var nextEventSequence: UInt64
         var events: [String: PersistedFHIRExchangeEvent]
         var sensorRetries: [String: SensorRetry]
+        /// By batch key.
+        var sensorBatches: [String: SensorBatch]
 
         init(accountDataGeneration: Int, schemaVersion: UInt = 0) {
             self.schemaVersion = schemaVersion
@@ -141,6 +159,19 @@ final class FHIRExchangeStateStore: Sendable {
             self.nextEventSequence = 1
             self.events = [:]
             self.sensorRetries = [:]
+            self.sensorBatches = [:]
+        }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            schemaVersion = try container.decode(UInt.self, forKey: .schemaVersion)
+            accountDataGeneration = try container.decode(Int.self, forKey: .accountDataGeneration)
+            producerInstance = try container.decode(UUID.self, forKey: .producerInstance)
+            nextEventSequence = try container.decode(UInt64.self, forKey: .nextEventSequence)
+            events = try container.decode([String: PersistedFHIRExchangeEvent].self, forKey: .events)
+            sensorRetries = try container.decode([String: SensorRetry].self, forKey: .sensorRetries)
+            // Absent from the state of builds that froze the zone with each SensorKit event instead.
+            sensorBatches = try container.decodeIfPresent([String: SensorBatch].self, forKey: .sensorBatches) ?? [:]
         }
     }
 
@@ -268,7 +299,7 @@ final class FHIRExchangeStateStore: Sendable {
     func completeSensorBatch(_ batchKey: String) throws {
         try withExistingState { state in
             state.sensorRetries = state.sensorRetries.filter { $0.value.batchKey != batchKey }
-            state.events = state.events.filter { !$0.key.hasPrefix("sensorkit|\(batchKey)|") }
+            state.sensorBatches[batchKey] = nil
         }
     }
 
@@ -311,10 +342,6 @@ final class FHIRExchangeStateStore: Sendable {
     /// The leading components, including the trailing separator, shared by every batch key of one source.
     private func sensorKitBatchKeyPrefix(subject: FHIRExchangeSubject, sourceToken: String) -> String {
         [subject.identity.system.rawValue, subject.identity.value, sourceToken, ""].joined(separator: "|")
-    }
-
-    func sensorKitEventKey(batchKey: String, sourceRecordID: SensorKitSourceRecordID) -> String {
-        "sensorkit|\(batchKey)|\(sourceRecordID.value)"
     }
 
     func eventIdentifier(
@@ -496,6 +523,25 @@ extension FHIRExchangeStateStore {
 
 
 extension FHIRExchangeStateStore {
+    /// The zone a SensorKit batch states its bounds in: `current` when the batch is first seen, persisted with its
+    /// retry state, so every redelivery of the batch states the same bounds.
+    ///
+    /// - throws: ``FHIRExchangeStateError/invalidPersistedTimeZone(_:)`` when the persisted zone no longer resolves;
+    ///     the batch can then never be redelivered as it was first published.
+    func sensorBatchTimeZone(_ batchKey: String, current: TimeZone = .current) throws -> TimeZone {
+        let identifier = try withState { state in
+            if let persisted = state.sensorBatches[batchKey] {
+                return persisted.timeZoneIdentifier
+            }
+            state.sensorBatches[batchKey] = State.SensorBatch(timeZoneIdentifier: current.identifier)
+            return current.identifier
+        }
+        guard let timeZone = TimeZone(identifier: identifier) else {
+            throw FHIRExchangeStateError.invalidPersistedTimeZone(identifier)
+        }
+        return timeZone
+    }
+
     /// Removes the retry-only state of every batch of one SensorKit source.
     ///
     /// Only valid once the source's pending batches were abandoned: their records are fetched again
@@ -504,7 +550,7 @@ extension FHIRExchangeStateStore {
         let batchKeyPrefix = sensorKitBatchKeyPrefix(subject: subject, sourceToken: sourceToken)
         try withExistingState { state in
             state.sensorRetries = state.sensorRetries.filter { !$0.value.batchKey.hasPrefix(batchKeyPrefix) }
-            state.events = state.events.filter { !$0.key.hasPrefix("sensorkit|\(batchKeyPrefix)") }
+            state.sensorBatches = state.sensorBatches.filter { !$0.key.hasPrefix(batchKeyPrefix) }
         }
     }
 }

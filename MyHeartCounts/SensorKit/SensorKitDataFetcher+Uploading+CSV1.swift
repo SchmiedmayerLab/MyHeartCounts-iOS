@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import GroveFHIRContract
 import GroveSensorKit
 import GroveSensorKitFHIR
 
@@ -19,40 +20,36 @@ where Sample.SafeRepresentation: SensorKitTabularSample {
         _ samples: some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
         publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
-        to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws {
+    ) async throws -> ExchangeProducer.Receipt? {
         guard !samples.isEmpty else {
-            return
+            return nil
         }
         activity.updateMessage("Writing to CSV")
-        do {
-            let recording = try SensorKitRecordRefusal.refusing {
-                try SensorKitTabularRecording(
-                    samples: Array(samples),
-                    deviceProductType: publication.info.device.productType
-                )
-            }
-            try await upload(
-                sidecar: SensorKitUploadSidecar(data: recording.data, format: recording.format),
-                retryEvidence: recording.retryEvidence,
-                for: sensor,
-                publication: publication,
-                to: standard,
-                activity: activity
-            ) { sourceRecordID, title, sidecarPath in
-                guard let sidecarPath else {
-                    throw SensorKitRecordError.missingProviderValue("tabular.location")
-                }
-                return try recording.sensorKitRecord(
-                    sourceRecordID: sourceRecordID,
-                    title: title,
-                    location: .sidecar(path: sidecarPath),
-                    admission: .callerAuthorizedOpaquePayload
-                )
-            }
-        } catch let refusal as SensorKitRecordRefusal {
-            refusal.log(for: sensor, recordOrdinal: 0)
+        let recording = SensorKitRecordRefusal.preparing(record: 0, of: sensor) {
+            try SensorKitTabularRecording(
+                samples: Array(samples),
+                deviceProductType: publication.info.device.productType
+            )
         }
+        guard let recording else {
+            return nil
+        }
+        let upload = SensorKitRecordUpload(
+            ordinal: 0,
+            sidecar: SensorKitUploadSidecar(data: recording.data, format: recording.format),
+            retryEvidence: recording.retryEvidence
+        ) { sourceRecordID, title, sidecarPath in
+            guard let sidecarPath else {
+                throw SensorKitRecordError.missingProviderValue("tabular.location")
+            }
+            return try recording.sensorKitRecord(
+                sourceRecordID: sourceRecordID,
+                title: title,
+                location: .sidecar(path: sidecarPath),
+                admission: .callerAuthorizedOpaquePayload
+            )
+        }
+        return try await publish([upload], for: sensor, publication: publication, activity: activity)
     }
 }

@@ -464,16 +464,4 @@ extension MyHeartCountsStandard {
             accountDataGeneration: accountDataGeneration
         )
     }
-
-    func uploadSensorKitFile(
-        at url: URL,
-        for sensor: Sensor<some Any>,
-        accountDataGeneration: Int
-    ) async throws {
-        try await managedFileUpload.stage(
-            url,
-            category: ManagedFileUpload.Category(sensor),
-            accountDataGeneration: accountDataGeneration
-        )
-    }
 }

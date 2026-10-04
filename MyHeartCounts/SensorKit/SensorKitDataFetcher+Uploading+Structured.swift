@@ -25,42 +25,34 @@ where Sample.SafeRepresentation: GroveStructuredSensorSample {
         _ samples: some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
         publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
-        to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws {
+    ) async throws -> ExchangeProducer.Receipt? {
         activity.updateMessage("Converting \(sensor.displayName)")
+        var uploads: [SensorKitRecordUpload] = []
         for (recordOrdinal, sample) in samples.enumerated() {
-            do {
-                let prepared = try SensorKitRecordRefusal.refusing { try sample.grovePreparedRecord() }
-                let sidecar = prepared.nativePayload.map {
-                    SensorKitUploadSidecar(data: $0, format: .nativeRecording)
-                }
-                try await upload(
-                    sidecar: sidecar,
-                    retryEvidence: prepared.retryEvidence,
-                    for: sensor,
-                    publication: publication,
-                    to: standard,
-                    activity: activity,
-                    recordOrdinal: recordOrdinal
-                ) { sourceRecordID, title, sidecarPath in
-                    if prepared.nativePayload == nil {
-                        return try prepared.sensorKitRecord(sourceRecordID: sourceRecordID)
-                    }
-                    guard let sidecarPath else {
-                        throw SensorKitRecordError.missingProviderValue("structured.location")
-                    }
-                    return try prepared.sensorKitRecord(
-                        sourceRecordID: sourceRecordID,
-                        title: title,
-                        location: .sidecar(path: sidecarPath),
-                        admission: .callerAuthorizedOpaquePayload
-                    )
-                }
-            } catch let refusal as SensorKitRecordRefusal {
-                refusal.log(for: sensor, recordOrdinal: recordOrdinal)
+            guard let prepared = SensorKitRecordRefusal.preparing(record: recordOrdinal, of: sensor, sample.grovePreparedRecord) else {
+                continue
             }
+            uploads.append(SensorKitRecordUpload(
+                ordinal: recordOrdinal,
+                sidecar: prepared.nativePayload.map { SensorKitUploadSidecar(data: $0, format: .nativeRecording) },
+                retryEvidence: prepared.retryEvidence
+            ) { sourceRecordID, title, sidecarPath in
+                if prepared.nativePayload == nil {
+                    return try prepared.sensorKitRecord(sourceRecordID: sourceRecordID)
+                }
+                guard let sidecarPath else {
+                    throw SensorKitRecordError.missingProviderValue("structured.location")
+                }
+                return try prepared.sensorKitRecord(
+                    sourceRecordID: sourceRecordID,
+                    title: title,
+                    location: .sidecar(path: sidecarPath),
+                    admission: .callerAuthorizedOpaquePayload
+                )
+            })
         }
+        return try await publish(uploads, for: sensor, publication: publication, activity: activity)
     }
 }
 

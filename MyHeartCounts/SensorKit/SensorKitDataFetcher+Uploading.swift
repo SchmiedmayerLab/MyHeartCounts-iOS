@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import GroveFHIRContract
 import GroveSensorKit
 
 
@@ -15,13 +16,16 @@ protocol MHCSensorSampleUploadStrategy<Sample>: Sendable {
     /// The strategy's sensor sample type.
     associatedtype Sample: SensorKitSampleProtocol
     
+    /// Publishes one fetched batch through `publication`, skipping the records Grove refuses.
+    ///
+    /// - returns: The receipt of the batch's events, or `nil` when nothing was exported. Release it once the batch is
+    ///     acknowledged; until then, a redelivery of the batch restates the same events.
     func upload(
         _ samples: consuming some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
         publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
-        to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws
+    ) async throws -> ExchangeProducer.Receipt?
 }
 
 

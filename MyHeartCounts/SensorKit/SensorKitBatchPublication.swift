@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+@preconcurrency import FirebaseFirestore
 import Foundation
 import GroveFHIRContract
 import GroveFoundation
@@ -14,9 +15,25 @@ import GroveSensorKitFHIR
 import MyHeartCountsShared
 
 
-struct SensorKitRecordReservation: Sendable {
-    let sourceRecordID: SensorKitSourceRecordID
-    let context: SensorKitConversionContext
+/// Where the records of a published SensorKit batch go: each sidecar is staged for upload, then each graph is
+/// written to the record's Firestore document.
+///
+/// Injected, so tests publish a batch without Firebase.
+struct SensorKitRecordUploader: Sendable {
+    /// Durably stages one sidecar file for upload under `category`, fenced to `accountDataGeneration`.
+    let stageSidecar: @Sendable (
+        _ file: URL,
+        _ category: ManagedFileUpload.Category,
+        _ accountDataGeneration: Int
+    ) async throws -> Void
+    /// Writes one record's graph to the document of `sampleType` named by the record's source-record identifier, in
+    /// `destination`'s account.
+    let writeGraph: @Sendable (
+        _ graph: ExchangeGraph,
+        _ sourceRecordID: SensorKitSourceRecordID,
+        _ sampleType: String,
+        _ destination: FHIRExchangeDestination
+    ) async throws -> Void
 }
 
 
@@ -26,12 +43,16 @@ struct SensorKitBatchPublication: Sendable {
     let batchKey: String
     let destination: FHIRExchangeDestination
     let info: SensorKit.BatchInfo
+    /// Where the batch's records go.
+    let uploader: SensorKitRecordUploader
+    /// When the batch's new events are reserved; a redelivery before the batch is acknowledged restates the first.
+    let conversionInstant: Date
 
     private let acquisitionBatch: SensorKit.AcquisitionBatchCoordinate
     private let deviceProductType: String
     private let subject: FHIRExchangeSubject
     private let stateStore: FHIRExchangeStateStore
-    private let conversionInstant: Date
+    private let ledger: FHIRExchangeLedger
 
     init(
         sensor: some AnySensor,
@@ -39,6 +60,8 @@ struct SensorKitBatchPublication: Sendable {
         subject: FHIRExchangeSubject,
         destination: FHIRExchangeDestination,
         stateStore: FHIRExchangeStateStore,
+        ledger: FHIRExchangeLedger,
+        uploader: SensorKitRecordUploader,
         conversionInstant: Date = .now
     ) throws {
         guard let sourceToken = SensorKitCatalog.current.entry(for: sensor)?.sourceToken else {
@@ -47,11 +70,13 @@ struct SensorKitBatchPublication: Sendable {
         self.sourceToken = sourceToken
         self.destination = destination
         self.info = batchInfo
+        self.uploader = uploader
+        self.conversionInstant = conversionInstant
         self.acquisitionBatch = batchInfo.acquisitionBatch
         self.deviceProductType = batchInfo.device.productType
         self.subject = subject
         self.stateStore = stateStore
-        self.conversionInstant = conversionInstant
+        self.ledger = ledger
         self.batchKey = stateStore.sensorKitBatchKey(
             subject: subject,
             acquisitionBatch: batchInfo.acquisitionBatch,
@@ -60,7 +85,12 @@ struct SensorKitBatchPublication: Sendable {
         )
     }
 
-    func reserve(recordOrdinal: Int, evidence: Data) throws -> SensorKitRecordReservation {
+    /// The identity of the record at `ordinal` of the batch, once `evidence` is checked against the bytes first seen
+    /// there.
+    ///
+    /// - throws: `FHIRExchangeStateError.retryContentChanged` when the record's bytes differ from those first seen at
+    ///     its acquisition coordinate: the batch can then never be acknowledged as it was first delivered.
+    func sourceRecordID(ordinal: Int, evidence: Data) throws -> SensorKitSourceRecordID {
         // A publication may outlive the fetch task which created it. Fence every state mutation
         // against logout/account cleanup rather than relying only on the initial snapshot.
         try destination.validateCurrentAccount()
@@ -68,44 +98,41 @@ struct SensorKitBatchPublication: Sendable {
             acquisitionBatch: acquisitionBatch,
             sourceToken: sourceToken,
             deviceProductType: deviceProductType,
-            recordOrdinal: UInt64(recordOrdinal)
+            recordOrdinal: UInt64(ordinal)
         )
-        try stateStore.verifySensorRetryDigest(
-            evidence,
-            batchKey: batchKey,
-            sourceRecordID: sourceRecordID
-        )
-        return try reservation(for: sourceRecordID)
+        try stateStore.verifySensorRetryDigest(evidence, batchKey: batchKey, sourceRecordID: sourceRecordID)
+        return sourceRecordID
     }
 
-    /// Releases the event reserved for a record Grove refused; nothing was staged or written for it.
+    /// The zone the batch states its bounds in: `current` when the batch is first published, and the same zone on
+    /// every redelivery, as it is persisted with the batch's retry state.
+    func sourceTimeZone(current: TimeZone = .current) throws -> TimeZone {
+        try destination.validateCurrentAccount()
+        return try stateStore.sensorBatchTimeZone(batchKey, current: current)
+    }
+
+    /// The exporter of the batch's records, under the facts as they stand now.
     ///
-    /// Best-effort and idempotent, like HealthKit refusals: completing the acknowledged batch removes it anyway.
-    func release(_ reservation: SensorKitRecordReservation) {
-        try? stateStore.completeExchangeEvents([
-            stateStore.sensorKitEventKey(batchKey: batchKey, sourceRecordID: reservation.sourceRecordID)
-        ])
+    /// Building it reads the identity secret and the app facts; it opens no ledger.
+    func exporter() throws -> SensorKitFHIRExporter {
+        try stateStore.sensorKitExporter(subject: subject, ledger: ledger)
     }
+}
 
-    private func reservation(
-        for sourceRecordID: SensorKitSourceRecordID
-    ) throws -> SensorKitRecordReservation {
-        let eventKey = stateStore.sensorKitEventKey(
-            batchKey: batchKey,
-            sourceRecordID: sourceRecordID
-        )
-        let event = try stateStore.event(key: eventKey, recordedAt: conversionInstant, facts: .current())
-        return SensorKitRecordReservation(
-            sourceRecordID: sourceRecordID,
-            context: SensorKitConversionContext(
-                event: try stateStore.eventContext(for: event, subject: subject, repository: .sensorKit),
-                visitLocationIdentifierSystem: FHIRExchangeIdentifiers.visitLocation,
-                sourceIdentifierDisclosurePolicy: .authorized(
-                    system: FHIRExchangeIdentifiers.sensorKitSourceRecord
-                ),
-                sourceTimeZone: try event.sourceTimeZone
+
+extension SensorKitRecordUploader {
+    /// The app's: sidecars go to the managed file upload, graphs to the participant's health observations.
+    static func managed(by managedFileUpload: ManagedFileUpload) -> Self {
+        Self { file, category, accountDataGeneration in
+            try await managedFileUpload.stage(file, category: category, accountDataGeneration: accountDataGeneration)
+        } writeGraph: { graph, sourceRecordID, sampleType, destination in
+            let document = try MyHeartCountsStandard.healthObservationDocument(
+                forSampleType: sampleType,
+                id: sourceRecordID.value,
+                destination: destination
             )
-        )
+            try await document.setData(try Firestore.Encoder().encode(graph.bundle))
+        }
     }
 }
 
@@ -126,7 +153,9 @@ extension MyHeartCountsStandard {
             batchInfo: batchInfo,
             subject: subject,
             destination: destination,
-            stateStore: fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
+            stateStore: fhirExchangeStateStore(accountDataGeneration: accountDataGeneration),
+            ledger: fhirExchangeLedger,
+            uploader: .managed(by: managedFileUpload)
         )
     }
 
@@ -141,6 +170,11 @@ extension MyHeartCountsStandard {
     /// The abandoned range is fetched again under fresh acquisition coordinates, so none of those
     /// batches can ever be retried. The key of an abandoned batch is unknown at this point (Grove
     /// refuses to deliver it again), hence the state of all of the sensor's batches is dropped.
+    ///
+    /// The events an abandoned batch reserved in the exchange ledger stay there: they are keyed by source
+    /// records that are never fetched again, so they cost only storage until the ledger is next reset.
+    /// Reservations are never forgotten by age, as age alone does not tell an abandoned batch from one
+    /// still awaiting its redelivery.
     func abandonSensorKitBatches(for sensor: some AnySensor) async throws {
         guard let sourceToken = SensorKitCatalog.current.entry(for: sensor)?.sourceToken else {
             throw SensorKitRecordError.sourceTypeNotAdmitted(sensor.id)

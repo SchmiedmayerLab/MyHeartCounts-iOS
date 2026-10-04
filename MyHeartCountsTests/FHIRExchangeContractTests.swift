@@ -99,26 +99,18 @@ struct FHIRExchangeStateTests {
             deviceProductType: "iPhone18,1",
             recordOrdinal: 0
         )
-        let eventKey = store.sensorKitEventKey(batchKey: batchKey, sourceRecordID: sourceID)
-        let firstEvent = try store.event(
-            key: eventKey,
-            recordedAt: Date(timeIntervalSince1970: 1_788_000_001),
-            facts: Self.eventFacts()
-        )
+        let firstZone = try #require(TimeZone(identifier: "America/St_Johns"))
+        #expect(try store.sensorBatchTimeZone(batchKey, current: firstZone) == firstZone)
         try store.verifySensorRetryDigest(Data("first".utf8), batchKey: batchKey, sourceRecordID: sourceID)
         try store.verifySensorRetryDigest(Data("first".utf8), batchKey: batchKey, sourceRecordID: sourceID)
         #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceID.value)) {
             try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: batchKey, sourceRecordID: sourceID)
         }
+        #expect(try store.sensorBatchTimeZone(batchKey, current: .gmt) == firstZone)
 
         try store.completeSensorBatch(batchKey)
         try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: batchKey, sourceRecordID: sourceID)
-        let nextEvent = try store.event(
-            key: eventKey,
-            recordedAt: Date(timeIntervalSince1970: 1_788_000_002),
-            facts: Self.eventFacts()
-        )
-        #expect(nextEvent.sequence == firstEvent.sequence + 1)
+        #expect(try store.sensorBatchTimeZone(batchKey, current: .gmt) == .gmt)
     }
 
     @Test
@@ -200,24 +192,19 @@ struct FHIRExchangeStateTests {
         #expect(record.value.hasPrefix("v0:store:1:"))
     }
 
-    /// A known enrollment travels with its exact protocol revision, and an unenrolled event names none.
+    /// A known enrollment travels with its exact protocol revision, and an unenrolled producer names none.
     @Test
-    func eventContextBundlesTheEnrollmentItWasReservedUnder() throws {
-        let store = FHIRExchangeStateStore()
+    func eventFactsStateTheEnrollmentWithItsProtocolRevision() throws {
         let subject = try Self.subject
         let studyID = "7C1A5E0F-3B2D-4E6A-9F8B-0D1C2E3F4A5B"
-        let enrolled = try store.event(key: "enrolled", recordedAt: .now, facts: Self.eventFacts(study: studyID))
-        let unenrolled = try store.event(key: "unenrolled", recordedAt: .now, facts: Self.eventFacts(study: nil))
 
-        let study = try #require(
-            try store.eventContext(for: enrolled, subject: subject, repository: .healthKit).studies.first
-        )
+        let study = try #require(try Self.eventFacts(study: studyID).studies(for: subject).first)
         let lowercased = "7c1a5e0f-3b2d-4e6a-9f8b-0d1c2e3f4a5b"
         #expect(study.study.value == lowercased)
         #expect(study.protocolURL.value?.url.absoluteString == "https://myheartcounts.stanford.edu/fhir/PlanDefinition/\(lowercased)")
         #expect(study.protocolVersion == "1")
         #expect(study.enrollment.value == "\(lowercased):participant-test")
-        #expect(try store.eventContext(for: unenrolled, subject: subject, repository: .healthKit).studies.isEmpty)
+        #expect(try Self.eventFacts(study: nil).studies(for: subject).isEmpty)
     }
 
     @Test
@@ -391,29 +378,22 @@ extension FHIRExchangeStateTests {
                 )
             )
         }
-        func event(for record: (batchKey: String, sourceID: SensorKitSourceRecordID)) throws -> PersistedFHIRExchangeEvent {
-            try store.event(
-                key: store.sensorKitEventKey(batchKey: record.batchKey, sourceRecordID: record.sourceID),
-                recordedAt: Date(timeIntervalSince1970: 1_788_000_001),
-                facts: Self.eventFacts()
-            )
-        }
+        let firstZone = try #require(TimeZone(identifier: "Asia/Kathmandu"))
         let abandoned = record(of: "SRSensor.heartRate")
         // Shares the abandoned token as a string prefix, but is a different source.
         let unrelated = record(of: "SRSensor.heartRateSibling")
         for entry in [abandoned, unrelated] {
             try store.verifySensorRetryDigest(Data("first".utf8), batchKey: entry.batchKey, sourceRecordID: entry.sourceID)
+            _ = try store.sensorBatchTimeZone(entry.batchKey, current: firstZone)
         }
-        _ = try event(for: abandoned)
-        let unrelatedEvent = try event(for: unrelated)
 
         try store.abandonSensorBatches(subject: subject, sourceToken: "SRSensor.heartRate")
 
         try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: abandoned.batchKey, sourceRecordID: abandoned.sourceID)
-        #expect(try event(for: abandoned).sequence == unrelatedEvent.sequence + 1)
+        #expect(try store.sensorBatchTimeZone(abandoned.batchKey, current: .gmt) == .gmt)
         #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: unrelated.sourceID.value)) {
             try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: unrelated.batchKey, sourceRecordID: unrelated.sourceID)
         }
-        #expect(try event(for: unrelated).sequence == unrelatedEvent.sequence)
+        #expect(try store.sensorBatchTimeZone(unrelated.batchKey, current: .gmt) == firstZone)
     }
 }

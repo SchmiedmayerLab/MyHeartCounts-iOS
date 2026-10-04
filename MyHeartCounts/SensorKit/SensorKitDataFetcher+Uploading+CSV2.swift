@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import GroveFHIRContract
 import GroveSensorKit
 import GroveSensorKitFHIR
 import SensorKit
@@ -19,37 +20,33 @@ struct UploadStrategyWristTemperature: MHCSensorSampleUploadStrategy {
         _ samples: some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
         publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
-        to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws {
+    ) async throws -> ExchangeProducer.Receipt? {
+        activity.updateMessage("Writing to CSV")
+        var uploads: [SensorKitRecordUpload] = []
         for (recordOrdinal, sample) in samples.enumerated() {
-            activity.updateMessage("Writing to CSV")
-            do {
-                let recording = try SensorKitRecordRefusal.refusing {
-                    try SensorKitTabularRecording(wristTemperature: sample.sample)
-                }
-                try await upload(
-                    sidecar: SensorKitUploadSidecar(data: recording.data, format: recording.format),
-                    retryEvidence: recording.retryEvidence,
-                    for: sensor,
-                    publication: publication,
-                    to: standard,
-                    activity: activity,
-                    recordOrdinal: recordOrdinal
-                ) { sourceRecordID, title, sidecarPath in
-                    guard let sidecarPath else {
-                        throw SensorKitRecordError.missingProviderValue("wristTemperature.location")
-                    }
-                    return try recording.sensorKitRecord(
-                        sourceRecordID: sourceRecordID,
-                        title: title,
-                        location: .sidecar(path: sidecarPath),
-                        admission: .callerAuthorizedOpaquePayload
-                    )
-                }
-            } catch let refusal as SensorKitRecordRefusal {
-                refusal.log(for: sensor, recordOrdinal: recordOrdinal)
+            let recording = SensorKitRecordRefusal.preparing(record: recordOrdinal, of: sensor) {
+                try SensorKitTabularRecording(wristTemperature: sample.sample)
             }
+            guard let recording else {
+                continue
+            }
+            uploads.append(SensorKitRecordUpload(
+                ordinal: recordOrdinal,
+                sidecar: SensorKitUploadSidecar(data: recording.data, format: recording.format),
+                retryEvidence: recording.retryEvidence
+            ) { sourceRecordID, title, sidecarPath in
+                guard let sidecarPath else {
+                    throw SensorKitRecordError.missingProviderValue("wristTemperature.location")
+                }
+                return try recording.sensorKitRecord(
+                    sourceRecordID: sourceRecordID,
+                    title: title,
+                    location: .sidecar(path: sidecarPath),
+                    admission: .callerAuthorizedOpaquePayload
+                )
+            })
         }
+        return try await publish(uploads, for: sensor, publication: publication, activity: activity)
     }
 }

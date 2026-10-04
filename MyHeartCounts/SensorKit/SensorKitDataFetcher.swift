@@ -8,6 +8,7 @@
 
 import Algorithms
 import Grove
+import GroveFHIRContract
 import GroveFoundation
 import GroveSensorKit
 import MyHeartCountsShared
@@ -32,15 +33,18 @@ private struct SensorKitActiveFetch: Sendable {
 
 
 /// Whether `error` means that a sensor's pending batch can never be acknowledged, because a retry no longer reproduces it:
-/// either SensorKit no longer returns the batch's exact delivery boundary, or a record's bytes changed at its reserved coordinate.
+/// either SensorKit no longer returns the batch's exact delivery boundary, a record's bytes changed at its reserved coordinate,
+/// or the zone the batch was first published in no longer resolves.
 private func cannotReplayPendingBatch(after error: any Error) -> Bool {
     if let error = error as? SensorKit.QueryAnchorAcknowledgementError {
         return error == .pendingBatchMismatch
     }
-    if case .retryContentChanged? = error as? FHIRExchangeStateError {
+    switch error as? FHIRExchangeStateError {
+    case .retryContentChanged, .invalidPersistedTimeZone:
         return true
+    default:
+        return false
     }
-    return false
 }
 
 
@@ -239,7 +243,8 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
     /// Publishes one fetched batch and advances its cursor as one indivisible step.
     ///
     /// The unstructured task deliberately does not inherit a background-task cancellation that may
-    /// arrive after sidecar staging but before the Bundle and the cursor are durable.
+    /// arrive after sidecar staging but before the Bundle and the cursor are durable. The batch's events
+    /// are released only once its cursor is acknowledged: until then, a redelivery restates them.
     private func publishAndAcknowledge<Sample, Strategy: MHCSensorSampleUploadStrategy<Sample>>(
         _ batch: SensorKit.AnchoredBatch<Sample.SafeRepresentation>,
         uploadDefinition: MHCSensorUploadDefinition<Sample, Strategy>,
@@ -252,14 +257,14 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
                 for: sensor,
                 batchInfo: batch.info
             )
-            try await uploadDefinition.strategy.upload(
+            let receipt = try await uploadDefinition.strategy.upload(
                 batch.samples,
                 publication: publication,
                 for: sensor,
-                to: standard,
                 activity: activity
             )
             try await batch.acknowledge()
+            receipt?.release()
             do {
                 try await standard.completeSensorKitBatch(
                     publication.batchKey,
