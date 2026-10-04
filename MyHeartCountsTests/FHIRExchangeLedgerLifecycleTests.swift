@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Darwin
 import Foundation
 import GRDB
 import GroveFHIRContract
@@ -17,6 +18,29 @@ import Testing
 /// How the ledger's database is configured, opened, bound to the device, and discarded.
 @Suite
 struct FHIRExchangeLedgerLifecycleTests {
+    /// The ledger's lock file as another process sees it: a descriptor of its own, locked and unlocked by the test.
+    private final class ForeignLockHolder {
+        private let descriptor: Int32
+
+        init(of directory: URL) throws {
+            let path = FHIRExchangeLedger.lockFile(for: directory).path(percentEncoded: false)
+            descriptor = Darwin.open(path, O_RDWR | O_CREAT | O_CLOEXEC, 0o600)
+            try #require(descriptor >= 0)
+        }
+
+        func tryLock() -> Bool {
+            flock(descriptor, LOCK_EX | LOCK_NB) == 0
+        }
+
+        func unlock() {
+            flock(descriptor, LOCK_UN)
+        }
+
+        deinit {
+            Darwin.close(descriptor)
+        }
+    }
+
     /// Overwrites the pages of `ledgerEntry` and its key index behind the open connection's back, and bumps the
     /// file change counter so the connection reads them again.
     private static func corruptLedgerEntryPages(of ledger: FHIRExchangeLedger) throws {
@@ -139,6 +163,58 @@ struct FHIRExchangeLedgerLifecycleTests {
             let next = try #require(try harness.deliver([sample]).events[sample.uuid])
             #expect(next.producerInstance != first.producerInstance)
             #expect(next.sequence.rawValue == "1")
+        }
+    }
+
+    /// Two ledgers over one directory in this process share its connection: when one discards the corrupt
+    /// database, the other continues on the replacement instead of on the deleted file.
+    @Test
+    func ledgersOverOneDirectoryContinueOnTheReplacementTogether() throws {
+        try withTemporaryDirectory { root in
+            let binding = InMemoryDeviceBinding()
+            let first = LedgerHarness(ledger: .inDirectory(root, binding: binding))
+            let second = LedgerHarness(identity: first.identity, ledger: .inDirectory(root, binding: binding))
+            let sample = LedgerHarness.steps(0)
+            let original = try #require(try first.deliver([sample]).events[sample.uuid])
+            #expect(try second.deliver([sample]).events[sample.uuid] == original)
+            try Self.corruptLedgerEntryPages(of: first.ledger)
+
+            #expect(throws: (any Error).self) {
+                try first.deliver([sample])
+            }
+            let replacement = try #require(try first.deliver([sample]).events[sample.uuid])
+            #expect(replacement.producerInstance != original.producerInstance)
+
+            let other = LedgerHarness.steps(1)
+            let next = try #require(try second.deliver([other]).events[other.uuid])
+            #expect(next.producerInstance == replacement.producerInstance)
+            #expect(next.sequence.rawValue == "2")
+            #expect(try first.ledger.entryKeys(prefixedBy: "event/").count == 2)
+        }
+    }
+
+    /// While a connection has the database open, it holds the lock file beside the directory; a ledger whose lock
+    /// file another process holds opens nothing and deletes nothing, and opens once that process lets go.
+    @Test
+    func directoryAnotherProcessHoldsIsNeitherOpenedNorDiscarded() throws {
+        try withTemporaryDirectory { root in
+            let harness = LedgerHarness(ledger: .inDirectory(root))
+            let directory = try #require(harness.ledger.directory)
+            let otherProcess = try ForeignLockHolder(of: directory)
+            try #require(otherProcess.tryLock())
+
+            #expect(throws: FHIRExchangeLedger.OwnershipError.directoryInUse) {
+                try harness.deliver([LedgerHarness.steps(0)])
+            }
+            #expect(!FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)))
+
+            otherProcess.unlock()
+            let delivery = try harness.deliver([LedgerHarness.steps(0)])
+            #expect(delivery.events.values.map(\.sequence.rawValue) == ["1"])
+            #expect(!otherProcess.tryLock())
+
+            try harness.ledger.closeForTesting()
+            #expect(otherProcess.tryLock())
         }
     }
 }
