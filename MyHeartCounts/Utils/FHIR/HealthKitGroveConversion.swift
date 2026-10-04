@@ -38,14 +38,16 @@ extension FHIRExchangeStateStore {
 
 
 extension HealthKitFHIRExporter.Options {
-    /// Discloses the HealthKit UUID under MHC's own system on every output and retraction target,
-    /// keeps it as `Bundle.id` until the backend keys documents on the identifiers inside the
-    /// Bundle, and states MHC as the gateway of the samples it wrote itself.
+    /// Discloses the HealthKit UUID under MHC's own system on every output and retraction target, keeps it
+    /// as `Bundle.id` until the backend keys documents on the identifiers inside the Bundle, states MHC as the
+    /// writer of the samples MHC wrote, and as their gateway only when this very build wrote them (the same
+    /// bundle identifier, and `HKSourceRevision.version` equal to this build).
     static let myHeartCounts: Self = {
         var options = Self()
         options.nativeIdentifier = .authorized(system: FHIRExchangeIdentifiers.healthKitNativeRecord)
         options.legacyBundleID = .healthKitUUID
         options.role = .gatewayForOwnWrites
+        options.writer = .applications(Set([Bundle.main.bundleIdentifier].compactMap(\.self)))
         return options
     }()
 }
