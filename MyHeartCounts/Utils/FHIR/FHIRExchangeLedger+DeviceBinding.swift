@@ -24,11 +24,13 @@ protocol FHIRExchangeLedgerDeviceBinding: Sendable {
 /// The device token as a non-synchronizable, this-device-only keychain item, which neither iCloud Keychain
 /// nor a restore onto another device brings along.
 struct FHIRExchangeLedgerKeychainBinding: FHIRExchangeLedgerDeviceBinding {
+    static let service = "edu.stanford.MyHeartCounts.fhirExchangeLedger"
     static let tag = CredentialsTag.genericPassword(
-        forService: "edu.stanford.MyHeartCounts.fhirExchangeLedger",
+        forService: service,
         storage: .keychain(requireUserPresence: false, accessGroup: nil)
     )
-    private static let username = "device"
+    /// The account the token is stored under.
+    static let username = "device"
 
     private let keychain = KeychainStorage()
 
