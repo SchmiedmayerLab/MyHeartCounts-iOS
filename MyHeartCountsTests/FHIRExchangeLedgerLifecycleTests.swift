@@ -166,6 +166,29 @@ struct FHIRExchangeLedgerLifecycleTests {
         }
     }
 
+    /// M14: a file that is not a database, found when the ledger opens, fails the call and is discarded with its
+    /// directory, and the next export starts at sequence one.
+    @Test
+    func corruptFileFoundAtOpenIsDiscarded() throws {
+        try withTemporaryDirectory { root in
+            let harness = LedgerHarness(ledger: .inDirectory(root))
+            let directory = try #require(harness.ledger.directory)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try Data(repeating: 0x42, count: 8192).write(to: directory.appending(path: FHIRExchangeLedger.databaseFileName))
+            let sample = LedgerHarness.steps(0)
+
+            let error = #expect(throws: (any Error).self) {
+                try harness.deliver([sample])
+            }
+            #expect(error.map(FHIRExchangeLedger.isCorruption) == true)
+            #expect(!FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)))
+
+            let next = try #require(try harness.deliver([sample]).events[sample.uuid])
+            #expect(next.sequence.rawValue == "1")
+            #expect(try harness.ledger.producerEntry().instance == next.producerInstance)
+        }
+    }
+
     /// Two ledgers over one directory in this process share its connection: when one discards the corrupt
     /// database, the other continues on the replacement instead of on the deleted file.
     @Test
