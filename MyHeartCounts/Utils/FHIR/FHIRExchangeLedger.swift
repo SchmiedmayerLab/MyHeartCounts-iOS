@@ -53,15 +53,20 @@ final class FHIRExchangeLedger: Module, DefaultInitializable, Sendable {
 
     /// The live account fence. Injected so tests exercise it without the global preferences.
     struct AccountFence: Sendable {
-        static let live = Self(
-            currentGeneration: { LocalPreferencesStore.standard[.accountDataGeneration] },
-            cleanupPending: { LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] }
-        )
+        static let live = Self.preferences(.standard)
 
         /// The account generation of the signed-in account.
         var currentGeneration: @Sendable () -> Int
         /// Whether the previous account's data still awaits its cleanup.
         var cleanupPending: @Sendable () -> Bool
+
+        /// The fence `preferences` state: their account generation, and whether cleanup is pending.
+        static func preferences(_ preferences: LocalPreferencesStore) -> Self {
+            Self(
+                currentGeneration: { preferences[.accountDataGeneration] },
+                cleanupPending: { preferences[.pendingAccountDataCleanupRequired] }
+            )
+        }
 
         /// Refuses a writer whose generation has rotated, and every writer while cleanup is pending.
         func validate(_ captured: Int) throws {

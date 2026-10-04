@@ -9,6 +9,7 @@
 import Foundation
 import GRDB
 import GroveFHIRContract
+import GroveFoundation
 import GroveHealthKitFHIR
 import HealthKit
 @testable import MyHeartCounts
@@ -43,27 +44,32 @@ final class InMemoryDeviceBinding: FHIRExchangeLedgerDeviceBinding {
 }
 
 
-/// The account preferences a ledger's live fence reads, set by the test.
+/// Account preferences of the test's own, set by the test, which a ledger's live fence reads as it reads the
+/// standard ones.
 final class TestAccountPreferences: Sendable {
-    private let generation: Mutex<Int>
-    private let cleanupPending = Mutex(false)
+    private let suiteName = "edu.stanford.MyHeartCounts.unitTests.ledgerAccount.\(UUID().uuidString)"
+    let store: LocalPreferencesStore
 
+    /// The fence production builds over these preferences.
     var fence: FHIRExchangeLedger.AccountFence {
-        FHIRExchangeLedger.AccountFence(
-            currentGeneration: { self.generation.withLock { $0 } },
-            cleanupPending: { self.cleanupPending.withLock { $0 } }
-        )
+        .preferences(store)
     }
 
     init(generation: Int = 0) {
-        self.generation = Mutex(generation)
+        // A suite name never equals the app's identifier, so `UserDefaults(suiteName:)` always returns one.
+        store = LocalPreferencesStore(defaults: UserDefaults(suiteName: suiteName)!) // swiftlint:disable:this force_unwrapping
+        store[.accountDataGeneration] = generation
     }
 
     func set(generation: Int? = nil, cleanupPending: Bool) {
         if let generation {
-            self.generation.withLock { $0 = generation }
+            store[.accountDataGeneration] = generation
         }
-        self.cleanupPending.withLock { $0 = cleanupPending }
+        store[.pendingAccountDataCleanupRequired] = cleanupPending
+    }
+
+    deinit {
+        UserDefaults.standard.removePersistentDomain(forName: suiteName)
     }
 }
 

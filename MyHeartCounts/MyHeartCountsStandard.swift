@@ -377,51 +377,78 @@ extension MyHeartCountsStandard {
     private func clearPendingAccountData() async throws {
         await healthUploadStagingUploader.cancelAndWaitForQuiescence()
         await sensorKitFetcher.cancelAllActiveCollection()
+        try await Self.clearAccountData(
+            [
+                AccountDataCleanupStep("historical HealthKit export state") {
+                    try await self.historicalUploadManager.fullyResetSession(restart: false, clearPendingUploads: false)
+                },
+                AccountDataCleanupStep("staged upload files") {
+                    try await self.managedFileUpload.clearPendingUploads()
+                },
+                AccountDataCleanupStep("staged health observations") {
+                    try self.healthUploadStaging.clear()
+                },
+                AccountDataCleanupStep("FHIR exchange identity and retry state") {
+                    let generation = LocalPreferencesStore.standard[.accountDataGeneration]
+                    try self.fhirExchangeStateStore(accountDataGeneration: generation).reset()
+                },
+                // An anchor left in place would make the next account resume where the previous account's SensorKit collection stopped.
+                AccountDataCleanupStep("SensorKit query anchors") {
+                    try await self.sensorKitFetcher.resetAllQueryAnchors()
+                },
+                AccountDataCleanupStep("clinical record permission tracking") {
+                    await self.clinicalRecordPermissions.resetTracking()
+                }
+            ],
+            exchangeLedger: fhirExchangeLedger,
+            preferences: .standard,
+            logger: logger
+        )
+    }
+}
 
-        func attempt(_ name: String, _ operation: () async throws -> Void) async -> Bool {
+
+extension MyHeartCountsStandard {
+    /// One step of clearing the previous account's local data.
+    struct AccountDataCleanupStep {
+        let name: String
+        let run: () async throws -> Void
+
+        init(_ name: String, _ run: @escaping () async throws -> Void) {
+            self.name = name
+            self.run = run
+        }
+    }
+
+    /// Clears the previous account's local data: runs every step, each one even when an earlier one failed, then
+    /// resets `exchangeLedger` to the account generation the logout rotated to, and ends the pending cleanup only
+    /// when all of them succeeded.
+    ///
+    /// The ledger reset is not live-fenced, as cleanup is pending while it runs and the preferences rotated the
+    /// generation first. While it fails, cleanup stays pending, so the ledger's live fence keeps refusing every
+    /// HealthKit export until a later cleanup succeeds.
+    static func clearAccountData(
+        _ steps: [AccountDataCleanupStep],
+        exchangeLedger: FHIRExchangeLedger,
+        preferences: LocalPreferencesStore,
+        logger: Logger
+    ) async throws {
+        let ledgerReset = AccountDataCleanupStep("FHIR exchange ledger") {
+            try exchangeLedger.reset(toAccountDataGeneration: preferences[.accountDataGeneration])
+        }
+        var allSucceeded = true
+        for step in steps + [ledgerReset] {
             do {
-                try await operation()
-                return true
+                try await step.run()
             } catch {
-                self.logger.error("Unable to clear \(name): \(error)")
-                return false
+                logger.error("Unable to clear \(step.name): \(error)")
+                allSucceeded = false
             }
         }
-        let historicalDataCleared = await attempt("historical HealthKit export state") {
-            try await historicalUploadManager.fullyResetSession(restart: false, clearPendingUploads: false)
-        }
-        let stagedFilesCleared = await attempt("staged upload files") {
-            try await managedFileUpload.clearPendingUploads()
-        }
-        let stagedHealthDataCleared = await attempt("staged health observations") {
-            try healthUploadStaging.clear()
-        }
-        let exchangeStateCleared = await attempt("FHIR exchange identity and retry state") {
-            try fhirExchangeStateStore(
-                accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
-            ).reset()
-        }
-        // While this fails, cleanup stays pending, and the ledger's live fence refuses every HealthKit export.
-        let exchangeLedgerReset = await attempt("FHIR exchange ledger") {
-            try fhirExchangeLedger.reset(
-                toAccountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
-            )
-        }
-        // An anchor left in place would make the next account resume where the previous account's SensorKit collection stopped.
-        let sensorKitAnchorsReset = await attempt("SensorKit query anchors") {
-            try await sensorKitFetcher.resetAllQueryAnchors()
-        }
-        await clinicalRecordPermissions.resetTracking()
-
-        guard historicalDataCleared,
-              stagedFilesCleared,
-              stagedHealthDataCleared,
-              exchangeStateCleared,
-              exchangeLedgerReset,
-              sensorKitAnchorsReset else {
+        guard allSucceeded else {
             throw PendingAccountDataCleanupError.failed
         }
-        LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = false
+        preferences[.pendingAccountDataCleanupRequired] = false
     }
 }
 

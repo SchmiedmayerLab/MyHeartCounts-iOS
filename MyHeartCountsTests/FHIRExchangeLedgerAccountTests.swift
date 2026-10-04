@@ -7,10 +7,13 @@
 //
 
 import Foundation
+import GRDB
 import GroveFHIRContract
+import GroveFoundation
 import GroveHealthKitFHIR
 import HealthKit
 @testable import MyHeartCounts
+import OSLog
 import Testing
 
 
@@ -18,6 +21,8 @@ import Testing
 /// empties the ledger.
 @Suite
 struct FHIRExchangeLedgerAccountTests {
+    private struct StepFailure: Error {}
+
     private let preferences = TestAccountPreferences(generation: 0)
 
     /// A ledger fenced by this test's preferences.
@@ -25,11 +30,23 @@ struct FHIRExchangeLedgerAccountTests {
         FHIRExchangeLedger(location: .inMemory, fence: preferences.fence)
     }
 
-    /// The order `performLogoutCleanup` and `clearPendingAccountData` follow: flag, rotate, reset, unflag.
-    private func cleanUpAccount(_ ledger: FHIRExchangeLedger, rotatingTo generation: Int) throws {
+    /// The account-data cleanup `clearPendingAccountData` runs, over this test's preferences and `ledger`.
+    private func clearAccountData(
+        _ ledger: FHIRExchangeLedger,
+        steps: [MyHeartCountsStandard.AccountDataCleanupStep] = []
+    ) async throws {
+        try await MyHeartCountsStandard.clearAccountData(
+            steps,
+            exchangeLedger: ledger,
+            preferences: preferences.store,
+            logger: Logger(subsystem: "edu.stanford.MyHeartCounts.unitTests", category: "FHIRExchangeLedgerAccountTests")
+        )
+    }
+
+    /// A logout: `performLogoutCleanup` sets the flag and rotates the generation, then clears the account data.
+    private func logOut(_ ledger: FHIRExchangeLedger, rotatingTo generation: Int) async throws {
         preferences.set(generation: generation, cleanupPending: true)
-        try ledger.reset(toAccountDataGeneration: generation)
-        preferences.set(cleanupPending: false)
+        try await clearAccountData(ledger)
     }
 
     @Test
@@ -94,32 +111,58 @@ struct FHIRExchangeLedgerAccountTests {
         #expect(try harness.ledger.storedAccountGeneration() == 1)
     }
 
-    /// While the ledger cannot be reset, cleanup stays pending, and the fence keeps refusing every export.
+    /// M2: while the ledger cannot be reset, the account-data cleanup fails although every other step succeeded,
+    /// cleanup stays pending, and the fence keeps refusing every export until a later cleanup succeeds.
     @Test
-    func failingResetLeavesTheLedgerFenced() throws {
-        try withTemporaryDirectory { root in
-            let harness = LedgerHarness(ledger: .inDirectory(root, preferences: preferences))
-            preferences.set(generation: 1, cleanupPending: true)
-            let rootPath = root.path(percentEncoded: false)
-            try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: rootPath)
-            #expect(throws: (any Error).self) {
-                try harness.ledger.reset(toAccountDataGeneration: 1)
-            }
-
-            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: rootPath)
-            #expect(throws: FHIRExchangeDestinationError.accountChanged) {
-                try harness.deliver([LedgerHarness.steps(0)], generation: 1)
-            }
-
-            try cleanUpAccount(harness.ledger, rotatingTo: 1)
-            #expect(try harness.deliver([LedgerHarness.steps(0)], generation: 1).events.count == 1)
+    func failingLedgerResetKeepsTheCleanupPending() async throws {
+        let harness = LedgerHarness(ledger: makeLedger())
+        let sample = LedgerHarness.steps(0)
+        let old = try #require(try harness.deliver([sample]).events[sample.uuid])
+        try harness.ledger.withDatabaseForTesting { db in
+            try db.execute(sql: "CREATE TEMP TRIGGER failReset BEFORE DELETE ON ledgerEntry BEGIN SELECT RAISE(ABORT, 'injected'); END")
         }
+        var otherStepRan = false
+
+        preferences.set(generation: 1, cleanupPending: true)
+        await #expect(throws: (any Error).self) {
+            try await clearAccountData(harness.ledger, steps: [.init("other data") { otherStepRan = true }])
+        }
+        #expect(otherStepRan)
+        #expect(preferences.store[.pendingAccountDataCleanupRequired])
+        #expect(throws: FHIRExchangeDestinationError.accountChanged) {
+            try harness.deliver([sample], generation: 1)
+        }
+
+        try harness.ledger.withDatabaseForTesting { db in
+            try db.execute(sql: "DROP TRIGGER failReset")
+        }
+        try await clearAccountData(harness.ledger)
+        #expect(!preferences.store[.pendingAccountDataCleanupRequired])
+        #expect(try harness.ledger.entriesForTesting().isEmpty)
+        let next = try #require(try harness.deliver([sample], generation: 1).events[sample.uuid])
+        #expect(next.producerInstance != old.producerInstance)
+        #expect(next.sequence.rawValue == "1")
+    }
+
+    /// Any other failing step keeps cleanup pending too, and the ledger is reset all the same.
+    @Test
+    func failingStepKeepsTheCleanupPendingAndStillResetsTheLedger() async throws {
+        let ledger = makeLedger()
+        _ = try LedgerHarness(ledger: ledger).deliver([LedgerHarness.steps(0)])
+
+        preferences.set(generation: 1, cleanupPending: true)
+        await #expect(throws: (any Error).self) {
+            try await clearAccountData(ledger, steps: [.init("other data") { throw StepFailure() }])
+        }
+        #expect(preferences.store[.pendingAccountDataCleanupRequired])
+        #expect(try ledger.entriesForTesting().isEmpty)
+        #expect(try ledger.storedAccountGeneration() == 1)
     }
 
     /// A receipt of the previous account released after the cleanup changes nothing, not even the active
     /// reservation a retraction receipt forgets unconditionally.
     @Test
-    func lateReleaseFromAnOldGenerationChangesNothing() throws {
+    func lateReleaseFromAnOldGenerationChangesNothing() async throws {
         let harness = LedgerHarness(ledger: makeLedger())
         let sample = LedgerHarness.steps(0)
         let deletion = HealthKitFHIRExporter.Deletion(
@@ -130,7 +173,7 @@ struct FHIRExchangeLedgerAccountTests {
         )
         let oldRetraction = try harness.exporter(generation: 0).retract([deletion], at: LedgerHarness.start) { _ in }
 
-        try cleanUpAccount(harness.ledger, rotatingTo: 1)
+        try await logOut(harness.ledger, rotatingTo: 1)
         let reserved = try harness.deliver([sample], generation: 1)
         let entries = try harness.ledger.entriesForTesting()
         oldRetraction.release()
@@ -139,16 +182,18 @@ struct FHIRExchangeLedgerAccountTests {
         #expect(reserved.events.count == 1)
     }
 
-    /// M8: the account cleanup empties the ledger and rotates the producer instance; the previous account's
+    /// M8: the account-data cleanup `clearPendingAccountData` runs empties the ledger at the generation the
+    /// logout rotated to, ends the pending cleanup and rotates the producer instance; the previous account's
     /// exporters are refused and its receipts change nothing.
     @Test
-    func accountCleanupRotatesTheInstance() throws {
+    func accountCleanupRotatesTheInstance() async throws {
         let harness = LedgerHarness(ledger: makeLedger())
         let samples = [LedgerHarness.steps(0), LedgerHarness.steps(1)]
         let oldExporter = try harness.exporter(generation: 0)
         let old = try oldExporter.deliver(samples)
 
-        try cleanUpAccount(harness.ledger, rotatingTo: 1)
+        try await logOut(harness.ledger, rotatingTo: 1)
+        #expect(!preferences.store[.pendingAccountDataCleanupRequired])
         #expect(try harness.ledger.entriesForTesting().isEmpty)
         #expect(try harness.ledger.storedAccountGeneration() == 1)
 
