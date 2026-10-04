@@ -401,6 +401,12 @@ extension MyHeartCountsStandard {
                 accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
             ).reset()
         }
+        // While this fails, cleanup stays pending, and the ledger's live fence refuses every HealthKit export.
+        let exchangeLedgerReset = await attempt("FHIR exchange ledger") {
+            try fhirExchangeLedger.reset(
+                toAccountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
+            )
+        }
         // An anchor left in place would make the next account resume where the previous account's SensorKit collection stopped.
         let sensorKitAnchorsReset = await attempt("SensorKit query anchors") {
             try await sensorKitFetcher.resetAllQueryAnchors()
@@ -411,6 +417,7 @@ extension MyHeartCountsStandard {
               stagedFilesCleared,
               stagedHealthDataCleared,
               exchangeStateCleared,
+              exchangeLedgerReset,
               sensorKitAnchorsReset else {
             throw PendingAccountDataCleanupError.failed
         }
