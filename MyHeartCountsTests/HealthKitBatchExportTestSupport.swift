@@ -160,9 +160,26 @@ final class StagedUploadFiles: Sendable {
 
 extension MyHeartCountsStandard.HealthObservationUploadDependencies {
     /// Uploads attributed to the ledger harness's participant: rows go to `staging`, and an upload file's HealthKit
-    /// samples are exported as staging exports them and staged into `files`.
-    static func testing(staging: HealthUploadStaging, files: StagedUploadFiles = StagedUploadFiles()) -> Self {
+    /// samples are exported as staging exports them and staged into `files`; a live delivery is accepted as
+    /// `acceptsDelivery` decides.
+    static func testing(
+        staging: HealthUploadStaging,
+        files: StagedUploadFiles = StagedUploadFiles(),
+        acceptsDelivery: @escaping @Sendable () async throws -> Bool = { true }
+    ) -> Self {
+        testing(staging: staging, acceptsDelivery: acceptsDelivery) { file, _ in
+            try files.stage(file)
+        }
+    }
+
+    /// ``testing(staging:files:acceptsDelivery:)`` staging each upload file through `stageFile`.
+    static func testing(
+        staging: HealthUploadStaging,
+        acceptsDelivery: @escaping @Sendable () async throws -> Bool = { true },
+        stageFile: @escaping @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
+    ) -> Self {
         Self(
+            acceptsHealthKitDelivery: acceptsDelivery,
             subject: {
                 try LedgerHarness.subject
             },
@@ -171,9 +188,7 @@ extension MyHeartCountsStandard.HealthObservationUploadDependencies {
             exporter: { _, accountDataGeneration in
                 try await staging.healthKitExporter(accountDataGeneration: accountDataGeneration)
             },
-            stageFile: { file, _ in
-                try files.stage(file)
-            },
+            stageFile: stageFile,
             logger: Logger(subsystem: "edu.stanford.MyHeartCounts.tests", category: "HealthObservationUpload")
         )
     }

@@ -88,14 +88,7 @@ extension MyHeartCountsStandard: HealthKitConstraint {
         _ addedSamples: some Collection<Sample> & Sendable,
         ofType sampleType: SampleType<Sample>
     ) async throws -> HealthKitAnchorCommitAction? {
-        guard try await shouldAcceptHealthKitDelivery else {
-            return nil
-        }
-        return try await Self.stageNewSamples(
-            addedSamples,
-            accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration],
-            through: healthObservationUploadDependencies
-        )
+        try await Self.handleNewSamples(addedSamples, through: healthObservationUploadDependencies)
     }
 
 
@@ -132,6 +125,9 @@ extension MyHeartCountsStandard {
     /// The upload functions take it as an argument, so tests run every path that holds a HealthKit batch's
     /// reservations without a signed-in account, Firebase or the app's ledger.
     struct HealthObservationUploadDependencies: Sendable {
+        /// Whether a live HealthKit delivery is staged (`true`) or consumed without staging (`false`); throws while
+        /// the account cannot take one yet, so Grove keeps the delivery's anchor.
+        let acceptsHealthKitDelivery: @Sendable () async throws -> Bool
         /// The signed-in participant the observations are attributed to.
         let subject: @Sendable () async throws -> FHIRExchangeSubject
         /// Stages the observations of the HealthKit types MHC models, one row each.
@@ -159,6 +155,9 @@ extension MyHeartCountsStandard {
         let ledger = fhirExchangeLedger
         let managedFileUpload = managedFileUpload
         return HealthObservationUploadDependencies(
+            acceptsHealthKitDelivery: {
+                try await self.shouldAcceptHealthKitDelivery
+            },
             subject: {
                 try await firebaseConfiguration.fhirExchangeSubject
             },
@@ -228,6 +227,22 @@ extension MyHeartCountsStandard {
 
 
 extension MyHeartCountsStandard {
+    /// Handles one live HealthKit delivery: stages it when the account accepts it, returning the action that releases
+    /// its reservations once Grove has committed the delivery's anchor, and consumes it without staging otherwise.
+    static func handleNewSamples(
+        _ samples: consuming some Collection<some HealthObservation & Sendable> & Sendable,
+        through dependencies: HealthObservationUploadDependencies
+    ) async throws -> HealthKitAnchorCommitAction? {
+        guard try await dependencies.acceptsHealthKitDelivery() else {
+            return nil
+        }
+        return try await stageNewSamples(
+            consume samples,
+            accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration],
+            through: dependencies
+        )
+    }
+
     /// Stages one live HealthKit delivery, returning the action that releases its reservations once Grove has
     /// committed the delivery's anchor.
     ///

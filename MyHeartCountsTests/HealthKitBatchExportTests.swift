@@ -182,6 +182,91 @@ struct HealthKitBatchExportTests {
 }
 
 
+// MARK: Live Delivery
+
+extension HealthKitBatchExportTests {
+    private struct StageFailure: Error {}
+
+    private struct DeliveryUnavailable: Error {}
+
+    /// M7, live path: `handleNewSamples` stages a delivery the account accepts and returns the action that releases
+    /// its events once Grove has committed the anchor.
+    @Test
+    func acceptedDeliveryReturnsTheActionThatReleasesIt() async throws {
+        let staging = try await HealthUploadStaging.resolvedForTesting()
+        let ledger = try staging.ledger
+        let samples: [HKSample] = [LedgerHarness.steps(0), heartRateSample(1)]
+
+        let action = try #require(try await MyHeartCountsStandard.handleNewSamples(samples, through: .testing(staging: staging)))
+        #expect(Set(try staging.drainStagedSamples().keys) == Set(samples.map(\.uuid)))
+        #expect(try ledger.reservationCount == 2)
+
+        await action()
+        #expect(try ledger.reservationCount == 0)
+    }
+
+    /// A delivery the account consumes without staging (signed in, not enrolled) stages and reserves nothing, and one
+    /// it cannot take yet throws, so Grove keeps the anchor.
+    @Test
+    func deliveryTheAccountDoesNotAcceptStagesNothing() async throws {
+        let staging = try await HealthUploadStaging.resolvedForTesting()
+        let ledger = try staging.ledger
+        let samples: [HKSample] = [LedgerHarness.steps(0), heartRateSample(1)]
+
+        let consumed = try await MyHeartCountsStandard.handleNewSamples(
+            samples,
+            through: .testing(staging: staging) { false }
+        )
+        #expect(consumed == nil)
+        await #expect(throws: DeliveryUnavailable.self) {
+            _ = try await MyHeartCountsStandard.handleNewSamples(
+                samples,
+                through: .testing(staging: staging) { throw DeliveryUnavailable() }
+            )
+        }
+        #expect(try staging.drainStagedSamples().isEmpty)
+        #expect(try ledger.reservationCount == 0)
+    }
+
+    /// A live upload file that fails to stage fails the delivery, so Grove keeps its anchor, and keeps the file's events
+    /// reserved: the redelivery stages the same bytes.
+    @Test
+    func liveUploadFileThatFailsToStageKeepsItsEventsForTheRedelivery() async throws {
+        let staging = try await HealthUploadStaging.resolvedForTesting()
+        let ledger = try staging.ledger
+        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
+        let samples = (0..<3).map(LedgerHarness.steps)
+        let attempted = StagedUploadFiles()
+
+        await #expect(throws: StageFailure.self) {
+            _ = try await MyHeartCountsStandard.uploadHealthObservations(
+                samples,
+                accountDataGeneration: accountDataGeneration,
+                uploadStrategy: .firebaseStorage,
+                through: .testing(staging: staging) { file, _ in
+                    try attempted.stage(file)
+                    throw StageFailure()
+                }
+            )
+        }
+        #expect(attempted.all.count == 1)
+        #expect(try ledger.reservationCount == 3)
+
+        let files = StagedUploadFiles()
+        let receipt = try await MyHeartCountsStandard.uploadHealthObservations(
+            samples,
+            accountDataGeneration: accountDataGeneration,
+            uploadStrategy: .firebaseStorage,
+            through: .testing(staging: staging, files: files)
+        )
+        #expect(files.all == attempted.all)
+        #expect(try ledger.producerEntry().next == "4", "the redelivery reused every event of the failed attempt")
+        try await receipt.commitAnchor()
+        #expect(try ledger.reservationCount == 0)
+    }
+}
+
+
 extension HealthKitBatchExportTests {
     /// M10: an observation the app models itself needs no exporter, so staging it never opens the ledger, runs no
     /// ledger transaction, reads no identity secret and reserves nothing.
