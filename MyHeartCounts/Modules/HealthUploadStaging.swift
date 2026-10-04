@@ -53,6 +53,7 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
     @ObservationIgnored @Dependency(LocalStorage.self) private var localStorage
     @ObservationIgnored @Dependency(FirebaseConfiguration.self) private var firebaseConfiguration
+    @ObservationIgnored @Dependency(FHIRExchangeLedger.self) private var fhirExchangeLedger
     @ObservationIgnored private let dbQueue: DatabaseQueue?
     /// Whether, when inserting deletions, the `HealthUploadStaging` should automatically elide (i.e., identify and delete) any matching pending samples.
     @ObservationIgnored private let autoElideUploadsWhenInsertingDeletions: Bool
@@ -61,8 +62,10 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     #if DEBUG
     /// Set only by ``forTesting(persistence:autoElideUploadsWhenInsertingDeletions:subject:)``.
     @ObservationIgnored var testingSubject: FHIRExchangeSubject?
-    /// An isolated ledger, so staging in a test never touches the host's encrypted exchange state.
+    /// An isolated identity store, so staging in a test never touches the host's encrypted exchange state.
     @ObservationIgnored var testingStateStore: FHIRExchangeStateStore?
+    /// An isolated ledger, so staging in a test never reserves in the host's exchange-event ledger.
+    @ObservationIgnored var testingLedger: FHIRExchangeLedger?
     #endif
 
     nonisolated init(
@@ -132,7 +135,7 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
         return try await firebaseConfiguration.fhirExchangeSubject
     }
 
-    /// The ledger staged samples reserve their exchange events in.
+    /// The identity store staged samples are exported under.
     func resolvedStateStore(accountDataGeneration: Int) -> FHIRExchangeStateStore {
         #if DEBUG
         if let testingStateStore {
@@ -143,6 +146,16 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
             localStorage: localStorage,
             accountDataGeneration: accountDataGeneration
         )
+    }
+
+    /// The ledger staged samples reserve their exchange events in.
+    func resolvedLedger() -> FHIRExchangeLedger {
+        #if DEBUG
+        if let testingLedger {
+            return testingLedger
+        }
+        #endif
+        return fhirExchangeLedger
     }
 }
 
@@ -205,7 +218,7 @@ extension HealthUploadStaging {
     ) async throws -> HealthKitFHIRReservationReceipt {
         let subject = try await resolvedSubject()
         let stateStore = resolvedStateStore(accountDataGeneration: writeContext.accountDataGeneration)
-        let exporter = try stateStore.healthKitExporter(subject: subject)
+        let exporter = try stateStore.healthKitExporter(subject: subject, ledger: resolvedLedger())
         var pendingSamples: [PendingSampleRecord] = []
         var receipts: [HealthKitFHIRExporter.Receipt] = []
         pendingSamples.reserveCapacity(Self.databaseWriteChunkSize)

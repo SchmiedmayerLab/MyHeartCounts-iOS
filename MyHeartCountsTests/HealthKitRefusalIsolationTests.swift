@@ -64,6 +64,7 @@ struct HealthKitRefusalIsolationTests {
             conversionInstant: Self.start,
             subject: try Self.subject,
             stateStore: stateStore,
+            ledger: .forTesting(),
             using: HealthKit()
         )
 
@@ -83,10 +84,12 @@ struct HealthKitRefusalIsolationTests {
         let sample = Self.refusedSample
         let subject = try Self.subject
         let stateStore = FHIRExchangeStateStore()
+        let ledger = FHIRExchangeLedger.forTesting()
         _ = try await sample.prepareFHIRPayload(
             conversionInstant: Self.start,
             subject: subject,
             stateStore: stateStore,
+            ledger: ledger,
             using: HealthKit()
         )
 
@@ -97,7 +100,7 @@ struct HealthKitRefusalIsolationTests {
             end: Self.start + 60
         )
         var laterEvent: BusinessIdentifier?
-        _ = try stateStore.healthKitExporter(subject: subject).export([later], at: Self.start) { export in
+        _ = try stateStore.healthKitExporter(subject: subject, ledger: ledger).export([later], at: Self.start) { export in
             laterEvent = export.graph?.event
         }
         #expect(laterEvent?.value.hasSuffix(":2") == true)

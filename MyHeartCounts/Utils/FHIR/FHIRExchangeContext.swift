@@ -133,9 +133,6 @@ final class FHIRExchangeStateStore: Sendable {
         var nextEventSequence: UInt64
         var events: [String: PersistedFHIRExchangeEvent]
         var sensorRetries: [String: SensorRetry]
-        /// The HealthKit exporter's own ledger (producer instance, sequences, reservations), opaque to
-        /// the app; absent until the first HealthKit export of this account generation.
-        var healthKitSequencer: Data?
 
         init(accountDataGeneration: Int, schemaVersion: UInt = 0) {
             self.schemaVersion = schemaVersion
@@ -144,7 +141,6 @@ final class FHIRExchangeStateStore: Sendable {
             self.nextEventSequence = 1
             self.events = [:]
             self.sensorRetries = [:]
-            self.healthKitSequencer = nil
         }
     }
 
@@ -177,7 +173,7 @@ final class FHIRExchangeStateStore: Sendable {
 
     private let backend: Backend
     let secrets: SecretBackend
-    private let accountDataGeneration: Int
+    let accountDataGeneration: Int
 
     #if DEBUG
     var hasPersistedStateForTesting: Bool {
@@ -296,14 +292,6 @@ final class FHIRExchangeStateStore: Sendable {
     /// an older generation fails before mutation; late cleanup-only callbacks become no-ops.
     func reset() throws {
         try withStorage { $0 = State(accountDataGeneration: accountDataGeneration) }
-    }
-
-    func healthKitEventKey(
-        subject: FHIRExchangeSubject,
-        sourceType: String,
-        nativeRecordID: UUID
-    ) -> String {
-        "healthkit|\(subject.identity.system.rawValue)|\(subject.identity.value)|\(sourceType)|\(nativeRecordID.uuidString.lowercased())"
     }
 
     func questionnaireEventKey(subject: FHIRExchangeSubject, responseID: String) -> String {
@@ -517,17 +505,6 @@ extension FHIRExchangeStateStore {
         try withExistingState { state in
             state.sensorRetries = state.sensorRetries.filter { !$0.value.batchKey.hasPrefix(batchKeyPrefix) }
             state.events = state.events.filter { !$0.key.hasPrefix("sensorkit|\(batchKeyPrefix)") }
-        }
-    }
-}
-
-
-extension FHIRExchangeStateStore: ExchangeEventSequencer.Storage {
-    /// The HealthKit exporter's ledger lives inside this store's encrypted state, so a reset or an
-    /// account rotation discards it with everything else and a stale generation cannot write it.
-    func update<Result>(_ body: (inout Data?) throws -> Result) throws -> Result {
-        try withState { state in
-            try body(&state.healthKitSequencer)
         }
     }
 }

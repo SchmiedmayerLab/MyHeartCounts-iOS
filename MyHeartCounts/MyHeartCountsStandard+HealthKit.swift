@@ -221,7 +221,7 @@ extension MyHeartCountsStandard {
             accountDataGeneration: accountDataGeneration
         )
         let stateStore = fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
-        let exporter = try stateStore.healthKitExporter(subject: subject)
+        let exporter = try stateStore.healthKitExporter(subject: subject, ledger: fhirExchangeLedger)
         let uploadStrategy = uploadStrategy ?? Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
         switch uploadStrategy {
         case .queueLocally:

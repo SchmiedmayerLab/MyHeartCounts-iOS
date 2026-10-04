@@ -62,12 +62,14 @@ struct HealthSampleProcessingTests {
             value: "test"
         ))
         let stateStore = FHIRExchangeStateStore()
+        let ledger = FHIRExchangeLedger.forTesting()
         var resources: [AnyEncodable] = []
         for sample in samples {
             let payload = try await sample.prepareFHIRPayload(
                 conversionInstant: startDate,
                 subject: subject,
                 stateStore: stateStore,
+                ledger: ledger,
                 using: HealthKit()
             )
             resources.append(contentsOf: payload.entries.map(\.resource))

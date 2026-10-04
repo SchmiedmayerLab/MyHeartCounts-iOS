@@ -120,9 +120,10 @@ struct HealthKitRetractionTests {
     private static func retraction(
         of record: HealthKitDeletedRecord,
         in store: FHIRExchangeStateStore,
+        ledger: FHIRExchangeLedger = .forTesting(),
         subject: FHIRExchangeSubject
     ) throws -> ExchangeGraph {
-        try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: recordedAt))
+        try #require(try store.healthKitRetraction(of: record, subject: subject, ledger: ledger, recordedAt: recordedAt))
     }
 
     @Test
@@ -227,20 +228,23 @@ struct HealthKitRetractionTests {
     ])
     func unexportedSourceTypesMintNoRetraction(sourceType: String) throws {
         let store = FHIRExchangeStateStore()
+        let ledger = FHIRExchangeLedger.forTesting()
         let retraction = try store.healthKitRetraction(
             of: try Self.record(sourceType: sourceType),
             subject: try Self.subject,
+            ledger: ledger,
             recordedAt: Self.recordedAt
         )
 
         #expect(retraction == nil)
-        #expect(try !store.hasPersistedStateForTesting)
+        #expect(try ledger.entriesForTesting().isEmpty)
     }
 
     /// The end-to-end agreement the two halves of one record's lifecycle owe each other.
     @Test
     func retractionNamesTheOutputTheConverterActuallyMinted() throws {
         let store = FHIRExchangeStateStore()
+        let ledger = FHIRExchangeLedger.forTesting()
         let subject = try Self.subject
         let sample = HKQuantitySample(
             type: HKQuantityType(.stepCount),
@@ -249,7 +253,7 @@ struct HealthKitRetractionTests {
             end: Self.detectedAt - 3540
         )
         var conversions: [ExchangeGraph] = []
-        _ = try store.healthKitExporter(subject: subject).export([sample], at: Self.detectedAt - 3000) { export in
+        _ = try store.healthKitExporter(subject: subject, ledger: ledger).export([sample], at: Self.detectedAt - 3000) { export in
             if let graph = export.graph {
                 conversions.append(graph)
             }
@@ -264,6 +268,7 @@ struct HealthKitRetractionTests {
                 detectedAt: Self.detectedAt
             ),
             in: store,
+            ledger: ledger,
             subject: subject
         )
 
@@ -294,14 +299,22 @@ struct HealthKitRetractionTests {
         #expect(try provenance.recorded.value?.asNSDate() == Self.recordedAt)
         #expect(graph.bundle.id?.value?.string == record.nativeRecordID.uuidString)
     }
+}
 
+
+extension HealthKitRetractionTests {
     @Test
     func reassemblingRetractionPreservesEventAndTiming() throws {
         let store = FHIRExchangeStateStore()
+        let ledger = FHIRExchangeLedger.forTesting()
         let subject = try Self.subject
         let record = try Self.record(deletedAfter: Self.detectedAt - 3600)
-        let first = try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: Self.recordedAt))
-        let retry = try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: Self.recordedAt + 3600))
+        let first = try #require(
+            try store.healthKitRetraction(of: record, subject: subject, ledger: ledger, recordedAt: Self.recordedAt)
+        )
+        let retry = try #require(
+            try store.healthKitRetraction(of: record, subject: subject, ledger: ledger, recordedAt: Self.recordedAt + 3600)
+        )
 
         #expect(retry.event == first.event)
         #expect(retry.bundle == first.bundle)

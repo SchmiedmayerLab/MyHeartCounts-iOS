@@ -52,9 +52,10 @@ extension FHIRExchangeStateStore {
     func healthKitRetraction(
         of record: HealthKitDeletedRecord,
         subject: FHIRExchangeSubject,
+        ledger: FHIRExchangeLedger,
         recordedAt: Date
     ) throws -> ExchangeGraph? {
-        try healthKitRetractions(of: [record], subject: subject, recordedAt: recordedAt).graphs[0]
+        try healthKitRetractions(of: [record], subject: subject, ledger: ledger, recordedAt: recordedAt).graphs[0]
     }
 
     /// The Grove Mobile Retraction Bundles for many deleted HealthKit records, one per record.
@@ -65,6 +66,7 @@ extension FHIRExchangeStateStore {
     func healthKitRetractions(
         of records: [HealthKitDeletedRecord],
         subject: FHIRExchangeSubject,
+        ledger: FHIRExchangeLedger,
         recordedAt: Date
     ) throws -> HealthKitRetractions {
         let deletions = records.compactMap(\.deletion)
@@ -72,7 +74,7 @@ extension FHIRExchangeStateStore {
             return HealthKitRetractions(graphs: Array(repeating: nil, count: records.count), receipt: nil)
         }
         var graphs: [UUID: ExchangeGraph] = [:]
-        let receipt = try healthKitExporter(subject: subject).retract(deletions, at: recordedAt) { export in
+        let receipt = try healthKitExporter(subject: subject, ledger: ledger).retract(deletions, at: recordedAt) { export in
             switch export.outcome {
             case .graph(let graph):
                 graphs[export.source.uuid] = graph

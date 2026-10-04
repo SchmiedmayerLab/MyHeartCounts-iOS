@@ -45,11 +45,7 @@ struct FHIRExchangeStateTests {
     func eventReservationIsStableUntilSourceAcknowledgement() throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
-        let key = store.healthKitEventKey(
-            subject: subject,
-            sourceType: "HKQuantityTypeIdentifierStepCount",
-            nativeRecordID: try #require(UUID(uuidString: "9512fc92-b514-4bcc-a157-050c41dac51d"))
-        )
+        let key = store.questionnaireEventKey(subject: subject, responseID: "9512fc92-b514-4bcc-a157-050c41dac51d")
         let first = try store.event(
             key: key,
             recordedAt: Date(timeIntervalSince1970: 1_788_000_000),
@@ -241,11 +237,7 @@ struct FHIRExchangeStateTests {
         let oldStore = FHIRExchangeStateStore(accountDataGeneration: 7)
         let subject = try Self.subject
         let oldRepository = try oldStore.repositoryScope(.healthKit, subject: subject)
-        let eventKey = oldStore.healthKitEventKey(
-            subject: subject,
-            sourceType: "HKQuantityTypeIdentifierStepCount",
-            nativeRecordID: UUID()
-        )
+        let eventKey = oldStore.questionnaireEventKey(subject: subject, responseID: UUID().uuidString)
         _ = try oldStore.event(
             key: eventKey,
             recordedAt: Date(timeIntervalSince1970: 1_788_000_000),
@@ -354,6 +346,7 @@ extension FHIRExchangeStateTests {
     @Test
     func healthKitBatchReservesEverySampleUpFront() throws {
         let store = FHIRExchangeStateStore()
+        let ledger = FHIRExchangeLedger.forTesting()
         let subject = try Self.subject
         let start = Date(timeIntervalSince1970: 1_788_000_000)
         let samples: [HKQuantitySample] = (0..<3).map { (index: Int) -> HKQuantitySample in
@@ -365,7 +358,7 @@ extension FHIRExchangeStateTests {
                 end: sampleStart.addingTimeInterval(30)
             )
         }
-        let exporter = try store.healthKitExporter(subject: subject)
+        let exporter = try store.healthKitExporter(subject: subject, ledger: ledger)
         func events(of samples: [HKSample], at instant: Date) throws -> [BusinessIdentifier] {
             var events: [BusinessIdentifier] = []
             _ = try exporter.export(samples, at: instant) { export in
@@ -385,8 +378,10 @@ extension FHIRExchangeStateTests {
         for (index, sample) in samples.enumerated() {
             let single = try events(of: [sample], at: start.addingTimeInterval(3600))
             #expect(single == [batch[index]])
-            #expect(batch[index].value.hasSuffix(":\(index + 1)"))
         }
+        // New sequences follow the order of the event keys, not of the input.
+        let sequences = try batch.map { try ExchangeEventIdentifier($0).sequence.rawValue }
+        #expect(Set(sequences) == ["1", "2", "3"])
         #expect(onDemand.first?.value.hasSuffix(":4") == true)
     }
 }

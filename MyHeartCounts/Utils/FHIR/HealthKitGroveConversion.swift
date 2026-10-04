@@ -13,12 +13,12 @@ import HealthKit
 
 
 extension FHIRExchangeStateStore {
-    /// The exporter of one batch: the signed-in participant, this installation's facts as they
-    /// stand now, MHC's identity scope, and this store as the sequencer's ledger.
+    /// The exporter of one batch: the signed-in participant, this installation's facts as they stand now,
+    /// MHC's identity scope, and the ledger fenced to this store's account generation.
     ///
-    /// Building one reads the keychain secret and the enrollment once; converting a batch through
-    /// it then costs one ledger transaction for the reservations and none per sample.
-    func healthKitExporter(subject: FHIRExchangeSubject) throws -> HealthKitFHIRExporter {
+    /// Building one reads the keychain identity secret and the enrollment; it opens no ledger. Each export
+    /// call through it then costs one ledger transaction for its reservations, and its receipt at most one more.
+    func healthKitExporter(subject: FHIRExchangeSubject, ledger: FHIRExchangeLedger) throws -> HealthKitFHIRExporter {
         let facts = try FHIRExchangeEventFacts.current()
         let producer = try ExchangeProducer(
             identityScope: try identityScope(),
@@ -26,8 +26,7 @@ extension FHIRExchangeStateStore {
             application: try facts.application,
             host: try facts.host,
             studies: try facts.studies(for: subject),
-            // A reservation lives until its source cursor is acknowledged, however late that is.
-            sequencer: ExchangeEventSequencer(storage: self, retention: .init(maximumAge: .infinity))
+            sequencer: ledger.sequencer(accountDataGeneration: accountDataGeneration)
         )
         return try HealthKitFHIRExporter(
             producer: producer,

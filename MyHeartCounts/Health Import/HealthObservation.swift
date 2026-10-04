@@ -220,7 +220,7 @@ extension HealthObservation {
     /// unconvertible sample never costs its batch or its sample type's ingestion.
     ///
     /// Callers converting many observations share one exporter built by
-    /// `FHIRExchangeStateStore.healthKitExporter(subject:)`.
+    /// `FHIRExchangeStateStore.healthKitExporter(subject:ledger:)`.
     func prepareFHIRPayload(
         with exporter: HealthKitFHIRExporter,
         at conversionInstant: Date,
@@ -252,10 +252,11 @@ extension HealthObservation {
         conversionInstant: Date,
         subject: FHIRExchangeSubject,
         stateStore: FHIRExchangeStateStore,
+        ledger: FHIRExchangeLedger,
         using healthKit: HealthKit
     ) async throws -> PreparedHealthObservationFHIRPayload {
         try await prepareFHIRPayload(
-            with: try stateStore.healthKitExporter(subject: subject),
+            with: try stateStore.healthKitExporter(subject: subject, ledger: ledger),
             at: conversionInstant,
             using: healthKit
         )

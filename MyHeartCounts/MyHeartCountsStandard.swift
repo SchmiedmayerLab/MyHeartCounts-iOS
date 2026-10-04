@@ -45,6 +45,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(Scheduler.self) var scheduler
     @Dependency(SensorKitDataFetcher.self) private var sensorKitFetcher
     @Dependency(HealthUploadStaging.self) var healthUploadStaging
+    @Dependency(FHIRExchangeLedger.self) var fhirExchangeLedger
     @Dependency(HealthUploadStagingUploader.self) private var healthUploadStagingUploader
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
@@ -67,7 +68,9 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         try DeferredConfigLoading.setActiveStudyVariant(variant)
     }
 
-    /// The encrypted, installation-scoped ledger shared by every FHIR publication path.
+    /// The encrypted, installation-scoped identity and SensorKit/questionnaire ledger state.
+    ///
+    /// HealthKit reserves its exchange events in ``fhirExchangeLedger`` instead.
     func fhirExchangeStateStore(accountDataGeneration: Int) -> FHIRExchangeStateStore {
         FHIRExchangeStateStore(
             localStorage: localStorage,

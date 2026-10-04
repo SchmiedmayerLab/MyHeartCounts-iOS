@@ -32,6 +32,9 @@ final class MyHeartCountsDelegate: GroveAppDelegate {
             SetupTestEnvironment()
             DeferredConfigLoading.initialAppLaunchConfig
             HealthKit()
+            FHIRExchangeLedger(
+                location: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .default
+            )
             HealthUploadStaging(
                 persistence: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .onDisk
             )

@@ -38,6 +38,7 @@ extension HealthUploadStaging {
                 )
             },
             subject: subject,
+            ledger: resolvedLedger(),
             recordedAt: recordedAt
         )
         var bundles: [ModelsR4.Bundle] = []

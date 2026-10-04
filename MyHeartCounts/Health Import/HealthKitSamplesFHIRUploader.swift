@@ -40,7 +40,8 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         let stateStore = await standard.fhirExchangeStateStore(
             accountDataGeneration: accountDataGeneration
         )
-        let exporter = try stateStore.healthKitExporter(subject: subject)
+        let ledger = await standard.fhirExchangeLedger
+        let exporter = try stateStore.healthKitExporter(subject: subject, ledger: ledger)
         var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
         var receipts: [HealthKitFHIRExporter.Receipt] = []
         for sample in consume samples {
