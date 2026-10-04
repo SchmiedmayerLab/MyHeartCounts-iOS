@@ -49,8 +49,8 @@ extension FHIRExchangeStateStore {
         return secret
     }
 
-    func identityScope() throws -> OpaqueIdentityScope {
-        let secret = try identitySecret()
+    /// The identity scope `secret` keys.
+    static func identityScope(of secret: FHIRExchangeIdentitySecret) throws -> OpaqueIdentityScope {
         let keyID = FHIRExchangeIdentifiers.identityKeyID
         let epoch = try EventSequence(String(secret.epoch))
         return try OpaqueIdentityScope(
@@ -65,6 +65,22 @@ extension FHIRExchangeStateStore {
         )
     }
 
+    /// The repository one source's records live in, under the store `secret` belongs to.
+    static func repositoryScope(
+        _ source: FHIRExchangeIdentifiers.SourceRepository,
+        subject: FHIRExchangeSubject,
+        secret: FHIRExchangeIdentitySecret
+    ) throws -> BusinessIdentifier {
+        try BusinessIdentifier(
+            system: FHIRExchangeIdentifiers.repository,
+            value: "\(source.rawValue):\(secret.storeID.uuidString.lowercased()):\(subject.identity.value)"
+        )
+    }
+
+    func identityScope() throws -> OpaqueIdentityScope {
+        try Self.identityScope(of: identitySecret())
+    }
+
     /// The repository one source's records live in: the synced store, partitioned per account.
     ///
     /// The store id keeps the same reading's identities equal across the participant's devices
@@ -74,11 +90,7 @@ extension FHIRExchangeStateStore {
         _ source: FHIRExchangeIdentifiers.SourceRepository,
         subject: FHIRExchangeSubject
     ) throws -> BusinessIdentifier {
-        let secret = try identitySecret()
-        return try BusinessIdentifier(
-            system: FHIRExchangeIdentifiers.repository,
-            value: "\(source.rawValue):\(secret.storeID.uuidString.lowercased()):\(subject.identity.value)"
-        )
+        try Self.repositoryScope(source, subject: subject, secret: identitySecret())
     }
 
     /// Loads the store-bound secret, minting and persisting one on first use.

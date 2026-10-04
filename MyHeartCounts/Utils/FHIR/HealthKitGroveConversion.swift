@@ -16,12 +16,22 @@ extension FHIRExchangeStateStore {
     /// The exporter of one batch: the signed-in participant, this installation's facts as they stand now,
     /// MHC's identity scope, and the ledger fenced to this store's account generation.
     ///
-    /// Building one reads the keychain identity secret and the enrollment; it opens no ledger. Each export
-    /// call through it then costs one ledger transaction for its reservations, and its receipt at most one more.
+    /// Only HealthKit samples need one. Building it reads the keychain identity secret once, and the app facts
+    /// and enrollment; it opens no ledger. Each export call through it then costs one ledger transaction for its
+    /// reservations, and its receipt at most one more.
     func healthKitExporter(subject: FHIRExchangeSubject, ledger: FHIRExchangeLedger) throws -> HealthKitFHIRExporter {
-        let facts = try FHIRExchangeEventFacts.current()
+        try healthKitExporter(subject: subject, ledger: ledger, facts: .current())
+    }
+
+    /// ``healthKitExporter(subject:ledger:)`` reserving new events under `facts` instead of the current ones.
+    func healthKitExporter(
+        subject: FHIRExchangeSubject,
+        ledger: FHIRExchangeLedger,
+        facts: FHIRExchangeEventFacts
+    ) throws -> HealthKitFHIRExporter {
+        let secret = try identitySecret()
         let producer = try ExchangeProducer(
-            identityScope: try identityScope(),
+            identityScope: try Self.identityScope(of: secret),
             subject: .logical(subject.identity),
             application: try facts.application,
             host: try facts.host,
@@ -30,7 +40,7 @@ extension FHIRExchangeStateStore {
         )
         return try HealthKitFHIRExporter(
             producer: producer,
-            repositoryScope: try repositoryScope(.healthKit, subject: subject),
+            repositoryScope: try Self.repositoryScope(.healthKit, subject: subject, secret: secret),
             options: .myHeartCounts
         )
     }
