@@ -16,6 +16,7 @@ import GroveTesting
 import HealthKit
 import ModelsR4
 @testable import MyHeartCounts
+import OSLog
 import Synchronization
 import Testing
 
@@ -137,6 +138,44 @@ extension HealthUploadStaging {
             try remove(chunk)
         }
         return staged
+    }
+}
+
+
+/// The upload files a test staged, decompressed, in the order they were staged.
+final class StagedUploadFiles: Sendable {
+    private let files = Mutex<[Data]>([])
+
+    var all: [Data] {
+        files.withLock { $0 }
+    }
+
+    /// Stages `file` as the managed upload would: its bytes are kept, and the caller removes the file.
+    func stage(_ file: URL) throws {
+        let json = try Data(contentsOf: file).decompressed(using: Zstd.self)
+        files.withLock { $0.append(json) }
+    }
+}
+
+
+extension MyHeartCountsStandard.HealthObservationUploadDependencies {
+    /// Uploads attributed to the ledger harness's participant: rows go to `staging`, and an upload file's HealthKit
+    /// samples are exported as staging exports them and staged into `files`.
+    static func testing(staging: HealthUploadStaging, files: StagedUploadFiles = StagedUploadFiles()) -> Self {
+        Self(
+            subject: {
+                try LedgerHarness.subject
+            },
+            staging: staging,
+            healthKit: HealthKit(),
+            exporter: { _, accountDataGeneration in
+                try await staging.healthKitExporter(accountDataGeneration: accountDataGeneration)
+            },
+            stageFile: { file, _ in
+                try files.stage(file)
+            },
+            logger: Logger(subsystem: "edu.stanford.MyHeartCounts.tests", category: "HealthObservationUpload")
+        )
     }
 }
 

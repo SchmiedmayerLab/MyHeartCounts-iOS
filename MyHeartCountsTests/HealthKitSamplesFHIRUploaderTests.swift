@@ -28,20 +28,19 @@ struct HealthKitSamplesFHIRUploaderTests {
         harness = LedgerHarness(ledger: ledger)
     }
 
-    /// Exports `samples` as one bulk batch, returning its reservations and the decompressed file it staged.
-    private func stage(_ samples: [HKSample]) async throws -> (receipt: HealthKitFHIRReservationReceipt, staged: Data?) {
+    /// The bulk session's processor, exporting through the ledger harness and staging into `files`, or failing to stage.
+    private func bulkUploader(files: StagedUploadFiles = StagedUploadFiles(), failsToStage: Bool = false) -> HealthKitSamplesFHIRUploader {
         let harness = harness
-        var staged: Data?
-        let receipt = try await HealthKitSamplesFHIRUploader.stageBatch(
-            samples,
-            typePrefix: HKQuantityTypeIdentifier.stepCount.rawValue,
-            using: HealthKit()
-        ) {
+        return HealthKitSamplesFHIRUploader {
+            HealthKit()
+        } exporter: { _ in
             try harness.exporter()
-        } stage: { url in
-            staged = try Data(contentsOf: url).decompressed(using: Zstd.self)
+        } stage: { file, _ in
+            if failsToStage {
+                throw StagingFailure()
+            }
+            try files.stage(file)
         }
-        return (receipt, staged)
     }
 
     /// M4, M7: a batch of 1 000 samples reserves in one ledger transaction, and releases in one more only once the
@@ -49,13 +48,15 @@ struct HealthKitSamplesFHIRUploaderTests {
     @Test
     func thousandSamplesCostOneReserveAndOneReleaseAfterPersistence() async throws {
         let counter = try ledger.countingTransactions()
+        let files = StagedUploadFiles()
+        let uploader = bulkUploader(files: files)
 
-        let (receipt, staged) = try await stage((0..<1000).map(LedgerHarness.steps))
-        #expect(staged != nil)
+        let receipt = try await uploader.process((0..<1000).map(LedgerHarness.steps), of: .stepCount)
+        #expect(files.all.count == 1)
         #expect(counter.transactions == 1)
         #expect(try ledger.reservationCount == 1000)
 
-        await HealthKitSamplesFHIRUploader(standard: MyHeartCountsStandard()).didPersist(receipt)
+        await uploader.didPersist(receipt)
         #expect(counter.transactions == 2)
         #expect(try ledger.reservationCount == 0)
     }
@@ -64,36 +65,36 @@ struct HealthKitSamplesFHIRUploaderTests {
     @Test
     func stagedFileSplicesTheGraphsJSON() async throws {
         let samples = (0..<4).map(LedgerHarness.steps)
-        let (receipt, staged) = try await stage(samples)
+        let files = StagedUploadFiles()
+        let uploader = bulkUploader(files: files)
+        let receipt = try await uploader.process(samples, of: .stepCount)
 
         // Before the batch is persisted, the same exporter reproduces the events the batch reserved.
         let graphs = try harness.exporter().deliver(samples)
         let ordered = graphs.graphs.sorted { $0.key.uuidString.lowercased() < $1.key.uuidString.lowercased() }
-        #expect(staged == splicedJSONArray(ordered.map(\.value)))
+        #expect(files.all == [splicedJSONArray(ordered.map(\.value))])
         graphs.receipt?.release()
-        receipt.completeAfterSourceAcknowledgement()
+        await uploader.didPersist(receipt)
     }
 
     /// M7: a batch whose file could not be staged releases nothing, so the redelivery stages the same bytes.
     @Test
     func batchThatFailsToStageKeepsItsEventsForTheRedelivery() async throws {
         let samples = (0..<3).map(LedgerHarness.steps)
-        let harness = harness
         await #expect(throws: StagingFailure.self) {
-            _ = try await HealthKitSamplesFHIRUploader.stageBatch(samples, typePrefix: "steps", using: HealthKit()) {
-                try harness.exporter()
-            } stage: { _ in
-                throw StagingFailure()
-            }
+            _ = try await bulkUploader(failsToStage: true).process(samples, of: .stepCount)
         }
         #expect(try ledger.reservationCount == 3)
 
-        let (first, firstStaged) = try await stage(samples)
-        let (redelivery, redeliveryStaged) = try await stage(samples)
-        #expect(redeliveryStaged == firstStaged)
+        let files = StagedUploadFiles()
+        let uploader = bulkUploader(files: files)
+        let first = try await uploader.process(samples, of: .stepCount)
+        let redelivery = try await uploader.process(samples, of: .stepCount)
+        #expect(files.all.count == 2)
+        #expect(files.all.first == files.all.last)
         #expect(try ledger.producerEntry().next == "4", "every delivery reused the first one's events")
-        first.completeAfterSourceAcknowledgement()
-        redelivery.completeAfterSourceAcknowledgement()
+        await uploader.didPersist(first)
+        await uploader.didPersist(redelivery)
         #expect(try ledger.reservationCount == 0)
     }
 }

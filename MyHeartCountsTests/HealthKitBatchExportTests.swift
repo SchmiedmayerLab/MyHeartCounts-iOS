@@ -130,20 +130,53 @@ struct HealthKitBatchExportTests {
         }
     }
 
-    /// M7, live path: the delivery's reservations stay until the action Grove runs after the anchor commit.
+    /// M7, live path: the delivery `handleNewSamples` stages keeps its reservations until the action Grove runs after
+    /// the anchor commit, also when it spans several sample types.
     @Test
     func liveDeliveryHoldsItsEventsUntilTheAnchorCommits() async throws {
         let staging = try await HealthUploadStaging.resolvedForTesting()
         let ledger = try staging.ledger
-        let receipt = try await staging.add([LedgerHarness.steps(0), LedgerHarness.steps(1)])
-        #expect(try ledger.reservationCount == 2)
+        let samples: [HKSample] = [LedgerHarness.steps(0), LedgerHarness.steps(1), heartRateSample(2)]
+        let action = try #require(try await MyHeartCountsStandard.stageNewSamples(
+            samples,
+            accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration],
+            through: .testing(staging: staging)
+        ))
+        #expect(Set(try staging.drainStagedSamples().keys) == Set(samples.map(\.uuid)))
+        #expect(try ledger.reservationCount == 3)
 
-        let action = try #require(receipt.anchorCommitAction)
-        #expect(try ledger.reservationCount == 2)
         await action()
         #expect(try ledger.reservationCount == 0)
-        // Completing it again, as a copy of the receipt would, changes nothing.
-        receipt.completeAfterSourceAcknowledgement()
+        // Running it again changes nothing.
+        await action()
+        #expect(try ledger.reservationCount == 0)
+    }
+
+    /// M7, live path: a delivery uploaded as one file, as HealthKit types MHC does not model are, keeps its
+    /// reservations until the anchor commits; the file is the graphs' validated bytes spliced in sample order.
+    @Test
+    func liveUploadFileHoldsItsEventsUntilTheAnchorCommits() async throws {
+        let staging = try await HealthUploadStaging.resolvedForTesting()
+        let ledger = try staging.ledger
+        let files = StagedUploadFiles()
+        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
+        let samples = (0..<3).map(LedgerHarness.steps)
+        let receipt = try await MyHeartCountsStandard.uploadHealthObservations(
+            samples,
+            accountDataGeneration: accountDataGeneration,
+            uploadStrategy: .firebaseStorage,
+            through: .testing(staging: staging, files: files)
+        )
+        #expect(try ledger.reservationCount == 3)
+        #expect(try staging.drainStagedSamples().isEmpty)
+
+        // Before the anchor commits, the same exporter reproduces the events the file carries.
+        let graphs = try await staging.healthKitExporter(accountDataGeneration: accountDataGeneration).deliver(samples)
+        let ordered = graphs.graphs.sorted { $0.key.uuidString.lowercased() < $1.key.uuidString.lowercased() }
+        #expect(files.all == [splicedJSONArray(ordered.map(\.value))])
+        graphs.receipt?.release()
+
+        try await receipt.commitAnchor()
         #expect(try ledger.reservationCount == 0)
     }
 }

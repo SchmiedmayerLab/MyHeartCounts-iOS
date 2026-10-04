@@ -38,7 +38,7 @@ extension LocalPreferenceKeys {
 
 
 extension MyHeartCountsStandard: HealthKitConstraint {
-    var enableDebugHealthKitNotifications: Bool {
+    static var enableDebugHealthKitNotifications: Bool {
         let prefs = LocalPreferencesStore.standard
         return prefs[.lastSeenIsDebugModeEnabledAccountKey] && prefs[.sendHealthSampleUploadNotifications]
     }
@@ -91,12 +91,11 @@ extension MyHeartCountsStandard: HealthKitConstraint {
         guard try await shouldAcceptHealthKitDelivery else {
             return nil
         }
-        let receipt = try await uploadHealthObservations(
+        return try await Self.stageNewSamples(
             addedSamples,
             accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration],
-            uploadStrategy: nil
+            through: healthObservationUploadDependencies
         )
-        return receipt.anchorCommitAction
     }
 
 
@@ -127,13 +126,54 @@ extension MyHeartCountsStandard {
         case directFirestore
         case firebaseStorage
     }
-    
-    
+
+    /// What uploading health observations reaches beyond the observations themselves.
+    ///
+    /// The upload functions take it as an argument, so tests run every path that holds a HealthKit batch's
+    /// reservations without a signed-in account, Firebase or the app's ledger.
+    struct HealthObservationUploadDependencies: Sendable {
+        /// The signed-in participant the observations are attributed to.
+        let subject: @Sendable () async throws -> FHIRExchangeSubject
+        /// Stages the observations of the HealthKit types MHC models, one row each.
+        let staging: HealthUploadStaging
+        /// The store an ECG's waveform and symptoms are fetched from.
+        let healthKit: HealthKit
+        /// Builds the exporter of an upload file's HealthKit samples, fenced to `accountDataGeneration`; called only
+        /// for a file that has HealthKit samples.
+        let exporter: @Sendable (_ subject: FHIRExchangeSubject, _ accountDataGeneration: Int) async throws -> HealthKitFHIRExporter
+        /// Durably stages one upload file of new observations for `accountDataGeneration`.
+        let stageFile: @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
+        /// Where the uploads are logged.
+        let logger: Logger
+    }
+
     static let defaultHealthObservationFHIRExtensions: [any FHIRExtensionBuilderProtocol] = [
         .sampleUploadTimeZone, .mhcStudyRevision, .mhcAppRevision
     ]
     
     nonisolated private static let directFirestoreUploadDefaultBatchSize = 100
+
+    /// The app's: the signed-in account, the staging, the exchange identity and ledger, and the live health uploads.
+    private var healthObservationUploadDependencies: HealthObservationUploadDependencies {
+        let firebaseConfiguration = firebaseConfiguration
+        let ledger = fhirExchangeLedger
+        let managedFileUpload = managedFileUpload
+        return HealthObservationUploadDependencies(
+            subject: {
+                try await firebaseConfiguration.fhirExchangeSubject
+            },
+            staging: healthUploadStaging,
+            healthKit: healthKit,
+            exporter: { subject, accountDataGeneration in
+                try await self.fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
+                    .healthKitExporter(subject: subject, ledger: ledger)
+            },
+            stageFile: { file, accountDataGeneration in
+                try await managedFileUpload.stage(file, category: .liveHealthUpload, accountDataGeneration: accountDataGeneration)
+            },
+            logger: logger
+        )
+    }
     
     /// Determines how a health observation / resource should be persisted when uploading it to firebase.
     private static func uploadStrategy(forSampleType identifier: String) -> HealthObservationUploadStrategy {
@@ -176,18 +216,42 @@ extension MyHeartCountsStandard {
         uploadStrategy: HealthObservationUploadStrategy? = nil
     ) async throws {
         // Every public caller passes self-modelled observations, which reserve no exchange events.
-        let receipt = try await uploadHealthObservations(
+        let receipt = try await Self.uploadHealthObservations(
             consume observations,
             accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration],
-            uploadStrategy: uploadStrategy
+            uploadStrategy: uploadStrategy,
+            through: healthObservationUploadDependencies
         )
         assert(receipt.isEmpty, "public upload path left exchange-event reservations")
     }
+}
 
-    private func uploadHealthObservations( // swiftlint:disable:this function_body_length cyclomatic_complexity
+
+extension MyHeartCountsStandard {
+    /// Stages one live HealthKit delivery, returning the action that releases its reservations once Grove has
+    /// committed the delivery's anchor.
+    ///
+    /// Nothing releases them earlier, so until the action runs a redelivery reproduces every staged byte.
+    static func stageNewSamples(
+        _ samples: consuming some Collection<some HealthObservation & Sendable> & Sendable,
+        accountDataGeneration: Int,
+        through dependencies: HealthObservationUploadDependencies
+    ) async throws -> HealthKitAnchorCommitAction? {
+        try await uploadHealthObservations(
+            consume samples,
+            accountDataGeneration: accountDataGeneration,
+            uploadStrategy: nil,
+            through: dependencies
+        ).anchorCommitAction
+    }
+
+    /// Uploads `observations` by `uploadStrategy`, or the strategy their sample type takes, returning the
+    /// reservations of their HealthKit samples. The caller completes them once its source cursor is committed.
+    static func uploadHealthObservations( // swiftlint:disable:this function_body_length cyclomatic_complexity
         _ observations: consuming some Collection<some HealthObservation & Sendable> & Sendable,
         accountDataGeneration: Int,
-        uploadStrategy: HealthObservationUploadStrategy?
+        uploadStrategy: HealthObservationUploadStrategy?,
+        through dependencies: HealthObservationUploadDependencies
     ) async throws -> HealthKitFHIRReservationReceipt {
         guard !observations.isEmpty, let sampleTypeIdentifier = observations.first?.sampleTypeIdentifier else {
             return HealthKitFHIRReservationReceipt()
@@ -203,10 +267,11 @@ extension MyHeartCountsStandard {
                 let bySampleType = observations.grouped(by: \.sampleTypeIdentifier)
                 for (_, observations) in bySampleType {
                     taskGroup.addTask {
-                        try await self.uploadHealthObservations(
+                        try await Self.uploadHealthObservations(
                             observations,
                             accountDataGeneration: accountDataGeneration,
-                            uploadStrategy: uploadStrategy
+                            uploadStrategy: uploadStrategy,
+                            through: dependencies
                         )
                     }
                 }
@@ -218,7 +283,7 @@ extension MyHeartCountsStandard {
             }
         }
         let conversionInstant = Date.now
-        let subject = try await firebaseConfiguration.fhirExchangeSubject
+        let subject = try await dependencies.subject()
         let destination = try FHIRExchangeDestination.capture(
             accountID: subject.identity.value,
             accountDataGeneration: accountDataGeneration
@@ -226,28 +291,27 @@ extension MyHeartCountsStandard {
         let uploadStrategy = uploadStrategy ?? Self.uploadStrategy(forSampleType: sampleTypeIdentifier)
         switch uploadStrategy {
         case .queueLocally:
-            return try await healthUploadStaging.add(
+            return try await dependencies.staging.add(
                 observations,
                 commonSampleType: sampleTypeIdentifier,
                 accountDataGeneration: accountDataGeneration
             )
         case .firebaseStorage:
             let numObservations = observations.count
-            logger.notice("Uploading \(numObservations) observations of type '\(sampleTypeIdentifier)' via zstd upload")
+            dependencies.logger.notice("Uploading \(numObservations) observations of type '\(sampleTypeIdentifier)' via zstd upload")
             let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                 for: .new(sampleTypeTitle: sampleTypeIdentifier, count: numObservations, uploadStrategy: uploadStrategy)
             )
             try destination.validateCurrentAccount()
             // Only HealthKit samples build the exporter, and with it read the identity secret and the app facts.
-            let stateStore = fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
-            let ledger = fhirExchangeLedger
+            let exporter = dependencies.exporter
             let (url, export) = try await HealthUploadBatch.write(
                 HealthObservationBatch(consume observations),
                 typePrefix: sampleTypeIdentifier,
                 at: conversionInstant,
-                using: healthKit
+                using: dependencies.healthKit
             ) {
-                try stateStore.healthKitExporter(subject: subject, ledger: ledger)
+                try await exporter(subject, accountDataGeneration)
             }
             guard let url else {
                 return export.receipt
@@ -257,11 +321,7 @@ extension MyHeartCountsStandard {
             }
             try Swift::Task.checkCancellation()
             try destination.validateCurrentAccount()
-            try await managedFileUpload.stage(
-                url,
-                category: .liveHealthUpload,
-                accountDataGeneration: accountDataGeneration
-            )
+            try await dependencies.stageFile(url, accountDataGeneration)
             await triggerDidUploadNotification()
             return export.receipt
         case .directFirestore:
@@ -284,7 +344,7 @@ extension MyHeartCountsStandard {
                         id: observation.id.uuidString,
                         destination: destination
                     )
-                    logger.notice("Uploading Health Resource to \(document.path)")
+                    dependencies.logger.notice("Uploading Health Resource to \(document.path)")
                     try firestoreBatch.setData(from: observation.fhirResource(issuedAt: conversionInstant), forDocument: document)
                 }
                 try Swift::Task.checkCancellation()
@@ -316,7 +376,7 @@ extension MyHeartCountsStandard {
     }
     
     /// - returns: A closure that should be called upon completion of the uploads, and will replaces the "will upload" notifications with "did upload" notifications.
-    private func showDebugWillUploadHealthDataUploadEventNotification(
+    private static func showDebugWillUploadHealthDataUploadEventNotification(
         for change: HealthDocumentChange
     ) async -> @Sendable () async -> Void {
         guard enableDebugHealthKitNotifications else {
