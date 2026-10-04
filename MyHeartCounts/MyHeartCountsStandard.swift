@@ -84,6 +84,17 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             await handleIsLoggedOut()
             await handleStudyBundleUpdates()
         }
+        // Best effort and independent of the ledger: the encrypted state may be unreadable before the first unlock.
+        Swift::Task(priority: .utility) {
+            await purgeLegacyHealthKitExchangeEvents()
+        }
+    }
+
+    /// Drops the HealthKit reservations the encrypted state held before HealthKit moved to ``fhirExchangeLedger``.
+    private func purgeLegacyHealthKitExchangeEvents() {
+        FHIRExchangeStateStore.purgeLegacyHealthKitEventsOnce(
+            in: fhirExchangeStateStore(accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
+        )
     }
     
     @MainActor

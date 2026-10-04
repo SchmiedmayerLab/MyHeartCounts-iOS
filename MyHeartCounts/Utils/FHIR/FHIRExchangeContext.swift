@@ -510,6 +510,39 @@ extension FHIRExchangeStateStore {
 }
 
 
+extension FHIRExchangeStateStore {
+    /// Whether `key` names a HealthKit reservation from before HealthKit moved to `FHIRExchangeLedger`.
+    static func isLegacyHealthKitEventKey(_ key: String) -> Bool {
+        key.hasPrefix("healthkit|") || key.hasPrefix("healthkit-retraction|")
+    }
+
+    /// Drops the HealthKit reservations this store held before HealthKit moved to `FHIRExchangeLedger`.
+    ///
+    /// The rewrite also drops the HealthKit sequencer state older builds kept here, which decoding ignores.
+    /// SensorKit and questionnaire reservations, the producer instance and its counter are kept. A store
+    /// without state, or with the state of another account generation, is left untouched.
+    func purgeLegacyHealthKitEvents() throws {
+        try withExistingState { state in
+            state.events = state.events.filter { !Self.isLegacyHealthKitEventKey($0.key) }
+        }
+    }
+}
+
+
+#if DEBUG
+extension FHIRExchangeStateStore {
+    /// The keys of every reservation, read without a write-back.
+    var eventKeysForTesting: Set<String> {
+        get throws {
+            try withStorage(readOnly: true) { stored in
+                Set(stored.map { Array($0.events.keys) } ?? [])
+            }
+        }
+    }
+}
+#endif
+
+
 extension LocalStorageKeys {
     fileprivate static let fhirExchangeState = LocalStorageKey<FHIRExchangeStateStore.State>(
         "edu.stanford.MyHeartCounts.fhir.exchange-state.v0"
