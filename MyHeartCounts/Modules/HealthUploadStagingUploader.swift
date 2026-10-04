@@ -69,6 +69,10 @@ enum HealthUploadBatch {
     ///
     /// The batch's HealthKit samples go through the exporter `exporter` builds, only when there are any. The
     /// returned export's receipt holds the batch's reservations until the caller completes it.
+    ///
+    /// Every entry's bytes are held until the file is written, and once more while they are spliced into it, so
+    /// ``HealthKitFHIRExporter/voltageBudget`` bounds only the voltages fetched at once, not the batch: an ECG's
+    /// graph carries its waveform.
     @concurrent
     static func write(
         _ batch: HealthObservationBatch,

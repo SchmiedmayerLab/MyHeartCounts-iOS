@@ -214,39 +214,134 @@ extension HealthKitBatchExportTests {
 
 
 extension HealthKitBatchExportTests {
+    private struct FetchFailure: Error {}
+
+    /// A fetched record's sample, observed without keeping it alive.
+    private final class FetchedRecord {
+        weak var sample: HKSample?
+
+        init(_ sample: HKSample) {
+            self.sample = sample
+        }
+    }
+
+    /// What a stand-in record holds: an ECG of 30 s at 512 Hz. HealthKit vends ECGs only from its store, and
+    /// voltage measurements only from an ECG, so each stand-in sample states an ECG's count.
+    private static let measurementsPerECG = 15_360
+
+    /// Records whose samples each state an ECG's measurement count; fetching `failing` throws.
+    private static func ecgStandIns(failingAt failing: UUID? = nil) -> HealthObservationRecords {
+        HealthObservationRecords { _ in
+            measurementsPerECG
+        } record: { sample in
+            if sample.uuid == failing {
+                throw FetchFailure()
+            }
+            return .sample(sample)
+        }
+    }
+
+    /// Each HealthKit entry carries its graph's validated bytes, never a re-encoding of the graph's bundle.
+    @Test
+    func healthKitEntriesCarryTheirGraphsBytes() async throws {
+        let exporter = try LedgerHarness(ledger: .forTesting()).exporter()
+        let samples: [HKSample] = [LedgerHarness.steps(0), heartRateSample(1), Self.symptom]
+        var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+        let export = try await exporter.exportBatch(samples, at: LedgerHarness.start, using: HealthKit()) { entry in
+            entries.append(entry)
+        }
+
+        let graphs = try exporter.deliver(samples)
+        #expect(entries.map(\.sourceID) == samples.map(\.uuid))
+        for entry in entries {
+            guard case .graph(let json) = entry.content else {
+                Issue.record("A HealthKit sample is uploaded as its graph's bytes")
+                continue
+            }
+            #expect(json == graphs.graphs[entry.sourceID])
+        }
+        graphs.receipt?.release()
+        export.receipt.completeAfterSourceAcknowledgement()
+    }
+
     /// M16: a batch of 40 ECGs is exported in calls of at most ``HealthKitFHIRExporter/voltageBudget`` voltage
-    /// measurements, and never holds more fetched voltages than that; a batch without ECGs is one call.
+    /// measurements, never keeps more fetched records alive than that, and releases every call's reservations; a
+    /// batch without ECGs is one call.
     @Test
     func ecgBatchNeverHoldsMoreThanTheVoltageBudget() async throws {
         let ledger = FHIRExchangeLedger.forTesting()
         let exporter = try LedgerHarness(ledger: ledger).exporter()
         let counter = try ledger.countingTransactions()
-        // 30 s at 512 Hz. HealthKit vends ECGs only from its store, so each stand-in sample states an ECG's count
-        // and the counting fetch "loads" that many measurements.
-        let measurementsPerECG = 15_360
-        var held: [UUID: Int] = [:]
+        // Each fetch returns a fresh record, as an ECG's fetched voltages are, so only the export keeps it alive.
+        var fetched: [FetchedRecord] = []
         var mostHeld = 0
         let records = HealthObservationRecords { _ in
-            measurementsPerECG
+            Self.measurementsPerECG
         } record: { sample in
-            held[sample.uuid] = measurementsPerECG
-            mostHeld = max(mostHeld, held.values.reduce(0, +))
-            return .sample(sample)
+            let quantitySample = try #require(sample as? HKQuantitySample)
+            let record = autoreleasepool {
+                HKQuantitySample(
+                    type: quantitySample.quantityType,
+                    quantity: quantitySample.quantity,
+                    start: quantitySample.startDate,
+                    end: quantitySample.endDate
+                )
+            }
+            let alive = fetched.count { $0.sample != nil }
+            mostHeld = max(mostHeld, (alive + 1) * Self.measurementsPerECG)
+            fetched.append(FetchedRecord(record))
+            return .sample(record)
         }
 
         var delivered = 0
-        _ = try await exporter.exportBatch((0..<40).map(LedgerHarness.steps), at: LedgerHarness.start, records: records) { entry in
-            // A delivered record's voltages are dropped with its call.
-            held[entry.sourceID] = nil
+        let export = try await exporter.exportBatch((0..<40).map(LedgerHarness.steps), at: LedgerHarness.start, records: records) { _ in
             delivered += 1
         }
 
         #expect(delivered == 40)
         #expect(mostHeld == HealthKitFHIRExporter.voltageBudget)
-        #expect(counter.transactions == 40 * measurementsPerECG / HealthKitFHIRExporter.voltageBudget)
+        let calls = 40 * Self.measurementsPerECG / HealthKitFHIRExporter.voltageBudget
+        #expect(counter.transactions == calls)
+        #expect(try ledger.reservationCount == 40)
+        // Completing the batch releases every call's reservations, one transaction each.
+        export.receipt.completeAfterSourceAcknowledgement()
+        #expect(counter.transactions == 2 * calls)
+        #expect(try ledger.reservationCount == 0)
 
         let callsBefore = counter.transactions
         _ = try await exporter.exportBatch((40..<140).map(LedgerHarness.steps), at: LedgerHarness.start, using: HealthKit()) { _ in }
         #expect(counter.transactions == callsBefore + 1)
+    }
+
+    /// A batch that fails after some of its calls completed drops their receipts, so their holds lapse: the redelivery
+    /// stages the same events and bytes for them, and completing it releases the whole batch.
+    @Test
+    func batchFailingAfterEarlierCallsIsRedeliveredExactly() async throws {
+        let ledger = FHIRExchangeLedger.forTesting()
+        let exporter = try LedgerHarness(ledger: ledger).exporter()
+        let samples = (0..<40).map(LedgerHarness.steps)
+
+        var firstAttempt: [UUID: Data] = [:]
+        do {
+            _ = try await exporter.exportBatch(samples, at: LedgerHarness.start, records: Self.ecgStandIns(failingAt: samples[30].uuid)) { entry in
+                firstAttempt[entry.sourceID] = try entry.json()
+            }
+            Issue.record("A failing fetch ends the batch")
+        } catch is FetchFailure {}
+        // Three calls of eight completed before the fourth call's records were fetched.
+        #expect(Set(firstAttempt.keys) == Set(samples.prefix(24).map(\.uuid)))
+        #expect(try ledger.reservationCount == 24)
+
+        var redelivery: [UUID: Data] = [:]
+        let export = try await exporter.exportBatch(samples, at: LedgerHarness.start, records: Self.ecgStandIns()) { entry in
+            redelivery[entry.sourceID] = try entry.json()
+        }
+        #expect(redelivery.count == 40)
+        for (sample, json) in firstAttempt {
+            #expect(redelivery[sample] == json)
+        }
+        #expect(try ledger.producerEntry().next == "41", "the redelivery reused every event of the failed attempt")
+        export.receipt.completeAfterSourceAcknowledgement()
+        #expect(try ledger.reservationCount == 0)
     }
 }
