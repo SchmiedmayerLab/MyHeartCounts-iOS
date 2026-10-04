@@ -248,4 +248,35 @@ struct FHIRExchangeLedgerContractTests {
             #expect(try harness.ledger.entryKeys(prefixedBy: "event/").count == 1)
         }
     }
+
+    /// G13: forgetting the reservations made before a cutoff removes exactly those and the facts no remaining
+    /// reservation references, and keeps the producer, so later sequences continue under the same instance.
+    @Test
+    func forgetReservationsRemovesOnlyOlderReservationsAndUnreferencedFacts() throws {
+        try withTemporaryDirectory { root in
+            let harness = LedgerHarness(ledger: .inDirectory(root))
+            let older = LedgerHarness.steps(0)
+            let newer = LedgerHarness.steps(1)
+            _ = try harness.deliver([older], at: LedgerHarness.start)
+            let kept = try harness.deliver([newer], at: LedgerHarness.start + 3600)
+            let producer = try harness.ledger.producerEntry()
+            let sequencer = harness.ledger.sequencer(accountDataGeneration: 0)
+
+            #expect(try sequencer.forgetReservations(madeBefore: LedgerHarness.start + 1800) == 1)
+            #expect(try harness.ledger.entryKeys(prefixedBy: "event/").count == 1)
+            #expect(try harness.ledger.entryKeys(prefixedBy: "facts/").count == 1)
+            #expect(try harness.deliver([newer]).events == kept.events)
+
+            #expect(try sequencer.forgetReservations(madeBefore: LedgerHarness.start + 7200) == 1)
+            #expect(try harness.ledger.entryKeys(prefixedBy: "event/").isEmpty)
+            #expect(try harness.ledger.entryKeys(prefixedBy: "facts/").isEmpty)
+            let current = try harness.ledger.producerEntry()
+            #expect(current.instance == producer.instance)
+            #expect(current.next == producer.next)
+
+            let redelivered = try #require(try harness.deliver([older]).events[older.uuid])
+            #expect(redelivered.producerInstance == producer.instance)
+            #expect(redelivered.sequence.rawValue == producer.next)
+        }
+    }
 }
