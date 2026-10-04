@@ -119,7 +119,7 @@ struct FHIRExchangeLedgerLifecycleTests {
     func creatingTheLedgerCreatesNoFile() throws {
         try withTemporaryDirectory { root in
             let ledger = FHIRExchangeLedger.inDirectory(root)
-            _ = ledger.sequencer(accountDataGeneration: 0)
+            _ = ledger.storage(accountDataGeneration: 0)
             let files = try FileManager.default.contentsOfDirectory(atPath: root.path(percentEncoded: false))
             #expect(files.isEmpty)
         }

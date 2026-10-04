@@ -16,10 +16,10 @@ import OSLog
 import Synchronization
 
 
-/// MHC's exchange-event ledger: Grove's sequencer entries in their own SQLite database, bound to this
+/// MHC's exchange-event ledger: Grove's ledger entries in their own SQLite database, bound to this
 /// device and fenced to the live account generation.
 ///
-/// It is the storage behind every HealthKit exporter (``sequencer(accountDataGeneration:)``) and meets
+/// It is the storage behind every exchange producer (``storage(accountDataGeneration:)``) and meets
 /// Grove's storage contract as follows:
 /// - atomicity: every Grove transaction is one SQLite transaction, rolled back when its body throws;
 /// - durability: a rollback journal with `synchronous = FULL` and `fullfsync = ON`, so a commit has
@@ -203,14 +203,14 @@ final class FHIRExchangeLedger: Module, DefaultInitializable, Sendable {
         }
     }
 
-    /// A sequencer whose every transaction is fenced to `accountDataGeneration`.
+    /// The ledger as an exchange producer's storage, every transaction fenced to `accountDataGeneration`.
     ///
     /// A transaction fails before it writes when the live generation differs or cleanup is pending. When
     /// the ledger still belongs to another generation, it is emptied and adopts this one first. When a
     /// stored entry is corrupt or from a later layout, the ledger is emptied (fenced the same way) and
     /// Grove's `LedgerError` is rethrown, so the redelivery starts on a fresh producer instance.
-    func sequencer(accountDataGeneration: Int) -> ExchangeEventSequencer {
-        ExchangeEventSequencer(storage: FencedStorage(ledger: self, accountDataGeneration: accountDataGeneration))
+    func storage(accountDataGeneration: Int) -> any ExchangeProducer.Storage {
+        FencedStorage(ledger: self, accountDataGeneration: accountDataGeneration)
     }
 
     /// Account cleanup: removes every entry and records `generation` as the ledger's account generation.
@@ -227,7 +227,7 @@ final class FHIRExchangeLedger: Module, DefaultInitializable, Sendable {
         }
     }
 
-    /// Recovery from Grove's `ExchangeEventSequencer.LedgerError`: removes every entry in a transaction
+    /// Recovery from Grove's `ExchangeProducer.LedgerError`: removes every entry in a transaction
     /// live-fenced to `captured`, so a writer whose generation has rotated changes nothing.
     func recover(accountDataGeneration captured: Int) throws {
         try write { db in
@@ -241,7 +241,7 @@ final class FHIRExchangeLedger: Module, DefaultInitializable, Sendable {
     /// Runs one Grove transaction fenced to `captured`.
     fileprivate func transaction<R>(
         fencedTo captured: Int,
-        _ body: (any ExchangeEventSequencer.Transaction) throws -> R
+        _ body: (any ExchangeProducer.Transaction) throws -> R
     ) throws -> R {
         try write { db in
             try fence.validate(captured)
@@ -348,15 +348,15 @@ final class FHIRExchangeLedger: Module, DefaultInitializable, Sendable {
 
 
 extension FHIRExchangeLedger {
-    /// The ledger as Grove's sequencer sees it: every transaction is fenced to one account generation.
-    private struct FencedStorage: ExchangeEventSequencer.Storage {
+    /// The ledger as Grove's producer sees it: every transaction is fenced to one account generation.
+    private struct FencedStorage: ExchangeProducer.Storage {
         let ledger: FHIRExchangeLedger
         let accountDataGeneration: Int
 
-        func transaction<R>(_ body: (any ExchangeEventSequencer.Transaction) throws -> R) throws -> R {
+        func transaction<R>(_ body: (any ExchangeProducer.Transaction) throws -> R) throws -> R {
             do {
                 return try ledger.transaction(fencedTo: accountDataGeneration, body)
-            } catch let error as ExchangeEventSequencer.LedgerError {
+            } catch let error as ExchangeProducer.LedgerError {
                 logger.error("The FHIR exchange ledger holds an entry Grove refuses (\(String(describing: error))); emptying it")
                 do {
                     try ledger.recover(accountDataGeneration: accountDataGeneration)

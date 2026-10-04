@@ -16,7 +16,7 @@ import Synchronization
 import Testing
 
 
-/// Grove's storage contract, met by the GRDB ledger: exercised through the sequencer the exporter uses.
+/// Grove's storage contract, met by the GRDB ledger: exercised through the producer the exporter uses.
 @Suite
 struct FHIRExchangeLedgerContractTests {
     /// Which graph every handed-out event was first delivered with, across threads.
@@ -119,7 +119,7 @@ struct FHIRExchangeLedgerContractTests {
             let exporters = [try harness.exporter(), try harness.exporter(subject: otherSubject)]
             let samples = (0..<6).map(LedgerHarness.steps)
             let oracle = EventOracle()
-            var receipts: [HealthKitFHIRExporter.Receipt] = []
+            var receipts: [ExchangeProducer.Receipt] = []
             var random = SplitMix64(seed: seed)
             for step in 0..<150 {
                 switch Int.random(in: 0..<10, using: &random) {
@@ -135,7 +135,7 @@ struct FHIRExchangeLedgerContractTests {
                     // Dropped unreleased: the hold lapses.
                     receipts.remove(at: Int.random(in: 0..<receipts.count, using: &random))
                 case 8:
-                    try harness.ledger.sequencer(accountDataGeneration: 0).reset()
+                    try harness.producer().resetLedger()
                 default:
                     try harness.ledger.closeForTesting()
                 }
@@ -159,7 +159,7 @@ struct FHIRExchangeLedgerContractTests {
                 do {
                     if worker == 8 {
                         for _ in 0..<10 {
-                            try harness.ledger.sequencer(accountDataGeneration: 0).reset()
+                            try harness.producer().resetLedger()
                             usleep(5_000)
                         }
                         return
@@ -234,7 +234,7 @@ struct FHIRExchangeLedgerContractTests {
             let sample = LedgerHarness.steps(0)
             let before = try harness.deliver([sample, LedgerHarness.steps(1)])
 
-            try harness.ledger.sequencer(accountDataGeneration: 0).reset()
+            try harness.producer().resetLedger()
             #expect(try harness.ledger.entriesForTesting().isEmpty)
 
             let after = try harness.deliver([sample])
@@ -260,14 +260,14 @@ struct FHIRExchangeLedgerContractTests {
             _ = try harness.deliver([older], at: LedgerHarness.start)
             let kept = try harness.deliver([newer], at: LedgerHarness.start + 3600)
             let producer = try harness.ledger.producerEntry()
-            let sequencer = harness.ledger.sequencer(accountDataGeneration: 0)
+            let maintenance = try harness.producer()
 
-            #expect(try sequencer.forgetReservations(madeBefore: LedgerHarness.start + 1800) == 1)
+            #expect(try maintenance.forgetReservations(madeBefore: LedgerHarness.start + 1800) == 1)
             #expect(try harness.ledger.entryKeys(prefixedBy: "event/").count == 1)
             #expect(try harness.ledger.entryKeys(prefixedBy: "facts/").count == 1)
             #expect(try harness.deliver([newer]).events == kept.events)
 
-            #expect(try sequencer.forgetReservations(madeBefore: LedgerHarness.start + 7200) == 1)
+            #expect(try maintenance.forgetReservations(madeBefore: LedgerHarness.start + 7200) == 1)
             #expect(try harness.ledger.entryKeys(prefixedBy: "event/").isEmpty)
             #expect(try harness.ledger.entryKeys(prefixedBy: "facts/").isEmpty)
             let current = try harness.ledger.producerEntry()

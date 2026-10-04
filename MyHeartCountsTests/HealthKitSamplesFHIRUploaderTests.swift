@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import GroveFHIRContract
 import GroveFoundation
 import GroveHealthKit
 import GroveHealthKitFHIR

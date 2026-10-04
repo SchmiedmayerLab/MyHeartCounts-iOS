@@ -28,7 +28,7 @@ struct FHIRExchangeLedgerCorruptionTests {
         case producerIsNotJSON
 
         /// Corrupts the ledger of one reserved sample and returns the error Grove must raise for it.
-        func apply(to ledger: FHIRExchangeLedger) throws -> ExchangeEventSequencer.LedgerError {
+        func apply(to ledger: FHIRExchangeLedger) throws -> ExchangeProducer.LedgerError {
             let event = try #require(try ledger.entryKeys(prefixedBy: "event/").first)
             let facts = try #require(try ledger.entryKeys(prefixedBy: "facts/").first)
             var eventJSON = try ledger.jsonEntry(event)

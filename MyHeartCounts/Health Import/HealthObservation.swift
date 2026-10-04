@@ -71,7 +71,7 @@ enum PreparedHealthObservationFHIRPayload {
 
 /// Retry-only event reservations released only after Grove commits the corresponding source cursor.
 struct HealthKitFHIRReservationReceipt: Sendable {
-    private let receipts: [HealthKitFHIRExporter.Receipt]
+    private let receipts: [ExchangeProducer.Receipt]
 
     var isEmpty: Bool {
         receipts.isEmpty
@@ -90,7 +90,7 @@ struct HealthKitFHIRReservationReceipt: Sendable {
         self.receipts = []
     }
 
-    init(_ receipts: some Sequence<HealthKitFHIRExporter.Receipt>) {
+    init(_ receipts: some Sequence<ExchangeProducer.Receipt>) {
         self.receipts = Array(receipts)
     }
 
@@ -306,7 +306,7 @@ extension HealthKitFHIRExporter {
         receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
     ) async throws -> HealthKitBatchExport {
         var refusals: [PreparedHealthObservationFHIRPayload.Refusal] = []
-        var receipts: [Receipt] = []
+        var receipts: [ExchangeProducer.Receipt] = []
         var pending: [Record] = []
         var pendingVoltageMeasurements = 0
         func flush() throws {

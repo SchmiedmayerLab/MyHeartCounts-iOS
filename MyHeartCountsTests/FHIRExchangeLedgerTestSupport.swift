@@ -78,7 +78,7 @@ final class TestAccountPreferences: Sendable {
 struct LedgerDelivery {
     var events: [UUID: ExchangeEventIdentifier] = [:]
     var graphs: [UUID: Data] = [:]
-    var receipt: HealthKitFHIRExporter.Receipt?
+    var receipt: ExchangeProducer.Receipt?
 }
 
 
@@ -117,6 +117,12 @@ struct LedgerHarness {
     func exporter(generation: Int = 0, subject: FHIRExchangeSubject? = nil) throws -> HealthKitFHIRExporter {
         try FHIRExchangeStateStore(accountDataGeneration: generation, secretsSharedWith: identity)
             .healthKitExporter(subject: subject ?? Self.subject, ledger: ledger)
+    }
+
+    /// The producer every exporter of `generation` reserves through, for the ledger's maintenance calls.
+    func producer(generation: Int = 0) throws -> ExchangeProducer {
+        let store = FHIRExchangeStateStore(accountDataGeneration: generation, secretsSharedWith: identity)
+        return try store.exchangeProducer(subject: Self.subject, ledger: ledger, facts: .current(), secret: store.identitySecret())
     }
 
     /// Exports `samples` through a fresh exporter of `generation`.

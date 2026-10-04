@@ -121,7 +121,7 @@ extension FHIRExchangeLedger {
 
 extension FHIRExchangeLedger {
     /// One SQLite transaction's view of the ledger, through cached statements.
-    final class LedgerTransaction: ExchangeEventSequencer.Transaction {
+    final class LedgerTransaction: ExchangeProducer.Transaction {
         private static let readSQL = "SELECT value FROM ledgerEntry WHERE key = ?"
         private static let writeSQL = "INSERT INTO ledgerEntry (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
         private static let removeSQL = "DELETE FROM ledgerEntry WHERE key = ?"

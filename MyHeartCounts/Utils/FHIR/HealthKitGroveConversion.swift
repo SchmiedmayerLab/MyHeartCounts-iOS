@@ -30,16 +30,8 @@ extension FHIRExchangeStateStore {
         facts: FHIRExchangeEventFacts
     ) throws -> HealthKitFHIRExporter {
         let secret = try identitySecret()
-        let producer = try ExchangeProducer(
-            identityScope: try Self.identityScope(of: secret),
-            subject: .logical(subject.identity),
-            application: try facts.application,
-            host: try facts.host,
-            studies: try facts.studies(for: subject),
-            sequencer: ledger.sequencer(accountDataGeneration: accountDataGeneration)
-        )
         return try HealthKitFHIRExporter(
-            producer: producer,
+            producer: try exchangeProducer(subject: subject, ledger: ledger, facts: facts, secret: secret),
             repositoryScope: try Self.repositoryScope(.healthKit, subject: subject, secret: secret),
             options: .myHeartCounts
         )
