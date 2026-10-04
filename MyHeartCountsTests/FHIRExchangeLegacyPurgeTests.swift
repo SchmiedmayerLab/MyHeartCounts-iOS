@@ -87,10 +87,11 @@ final class FHIRExchangeLegacyPurgeTests {
         let purged = try Self.decodedJSON(try #require(store.encodedStateForTesting))
         #expect(Set(purged.keys) == ["schemaVersion", "accountDataGeneration", "sensorRetries", "sensorBatches"])
         #expect(purged["schemaVersion"] as? Int == 1)
-        try store.verifySensorRetryDigest(Data("first".utf8), batchKey: Self.batchKey, sourceRecordID: Self.sourceRecordID)
+        // Drift first: a dropped digest would record the changed bytes instead of refusing them.
         #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: Self.sourceRecordID.value)) {
             try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: Self.batchKey, sourceRecordID: Self.sourceRecordID)
         }
+        try store.verifySensorRetryDigest(Data("first".utf8), batchKey: Self.batchKey, sourceRecordID: Self.sourceRecordID)
 
         let later = FHIRExchangeStateStore(testingEncodedState: try Self.legacyState())
         FHIRExchangeStateStore.purgeLegacyExchangeEventsOnce(in: later, preferences: preferences)
