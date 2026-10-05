@@ -13,6 +13,7 @@ import GroveFoundation
 import GroveSensorKit
 import GroveSensorKitFHIR
 import MyHeartCountsShared
+import OSLog
 
 
 /// Where the records of a published SensorKit batch go: each sidecar is staged for upload, then each graph is
@@ -138,6 +139,32 @@ struct SensorKitBatchPublication: Sendable {
     func exporter() throws -> SensorKitFHIRExporter {
         try stateStore.sensorKitExporter(subject: subject, ledger: ledger)
     }
+
+    /// Publishes the batch through `upload` and acknowledges its cursor through `acknowledge`, as one step.
+    ///
+    /// In order:
+    /// 1. `upload` publishes the batch's records. A failure leaves the batch pending.
+    /// 2. `acknowledge` makes the batch's cursor durable. Until it succeeds, the batch's events stay reserved and its
+    ///    retry state stays, so a redelivery restates the batch byte for byte and still fails closed on drift.
+    /// 3. The upload's receipt is released, so a later delivery of the same records is a new event.
+    /// 4. The batch's retry state is dropped. A failure is only logged: the cursor is already durable, and a transient
+    ///    cleanup failure must not make the acknowledged batch look unpublished or trigger a false retry.
+    ///
+    /// A process that ends between 2 and 3 leaves the batch's reservations in the ledger until its next reset: their
+    /// keys are never fetched again, and Grove offers no call to forget them by key.
+    func publishAndAcknowledge(
+        upload: () async throws -> ExchangeProducer.Receipt?,
+        acknowledge: () async throws -> Void
+    ) async throws {
+        let receipt = try await upload()
+        try await acknowledge()
+        receipt?.release()
+        do {
+            try stateStore.completeSensorBatch(batchKey)
+        } catch {
+            logger.error("Could not clean acknowledged SensorKit FHIR state: \(error)")
+        }
+    }
 }
 
 
@@ -180,12 +207,6 @@ extension MyHeartCountsStandard {
         )
     }
 
-    func completeSensorKitBatch(_ batchKey: String, accountDataGeneration: Int) throws {
-        try fhirExchangeStateStore(
-            accountDataGeneration: accountDataGeneration
-        ).completeSensorBatch(batchKey)
-    }
-
     /// Drops the retry-only state of every batch of `sensor` once Grove abandoned its pending batches.
     ///
     /// The abandoned range is fetched again under fresh acquisition coordinates, so none of those
@@ -205,4 +226,54 @@ extension MyHeartCountsStandard {
             accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
         ).abandonSensorBatches(subject: subject, sourceToken: sourceToken)
     }
+}
+
+
+/// Whether `error` means that a sensor's pending batch can never be acknowledged, because a retry no longer reproduces it:
+/// either SensorKit no longer returns the batch's exact delivery boundary, a record's bytes changed at its reserved coordinate,
+/// or the zone the batch was first published in no longer resolves.
+private func cannotReplayPendingBatch(after error: any Error) -> Bool {
+    if let error = error as? SensorKit.QueryAnchorAcknowledgementError {
+        return error == .pendingBatchMismatch
+    }
+    switch error as? FHIRExchangeStateError {
+    case .retryContentChanged, .invalidPersistedTimeZone:
+        return true
+    default:
+        return false
+    }
+}
+
+
+/// Abandons the pending batches of `sensor` if `error` means a retry can no longer reproduce them: `discard` makes
+/// Grove give them up, then `dropRetryState` removes their retry-only state.
+///
+/// The next fetch reads an abandoned range again under fresh acquisition coordinates. Records already published from an abandoned
+/// batch stay published, so up to one batch may be uploaded twice; that is preferable to the sensor never advancing again.
+/// The retry state stays when `discard` fails, as the batches are then still pending.
+///
+/// - returns: Whether the batches were abandoned.
+@discardableResult
+func abandonPendingSensorKitBatches(
+    of sensor: some AnySensor,
+    after error: any Error,
+    discard: () async throws -> Void,
+    dropRetryState: () async throws -> Void
+) async -> Bool {
+    guard cannotReplayPendingBatch(after: error) else {
+        return false
+    }
+    do {
+        try await discard()
+    } catch {
+        logger.error("Failed to discard the pending batches of SensorKit sensor '\(sensor.id)': \(error)")
+        return false
+    }
+    do {
+        try await dropRetryState()
+    } catch {
+        // Only retry-only state is left behind, which the next account cleanup removes.
+        logger.error("Could not clean abandoned SensorKit FHIR state: \(error)")
+    }
+    return true
 }

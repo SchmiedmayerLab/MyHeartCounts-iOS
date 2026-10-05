@@ -32,22 +32,6 @@ private struct SensorKitActiveFetch: Sendable {
 }
 
 
-/// Whether `error` means that a sensor's pending batch can never be acknowledged, because a retry no longer reproduces it:
-/// either SensorKit no longer returns the batch's exact delivery boundary, a record's bytes changed at its reserved coordinate,
-/// or the zone the batch was first published in no longer resolves.
-private func cannotReplayPendingBatch(after error: any Error) -> Bool {
-    if let error = error as? SensorKit.QueryAnchorAcknowledgementError {
-        return error == .pendingBatchMismatch
-    }
-    switch error as? FHIRExchangeStateError {
-    case .retryContentChanged, .invalidPersistedTimeZone:
-        return true
-    default:
-        return false
-    }
-}
-
-
 @Observable
 final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @unchecked Sendable { // swiftlint:disable:this type_body_length
     @Observable
@@ -257,23 +241,15 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
                 for: sensor,
                 batchInfo: batch.info
             )
-            let receipt = try await uploadDefinition.strategy.upload(
-                batch.samples,
-                publication: publication,
-                for: sensor,
-                activity: activity
-            )
-            try await batch.acknowledge()
-            receipt?.release()
-            do {
-                try await standard.completeSensorKitBatch(
-                    publication.batchKey,
-                    accountDataGeneration: publication.destination.accountDataGeneration
+            try await publication.publishAndAcknowledge {
+                try await uploadDefinition.strategy.upload(
+                    batch.samples,
+                    publication: publication,
+                    for: sensor,
+                    activity: activity
                 )
-            } catch {
-                // The cursor is already durable. A transient local-ledger cleanup failure must not
-                // make an acknowledged batch look unpublished or trigger a false retry.
-                logger.error("Could not clean acknowledged SensorKit FHIR state: \(error)")
+            } acknowledge: {
+                try await batch.acknowledge()
             }
         }
         try await task.value
@@ -343,28 +319,15 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
 
 
     /// Rethrows a cancellation; otherwise logs the failure, and abandons the sensor's pending batches if a retry can no longer reproduce them.
-    ///
-    /// The next fetch reads an abandoned range again under fresh acquisition coordinates. Records already published from an abandoned
-    /// batch stay published, so up to one batch may be uploaded twice; that is preferable to the sensor never advancing again.
     private func handleFailedFetch(of sensor: some AnySensor, _ error: any Error) async throws {
         if Task.isCancelled {
             throw CancellationError()
         }
         logger.error("Failed to fetch & upload data for Sensor '\(sensor.displayName)': \(error)")
-        guard cannotReplayPendingBatch(after: error) else {
-            return
-        }
-        do {
+        await abandonPendingSensorKitBatches(of: sensor, after: error) {
             try await sensorKit.discardPendingBatches(for: sensor)
-        } catch {
-            logger.error("Failed to discard the pending batches of SensorKit sensor '\(sensor.id)': \(error)")
-            return
-        }
-        do {
+        } dropRetryState: {
             try await standard.abandonSensorKitBatches(for: sensor)
-        } catch {
-            // Only retry-only state is left behind, which the next account cleanup removes.
-            logger.error("Could not clean abandoned SensorKit FHIR state: \(error)")
         }
     }
     

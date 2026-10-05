@@ -13,7 +13,6 @@ import GroveQuestionnaireFHIR
 import HealthKit
 import ModelsR4
 @testable import MyHeartCounts
-import Synchronization
 import Testing
 
 
@@ -63,19 +62,7 @@ struct FHIRExchangeIdentityScopeTests {
     @Test
     func appOwnedIdentityCompositionIsPinned() throws {
         let store = FHIRExchangeStateStore()
-        guard case .memory(let secrets) = store.secrets else {
-            Issue.record("An in-memory store must carry an in-memory secret backend")
-            return
-        }
-        secrets.secret.withLock { stored in
-            stored = try? JSONDecoder().decode(FHIRExchangeIdentitySecret.self, from: Data("""
-                {
-                  "key": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
-                  "storeID": "3F8A1D2E-4B5C-6D7E-8F90-A1B2C3D4E5F6",
-                  "epoch": 1
-                }
-            """.utf8))
-        }
+        try store.useKnownIdentitySecret()
         let scope = try store.repositoryScope(.healthKit, subject: try Self.subject)
         #expect(scope.system.rawValue == "https://myheartcounts.stanford.edu/fhir/identifiers/repository")
         #expect(scope.value == "healthkit:3f8a1d2e-4b5c-6d7e-8f90-a1b2c3d4e5f6:participant-1")
@@ -274,6 +261,19 @@ struct QuestionnaireHealthKitProjectionTests {
         let again = try #require(try Self.samples(questionnaire: questionnaire, response: response, store: store, ledger: ledger))
         let repeated = try #require(again.conversions.compactMap { $0 as? HKCorrelation }.first)
         #expect(repeated.metadata?[HKMetadataKeySyncIdentifier] as? String == syncID)
+    }
+
+    /// The exact sync identity a known secret mints for a known response's correlation: its source-output identity in
+    /// the questionnaire repository of the known store. It cannot change without every response projected again adding
+    /// its samples beside those an earlier build saved, instead of replacing them.
+    @Test
+    func questionnaireSampleIdentityIsPinned() throws {
+        let (questionnaire, response) = try Self.pair()
+        let store = FHIRExchangeStateStore()
+        try store.useKnownIdentitySecret()
+        let samples = try #require(try Self.samples(questionnaire: questionnaire, response: response, store: store)).conversions
+        let correlation = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
+        #expect(correlation.metadata?[HKMetadataKeySyncIdentifier] as? String == "v0:store:1:VAeqn87IPCdpRg3YcblP91tyUYyNnEwD4WggA2uNvrA")
     }
 
     @Test
