@@ -85,23 +85,44 @@ struct SensorKitBatchPublication: Sendable {
         )
     }
 
-    /// The identity of the record at `ordinal` of the batch, once `evidence` is checked against the bytes first seen
-    /// there.
+    /// The identity of the record at `ordinal` of the batch, once `evidence`, and `supplementalEvidence` if given,
+    /// are checked against the bytes first seen there.
     ///
     /// - throws: `FHIRExchangeStateError.retryContentChanged` when the record's bytes differ from those first seen at
     ///     its acquisition coordinate: the batch can then never be acknowledged as it was first delivered.
-    func sourceRecordID(ordinal: Int, evidence: Data) throws -> SensorKitSourceRecordID {
+    func sourceRecordID(ordinal: Int, evidence: Data, supplementalEvidence: Data? = nil) throws -> SensorKitSourceRecordID {
         // A publication may outlive the fetch task which created it. Fence every state mutation
         // against logout/account cleanup rather than relying only on the initial snapshot.
         try destination.validateCurrentAccount()
-        let sourceRecordID = SensorKitSourceRecordID.derived(
+        let sourceRecordID = derivedSourceRecordID(ordinal: ordinal)
+        try stateStore.verifySensorRetryDigest(evidence, batchKey: batchKey, sourceRecordID: sourceRecordID)
+        if let supplementalEvidence {
+            try stateStore.verifySensorRetryDigest(
+                supplementalEvidence,
+                batchKey: batchKey,
+                sourceRecordID: sourceRecordID,
+                supplement: true
+            )
+        }
+        return sourceRecordID
+    }
+
+    /// Checks that no earlier attempt prepared the record at `ordinal`, whose preparation Grove just refused.
+    ///
+    /// - throws: `FHIRExchangeStateError.retryContentChanged` when an earlier attempt recorded the record's bytes: the
+    ///     record it prepared, and may have exported, can then never be reproduced, so the batch fails as on any drift.
+    func verifyRefusal(ofRecord ordinal: Int) throws {
+        try destination.validateCurrentAccount()
+        try stateStore.verifySensorRecordWasNeverPrepared(batchKey: batchKey, sourceRecordID: derivedSourceRecordID(ordinal: ordinal))
+    }
+
+    private func derivedSourceRecordID(ordinal: Int) -> SensorKitSourceRecordID {
+        SensorKitSourceRecordID.derived(
             acquisitionBatch: acquisitionBatch,
             sourceToken: sourceToken,
             deviceProductType: deviceProductType,
             recordOrdinal: UInt64(ordinal)
         )
-        try stateStore.verifySensorRetryDigest(evidence, batchKey: batchKey, sourceRecordID: sourceRecordID)
-        return sourceRecordID
     }
 
     /// The zone the batch states its bounds in: `current` when the batch is first published, and the same zone on

@@ -129,7 +129,7 @@ final class FHIRExchangeStateStore: Sendable {
 
         let schemaVersion: UInt
         let accountDataGeneration: Int
-        /// By batch key and source-record identifier.
+        /// By batch key and source-record identifier, and for a record's supplemented evidence, a `supplement` suffix.
         var sensorRetries: [String: SensorRetry]
         /// By batch key.
         var sensorBatches: [String: SensorBatch]
@@ -260,12 +260,16 @@ final class FHIRExchangeStateStore: Sendable {
     #endif
 
     /// Persists the first digest observed at a durable SensorKit coordinate and rejects drift.
+    ///
+    /// A `supplement` is digested under a key of its own beside the record's evidence, so supplementing the evidence
+    /// never fails a digest an earlier build recorded without the supplement.
     func verifySensorRetryDigest(
         _ sourceBytes: Data,
         batchKey: String,
-        sourceRecordID: SensorKitSourceRecordID
+        sourceRecordID: SensorKitSourceRecordID,
+        supplement: Bool = false
     ) throws {
-        let key = "\(batchKey)|\(sourceRecordID.value)"
+        let key = sensorRetryKey(batchKey: batchKey, sourceRecordID: sourceRecordID, supplement: supplement)
         let digest = SHA256.hash(data: sourceBytes).lowercaseHexString
         try withState { state in
             if let persisted = state.sensorRetries[key] {
@@ -276,6 +280,26 @@ final class FHIRExchangeStateStore: Sendable {
                 state.sensorRetries[key] = State.SensorRetry(batchKey: batchKey, digest: digest)
             }
         }
+    }
+
+    /// Rejects a record whose bytes could not be prepared at a SensorKit coordinate where an earlier attempt recorded
+    /// them; records nothing otherwise.
+    ///
+    /// - throws: ``FHIRExchangeStateError/retryContentChanged(sourceRecordID:)`` when a digest was recorded at the
+    ///     coordinate: the record an earlier attempt prepared, and may have exported, can no longer be reproduced.
+    func verifySensorRecordWasNeverPrepared(batchKey: String, sourceRecordID: SensorKitSourceRecordID) throws {
+        let key = sensorRetryKey(batchKey: batchKey, sourceRecordID: sourceRecordID, supplement: false)
+        try withStorage { stored in
+            let state = try validated(stored ?? State(accountDataGeneration: accountDataGeneration))
+            guard state.sensorRetries[key] == nil else {
+                throw FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceRecordID.value)
+            }
+        }
+    }
+
+    private func sensorRetryKey(batchKey: String, sourceRecordID: SensorKitSourceRecordID, supplement: Bool) -> String {
+        let key = "\(batchKey)|\(sourceRecordID.value)"
+        return supplement ? "\(key)|supplement" : key
     }
 
     /// Removes retry-only state after the complete batch is durable and its cursor is acknowledged.

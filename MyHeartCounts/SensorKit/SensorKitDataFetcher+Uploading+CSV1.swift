@@ -26,7 +26,7 @@ where Sample.SafeRepresentation: SensorKitTabularSample {
             return nil
         }
         activity.updateMessage("Writing to CSV")
-        let recording = SensorKitRecordRefusal.preparing(record: 0, of: sensor) {
+        let recording = try SensorKitRecordRefusal.preparing(record: 0, of: sensor, in: publication) {
             try SensorKitTabularRecording(
                 samples: Array(samples),
                 deviceProductType: publication.info.device.productType

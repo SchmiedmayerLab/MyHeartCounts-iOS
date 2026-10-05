@@ -30,7 +30,12 @@ where Sample.SafeRepresentation: GroveStructuredSensorSample {
         activity.updateMessage("Converting \(sensor.displayName)")
         var uploads: [SensorKitRecordUpload] = []
         for (recordOrdinal, sample) in samples.enumerated() {
-            guard let prepared = SensorKitRecordRefusal.preparing(record: recordOrdinal, of: sensor, sample.grovePreparedRecord) else {
+            guard let prepared = try SensorKitRecordRefusal.preparing(
+                record: recordOrdinal,
+                of: sensor,
+                in: publication,
+                sample.grovePreparedRecord
+            ) else {
                 continue
             }
             uploads.append(SensorKitRecordUpload(

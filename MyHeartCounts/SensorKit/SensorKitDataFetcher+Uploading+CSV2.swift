@@ -25,7 +25,7 @@ struct UploadStrategyWristTemperature: MHCSensorSampleUploadStrategy {
         activity.updateMessage("Writing to CSV")
         var uploads: [SensorKitRecordUpload] = []
         for (recordOrdinal, sample) in samples.enumerated() {
-            let recording = SensorKitRecordRefusal.preparing(record: recordOrdinal, of: sensor) {
+            let recording = try SensorKitRecordRefusal.preparing(record: recordOrdinal, of: sensor, in: publication) {
                 try SensorKitTabularRecording(wristTemperature: sample.sample)
             }
             guard let recording else {

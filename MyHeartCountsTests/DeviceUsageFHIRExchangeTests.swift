@@ -76,6 +76,11 @@ struct DeviceUsageFHIRExchangeTests {
         report(totalUnlockDuration: 900)
     }
 
+    /// A report whose unlock duration is not a number, which Grove refuses to prepare.
+    private static var unpreparableReport: SRDeviceUsageReport.SafeRepresentation {
+        report(totalUnlockDuration: .nan)
+    }
+
     private static var subject: FHIRExchangeSubject {
         get throws {
             try FHIRExchangeSubject(
@@ -97,7 +102,7 @@ struct DeviceUsageFHIRExchangeTests {
         ledger = .forTesting(accountDataGeneration: accountDataGeneration)
     }
 
-    private static func report(
+    static func report(
         textInputSessionIdentifier: String = "text-session-1",
         totalUnlockDuration: TimeInterval = 123.75
     ) -> SRDeviceUsageReport.SafeRepresentation {
@@ -151,7 +156,7 @@ struct DeviceUsageFHIRExchangeTests {
         )
     }
 
-    private static func upload(
+    static func upload(
         _ reports: [SRDeviceUsageReport.SafeRepresentation],
         publication: SensorKitBatchPublication
     ) async throws -> ExchangeProducer.Receipt? {
@@ -370,5 +375,71 @@ extension DeviceUsageFHIRExchangeTests {
 
         try store.completeSensorBatch(publication.batchKey)
         #expect(try publication.sourceTimeZone(current: .gmt) == .gmt)
+    }
+}
+
+
+// MARK: Refusals
+
+extension DeviceUsageFHIRExchangeTests {
+    /// A record Grove refuses between two it exports is skipped alone: each exported record keeps the identity, sidecar
+    /// and graph of its own position in the batch.
+    @Test
+    func refusalWithinABatchSkipsOnlyThatRecord() async throws {
+        let publication = try publication()
+        let first = Self.report()
+        let third = Self.report(textInputSessionIdentifier: "text-session-9")
+        let receipt = try await Self.upload([first, Self.refusedReport, third], publication: publication)
+
+        let category = ManagedFileUpload.Category(Sensor.deviceUsage)
+        for (ordinal, report) in [(0, first), (2, third)] {
+            let prepared = try SensorKitPreparedStructuredRecord(deviceUsage: report)
+            let sourceRecordID = try publication.sourceRecordID(ordinal: ordinal, evidence: prepared.retryEvidence)
+            let sidecarPath = category.remotePath(for: "\(sourceRecordID.value).json")
+            #expect(uploads.all.contains(.sidecar(path: sidecarPath, bytes: try #require(prepared.nativePayload))))
+            #expect(uploads.graphs[sourceRecordID.value] != nil)
+        }
+        #expect(uploads.all.count == 4)
+        #expect(try ledger.reservationCount == 2)
+        receipt?.release()
+        #expect(try ledger.reservationCount == 0)
+    }
+
+    /// A record that never prepared is refused alone, so the batch still publishes its other records.
+    @Test
+    func recordThatNeverPreparedIsRefusedAlone() async throws {
+        let publication = try publication()
+        let report = Self.report()
+        let receipt = try await Self.upload([Self.unpreparableReport, report], publication: publication)
+
+        let sourceRecordID = try publication.sourceRecordID(
+            ordinal: 1,
+            evidence: try SensorKitPreparedStructuredRecord(deviceUsage: report).retryEvidence
+        )
+        #expect(Array(uploads.graphs.keys) == [sourceRecordID.value])
+        receipt?.release()
+    }
+
+    /// A record that no longer prepares where an earlier attempt prepared it fails its batch as drift: skipping it
+    /// would acknowledge the batch while the earlier attempt's staged record never gets its graph.
+    @Test
+    func recordThatNoLongerPreparesFailsItsBatch() async throws {
+        let failing = RecordedSensorKitUploads(failingWrites: true)
+        await #expect(throws: RecordedSensorKitUploads.WriteFailure.self) {
+            _ = try await Self.upload([Self.report()], publication: publication(uploads: failing))
+        }
+        #expect(failing.all.count == 2)
+
+        let redelivered = RecordedSensorKitUploads()
+        let redelivery = try publication(uploads: redelivered)
+        let sourceRecordID = try redelivery.sourceRecordID(
+            ordinal: 0,
+            evidence: try SensorKitPreparedStructuredRecord(deviceUsage: Self.report()).retryEvidence
+        )
+        await #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceRecordID.value)) {
+            _ = try await Self.upload([Self.unpreparableReport], publication: redelivery)
+        }
+        #expect(redelivered.all.isEmpty)
+        #expect(try ledger.reservationCount == 1)
     }
 }

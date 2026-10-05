@@ -28,7 +28,7 @@ extension SRPhotoplethysmogramSample {
             }
             let ppgSamples = Array(samples)
             // The whole batch is one record, so a batch Grove refuses is skipped as a whole.
-            let prepared = SensorKitRecordRefusal.preparing(record: 0, of: sensor) {
+            let prepared = try SensorKitRecordRefusal.preparing(record: 0, of: sensor, in: publication) {
                 try SensorKitPPGRecording(samples: ppgSamples).prepared()
             }
             guard let prepared else {

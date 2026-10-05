@@ -65,7 +65,11 @@ extension FHIRExchangeStateStore {
         )
     }
 
-    /// The repository one source's records live in, under the store `secret` belongs to.
+    /// The repository one source's records live in: the synced store `secret` belongs to, partitioned per account.
+    ///
+    /// The store id keeps the same reading's identities equal across the participant's devices
+    /// and reinstalls; the account identity keeps different accounts unlinkable even though
+    /// they share the store-bound key.
     static func repositoryScope(
         _ source: FHIRExchangeIdentifiers.SourceRepository,
         subject: FHIRExchangeSubject,
@@ -75,22 +79,6 @@ extension FHIRExchangeStateStore {
             system: FHIRExchangeIdentifiers.repository,
             value: "\(source.rawValue):\(secret.storeID.uuidString.lowercased()):\(subject.identity.value)"
         )
-    }
-
-    func identityScope() throws -> OpaqueIdentityScope {
-        try Self.identityScope(of: identitySecret())
-    }
-
-    /// The repository one source's records live in: the synced store, partitioned per account.
-    ///
-    /// The store id keeps the same reading's identities equal across the participant's devices
-    /// and reinstalls; the account identity keeps different accounts unlinkable even though
-    /// they share the store-bound key.
-    func repositoryScope(
-        _ source: FHIRExchangeIdentifiers.SourceRepository,
-        subject: FHIRExchangeSubject
-    ) throws -> BusinessIdentifier {
-        try Self.repositoryScope(source, subject: subject, secret: identitySecret())
     }
 
     /// Loads the store-bound secret, minting and persisting one on first use.

@@ -29,18 +29,39 @@ private struct ExportedRecord {
 
 /// One record an upload strategy prepared from its fetched batch, before the record has its identity.
 struct SensorKitRecordUpload {
-    /// The record's position in its batch, from which its source-record identity derives.
-    let ordinal: Int
-    /// The exact bytes uploaded beside the record's graph, if it has any.
-    let sidecar: SensorKitUploadSidecar?
-    /// The bytes a retry of the record must reproduce.
-    let retryEvidence: Data
-    /// Builds the record Grove exports, under its identity, its display title and its sidecar's remote path.
-    let makeRecord: (
+    typealias MakeRecord = (
         _ sourceRecordID: SensorKitSourceRecordID,
         _ title: String,
         _ sidecarPath: String?
     ) throws -> SensorKitRecord
+
+    /// The record's position in its batch, from which its source-record identity derives.
+    let ordinal: Int
+    /// The exact bytes uploaded beside the record's graph, if it has any.
+    let sidecar: SensorKitUploadSidecar?
+    /// The bytes a retry of the record must reproduce: Grove's retry evidence of the record.
+    let retryEvidence: Data
+    /// What else a retry must reproduce, where the record's graph states more than its `retryEvidence` covers.
+    ///
+    /// Checked under a digest of its own, so a pending batch whose `retryEvidence` an earlier build recorded still
+    /// matches it.
+    let supplementalRetryEvidence: Data?
+    /// Builds the record Grove exports, under its identity, its display title and its sidecar's remote path.
+    let makeRecord: MakeRecord
+
+    init(
+        ordinal: Int,
+        sidecar: SensorKitUploadSidecar?,
+        retryEvidence: Data,
+        supplementalRetryEvidence: Data? = nil,
+        makeRecord: @escaping MakeRecord
+    ) {
+        self.ordinal = ordinal
+        self.sidecar = sidecar
+        self.retryEvidence = retryEvidence
+        self.supplementalRetryEvidence = supplementalRetryEvidence
+        self.makeRecord = makeRecord
+    }
 }
 
 
@@ -49,21 +70,28 @@ struct SensorKitRecordUpload {
 /// Grove's preparation and export are deterministic, so an exact redelivery refuses identically. The upload
 /// strategies therefore skip a refused record and still acknowledge its batch; failing the batch instead would
 /// redeliver it forever and block every newer record of the sensor. Every other error (account fence, retry state,
-/// ledger, staging, Firestore) aborts the batch without acknowledging it.
-struct SensorKitRecordRefusal: Error {
+/// ledger, staging, Firestore) aborts the batch without acknowledging it, and so does a record that no longer
+/// prepares where an earlier attempt prepared it, as that is drift.
+struct SensorKitRecordRefusal {
     let underlying: any Error
 
-    /// Runs one step of Grove's preparation of the record at `ordinal`; a failure is logged as the record's refusal, and
-    /// the record is skipped.
+    /// Runs one step of Grove's preparation of the record at `ordinal` of the batch `publication` publishes; a failure
+    /// is logged as the record's refusal, and the record is skipped.
+    ///
+    /// - throws: `FHIRExchangeStateError.retryContentChanged` when the preparation fails for a record an earlier
+    ///     attempt prepared: that attempt may have staged or written the record, which a skip would then never
+    ///     complete.
     static func preparing<Prepared>(
         record ordinal: Int,
         of sensor: some AnySensor,
+        in publication: SensorKitBatchPublication,
         _ prepare: () throws -> Prepared
-    ) -> Prepared? {
+    ) throws -> Prepared? {
         do {
             return try prepare()
         } catch {
             Self(underlying: error).log(for: sensor, recordOrdinal: ordinal)
+            try publication.verifyRefusal(ofRecord: ordinal)
             return nil
         }
     }
@@ -114,7 +142,9 @@ extension MHCSensorSampleUploadStrategy {
         var records: [SensorKitRecord] = []
         var exported: [ExportedRecord] = []
         for upload in uploads {
-            let sourceRecordID = try publication.sourceRecordID(ordinal: upload.ordinal, evidence: upload.retryEvidence)
+            let sourceRecordID = try publication.sourceRecordID(
+                ordinal: upload.ordinal, evidence: upload.retryEvidence, supplementalEvidence: upload.supplementalRetryEvidence
+            )
             let sidecarPath = upload.sidecar.map { category.remotePath(for: Self.filename(of: $0, sourceRecordID: sourceRecordID)) }
             do {
                 records.append(try upload.makeRecord(sourceRecordID, title, sidecarPath))
