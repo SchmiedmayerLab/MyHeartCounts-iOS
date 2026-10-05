@@ -170,18 +170,16 @@ struct FHIRExchangeStateTests {
         #expect(try Self.eventFacts(study: nil).studies(for: subject).isEmpty)
     }
 
-    @Test
-    func unsupportedPersistedSchemaFailsClosed() throws {
-        let store = try FHIRExchangeStateStore(testingSchemaVersion: 2)
-        #expect(throws: FHIRExchangeStateError.unsupportedSchemaVersion(2)) {
+    /// A later layout, and the pre-release layout 0, are refused rather than read.
+    @Test(arguments: [0, 2] as [UInt])
+    func unsupportedPersistedSchemaFailsClosed(schemaVersion: UInt) throws {
+        let store = try FHIRExchangeStateStore(testingSchemaVersion: schemaVersion)
+        #expect(throws: FHIRExchangeStateError.unsupportedSchemaVersion(schemaVersion)) {
             try store.verifySensorRetryDigest(
                 Data("schema-check".utf8),
                 batchKey: "schema-check",
                 sourceRecordID: SensorKitSourceRecordID(UUID())
             )
-        }
-        #expect(throws: FHIRExchangeStateError.unsupportedSchemaVersion(2)) {
-            try store.purgeLegacyExchangeEvents()
         }
     }
 

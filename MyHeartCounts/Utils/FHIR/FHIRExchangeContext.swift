@@ -122,9 +122,6 @@ final class FHIRExchangeStateStore: Sendable {
         }
 
         /// The layout this build writes.
-        ///
-        /// Layout 0 also held MHC's own exchange events, with their producer instance and counter, which Grove's
-        /// ledger in ``FHIRExchangeLedger`` replaced.
         static let currentSchemaVersion: UInt = 1
 
         let schemaVersion: UInt
@@ -141,23 +138,21 @@ final class FHIRExchangeStateStore: Sendable {
             self.sensorBatches = [:]
         }
 
-        /// Decodes the current layout, and migrates layout 0.
+        /// Decodes the current layout.
         ///
-        /// Layout 0's retry digests are kept, so a SensorKit batch pending at the upgrade still fails closed on drift;
-        /// its events, producer instance and counter are dropped, and leave storage with the state's next write. A
-        /// later layout is never misread: it decodes empty and is refused as unsupported.
+        /// Any other layout is never misread: it decodes empty and is refused as unsupported. That includes layout 0,
+        /// which only pre-release builds wrote.
         init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             let schemaVersion = try container.decode(UInt.self, forKey: .schemaVersion)
-            guard schemaVersion <= Self.currentSchemaVersion else {
+            guard schemaVersion == Self.currentSchemaVersion else {
                 self = Self(accountDataGeneration: 0, schemaVersion: schemaVersion)
                 return
             }
-            self.schemaVersion = Self.currentSchemaVersion
+            self.schemaVersion = schemaVersion
             accountDataGeneration = try container.decode(Int.self, forKey: .accountDataGeneration)
             sensorRetries = try container.decode([String: SensorRetry].self, forKey: .sensorRetries)
-            // Absent from layout 0, which froze the zone with each SensorKit event instead.
-            sensorBatches = try container.decodeIfPresent([String: SensorBatch].self, forKey: .sensorBatches) ?? [:]
+            sensorBatches = try container.decode([String: SensorBatch].self, forKey: .sensorBatches)
         }
 
         /// Records the digest of `bytes` under `key` unless one is there already; `false` is drift: another digest is there.
@@ -255,7 +250,7 @@ final class FHIRExchangeStateStore: Sendable {
         self.accountDataGeneration = accountDataGeneration
     }
 
-    /// An in-memory store whose state is stored as `encoded`, such as the JSON an older build wrote.
+    /// An in-memory store whose state is stored as `encoded`, such as the JSON an earlier attempt left behind.
     init(testingEncodedState encoded: Data, accountDataGeneration: Int = 0) {
         self.backend = .memory(MemoryBackend(encoded: encoded))
         self.secrets = .memory(SecretMemoryBackend())
@@ -390,7 +385,7 @@ final class FHIRExchangeStateStore: Sendable {
 
     /// The one place either backend is loaded, mutated, and stored again.
     ///
-    /// A state that is loaded is stored again in the current layout, also when `body` leaves it unchanged.
+    /// A state that is loaded is stored again, also when `body` leaves it unchanged.
     private func withStorage<Result>(_ body: (inout State?) throws -> Result) throws -> Result {
         switch backend {
         case .encrypted(let localStorage):
@@ -469,23 +464,6 @@ extension FHIRExchangeStateStore {
         try withExistingState { state in
             state.sensorRetries = state.sensorRetries.filter { !$0.value.batchKey.hasPrefix(batchKeyPrefix) }
             state.sensorBatches = state.sensorBatches.filter { !$0.key.hasPrefix(batchKeyPrefix) }
-        }
-    }
-}
-
-
-extension FHIRExchangeStateStore {
-    /// Stores the state again in the current layout, so the exchange events older builds kept in it leave storage.
-    ///
-    /// Decoding has already kept the retry digests of every SensorKit batch still pending at the upgrade (see
-    /// `State.init(from:)`); only the events, their producer instance and counter are dropped. Nothing is imported
-    /// into ``FHIRExchangeLedger``: older builds converted those events themselves, so no redelivery could reuse them.
-    /// A store without state stays without one, and a state of a later layout is refused.
-    func purgeLegacyExchangeEvents() throws {
-        try withStorage { stored in
-            if let state = stored, state.schemaVersion != State.currentSchemaVersion {
-                throw FHIRExchangeStateError.unsupportedSchemaVersion(state.schemaVersion)
-            }
         }
     }
 }
