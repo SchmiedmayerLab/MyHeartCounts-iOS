@@ -327,6 +327,25 @@ extension DeviceUsageFHIRExchangeTests {
         }
     }
 
+    /// Publishing a batch rewrites its retry state as often for many records as for one, and an empty batch neither
+    /// fences nor touches it.
+    @Test
+    func batchRewritesItsRetryStateIndependentlyOfItsSize() async throws {
+        func transactions(publishing reports: [SRDeviceUsageReport.SafeRepresentation]) async throws -> Int {
+            let before = store.storageTransactionCountForTesting
+            let receipt = try await Self.upload(reports, publication: publication(uploads: RecordedSensorKitUploads()))
+            receipt?.release()
+            return store.storageTransactionCountForTesting - before
+        }
+        let reports = (0..<8).map { Self.report(textInputSessionIdentifier: "text-session-\($0 + 10)") }
+
+        let single = try await transactions(publishing: [reports[0]])
+        #expect(single > 0)
+        #expect(try await transactions(publishing: reports) == single)
+        #expect(try publication(accountDataGeneration: accountDataGeneration + 1).sourceRecordIDs(of: []).isEmpty)
+        #expect(store.storageTransactionCountForTesting == 2 * single)
+    }
+
     /// A record whose bytes changed at its coordinate fails the batch before anything is exported or written.
     @Test
     func driftFailsTheBatchBeforeAnythingIsExported() async throws {

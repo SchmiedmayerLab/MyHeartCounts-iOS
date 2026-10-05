@@ -120,8 +120,8 @@ extension MHCSensorSampleUploadStrategy {
     ///
     /// Grove owns the exact payload bytes and the FHIR graphs; MHC owns the retry check, the durable sidecar upload,
     /// the Firestore destination and the acknowledgement boundary. In order:
-    /// 1. Each record's bytes are checked against those first seen at its acquisition coordinate, so a batch whose
-    ///    content drifted fails before anything is exported.
+    /// 1. Each record's bytes are checked against those first seen at its acquisition coordinate, all in one
+    ///    transaction of the retry state, so a batch whose content drifted fails before anything is exported.
     /// 2. The records are exported in one call, stating the zone the batch was first published in. A record Grove
     ///    refuses is logged and skipped.
     /// 3. Each graph's sidecar is staged, then the graph is written to the document its source-record identifier
@@ -141,10 +141,8 @@ extension MHCSensorSampleUploadStrategy {
         let category = ManagedFileUpload.Category(sensor)
         var records: [SensorKitRecord] = []
         var exported: [ExportedRecord] = []
-        for upload in uploads {
-            let sourceRecordID = try publication.sourceRecordID(
-                ordinal: upload.ordinal, evidence: upload.retryEvidence, supplementalEvidence: upload.supplementalRetryEvidence
-            )
+        let sourceRecordIDs = try publication.sourceRecordIDs(of: uploads)
+        for (upload, sourceRecordID) in zip(uploads, sourceRecordIDs) {
             let sidecarPath = upload.sidecar.map { category.remotePath(for: Self.filename(of: $0, sourceRecordID: sourceRecordID)) }
             do {
                 records.append(try upload.makeRecord(sourceRecordID, title, sidecarPath))

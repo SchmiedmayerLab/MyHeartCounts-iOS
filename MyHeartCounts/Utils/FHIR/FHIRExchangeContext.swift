@@ -159,11 +159,32 @@ final class FHIRExchangeStateStore: Sendable {
             // Absent from layout 0, which froze the zone with each SensorKit event instead.
             sensorBatches = try container.decodeIfPresent([String: SensorBatch].self, forKey: .sensorBatches) ?? [:]
         }
+
+        /// Records the digest of `bytes` under `key` unless one is there already; `false` is drift: another digest is there.
+        mutating func recordFirstSensorDigest(of bytes: Data, under key: String, batchKey: String) -> Bool {
+            let digest = SHA256.hash(data: bytes).lowercaseHexString
+            if let persisted = sensorRetries[key] {
+                return persisted.digest == digest
+            }
+            sensorRetries[key] = SensorRetry(batchKey: batchKey, digest: digest)
+            return true
+        }
+    }
+
+    /// The bytes a retry of one SensorKit record must reproduce at its durable coordinate.
+    struct SensorRetryEvidence: Sendable {
+        let sourceRecordID: SensorKitSourceRecordID
+        /// Grove's retry evidence of the record.
+        let evidence: Data
+        /// What else a retry must reproduce, digested under a key of its own beside `evidence`.
+        var supplementalEvidence: Data?
     }
 
     /// The state as `LocalStorage` stores it: encoded, so tests exercise the same decoding.
     private final class MemoryBackend: Sendable {
         let encoded: Mutex<Data?>
+        /// How often the state was loaded and stored again, as `LocalStorage.modify` would decrypt and rewrite it.
+        let transactions = Mutex(0)
 
         init(encoded: Data?) {
             self.encoded = Mutex(encoded)
@@ -200,6 +221,14 @@ final class FHIRExchangeStateStore: Sendable {
             preconditionFailure("Reading the encoded state requires an in-memory FHIR exchange store")
         }
         return backend.encoded.withLock { $0 }
+    }
+
+    /// How often the stored state was loaded and stored again.
+    var storageTransactionCountForTesting: Int {
+        guard case .memory(let backend) = backend else {
+            preconditionFailure("Counting storage transactions requires an in-memory FHIR exchange store")
+        }
+        return backend.transactions.withLock { $0 }
     }
     #endif
 
@@ -259,26 +288,39 @@ final class FHIRExchangeStateStore: Sendable {
     }
     #endif
 
-    /// Persists the first digest observed at a durable SensorKit coordinate and rejects drift.
+    /// Persists the first digests observed at the durable SensorKit coordinates of one batch's records and rejects
+    /// drift, in one transaction of the state.
     ///
-    /// A `supplement` is digested under a key of its own beside the record's evidence, so supplementing the evidence
+    /// The records are checked in order, each record's evidence before its supplement, with the outcome of checking
+    /// each in a transaction of its own: the digests first seen before the first drift are persisted, and none after
+    /// it. An empty batch reads and writes nothing.
+    ///
+    /// A supplement is digested under a key of its own beside the record's evidence, so supplementing the evidence
     /// never fails a digest an earlier build recorded without the supplement.
-    func verifySensorRetryDigest(
-        _ sourceBytes: Data,
-        batchKey: String,
-        sourceRecordID: SensorKitSourceRecordID,
-        supplement: Bool = false
-    ) throws {
-        let key = sensorRetryKey(batchKey: batchKey, sourceRecordID: sourceRecordID, supplement: supplement)
-        let digest = SHA256.hash(data: sourceBytes).lowercaseHexString
-        try withState { state in
-            if let persisted = state.sensorRetries[key] {
-                guard persisted.digest == digest else {
-                    throw FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceRecordID.value)
+    ///
+    /// - throws: ``FHIRExchangeStateError/retryContentChanged(sourceRecordID:)`` naming the first record whose bytes
+    ///     differ from those first seen at its coordinate.
+    func verifySensorRetryDigests(_ records: [SensorRetryEvidence], batchKey: String) throws {
+        guard !records.isEmpty else {
+            return
+        }
+        let drifted = try withState { state -> SensorKitSourceRecordID? in
+            for record in records {
+                let evidenceKey = sensorRetryKey(batchKey: batchKey, sourceRecordID: record.sourceRecordID, supplement: false)
+                guard state.recordFirstSensorDigest(of: record.evidence, under: evidenceKey, batchKey: batchKey) else {
+                    return record.sourceRecordID
                 }
-            } else {
-                state.sensorRetries[key] = State.SensorRetry(batchKey: batchKey, digest: digest)
+                if let supplement = record.supplementalEvidence {
+                    let supplementKey = sensorRetryKey(batchKey: batchKey, sourceRecordID: record.sourceRecordID, supplement: true)
+                    guard state.recordFirstSensorDigest(of: supplement, under: supplementKey, batchKey: batchKey) else {
+                        return record.sourceRecordID
+                    }
+                }
             }
+            return nil
+        }
+        if let drifted {
+            throw FHIRExchangeStateError.retryContentChanged(sourceRecordID: drifted.value)
         }
     }
 
@@ -360,6 +402,7 @@ final class FHIRExchangeStateStore: Sendable {
             return result! // swiftlint:disable:this force_unwrapping
         case .memory(let backend):
             // As `LocalStorage.modify` does: decode, transform, then encode again, or remove.
+            backend.transactions.withLock { $0 += 1 }
             return try backend.encoded.withLock { encoded in
                 var stored = try encoded.map { try JSONDecoder().decode(State.self, from: $0) }
                 let result = try body(&stored)

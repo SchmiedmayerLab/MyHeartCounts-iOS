@@ -52,6 +52,24 @@ extension FHIRExchangeStateStore {
         let secret = try JSONDecoder().decode(FHIRExchangeIdentitySecret.self, from: Self.knownIdentitySecret)
         secrets.secret.withLock { $0 = secret }
     }
+
+    /// Checks one record's retry evidence, as a batch of only that record is checked.
+    func verifySensorRetryDigest(_ evidence: Data, batchKey: String, sourceRecordID: SensorKitSourceRecordID) throws {
+        try verifySensorRetryDigests([SensorRetryEvidence(sourceRecordID: sourceRecordID, evidence: evidence)], batchKey: batchKey)
+    }
+}
+
+
+extension SensorKitBatchPublication {
+    /// The identity of the record at `ordinal`, once `evidence` is checked as publishing a batch of only that record
+    /// checks it.
+    func sourceRecordID(ordinal: Int, evidence: Data) throws -> SensorKitSourceRecordID {
+        let upload = SensorKitRecordUpload(ordinal: ordinal, sidecar: nil, retryEvidence: evidence) { _, _, _ in
+            // Never built: checking a record's evidence only derives its identity.
+            throw CancellationError()
+        }
+        return try #require(try sourceRecordIDs(of: [upload]).first)
+    }
 }
 
 

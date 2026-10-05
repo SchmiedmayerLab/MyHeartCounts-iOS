@@ -288,3 +288,66 @@ extension FHIRExchangeStateTests {
         #expect(try store.sensorBatchTimeZone(unrelated.batchKey, current: .gmt) == firstZone)
     }
 }
+
+
+// MARK: SensorKit Retry Digests
+
+extension FHIRExchangeStateTests {
+    /// Every record of a batch is checked, and its first digests recorded, in one rewrite of the stored state; an
+    /// empty batch does not touch it.
+    @Test
+    func sensorBatchDigestsPersistInOneTransaction() throws {
+        let store = FHIRExchangeStateStore()
+        let records = (0..<50).map { ordinal in
+            FHIRExchangeStateStore.SensorRetryEvidence(
+                sourceRecordID: SensorKitSourceRecordID(UUID()),
+                evidence: Data("record-\(ordinal)".utf8),
+                supplementalEvidence: ordinal.isMultiple(of: 2) ? Data("supplement-\(ordinal)".utf8) : nil
+            )
+        }
+
+        try store.verifySensorRetryDigests([], batchKey: "batch")
+        #expect(store.encodedStateForTesting == nil)
+        #expect(store.storageTransactionCountForTesting == 0)
+        try store.verifySensorRetryDigests(records, batchKey: "batch")
+        #expect(store.storageTransactionCountForTesting == 1)
+        try store.verifySensorRetryDigests(records, batchKey: "batch")
+        #expect(store.storageTransactionCountForTesting == 2)
+
+        for record in records {
+            #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: record.sourceRecordID.value)) {
+                try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: "batch", sourceRecordID: record.sourceRecordID)
+            }
+        }
+        let supplemented = FHIRExchangeStateStore.SensorRetryEvidence(
+            sourceRecordID: records[0].sourceRecordID,
+            evidence: records[0].evidence,
+            supplementalEvidence: Data("changed".utf8)
+        )
+        #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: supplemented.sourceRecordID.value)) {
+            try store.verifySensorRetryDigests([supplemented], batchKey: "batch")
+        }
+    }
+
+    /// A batch fails on its first drifted record, with the outcome of checking each record alone: the digests first
+    /// seen before the drift are recorded, and none after it.
+    @Test
+    func sensorBatchDriftKeepsTheDigestsFirstSeenBeforeIt() throws {
+        let store = FHIRExchangeStateStore()
+        let ids = (0..<4).map { _ in SensorKitSourceRecordID(UUID()) }
+        for drifting in [ids[1], ids[3]] {
+            try store.verifySensorRetryDigest(Data("first".utf8), batchKey: "batch", sourceRecordID: drifting)
+        }
+
+        #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: ids[1].value)) {
+            try store.verifySensorRetryDigests(
+                ids.map { .init(sourceRecordID: $0, evidence: Data("changed".utf8)) },
+                batchKey: "batch"
+            )
+        }
+        #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: ids[0].value)) {
+            try store.verifySensorRetryDigest(Data("first".utf8), batchKey: "batch", sourceRecordID: ids[0])
+        }
+        try store.verifySensorRetryDigest(Data("first".utf8), batchKey: "batch", sourceRecordID: ids[2])
+    }
+}

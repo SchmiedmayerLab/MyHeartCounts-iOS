@@ -86,26 +86,30 @@ struct SensorKitBatchPublication: Sendable {
         )
     }
 
-    /// The identity of the record at `ordinal` of the batch, once `evidence`, and `supplementalEvidence` if given,
-    /// are checked against the bytes first seen there.
+    /// The identities of the records `uploads` publishes, in order, once each record's retry evidence, and its
+    /// supplemental evidence if it has any, are checked against the bytes first seen at its position in the batch.
     ///
-    /// - throws: `FHIRExchangeStateError.retryContentChanged` when the record's bytes differ from those first seen at
-    ///     its acquisition coordinate: the batch can then never be acknowledged as it was first delivered.
-    func sourceRecordID(ordinal: Int, evidence: Data, supplementalEvidence: Data? = nil) throws -> SensorKitSourceRecordID {
+    /// Every record is checked, and every digest first seen recorded, in one transaction of the retry state, so a
+    /// batch costs one rewrite of that state rather than one per record.
+    ///
+    /// - throws: `FHIRExchangeStateError.retryContentChanged` naming the first record whose bytes differ from those
+    ///     first seen at its acquisition coordinate: the batch can then never be acknowledged as it was first delivered.
+    func sourceRecordIDs(of uploads: [SensorKitRecordUpload]) throws -> [SensorKitSourceRecordID] {
+        guard !uploads.isEmpty else {
+            return []
+        }
         // A publication may outlive the fetch task which created it. Fence every state mutation
         // against logout/account cleanup rather than relying only on the initial snapshot.
         try destination.validateCurrentAccount()
-        let sourceRecordID = derivedSourceRecordID(ordinal: ordinal)
-        try stateStore.verifySensorRetryDigest(evidence, batchKey: batchKey, sourceRecordID: sourceRecordID)
-        if let supplementalEvidence {
-            try stateStore.verifySensorRetryDigest(
-                supplementalEvidence,
-                batchKey: batchKey,
-                sourceRecordID: sourceRecordID,
-                supplement: true
+        let records = uploads.map { upload in
+            FHIRExchangeStateStore.SensorRetryEvidence(
+                sourceRecordID: derivedSourceRecordID(ordinal: upload.ordinal),
+                evidence: upload.retryEvidence,
+                supplementalEvidence: upload.supplementalRetryEvidence
             )
         }
-        return sourceRecordID
+        try stateStore.verifySensorRetryDigests(records, batchKey: batchKey)
+        return records.map(\.sourceRecordID)
     }
 
     /// Checks that no earlier attempt prepared the record at `ordinal`, whose preparation Grove just refused.
