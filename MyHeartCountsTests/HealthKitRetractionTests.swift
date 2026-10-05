@@ -32,7 +32,8 @@ struct HealthKitRetractionTests {
         let role: String
         let discriminator: String
         let resourceType: ResourceType
-        let targetRole: RetractionTargetRole
+        /// The retraction target role's wire code, such as `primary-output`.
+        let targetRole: String
     }
 
     private static let detectedAt = Date(timeIntervalSince1970: 1_788_000_000)
@@ -113,7 +114,7 @@ struct HealthKitRetractionTests {
             identifier: identifier.value,
             system: identifier.system.rawValue,
             resourceType: output.resourceType.rawValue,
-            role: output.targetRole.rawValue
+            role: output.targetRole
         )
     }
 
@@ -134,7 +135,7 @@ struct HealthKitRetractionTests {
         let graph = try Self.retraction(of: record, in: store, subject: subject)
         let expectedSourceRecord = try Self.sourceRecord(of: record, in: store, subject: subject)
         let expected = try Self.expected(
-            Output(role: "step-count", discriminator: "single", resourceType: .observation, targetRole: .primaryOutput),
+            Output(role: "step-count", discriminator: "single", resourceType: .observation, targetRole: "primary-output"),
             of: record,
             in: store,
             subject: subject
@@ -172,7 +173,7 @@ struct HealthKitRetractionTests {
         let subject = try Self.subject
         let record = try Self.record(sourceType: HKWorkoutType.workoutType().identifier)
         let expected = try Self.expected(
-            Output(role: "workout", discriminator: "single", resourceType: .observation, targetRole: .primaryOutput),
+            Output(role: "workout", discriminator: "single", resourceType: .observation, targetRole: "primary-output"),
             of: record,
             in: store,
             subject: subject
@@ -194,7 +195,7 @@ struct HealthKitRetractionTests {
         let subject = try Self.subject
         let record = try Self.record(sourceType: sourceType)
         let expected = try Self.expected(
-            Output(role: "clinical-record", discriminator: "single", resourceType: .documentReference, targetRole: .sourceArtifact),
+            Output(role: "clinical-record", discriminator: "single", resourceType: .documentReference, targetRole: "source-artifact"),
             of: record,
             in: store,
             subject: subject
@@ -211,8 +212,8 @@ struct HealthKitRetractionTests {
         let subject = try Self.subject
         let record = try Self.record(sourceType: HKObjectType.electrocardiogramType().identifier)
         let expected = try [
-            Output(role: "electrocardiogram", discriminator: "single", resourceType: .observation, targetRole: .primaryOutput),
-            Output(role: "average-heart-rate", discriminator: "single", resourceType: .observation, targetRole: .childOutput)
+            Output(role: "electrocardiogram", discriminator: "single", resourceType: .observation, targetRole: "primary-output"),
+            Output(role: "average-heart-rate", discriminator: "single", resourceType: .observation, targetRole: "child-output")
         ].map { try Self.expected($0, of: record, in: store, subject: subject) }
 
         #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == expected)
@@ -338,7 +339,7 @@ extension FHIRExchangeStateStore {
 
 /// The source-output identifier the conversion minted for its primary Observation.
 private func mintedSourceOutput(of graph: ExchangeGraph, in store: FHIRExchangeStateStore) throws -> String {
-    let sourceOutputSystem = try store.identityScope().systems.opaque.sourceOutput.rawValue
+    let sourceOutputSystem = try store.identityScope().systems.sourceOutput.rawValue
     return try #require(graph.bundle.entry?.lazy.compactMap { entry -> String? in
         guard case .observation(let observation)? = entry.resource else {
             return nil

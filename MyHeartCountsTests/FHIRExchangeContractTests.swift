@@ -127,16 +127,16 @@ struct FHIRExchangeStateTests {
         #expect(scope.keyID == "store")
         #expect(scope.epoch.rawValue == "1")
         let expected: [(IdentifierSystem, String)] = [
-            (scope.systems.opaque.sourceRecord, "\(root)/grove-source-record-v0/store/1"),
-            (scope.systems.opaque.sourceOutput, "\(root)/grove-source-output-v0/store/1"),
-            (scope.systems.opaque.writerRecord, "\(root)/grove-writer-record-v0/store/1"),
-            (scope.systems.opaque.providerRecord, "\(root)/grove-provider-record-v0/store/1"),
-            (scope.systems.opaque.providerOutput, "\(root)/grove-provider-output-v0/store/1"),
-            (scope.systems.opaque.sourceArtifact, "\(root)/grove-source-artifact-v0/store/1"),
-            (scope.systems.opaque.providerArtifact, "\(root)/grove-provider-artifact-v0/store/1"),
-            (scope.systems.opaque.sourceContext, "\(root)/grove-source-context-v0/store/1"),
-            (scope.systems.opaque.recordingDevice, "\(root)/grove-recording-device-v0/store/1"),
-            (scope.systems.opaque.deviceSnapshot, "\(root)/grove-device-snapshot-v0/store/1"),
+            (scope.systems.sourceRecord, "\(root)/grove-source-record-v0/store/1"),
+            (scope.systems.sourceOutput, "\(root)/grove-source-output-v0/store/1"),
+            (scope.systems.writerRecord, "\(root)/grove-writer-record-v0/store/1"),
+            (scope.systems.providerRecord, "\(root)/grove-provider-record-v0/store/1"),
+            (scope.systems.providerOutput, "\(root)/grove-provider-output-v0/store/1"),
+            (scope.systems.sourceArtifact, "\(root)/grove-source-artifact-v0/store/1"),
+            (scope.systems.providerArtifact, "\(root)/grove-provider-artifact-v0/store/1"),
+            (scope.systems.sourceContext, "\(root)/grove-source-context-v0/store/1"),
+            (scope.systems.recordingDevice, "\(root)/grove-recording-device-v0/store/1"),
+            (scope.systems.deviceSnapshot, "\(root)/grove-device-snapshot-v0/store/1"),
             (scope.systems.event, "\(root)/grove-event-v0"),
             (scope.systems.entryNode, "\(root)/grove-entry-node-v0")
         ]
@@ -151,7 +151,7 @@ struct FHIRExchangeStateTests {
             repositoryScope: try store.repositoryScope(.healthKit, subject: try Self.subject),
             nativeRecordID: "9512fc92-b514-4bcc-a157-050c41dac51d"
         ).identifier.identifier
-        #expect(record.system == scope.systems.opaque.sourceRecord)
+        #expect(record.system == scope.systems.sourceRecord)
         #expect(record.value.hasPrefix("v0:store:1:"))
     }
 

@@ -64,15 +64,15 @@ extension FHIRExchangeStateStore {
             return HealthKitRetractions(graphs: Array(repeating: nil, count: records.count), receipt: HealthKitFHIRReservationReceipt())
         }
         var graphs: [UUID: ExchangeGraph] = [:]
-        let receipt = try healthKitExporter(subject: subject, ledger: ledger).retract(deletions, at: recordedAt) { export in
-            switch export.outcome {
+        let receipt = try healthKitExporter(subject: subject, ledger: ledger).retract(deletions, at: recordedAt) { retraction in
+            switch retraction.outcome {
             case .graph(let graph):
-                graphs[export.source.uuid] = graph
+                graphs[retraction.deletion.uuid] = graph
             case .refused(let reason):
                 // Never with the record's HealthKit UUID, which must not propagate into logs.
                 let diagnostic = reason.diagnostic
                 logger.warning(
-                    "Grove refused retracting a \(export.source.typeIdentifier) record: \(diagnostic.code) at \(diagnostic.location)"
+                    "Grove refused retracting a \(retraction.deletion.sourceType.rawValue) record: \(diagnostic.code) at \(diagnostic.location)"
                 )
             case .nothingToRetract:
                 break

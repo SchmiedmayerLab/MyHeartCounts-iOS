@@ -275,8 +275,6 @@ extension HealthKitFHIRExporter {
             let diagnostic = reason.diagnostic
             logger.warning("Grove refused a \(export.source.typeIdentifier) sample: \(diagnostic.code) at \(diagnostic.location)")
             return PreparedHealthObservationFHIRPayload.Refusal(sourceID: export.source.uuid, reason: reason)
-        case .nothingToRetract:
-            return nil
         }
     }
 
