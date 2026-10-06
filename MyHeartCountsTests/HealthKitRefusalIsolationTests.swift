@@ -84,7 +84,7 @@ struct HealthKitRefusalIsolationTests {
             staging
             HealthKit()
         }
-        let ledger = try #require(staging.testingLedger)
+        let ledger = try #require(staging.testing).ledger
 
         let delivery = try await staging.add([sample])
         let reserved = try ledger.producerEntry()

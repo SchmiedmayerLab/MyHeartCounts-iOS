@@ -52,11 +52,11 @@ struct HealthKitBatchExportTests {
     func redeliveryBeforeTheAnchorCommitsStagesTheSameBytes() async throws {
         let staging = try await HealthUploadStaging.resolvedForTesting()
         let samples: [HKSample] = [LedgerHarness.steps(0), heartRateSample(1), Self.symptom]
-        staging.testingFacts = try .testing(build: "100", operatingSystem: "26.0", studyRevision: 1)
+        staging.testing?.facts = try .testing(build: "100", operatingSystem: "26.0", studyRevision: 1)
         let first = try await staging.add(samples)
         let firstStaged = try staging.drainStagedSamples()
 
-        staging.testingFacts = try .testing(build: "110", operatingSystem: "27.0", studyRevision: 2)
+        staging.testing?.facts = try .testing(build: "110", operatingSystem: "27.0", studyRevision: 2)
         let redelivery = try await staging.add(samples)
         let redeliveryStaged = try staging.drainStagedSamples()
 
@@ -119,7 +119,7 @@ struct HealthKitBatchExportTests {
             let (identity, beforeCrash) = try await Self.deliverAndCrash(samples, root: root, binding: binding)
 
             let relaunched = try await HealthUploadStaging.resolvedForTesting(ledger: .liveFencedInDirectory(root, binding: binding))
-            relaunched.testingStateStore = FHIRExchangeStateStore(
+            relaunched.testing?.stateStore = FHIRExchangeStateStore(
                 accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration],
                 secretsSharedWith: identity
             )

@@ -95,14 +95,14 @@ extension HealthUploadStaging {
     /// The ledger this staging reserves in.
     var ledger: FHIRExchangeLedger {
         get throws {
-            try #require(testingLedger)
+            try #require(testing).ledger
         }
     }
 
     /// The identity this staging exports under.
     var stateStore: FHIRExchangeStateStore {
         get throws {
-            try #require(testingStateStore)
+            try #require(testing).stateStore
         }
     }
 
@@ -119,7 +119,7 @@ extension HealthUploadStaging {
             subject: try LedgerHarness.subject
         )
         if let ledger {
-            staging.testingLedger = ledger
+            staging.testing?.ledger = ledger
         }
         await withDependencyResolution(standard: BatchExportTestStandard()) {
             staging

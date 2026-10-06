@@ -63,14 +63,9 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     // swiftlint:enable attributes
     
     #if DEBUG
-    /// Set only by ``forTesting(persistence:autoElideUploadsWhenInsertingDeletions:subject:)``.
-    @ObservationIgnored var testingSubject: FHIRExchangeSubject?
-    /// An isolated identity store, so staging in a test never touches the host's encrypted exchange state.
-    @ObservationIgnored var testingStateStore: FHIRExchangeStateStore?
-    /// An isolated ledger, so staging in a test never reserves in the host's exchange-event ledger.
-    @ObservationIgnored var testingLedger: FHIRExchangeLedger?
-    /// The app facts new events are reserved under, so a test can change them between deliveries.
-    @ObservationIgnored var testingFacts: FHIRExchangeEventFacts?
+    /// What a test stages against instead of the account and the app's exchange state; set only by
+    /// ``forTesting(persistence:autoElideUploadsWhenInsertingDeletions:subject:)``.
+    @ObservationIgnored var testing: TestingOverrides?
     #endif
 
     nonisolated init(
@@ -133,8 +128,8 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     /// The subject staged samples are attributed to.
     func resolvedSubject() async throws -> FHIRExchangeSubject {
         #if DEBUG
-        if let testingSubject {
-            return testingSubject
+        if let testing {
+            return testing.subject
         }
         #endif
         return try await firebaseConfiguration.fhirExchangeSubject
@@ -143,8 +138,8 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     /// The identity store staged samples are exported under.
     func resolvedStateStore(accountDataGeneration: Int) -> FHIRExchangeStateStore {
         #if DEBUG
-        if let testingStateStore {
-            return testingStateStore
+        if let testing {
+            return testing.stateStore
         }
         #endif
         return FHIRExchangeStateStore(
@@ -156,8 +151,8 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     /// The ledger staged samples reserve their exchange events in.
     func resolvedLedger() -> FHIRExchangeLedger {
         #if DEBUG
-        if let testingLedger {
-            return testingLedger
+        if let testing {
+            return testing.ledger
         }
         #endif
         return fhirExchangeLedger
@@ -168,8 +163,8 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
         let subject = try await resolvedSubject()
         let stateStore = resolvedStateStore(accountDataGeneration: accountDataGeneration)
         #if DEBUG
-        if let testingFacts {
-            return try stateStore.healthKitExporter(subject: subject, ledger: resolvedLedger(), facts: testingFacts)
+        if let facts = testing?.facts {
+            return try stateStore.healthKitExporter(subject: subject, ledger: resolvedLedger(), facts: facts)
         }
         #endif
         return try stateStore.healthKitExporter(subject: subject, ledger: resolvedLedger())
