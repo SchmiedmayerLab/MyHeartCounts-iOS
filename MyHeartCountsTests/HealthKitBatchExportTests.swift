@@ -382,6 +382,30 @@ extension HealthKitBatchExportTests {
         export.receipt.completeAfterSourceAcknowledgement()
     }
 
+    /// A batch counts its graphs' warnings by kind across every exporter call, each sample once, so it logs them once.
+    @Test
+    func batchReportsItsWarningsOncePerSampleAcrossCalls() async throws {
+        let exporter = try LedgerHarness(ledger: .forTesting()).exporter()
+        // Five calls of eight; no step count names a time zone, so each states both ends of its Period in UTC.
+        let export = try await exporter.exportBatch((0..<40).map(LedgerHarness.steps), at: LedgerHarness.start, records: Self.ecgStandIns()) { _ in }
+        let kinds = export.warnings.kinds
+        #expect(kinds.map(\.code) == [ExchangeGraphRule.mobileOmissionSourceOffset.rawValue])
+        #expect(kinds.first?.sampleCountByType == [HKQuantityTypeIdentifier.stepCount.rawValue: 40])
+        #expect(kinds.first?.locations == ["Observation.effectivePeriod.start", "Observation.effectivePeriod.end"])
+        export.receipt.completeAfterSourceAcknowledgement()
+
+        let zoned = HKQuantitySample(
+            type: HKQuantityType(.stepCount),
+            quantity: HKQuantity(unit: .count(), doubleValue: 12),
+            start: LedgerHarness.start,
+            end: LedgerHarness.start.addingTimeInterval(30),
+            metadata: [HKMetadataKeyTimeZone: "Europe/Berlin"]
+        )
+        let clean = try await exporter.exportBatch([zoned], at: LedgerHarness.start, using: HealthKit()) { _ in }
+        #expect(clean.warnings.isEmpty)
+        clean.receipt.completeAfterSourceAcknowledgement()
+    }
+
     /// M16: a batch of 40 ECGs is exported in calls of at most ``HealthKitFHIRExporter/voltageBudget`` voltage
     /// measurements, never keeps more fetched records alive than that, and releases every call's reservations; a
     /// batch without ECGs is one call.

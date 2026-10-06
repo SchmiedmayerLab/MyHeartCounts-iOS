@@ -112,10 +112,12 @@ struct HealthKitFHIRReservationReceipt: Sendable {
 /// What one batch's HealthKit export left behind besides its entries.
 struct HealthKitBatchExport: Sendable {
     /// Nothing exported, nothing reserved.
-    static let empty = Self(refusals: [], receipt: HealthKitFHIRReservationReceipt())
+    static let empty = Self(refusals: [], warnings: HealthKitFHIRExporter.WarningReport(), receipt: HealthKitFHIRReservationReceipt())
 
     /// The samples Grove refused; each costs only itself.
     let refusals: [PreparedHealthObservationFHIRPayload.Refusal]
+    /// The kinds of warning the batch's graphs raised, logged once for the batch rather than once per sample.
+    let warnings: HealthKitFHIRExporter.WarningReport
     /// The batch's reservations, one Grove receipt per exporter call. Complete it once the batch's entries are
     /// durably stored and its source cursor is committed.
     let receipt: HealthKitFHIRReservationReceipt
@@ -254,7 +256,7 @@ extension HealthKitFHIRExporter {
     /// The on-device memory check confirms the value.
     static let voltageBudget = 8 * 15_360
 
-    /// Hands a graph's entry to `receive`, or returns the refusal; neither is logged with the sample's HealthKit
+    /// Hands a graph's entry to `receive`, or returns the refusal; a refusal is logged without the sample's HealthKit
     /// UUID, which must not propagate into logs.
     private static func deliver(
         _ export: Export,
@@ -262,9 +264,6 @@ extension HealthKitFHIRExporter {
     ) throws -> PreparedHealthObservationFHIRPayload.Refusal? {
         switch export.outcome {
         case .graph(let graph):
-            for diagnostic in export.warnings {
-                logger.notice("Grove converted a \(export.source.typeIdentifier) sample with \(diagnostic.code) at \(diagnostic.location)")
-            }
             try receive(PreparedHealthObservationFHIRPayload.Entry(
                 content: .graph(graph.json),
                 sourceID: export.source.uuid,
@@ -283,9 +282,11 @@ extension HealthKitFHIRExporter {
     ///
     /// Each call makes one ledger transaction for its reservations and adds one Grove receipt to the
     /// returned receipt. A sample Grove refuses costs only itself: it is logged and reported in
-    /// ``HealthKitBatchExport/refusals``, and its reservation is held with the others. When any call or
+    /// ``HealthKitBatchExport/refusals``, and its reservation is held with the others. The graphs' warnings
+    /// are counted by kind across every call into ``HealthKitBatchExport/warnings`` and logged once, when the
+    /// batch has exported: a historical export raises the same few for almost every sample. When any call or
     /// `receive` throws, the receipts of the earlier calls are dropped with the batch, so their holds lapse
-    /// and the redelivery after the retained cursor is an exact retry.
+    /// and the redelivery after the retained cursor is an exact retry; its warnings are logged then.
     func exportBatch(
         _ samples: some Collection<some HKSample>,
         at instant: Date,
@@ -304,6 +305,7 @@ extension HealthKitFHIRExporter {
         receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
     ) async throws -> HealthKitBatchExport {
         var refusals: [PreparedHealthObservationFHIRPayload.Refusal] = []
+        var warnings = WarningReport()
         var receipts: [ExchangeProducer.Receipt] = []
         var pending: [Record] = []
         var pendingVoltageMeasurements = 0
@@ -314,6 +316,7 @@ extension HealthKitFHIRExporter {
             receipts.append(try export(records: pending, at: instant) { export in
                 // A throw drops this call's receipt, so its holds lapse.
                 try Swift::Task.checkCancellation()
+                warnings.add(export)
                 if let refusal = try Self.deliver(export, to: receive) {
                     refusals.append(refusal)
                 }
@@ -332,7 +335,10 @@ extension HealthKitFHIRExporter {
             pendingVoltageMeasurements += voltageMeasurements
         }
         try flush()
-        return HealthKitBatchExport(refusals: refusals, receipt: HealthKitFHIRReservationReceipt(receipts))
+        if !warnings.isEmpty {
+            logger.info("Grove exported \(samples.count) HealthKit samples with warnings:\n\(warnings.description)")
+        }
+        return HealthKitBatchExport(refusals: refusals, warnings: warnings, receipt: HealthKitFHIRReservationReceipt(receipts))
     }
 }
 
