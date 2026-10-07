@@ -116,6 +116,7 @@ extension MyHeartCountsStandard {
 
     enum HealthObservationUploadStrategy {
         case queueLocally
+        @available(*, deprecated, message: "Will be removed in a future update!")
         case directFirestore
         case firebaseStorage
     }
@@ -262,12 +263,12 @@ extension MyHeartCountsStandard {
 
     /// Uploads `observations` by `uploadStrategy`, or the strategy their sample type takes, returning the
     /// reservations of their HealthKit samples. The caller completes them once its source cursor is committed.
-    static func uploadHealthObservations( // swiftlint:disable:this function_body_length cyclomatic_complexity
-        _ observations: consuming some Collection<some HealthObservation & Sendable> & Sendable,
+    static func uploadHealthObservations<Observations: Collection & Sendable>( // swiftlint:disable:this function_body_length cyclomatic_complexity
+        _ observations: consuming Observations,
         accountDataGeneration: Int,
         uploadStrategy: HealthObservationUploadStrategy?,
         through dependencies: HealthObservationUploadDependencies
-    ) async throws -> HealthKitFHIRReservationReceipt {
+    ) async throws -> HealthKitFHIRReservationReceipt where Observations.Element: HealthObservation {
         guard !observations.isEmpty, let sampleTypeIdentifier = observations.first?.sampleTypeIdentifier else {
             return HealthKitFHIRReservationReceipt()
         }
@@ -320,17 +321,20 @@ extension MyHeartCountsStandard {
             try destination.validateCurrentAccount()
             // Only HealthKit samples build the exporter, and with it read the identity secret and the app facts.
             let exporter = dependencies.exporter
-            let (url, export) = try await HealthUploadBatch.write(
-                HealthObservationBatch(consume observations),
-                typePrefix: sampleTypeIdentifier,
+            var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+            let export = try await Observations.Element.export(
+                consume observations,
                 at: conversionInstant,
                 using: dependencies.healthKit
             ) {
                 try await exporter(subject, accountDataGeneration)
+            } receive: { entry in
+                entries.append(entry)
             }
-            guard let url else {
+            guard !entries.isEmpty else {
                 return export.receipt
             }
+            let url = try HealthUploadBatch.write(entries, typePrefix: sampleTypeIdentifier)
             defer {
                 try? FileManager.default.removeItem(at: url)
             }
@@ -341,26 +345,35 @@ extension MyHeartCountsStandard {
             return export.receipt
         case .directFirestore:
             // Self-modelled observations only: they need no exporter, so neither the identity secret, the app
-            // facts, nor the ledger.
-            let batch = try HealthObservationBatch(consume observations)
-            guard batch.samples.isEmpty else {
+            // facts, nor the ledger. A HealthKit sample asks for one and is refused here.
+            var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+            _ = try await Observations.Element.export(
+                consume observations,
+                at: conversionInstant,
+                using: dependencies.healthKit
+            ) {
                 throw HealthObservationUploadError.unsupportedStrategy
+            } receive: { entry in
+                entries.append(entry)
             }
-            for chunk in batch.selfModelled.chunks(ofCount: Self.directFirestoreUploadDefaultBatchSize) {
+            for chunk in entries.chunks(ofCount: Self.directFirestoreUploadDefaultBatchSize) {
                 try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
                 let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
                     for: .new(sampleTypeTitle: sampleTypeIdentifier, count: chunk.count, uploadStrategy: uploadStrategy)
                 )
                 let firestoreBatch = Firestore.firestore().batch()
-                for observation in chunk {
+                for entry in chunk {
+                    guard case .resource(let resource) = entry.content else {
+                        throw HealthObservationUploadError.unsupportedStrategy
+                    }
                     let document = try Self.healthObservationDocument(
-                        forSampleType: observation.sampleTypeIdentifier,
-                        id: observation.id.uuidString,
+                        forSampleType: entry.sourceTypeIdentifier,
+                        id: entry.sourceID.uuidString,
                         destination: destination
                     )
                     dependencies.logger.notice("Uploading Health Resource to \(document.path)")
-                    try firestoreBatch.setData(from: observation.fhirResource(issuedAt: conversionInstant), forDocument: document)
+                    try firestoreBatch.setData(from: resource, forDocument: document)
                 }
                 try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()

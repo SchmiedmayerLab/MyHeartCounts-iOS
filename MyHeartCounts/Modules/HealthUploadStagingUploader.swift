@@ -17,10 +17,20 @@ import MyHeartCountsShared
 import OSLog
 
 
-enum HealthUploadBatchFilename {
-    private static let digestByteCount = 12
+/// The one definition of a staged upload batch's wire format.
+enum HealthUploadBatch {
+    /// The deterministic JSON every upload path writes: sorted keys, unescaped slashes.
+    static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        return encoder
+    }()
 
-    static func make(
+    private static let filenameDigestByteCount = 12
+
+    /// The file name of a batch: its type prefix and a digest of its sorted identifiers, so the same batch is always
+    /// written, and uploaded, under the same name.
+    static func filename(
         typePrefix: String,
         identifiers: some Sequence<UUID>,
         fileExtension: String
@@ -30,20 +40,9 @@ enum HealthUploadBatchFilename {
             .sorted()
             .joined(separator: "\n")
         let digest = SHA256.hash(data: Data(canonicalIdentifiers.utf8))
-        let key = digest.prefix(digestByteCount).lowercaseHexString
+        let key = digest.prefix(filenameDigestByteCount).lowercaseHexString
         return "\(typePrefix)_\(key).\(fileExtension)"
     }
-}
-
-
-/// The one definition of a staged upload batch's wire format.
-enum HealthUploadBatch {
-    /// The deterministic JSON every upload path writes: sorted keys, unescaped slashes.
-    static let encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        return encoder
-    }()
 
     /// Sorts, splices, compresses, and writes one batch, returning the file staged uploads take.
     ///
@@ -65,32 +64,6 @@ enum HealthUploadBatch {
         )
     }
 
-    /// Converts one batch and writes it as one upload file; the file is `nil` when nothing converted.
-    ///
-    /// The batch's HealthKit samples go through the exporter `exporter` builds, only when there are any. The
-    /// returned export's receipt holds the batch's reservations until the caller completes it.
-    ///
-    /// Every entry's bytes are held until the file is written, and once more while they are spliced into it, so
-    /// ``HealthKitFHIRExporter/voltageBudget`` bounds only the voltages fetched at once, not the batch: an ECG's
-    /// graph carries its waveform.
-    @concurrent
-    static func write(
-        _ batch: HealthObservationBatch,
-        typePrefix: String,
-        at instant: Date,
-        using healthKit: HealthKit,
-        exporter: @Sendable () async throws -> HealthKitFHIRExporter
-    ) async throws -> (url: URL?, export: HealthKitBatchExport) {
-        var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
-        let export = try await batch.export(at: instant, using: healthKit, exporter: exporter) { entry in
-            entries.append(entry)
-        }
-        guard !entries.isEmpty else {
-            return (nil, export)
-        }
-        return (try write(entries, typePrefix: typePrefix), export)
-    }
-
     /// Writes already-serialized batch bytes under the digest-derived batch filename.
     static func write(
         _ payload: consuming Data,
@@ -99,7 +72,7 @@ enum HealthUploadBatch {
         fileExtension: String
     ) throws -> URL {
         let url = URL.temporaryDirectory.appending(
-            path: HealthUploadBatchFilename.make(
+            path: filename(
                 typePrefix: typePrefix,
                 identifiers: identifiers,
                 fileExtension: fileExtension

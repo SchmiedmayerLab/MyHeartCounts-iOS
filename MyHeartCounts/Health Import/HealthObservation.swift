@@ -20,6 +20,19 @@ import MyHeartCountsShared
 protocol HealthObservation: Sendable { // might want to rename this (@lukas); the resulting ResourceProxy is not necessarily an Observation...)
     var id: UUID { get }
     var sampleTypeIdentifier: String { get }
+
+    /// Converts `batch`, calling `receive` with each entry as soon as it is produced.
+    ///
+    /// HealthKit samples go through ``HealthKitFHIRExporter/exportBatch(_:at:using:receive:)`` under the exporter
+    /// `exporter` builds; observations the app models itself become the resources they model and never call
+    /// `exporter`, so they never read the identity secret or the app facts, and never touch the ledger.
+    static func export(
+        _ batch: some Collection<Self>,
+        at instant: Date,
+        using healthKit: HealthKit,
+        exporter: () async throws -> HealthKitFHIRExporter,
+        receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
+    ) async throws -> HealthKitBatchExport
 }
 
 
@@ -154,58 +167,6 @@ struct HealthObservationRecords {
 }
 
 
-/// One batch of health observations, split by how each is converted.
-struct HealthObservationBatch: Sendable {
-    /// The HealthKit samples, converted by the Grove HealthKit exporter.
-    let samples: [HKSample]
-    /// The observations the app models itself.
-    let selfModelled: [any SelfModelledHealthObservation]
-
-    /// Splits `observations`; an observation of neither kind has no FHIR representation and fails the batch.
-    init(_ observations: some Collection<some HealthObservation>) throws {
-        var samples: [HKSample] = []
-        var selfModelled: [any SelfModelledHealthObservation] = []
-        for observation in observations {
-            switch observation {
-            case let sample as HKSample:
-                samples.append(sample)
-            case let observation as any SelfModelledHealthObservation:
-                selfModelled.append(observation)
-            default:
-                throw NSError(
-                    mhcErrorCode: .unspecified,
-                    localizedDescription: "No FHIR representation for '\(observation.sampleTypeIdentifier)'"
-                )
-            }
-        }
-        self.samples = samples
-        self.selfModelled = selfModelled
-    }
-
-    /// Converts the batch, calling `receive` with each entry as soon as it is produced.
-    ///
-    /// Each self-modelled observation becomes the resource it models. The HealthKit samples go through
-    /// ``HealthKitFHIRExporter/exportBatch(_:at:using:receive:)``, under the exporter `exporter` builds. It is
-    /// built only when the batch has HealthKit samples, so a batch of self-modelled observations never reads
-    /// the identity secret or the app facts, and never touches the ledger.
-    func export(
-        at instant: Date,
-        using healthKit: HealthKit,
-        exporter: () async throws -> HealthKitFHIRExporter,
-        receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
-    ) async throws -> HealthKitBatchExport {
-        for observation in selfModelled {
-            try Swift::Task.checkCancellation()
-            try receive(try observation.fhirEntry(issuedAt: instant))
-        }
-        guard !samples.isEmpty else {
-            return .empty
-        }
-        return try await exporter().exportBatch(samples, at: instant, using: healthKit, receive: receive)
-    }
-}
-
-
 extension HKSample: HealthObservation {
     var id: UUID {
         uuid
@@ -213,6 +174,20 @@ extension HKSample: HealthObservation {
 
     var sampleTypeIdentifier: String {
         sampleType.identifier
+    }
+
+    // `Batch.Element: HKSample` rather than `== Self`: a non-final class cannot witness a same-type requirement on `Self`.
+    static func export<Batch: Collection>(
+        _ batch: Batch,
+        at instant: Date,
+        using healthKit: HealthKit,
+        exporter: () async throws -> HealthKitFHIRExporter,
+        receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
+    ) async throws -> HealthKitBatchExport where Batch.Element: HKSample {
+        guard !batch.isEmpty else {
+            return .empty
+        }
+        return try await exporter().exportBatch(batch, at: instant, using: healthKit, receive: receive)
     }
 }
 
@@ -229,19 +204,38 @@ extension TimedWalkingTestResult: SelfModelledHealthObservation {
 // MARK: Conversion
 
 extension SelfModelledHealthObservation {
+    static func export<Batch: Collection>(
+        _ batch: Batch,
+        at instant: Date,
+        using healthKit: HealthKit,
+        exporter: () async throws -> HealthKitFHIRExporter,
+        receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
+    ) async throws -> HealthKitBatchExport where Batch.Element == Self {
+        guard !batch.isEmpty else {
+            return .empty
+        }
+        // Once per batch, not per observation: creating FHIR date/time primitives from a `Date` was measured to be expensive.
+        let issuedAt = try FHIRPrimitive<ModelsR4.Instant>(.init(date: instant, timeZone: .current))
+        for observation in batch {
+            try Swift::Task.checkCancellation()
+            try receive(try observation.fhirEntry(issuedAt: issuedAt))
+        }
+        return .empty
+    }
+
     /// The resource this observation models, issued at `instant` and carrying MHC's default extensions.
-    func fhirResource(issuedAt instant: Date) throws -> AnyEncodable {
+    private func fhirResource(issuedAt: FHIRPrimitive<ModelsR4.Instant>) throws -> AnyEncodable {
         let resourceProxy = try resource(
-            issuedDate: FHIRPrimitive<ModelsR4.Instant>(try .init(date: instant)),
+            issuedDate: issuedAt,
             extensions: MyHeartCountsStandard.defaultHealthObservationFHIRExtensions
         )
         return AnyEncodable(FHIRResource(resourceProxy.get()).encodableUnderlyingResource)
     }
 
     /// ``fhirResource(issuedAt:)`` as an upload entry.
-    func fhirEntry(issuedAt instant: Date) throws -> PreparedHealthObservationFHIRPayload.Entry {
+    private func fhirEntry(issuedAt: FHIRPrimitive<ModelsR4.Instant>) throws -> PreparedHealthObservationFHIRPayload.Entry {
         PreparedHealthObservationFHIRPayload.Entry(
-            content: .resource(try fhirResource(issuedAt: instant)),
+            content: .resource(try fhirResource(issuedAt: issuedAt)),
             sourceID: id,
             sourceTypeIdentifier: sampleTypeIdentifier
         )
@@ -272,7 +266,7 @@ extension HealthKitFHIRExporter {
             return nil
         case .refused(let reason):
             let diagnostic = reason.diagnostic
-            logger.warning("Grove refused a \(export.source.typeIdentifier) sample: \(diagnostic.code) at \(diagnostic.location)")
+            logger.error("Grove refused a \(export.source.typeIdentifier) sample: \(diagnostic.code) at \(diagnostic.location)")
             return PreparedHealthObservationFHIRPayload.Refusal(sourceID: export.source.uuid, reason: reason)
         }
     }

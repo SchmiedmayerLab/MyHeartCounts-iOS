@@ -42,17 +42,14 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         let numSamples = samples.count
         let exporter = exporter
         do {
-            let (url, export) = try await HealthUploadBatch.write(
-                HealthObservationBatch(samples.map { $0 as HKSample }),
-                typePrefix: sampleType.id,
-                at: .now,
-                using: await healthKit()
-            ) {
-                try await exporter(accountDataGeneration)
+            var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+            let export = try await exporter(accountDataGeneration).exportBatch(samples, at: .now, using: await healthKit()) { entry in
+                entries.append(entry)
             }
-            guard let url else {
+            guard !entries.isEmpty else {
                 return export.receipt
             }
+            let url = try HealthUploadBatch.write(entries, typePrefix: sampleType.id)
             defer {
                 try? FileManager.default.removeItem(at: url)
             }

@@ -191,12 +191,12 @@ extension HealthUploadStaging {
 
 extension HealthUploadStaging {
     @discardableResult
-    func add(
-        _ samples: consuming some Collection<some HealthObservation> & Sendable,
+    func add<Observations: Collection & Sendable>(
+        _ samples: consuming Observations,
         commonSampleType: String? = nil,
         ingestionTimestamp: Date = .now,
         accountDataGeneration: Int? = nil
-    ) async throws -> HealthKitFHIRReservationReceipt {
+    ) async throws -> HealthKitFHIRReservationReceipt where Observations.Element: HealthObservation {
         guard !samples.isEmpty else {
             return HealthKitFHIRReservationReceipt()
         }
@@ -221,18 +221,18 @@ extension HealthUploadStaging {
     
     /// Converts the batch off the caller's actor and stages one row per entry, in writes of ``databaseWriteChunkSize``.
     ///
-    /// The exporter is built only when the batch has HealthKit samples; see ``HealthObservationBatch``.
+    /// The exporter is built only when the batch has HealthKit samples; see
+    /// ``HealthObservation/export(_:at:using:exporter:receive:)``.
     /// - invariant: `samples` is not empty
     @concurrent
-    private func _add(
-        _ samples: consuming some Collection<some HealthObservation> & Sendable,
+    private func _add<Observations: Collection & Sendable>(
+        _ samples: consuming Observations,
         ingestionTimestamp: Date,
         writeContext: DatabaseWriteContext
-    ) async throws -> HealthKitFHIRReservationReceipt {
-        let batch = try HealthObservationBatch(consume samples)
+    ) async throws -> HealthKitFHIRReservationReceipt where Observations.Element: HealthObservation {
         var pendingSamples: [PendingSampleRecord] = []
         pendingSamples.reserveCapacity(Self.databaseWriteChunkSize)
-        let export = try await batch.export(at: ingestionTimestamp, using: healthKit) {
+        let export = try await Observations.Element.export(consume samples, at: ingestionTimestamp, using: healthKit) {
             try await self.healthKitExporter(accountDataGeneration: writeContext.accountDataGeneration)
         } receive: { entry in
             pendingSamples.append(PendingSampleRecord(

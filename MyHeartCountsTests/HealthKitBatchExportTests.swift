@@ -310,10 +310,9 @@ extension HealthKitBatchExportTests {
             startDate: LedgerHarness.start,
             endDate: LedgerHarness.start
         )
-        let batch = try HealthObservationBatch([lipids])
         var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
         var exporterBuilds = 0
-        let export = try await batch.export(at: LedgerHarness.start, using: HealthKit()) {
+        let export = try await QuantitySample.export([lipids], at: LedgerHarness.start, using: HealthKit()) {
             exporterBuilds += 1
             return try LedgerHarness(ledger: .forTesting()).exporter()
         } receive: { entry in

@@ -18,12 +18,12 @@ struct HealthUploadBatchFilenameTests {
         let first = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
         let second = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
 
-        let forward = HealthUploadBatchFilename.make(
+        let forward = HealthUploadBatch.filename(
             typePrefix: "HKQuantityTypeIdentifierStepCount",
             identifiers: [first, second],
             fileExtension: "json.zstd"
         )
-        let reverse = HealthUploadBatchFilename.make(
+        let reverse = HealthUploadBatch.filename(
             typePrefix: "HKQuantityTypeIdentifierStepCount",
             identifiers: [second, first],
             fileExtension: "json.zstd"
@@ -39,12 +39,12 @@ struct HealthUploadBatchFilenameTests {
         let first = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
         let second = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
 
-        let oneIdentifier = HealthUploadBatchFilename.make(
+        let oneIdentifier = HealthUploadBatch.filename(
             typePrefix: "type",
             identifiers: [first],
             fileExtension: "json.zstd"
         )
-        let twoIdentifiers = HealthUploadBatchFilename.make(
+        let twoIdentifiers = HealthUploadBatch.filename(
             typePrefix: "type",
             identifiers: [first, second],
             fileExtension: "json.zstd"
