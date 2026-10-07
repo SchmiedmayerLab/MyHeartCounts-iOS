@@ -29,7 +29,7 @@ protocol HealthObservation: Sendable { // might want to rename this (@lukas); th
     static func export(
         _ batch: some Collection<Self>,
         at instant: Date,
-        using healthKit: HealthKit,
+        recordProvider: HealthKitFHIRExporter.RecordProvider,
         exporter: @autoclosure () throws -> HealthKitFHIRExporter,
         receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
     ) async throws -> HealthKitBatchExport
@@ -137,36 +137,6 @@ struct HealthKitBatchExport: Sendable {
 }
 
 
-/// Where a batch export gets each sample's record from: HealthKit keeps an ECG's voltages and symptoms outside it.
-struct HealthObservationRecords {
-    /// How many ECG voltage measurements a sample's record holds, known before the record is fetched.
-    let voltageMeasurements: (HKSample) -> Int
-    /// Fetches a sample's record.
-    let record: (HKSample) async throws -> HealthKitFHIRExporter.Record
-
-    /// The records as HealthKit holds them.
-    ///
-    /// Grove never queries HealthKit, so an ECG's waveform and correlated symptoms are fetched here; each
-    /// symptom becomes an event of its own. Every other sample is its own record.
-    static func healthKit(_ healthKit: HealthKit) -> Self {
-        Self { sample in
-            (sample as? HKElectrocardiogram)?.numberOfVoltageMeasurements ?? 0
-        } record: { sample in
-            guard let electrocardiogram = sample as? HKElectrocardiogram else {
-                return .sample(sample)
-            }
-            async let voltageMeasurements = electrocardiogram.rawVoltageMeasurements(from: healthKit.healthStore)
-            async let correlatedSymptoms = electrocardiogram.correlatedSymptomSamples(from: healthKit)
-            return .electrocardiogram(
-                electrocardiogram,
-                voltages: try await voltageMeasurements,
-                symptoms: try await correlatedSymptoms
-            )
-        }
-    }
-}
-
-
 extension HKSample: HealthObservation {
     var id: UUID {
         uuid
@@ -175,19 +145,18 @@ extension HKSample: HealthObservation {
     var sampleTypeIdentifier: String {
         sampleType.identifier
     }
-
-    // `Batch.Element: HKSample` rather than `== Self`: a non-final class cannot witness a same-type requirement on `Self`.
+    
     static func export(
         _ batch: some Collection<some HKSample>,
         at instant: Date,
-        using healthKit: HealthKit,
+        recordProvider: HealthKitFHIRExporter.RecordProvider,
         exporter: @autoclosure () throws -> HealthKitFHIRExporter,
         receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
     ) async throws -> HealthKitBatchExport {
         guard !batch.isEmpty else {
             return .empty
         }
-        return try await exporter().exportBatch(batch, at: instant, using: healthKit, receive: receive)
+        return try await exporter().exportBatch(batch, at: instant, recordProvider: recordProvider, receive: receive)
     }
 }
 
@@ -207,7 +176,7 @@ extension SelfModelledHealthObservation {
     static func export(
         _ batch: some Collection<Self>,
         at instant: Date,
-        using _: HealthKit,
+        recordProvider _: HealthKitFHIRExporter.RecordProvider,
         exporter _: @autoclosure () throws -> HealthKitFHIRExporter,
         receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
     ) async throws -> HealthKitBatchExport {
@@ -244,6 +213,48 @@ extension SelfModelledHealthObservation {
 
 
 extension HealthKitFHIRExporter {
+    /// Used to obtain a `HKSample`'s `HealthKitFHIRExporter.Record`
+    enum RecordProvider {
+        /// Fetches the sample's record from HealthKit.
+        /// The records as HealthKit holds them.
+        ///
+        /// Grove never queries HealthKit, so an ECG's waveform and correlated symptoms are fetched here; each
+        /// symptom becomes an event of its own. Every other sample is its own record.
+        case healthKit(HealthKit)
+        /// Exists solely for testing purposes.
+        case _custom( // swiftlint:disable:this identifier_name
+            getNumVoltages: (HKSample) -> Int,
+            getRecord: (HKSample) async throws -> HealthKitFHIRExporter.Record
+        )
+        
+        func voltageMeasurements(for sample: HKSample) -> Int {
+            switch self {
+            case .healthKit:
+                (sample as? HKElectrocardiogram)?.numberOfVoltageMeasurements ?? 0
+            case ._custom(let getNumVoltages, getRecord: _):
+                getNumVoltages(sample)
+            }
+        }
+        
+        func record(for sample: HKSample) async throws -> Record {
+            switch self {
+            case .healthKit(let healthKit):
+                guard let electrocardiogram = sample as? HKElectrocardiogram else {
+                    return .sample(sample)
+                }
+                async let voltageMeasurements = electrocardiogram.rawVoltageMeasurements(from: healthKit.healthStore)
+                async let correlatedSymptoms = electrocardiogram.correlatedSymptomSamples(from: healthKit)
+                return .electrocardiogram(
+                    electrocardiogram,
+                    voltages: try await voltageMeasurements,
+                    symptoms: try await correlatedSymptoms
+                )
+            case ._custom(getNumVoltages: _, let getRecord):
+                return try await getRecord(sample)
+            }
+        }
+    }
+    
     /// The most ECG voltage measurements one batch export holds at once: 8 ECGs of 30 s at 512 Hz.
     ///
     /// A batch is split into exporter calls only at this bound, so a batch without ECGs is always one call.
@@ -284,18 +295,7 @@ extension HealthKitFHIRExporter {
     func exportBatch(
         _ samples: some Collection<some HKSample>,
         at instant: Date,
-        using healthKit: HealthKit,
-        receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
-    ) async throws -> HealthKitBatchExport {
-        try await exportBatch(samples, at: instant, records: .healthKit(healthKit), receive: receive)
-    }
-
-    /// ``exportBatch(_:at:using:receive:)`` with each sample's record from `records`; tests count what a batch
-    /// holds through it.
-    func exportBatch(
-        _ samples: some Collection<some HKSample>,
-        at instant: Date,
-        records: HealthObservationRecords,
+        recordProvider: RecordProvider,
         receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
     ) async throws -> HealthKitBatchExport {
         var refusals: [PreparedHealthObservationFHIRPayload.Refusal] = []
@@ -321,11 +321,11 @@ extension HealthKitFHIRExporter {
         for sample in samples {
             try Swift::Task.checkCancellation()
             // Exported before the fetch, so the voltages held never exceed the budget but for one ECG larger than it.
-            let voltageMeasurements = records.voltageMeasurements(sample)
+            let voltageMeasurements = recordProvider.voltageMeasurements(for: sample)
             if voltageMeasurements > 0, pendingVoltageMeasurements + voltageMeasurements > Self.voltageBudget {
                 try flush()
             }
-            pending.append(try await records.record(sample))
+            pending.append(try await recordProvider.record(for: sample))
             pendingVoltageMeasurements += voltageMeasurements
         }
         try flush()

@@ -63,7 +63,7 @@ struct HealthSampleProcessingTests {
         ))
         let exporter = try FHIRExchangeStateStore().healthKitExporter(subject: subject, ledger: .forTesting())
         var graphs: [Data] = []
-        _ = try await exporter.exportBatch(samples, at: startDate, using: HealthKit()) { entry in
+        _ = try await exporter.exportBatch(samples, at: startDate, recordProvider: .healthKit(HealthKit())) { entry in
             graphs.append(try entry.json())
         }
         let observations = try exportedObservations(from: HealthUploadBatch.jsonArray(graphs) { $0 })

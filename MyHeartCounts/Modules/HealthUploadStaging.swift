@@ -202,7 +202,7 @@ extension HealthUploadStaging {
         let export = try await Observations.Element.export(
             consume samples,
             at: ingestionTimestamp,
-            using: healthKit,
+            recordProvider: .healthKit(healthKit),
             exporter: try self.healthKitExporter(accountDataGeneration: writeContext.accountDataGeneration)
         ) { entry in
             pendingSamples.append(PendingSampleRecord(

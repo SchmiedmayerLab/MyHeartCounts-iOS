@@ -324,7 +324,7 @@ extension MyHeartCountsStandard {
             let export = try await Observations.Element.export(
                 consume observations,
                 at: conversionInstant,
-                using: dependencies.healthKit,
+                recordProvider: .healthKit(dependencies.healthKit),
                 exporter: try exporter(accountDataGeneration)
             ) { entry in
                 entries.append(entry)
@@ -348,7 +348,7 @@ extension MyHeartCountsStandard {
             _ = try await Observations.Element.export(
                 consume observations,
                 at: conversionInstant,
-                using: dependencies.healthKit,
+                recordProvider: .healthKit(dependencies.healthKit),
                 exporter: { () throws -> HealthKitFHIRExporter in
                     throw HealthObservationUploadError.unsupportedStrategy
                 }()

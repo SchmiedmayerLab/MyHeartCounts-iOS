@@ -6,6 +6,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+// swiftlint:disable file_length
+
 import Foundation
 import GroveFHIRContract
 import GroveFoundation
@@ -22,6 +24,8 @@ import Testing
 /// the HealthKit anchor is committed: until then, a redelivery reproduces every staged byte.
 @Suite
 struct HealthKitBatchExportTests {
+    private static let healthKit = HealthKit()
+    
     /// Mild chest tightness, an ECG symptom exported on its own.
     private static var symptom: HKCategorySample {
         HKCategorySample(
@@ -315,7 +319,7 @@ extension HealthKitBatchExportTests {
         let export = try await QuantitySample.export(
             [lipids],
             at: LedgerHarness.start,
-            using: HealthKit(),
+            recordProvider: .healthKit(Self.healthKit),
             exporter: { () throws -> HealthKitFHIRExporter in
                 exporterBuilds += 1
                 return try LedgerHarness(ledger: .forTesting()).exporter()
@@ -352,15 +356,16 @@ extension HealthKitBatchExportTests {
     private static let measurementsPerECG = 15_360
 
     /// Records whose samples each state an ECG's measurement count; fetching `failing` throws.
-    private static func ecgStandIns(failingAt failing: UUID? = nil) -> HealthObservationRecords {
-        HealthObservationRecords { _ in
-            measurementsPerECG
-        } record: { sample in
-            if sample.uuid == failing {
-                throw FetchFailure()
+    private static func ecgStandInsRecordProvider(failingAt failing: UUID? = nil) -> HealthKitFHIRExporter.RecordProvider {
+        ._custom(
+            getNumVoltages: { _ in measurementsPerECG },
+            getRecord: { sample in
+                if sample.uuid == failing {
+                    throw FetchFailure()
+                }
+                return .sample(sample)
             }
-            return .sample(sample)
-        }
+        )
     }
 
     /// Each HealthKit entry carries its graph's validated bytes, never a re-encoding of the graph's bundle.
@@ -369,7 +374,7 @@ extension HealthKitBatchExportTests {
         let exporter = try LedgerHarness(ledger: .forTesting()).exporter()
         let samples: [HKSample] = [LedgerHarness.steps(0), heartRateSample(1), Self.symptom]
         var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
-        let export = try await exporter.exportBatch(samples, at: LedgerHarness.start, using: HealthKit()) { entry in
+        let export = try await exporter.exportBatch(samples, at: LedgerHarness.start, recordProvider: .healthKit(Self.healthKit)) { entry in
             entries.append(entry)
         }
 
@@ -391,7 +396,12 @@ extension HealthKitBatchExportTests {
     func batchReportsItsWarningsOncePerSampleAcrossCalls() async throws {
         let exporter = try LedgerHarness(ledger: .forTesting()).exporter()
         // Five calls of eight; no step count names a time zone, so each states both ends of its Period in UTC.
-        let export = try await exporter.exportBatch((0..<40).map(LedgerHarness.steps), at: LedgerHarness.start, records: Self.ecgStandIns()) { _ in }
+        let export = try await exporter.exportBatch(
+            (0..<40).map(LedgerHarness.steps),
+            at: LedgerHarness.start,
+            recordProvider: Self.ecgStandInsRecordProvider(),
+            receive: { _ in }
+        )
         let kinds = export.warnings.kinds
         #expect(kinds.map(\.code) == [ExchangeGraphRule.mobileOmissionSourceOffset.rawValue])
         #expect(kinds.first?.sampleCountByType == [HKQuantityTypeIdentifier.stepCount.rawValue: 40])
@@ -405,7 +415,7 @@ extension HealthKitBatchExportTests {
             end: LedgerHarness.start.addingTimeInterval(30),
             metadata: [HKMetadataKeyTimeZone: "Europe/Berlin"]
         )
-        let clean = try await exporter.exportBatch([zoned], at: LedgerHarness.start, using: HealthKit()) { _ in }
+        let clean = try await exporter.exportBatch([zoned], at: LedgerHarness.start, recordProvider: .healthKit(Self.healthKit)) { _ in }
         #expect(clean.warnings.isEmpty)
         clean.receipt.completeAfterSourceAcknowledgement()
     }
@@ -421,26 +431,31 @@ extension HealthKitBatchExportTests {
         // Each fetch returns a fresh record, as an ECG's fetched voltages are, so only the export keeps it alive.
         var fetched: [FetchedRecord] = []
         var mostHeld = 0
-        let records = HealthObservationRecords { _ in
-            Self.measurementsPerECG
-        } record: { sample in
-            let quantitySample = try #require(sample as? HKQuantitySample)
-            let record = autoreleasepool {
-                HKQuantitySample(
-                    type: quantitySample.quantityType,
-                    quantity: quantitySample.quantity,
-                    start: quantitySample.startDate,
-                    end: quantitySample.endDate
-                )
+        let recordProvider: HealthKitFHIRExporter.RecordProvider = ._custom(
+            getNumVoltages: { _ in Self.measurementsPerECG },
+            getRecord: { sample in
+                let quantitySample = try #require(sample as? HKQuantitySample)
+                let record = autoreleasepool {
+                    HKQuantitySample(
+                        type: quantitySample.quantityType,
+                        quantity: quantitySample.quantity,
+                        start: quantitySample.startDate,
+                        end: quantitySample.endDate
+                    )
+                }
+                let alive = fetched.count { $0.sample != nil }
+                mostHeld = max(mostHeld, (alive + 1) * Self.measurementsPerECG)
+                fetched.append(FetchedRecord(record))
+                return .sample(record)
             }
-            let alive = fetched.count { $0.sample != nil }
-            mostHeld = max(mostHeld, (alive + 1) * Self.measurementsPerECG)
-            fetched.append(FetchedRecord(record))
-            return .sample(record)
-        }
+        )
 
         var delivered = 0
-        let export = try await exporter.exportBatch((0..<40).map(LedgerHarness.steps), at: LedgerHarness.start, records: records) { _ in
+        let export = try await exporter.exportBatch(
+            (0..<40).map(LedgerHarness.steps),
+            at: LedgerHarness.start,
+            recordProvider: recordProvider
+        ) { _ in
             delivered += 1
         }
 
@@ -455,7 +470,11 @@ extension HealthKitBatchExportTests {
         #expect(try ledger.reservationCount == 0)
 
         let callsBefore = counter.transactions
-        _ = try await exporter.exportBatch((40..<140).map(LedgerHarness.steps), at: LedgerHarness.start, using: HealthKit()) { _ in }
+        _ = try await exporter.exportBatch(
+            (40..<140).map(LedgerHarness.steps),
+            at: LedgerHarness.start,
+            recordProvider: .healthKit(Self.healthKit)
+        ) { _ in }
         #expect(counter.transactions == callsBefore + 1)
     }
 
@@ -469,7 +488,11 @@ extension HealthKitBatchExportTests {
 
         var firstAttempt: [UUID: Data] = [:]
         do {
-            _ = try await exporter.exportBatch(samples, at: LedgerHarness.start, records: Self.ecgStandIns(failingAt: samples[30].uuid)) { entry in
+            _ = try await exporter.exportBatch(
+                samples,
+                at: LedgerHarness.start,
+                recordProvider: Self.ecgStandInsRecordProvider(failingAt: samples[30].uuid)
+            ) { entry in
                 firstAttempt[entry.sourceID] = try entry.json()
             }
             Issue.record("A failing fetch ends the batch")
@@ -479,7 +502,11 @@ extension HealthKitBatchExportTests {
         #expect(try ledger.reservationCount == 24)
 
         var redelivery: [UUID: Data] = [:]
-        let export = try await exporter.exportBatch(samples, at: LedgerHarness.start, records: Self.ecgStandIns()) { entry in
+        let export = try await exporter.exportBatch(
+            samples,
+            at: LedgerHarness.start,
+            recordProvider: Self.ecgStandInsRecordProvider()
+        ) { entry in
             redelivery[entry.sourceID] = try entry.json()
         }
         #expect(redelivery.count == 40)

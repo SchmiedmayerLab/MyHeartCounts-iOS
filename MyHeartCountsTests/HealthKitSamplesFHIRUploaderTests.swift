@@ -32,9 +32,7 @@ struct HealthKitSamplesFHIRUploaderTests {
     /// The bulk session's processor, exporting through the ledger harness and staging into `files`, or failing to stage.
     private func bulkUploader(files: StagedUploadFiles = StagedUploadFiles(), failsToStage: Bool = false) -> HealthKitSamplesFHIRUploader {
         let harness = harness
-        return HealthKitSamplesFHIRUploader {
-            HealthKit()
-        } exporter: { _ in
+        return HealthKitSamplesFHIRUploader(healthKit: HealthKit()) { _ in
             try harness.exporter()
         } stage: { file, _ in
             if failsToStage {

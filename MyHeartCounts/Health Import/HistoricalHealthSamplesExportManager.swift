@@ -257,7 +257,7 @@ final class HistoricalHealthSamplesExportManager: Module, EnvironmentAccessible,
                     // The bulk exporter does not ask for permission to read the samples, so it's safe to always pass in everything.
                     for: study.allCollectedHealthData(includingOptionalSampleTypes: true),
                     startDate: startDate,
-                    using: HealthKitSamplesFHIRUploader(standard: standard)
+                    using: await HealthKitSamplesFHIRUploader(standard: standard)
                 )
             } catch {
                 throw .other(error)

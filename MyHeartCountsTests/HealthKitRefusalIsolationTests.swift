@@ -34,6 +34,8 @@ struct HealthKitRefusalIsolationTests {
             deletedAfter: Date?
         ) async throws -> HealthKitAnchorCommitAction? { nil }
     }
+    
+    private static let healthKit = HealthKit()
 
     private static let start = Date(timeIntervalSince1970: 1_788_000_000)
 
@@ -61,7 +63,7 @@ struct HealthKitRefusalIsolationTests {
         let sample = Self.refusedSample
         let exporter = try FHIRExchangeStateStore().healthKitExporter(subject: try Self.subject, ledger: .forTesting())
         var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
-        let export = try await exporter.exportBatch([sample], at: Self.start, using: HealthKit()) { entry in
+        let export = try await exporter.exportBatch([sample], at: Self.start, recordProvider: .healthKit(Self.healthKit)) { entry in
             entries.append(entry)
         }
 

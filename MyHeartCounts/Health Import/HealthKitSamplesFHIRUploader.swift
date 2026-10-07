@@ -22,11 +22,21 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
     typealias Output = HealthKitFHIRReservationReceipt
 
     /// The store an ECG's waveform and symptoms are fetched from.
-    let healthKit: @Sendable () async -> HealthKit
+    private let healthKit: HealthKit
     /// Builds the exporter of one batch, fenced to `accountDataGeneration`.
-    let exporter: @Sendable (_ accountDataGeneration: Int) async throws -> HealthKitFHIRExporter
+    private let exporter: @Sendable (_ accountDataGeneration: Int) async throws -> HealthKitFHIRExporter
     /// Durably stages one batch's upload file for `accountDataGeneration`; staging is cancellation-safe.
-    let stage: @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
+    private let stage: @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
+    
+    init(
+        healthKit: HealthKit,
+        exporter: @escaping @Sendable (_ accountDataGeneration: Int) async throws -> HealthKitFHIRExporter,
+        stage: @escaping @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
+    ) {
+        self.healthKit = healthKit
+        self.exporter = exporter
+        self.stage = stage
+    }
 
     /// Returns the batch's reservations, which the bulk session releases through ``didPersist(_:)`` only after it has
     /// durably recorded the batch as processed, so an interrupted batch redelivers the same events.
@@ -43,7 +53,11 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         let exporter = exporter
         do {
             var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
-            let export = try await exporter(accountDataGeneration).exportBatch(samples, at: .now, using: await healthKit()) { entry in
+            let export = try await exporter(accountDataGeneration).exportBatch(
+                samples,
+                at: .now,
+                recordProvider: .healthKit(healthKit)
+            ) { entry in
                 entries.append(entry)
             }
             guard !entries.isEmpty else {
@@ -68,14 +82,22 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
 
 
 extension HealthKitSamplesFHIRUploader {
+    /// Creates a ``HealthKitSamplesFHIRUploader`` configured from the app's standard
+    ///
     /// The app's: `standard`'s HealthKit, exchange identity and ledger, and its historical health uploads.
-    init(standard: MyHeartCountsStandard) {
-        self.init {
-            await standard.healthKit
-        } exporter: { accountDataGeneration in
-            let subject = try await standard.firebaseConfiguration.fhirExchangeSubject
-            return try await standard.fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
-                .healthKitExporter(subject: subject, ledger: standard.fhirExchangeLedger)
+    init(standard: MyHeartCountsStandard) async {
+        let ledger = await standard.fhirExchangeLedger
+        self.init(
+            healthKit: await standard.healthKit
+        ) { accountDataGeneration in
+            // The app's one HealthKit exporter, shared with live ingestion.
+            do {
+                return try ledger.healthKitExporter(forBatchOf: accountDataGeneration)
+            } catch FHIRExchangeStateError.healthKitExporterUnavailable {
+                // A batch that runs before the launch refresh has built the exporter builds it once and retries.
+                await standard.refreshHealthKitExporter()
+                return try ledger.healthKitExporter(forBatchOf: accountDataGeneration)
+            }
         } stage: { file, accountDataGeneration in
             try await standard.stageHistoricalHealthKitFile(at: file, accountDataGeneration: accountDataGeneration)
         }
