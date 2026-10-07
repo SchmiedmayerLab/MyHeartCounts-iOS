@@ -23,12 +23,11 @@ extension HealthUploadStaging {
     ) async throws -> RetractionBatch {
         let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
         try FHIRExchangeDestination.validateWrites(for: accountDataGeneration)
-        let subject = try await resolvedSubject()
-        let stateStore = resolvedStateStore(accountDataGeneration: accountDataGeneration)
+        let exporter = try healthKitExporter(accountDataGeneration: accountDataGeneration)
         let recordedAt = Date.now
         try Swift::Task.checkCancellation()
         // One ledger transaction reserves the whole chunk before any retraction uses its identity.
-        let retractions = try stateStore.healthKitRetractions(
+        let retractions = try exporter.healthKitRetractions(
             of: rows.map { row in
                 HealthKitDeletedRecord(
                     sourceTypeIdentifier: row.sampleType,
@@ -37,8 +36,6 @@ extension HealthUploadStaging {
                     detectedAt: row.timestamp
                 )
             },
-            subject: subject,
-            ledger: resolvedLedger(),
             recordedAt: recordedAt
         )
         var graphs: [ExchangeGraph] = []

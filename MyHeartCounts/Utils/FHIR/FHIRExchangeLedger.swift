@@ -12,6 +12,7 @@ import GRDB
 import Grove
 import GroveFHIRContract
 import GroveFoundation
+import GroveHealthKitFHIR
 import OSLog
 import Synchronization
 
@@ -157,6 +158,9 @@ final class FHIRExchangeLedger: Module, DefaultInitializable, Sendable {
     let deviceBinding: any FHIRExchangeLedgerDeviceBinding
     let fence: AccountFence
     private let connection: Connection
+    /// The one HealthKit exporter of the signed-in account and its enrollment, with the account generation it is
+    /// fenced to; `MyHeartCountsStandard` rebuilds it when either changes.
+    private let healthKitExporterState = Mutex<(accountDataGeneration: Int, exporter: HealthKitFHIRExporter)?>(nil)
 
     /// A ledger at `location`; nothing is opened until the first transaction.
     nonisolated init(
@@ -417,3 +421,32 @@ extension FHIRExchangeLedger {
     }
 }
 #endif
+
+
+// MARK: The App's HealthKit Exporter
+
+extension FHIRExchangeLedger {
+    /// The HealthKit exporter for a batch captured under `accountDataGeneration`: a lock and a comparison.
+    ///
+    /// Throws ``FHIRExchangeStateError/healthKitExporterUnavailable`` while no account's exporter is built, and
+    /// ``FHIRExchangeStateError/staleAccountGeneration(captured:current:)`` for a batch of another account
+    /// generation, so a batch captured before a logout never exports under the next account.
+    func healthKitExporter(forBatchOf accountDataGeneration: Int) throws -> HealthKitFHIRExporter {
+        try healthKitExporterState.withLock { state in
+            guard let state else {
+                throw FHIRExchangeStateError.healthKitExporterUnavailable
+            }
+            guard state.accountDataGeneration == accountDataGeneration else {
+                throw FHIRExchangeStateError.staleAccountGeneration(captured: accountDataGeneration, current: state.accountDataGeneration)
+            }
+            return state.exporter
+        }
+    }
+
+    /// Replaces the HealthKit exporter; `nil` clears it while no account is signed in.
+    func setHealthKitExporter(_ exporter: HealthKitFHIRExporter?, accountDataGeneration: Int) {
+        healthKitExporterState.withLock { state in
+            state = exporter.map { (accountDataGeneration, $0) }
+        }
+    }
+}

@@ -92,6 +92,8 @@ enum FHIRExchangeStateError: Error, Equatable {
     case unsupportedSchemaVersion(UInt)
     case staleAccountGeneration(captured: Int, current: Int)
     case corruptIdentitySecret
+    /// No account's HealthKit exporter is built yet; the batch fails before its source cursor commits and is redelivered.
+    case healthKitExporterUnavailable
 }
 
 

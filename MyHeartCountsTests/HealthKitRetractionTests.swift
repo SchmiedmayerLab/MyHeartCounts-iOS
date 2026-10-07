@@ -332,7 +332,7 @@ extension FHIRExchangeStateStore {
         ledger: FHIRExchangeLedger,
         recordedAt: Date
     ) throws -> ExchangeGraph? {
-        try healthKitRetractions(of: [record], subject: subject, ledger: ledger, recordedAt: recordedAt).graphs[0]
+        try healthKitExporter(subject: subject, ledger: ledger).healthKitRetractions(of: [record], recordedAt: recordedAt).graphs[0]
     }
 }
 

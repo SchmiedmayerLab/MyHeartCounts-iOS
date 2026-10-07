@@ -96,7 +96,8 @@ struct HealthKitRetractionDrainTests {
                 limit: 100
             ))
             let rows = chunk.rows.sorted { $0.sampleId.uuidString.lowercased() < $1.sampleId.uuidString.lowercased() }
-            let retry = try staging.stateStore.healthKitRetractions(
+            let exporter = try staging.healthKitExporter(accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
+            let retry = try exporter.healthKitRetractions(
                 of: rows.map { row in
                     HealthKitDeletedRecord(
                         sourceTypeIdentifier: row.sampleType,
@@ -105,8 +106,6 @@ struct HealthKitRetractionDrainTests {
                         detectedAt: row.timestamp
                     )
                 },
-                subject: try LedgerHarness.subject,
-                ledger: try staging.ledger,
                 recordedAt: .now
             )
             expected.append(splicedJSONArray(retry.graphs.compactMap { $0?.json }))

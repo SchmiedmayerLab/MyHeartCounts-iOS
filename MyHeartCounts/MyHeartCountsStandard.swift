@@ -16,6 +16,7 @@ import GroveFirebaseAccount
 import GroveFirestore
 import GroveFoundation
 import GroveHealthKit
+import GroveHealthKitFHIR
 import GroveLocalStorage
 import GroveNotifications
 import GroveScheduler
@@ -71,6 +72,25 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     /// The encrypted, installation-scoped identity and SensorKit retry state.
     ///
     /// Every exchange event is reserved in ``fhirExchangeLedger`` instead.
+    /// Builds the app's one HealthKit exporter for the signed-in account and its current enrollment, or clears it
+    /// while no account is signed in; called when either changes, never per batch.
+    func refreshHealthKitExporter() async {
+        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
+        var exporter: HealthKitFHIRExporter?
+        do {
+            let subject = try await firebaseConfiguration.fhirExchangeSubject
+            exporter = try fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
+                .healthKitExporter(subject: subject, ledger: fhirExchangeLedger)
+        } catch {
+            logger.notice("No HealthKit exporter for the current account: \(error)")
+        }
+        // A logout while this refresh awaited the account must not see its exporter installed.
+        guard LocalPreferencesStore.standard[.accountDataGeneration] == accountDataGeneration else {
+            return
+        }
+        fhirExchangeLedger.setHealthKitExporter(exporter, accountDataGeneration: accountDataGeneration)
+    }
+
     func fhirExchangeStateStore(accountDataGeneration: Int) -> FHIRExchangeStateStore {
         FHIRExchangeStateStore(
             localStorage: localStorage,
@@ -81,6 +101,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @MainActor
     func configure() {
         Swift::Task {
+            await refreshHealthKitExporter()
             await handleIsLoggedOut()
             await handleStudyBundleUpdates()
         }
@@ -146,6 +167,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                 }
             }
             await Self._updateCurrentEnrollmentInfo(studyManager)
+            await refreshHealthKitExporter()
         } catch StudyManager.StudyEnrollmentError.alreadyEnrolledInNewerStudyRevision {
             // should be unreachable, but we'll handle this as a non-error just to be safe.
         } catch {
@@ -184,6 +206,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                     return
                 }
             }
+            await refreshHealthKitExporter()
             await managedFileUpload.resumePendingUploads()
             Swift::Task {
                 async let updateEnvTracking = environmentTracking?.triggerAll()
@@ -206,6 +229,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             logger.notice("account is being logged out")
             LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
             LocalPreferencesStore.standard[.accountDataGeneration] += 1
+            fhirExchangeLedger.setHealthKitExporter(nil, accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
             async let updateFCMToken = try? notificationsManager.setFCMToken(nil)
             async let syncAchievements = try? achievementsManager?.syncNow()
             _ = await (updateFCMToken, syncAchievements)
@@ -238,6 +262,7 @@ extension MyHeartCountsStandard {
             // we still want this to happen if the study bundle loading below failed
             Swift::Task {
                 await Self._updateCurrentEnrollmentInfo(studyManager)
+                await self.refreshHealthKitExporter()
             }
         }
         guard let studyBundle else {
@@ -275,6 +300,7 @@ extension MyHeartCountsStandard {
         // (flag first, then bump: a concurrent reader that snapshots the new generation must never see the flag still unset.)
         LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
         LocalPreferencesStore.standard[.accountDataGeneration] += 1
+        await fhirExchangeLedger.setHealthKitExporter(nil, accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
         // Account deletion and forced sign-outs bypass the achievement teardown in willLogOut.
         await achievementsManager?.disassociateFromAccount()
         switch context {

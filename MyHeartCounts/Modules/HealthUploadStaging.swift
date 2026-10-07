@@ -125,49 +125,18 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
         }
     }
 
-    /// The subject staged samples are attributed to.
-    func resolvedSubject() async throws -> FHIRExchangeSubject {
+    /// The exporter of one staged batch, fenced to `accountDataGeneration`: the app's one HealthKit exporter.
+    func healthKitExporter(accountDataGeneration: Int) throws -> HealthKitFHIRExporter {
         #if DEBUG
         if let testing {
-            return testing.subject
+            return try testing.stateStore.healthKitExporter(
+                subject: testing.subject,
+                ledger: testing.ledger,
+                facts: try testing.facts ?? .current()
+            )
         }
         #endif
-        return try await firebaseConfiguration.fhirExchangeSubject
-    }
-
-    /// The identity store staged samples are exported under.
-    func resolvedStateStore(accountDataGeneration: Int) -> FHIRExchangeStateStore {
-        #if DEBUG
-        if let testing {
-            return testing.stateStore
-        }
-        #endif
-        return FHIRExchangeStateStore(
-            localStorage: localStorage,
-            accountDataGeneration: accountDataGeneration
-        )
-    }
-
-    /// The ledger staged samples reserve their exchange events in.
-    func resolvedLedger() -> FHIRExchangeLedger {
-        #if DEBUG
-        if let testing {
-            return testing.ledger
-        }
-        #endif
-        return fhirExchangeLedger
-    }
-
-    /// The exporter of one staged batch, fenced to `accountDataGeneration`.
-    func healthKitExporter(accountDataGeneration: Int) async throws -> HealthKitFHIRExporter {
-        let subject = try await resolvedSubject()
-        let stateStore = resolvedStateStore(accountDataGeneration: accountDataGeneration)
-        #if DEBUG
-        if let facts = testing?.facts {
-            return try stateStore.healthKitExporter(subject: subject, ledger: resolvedLedger(), facts: facts)
-        }
-        #endif
-        return try stateStore.healthKitExporter(subject: subject, ledger: resolvedLedger())
+        return try fhirExchangeLedger.healthKitExporter(forBatchOf: accountDataGeneration)
     }
 }
 
@@ -221,8 +190,6 @@ extension HealthUploadStaging {
     
     /// Converts the batch off the caller's actor and stages one row per entry, in writes of ``databaseWriteChunkSize``.
     ///
-    /// The exporter is built only when the batch has HealthKit samples; see
-    /// ``HealthObservation/export(_:at:using:exporter:receive:)``.
     /// - invariant: `samples` is not empty
     @concurrent
     private func _add<Observations: Collection & Sendable>(
@@ -232,9 +199,12 @@ extension HealthUploadStaging {
     ) async throws -> HealthKitFHIRReservationReceipt where Observations.Element: HealthObservation {
         var pendingSamples: [PendingSampleRecord] = []
         pendingSamples.reserveCapacity(Self.databaseWriteChunkSize)
-        let export = try await Observations.Element.export(consume samples, at: ingestionTimestamp, using: healthKit) {
-            try await self.healthKitExporter(accountDataGeneration: writeContext.accountDataGeneration)
-        } receive: { entry in
+        let export = try await Observations.Element.export(
+            consume samples,
+            at: ingestionTimestamp,
+            using: healthKit,
+            exporter: try self.healthKitExporter(accountDataGeneration: writeContext.accountDataGeneration)
+        ) { entry in
             pendingSamples.append(PendingSampleRecord(
                 id: UUID(),
                 timestamp: ingestionTimestamp,

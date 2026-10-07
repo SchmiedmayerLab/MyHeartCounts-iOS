@@ -185,8 +185,8 @@ extension MyHeartCountsStandard.HealthObservationUploadDependencies {
             },
             staging: staging,
             healthKit: HealthKit(),
-            exporter: { _, accountDataGeneration in
-                try await staging.healthKitExporter(accountDataGeneration: accountDataGeneration)
+            exporter: { accountDataGeneration in
+                try staging.healthKitExporter(accountDataGeneration: accountDataGeneration)
             },
             stageFile: stageFile,
             logger: Logger(subsystem: "edu.stanford.MyHeartCounts.tests", category: "HealthObservationUpload")

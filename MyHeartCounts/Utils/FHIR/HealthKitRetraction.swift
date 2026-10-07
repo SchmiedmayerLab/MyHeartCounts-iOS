@@ -47,7 +47,7 @@ struct HealthKitDeletedRecord: Sendable {
 }
 
 
-extension FHIRExchangeStateStore {
+extension HealthKitFHIRExporter {
     /// The Grove Mobile Retraction Bundles for many deleted HealthKit records, one per record.
     ///
     /// Grove re-mints every target from the record's own coordinates, so nothing has to survive the
@@ -55,8 +55,6 @@ extension FHIRExchangeStateStore {
     /// event of the chunk is reserved in one ledger transaction.
     func healthKitRetractions(
         of records: [HealthKitDeletedRecord],
-        subject: FHIRExchangeSubject,
-        ledger: FHIRExchangeLedger,
         recordedAt: Date
     ) throws -> HealthKitRetractions {
         let deletions = records.compactMap(\.deletion)
@@ -64,7 +62,7 @@ extension FHIRExchangeStateStore {
             return HealthKitRetractions(graphs: Array(repeating: nil, count: records.count), receipt: HealthKitFHIRReservationReceipt())
         }
         var graphs: [UUID: ExchangeGraph] = [:]
-        let receipt = try healthKitExporter(subject: subject, ledger: ledger).retract(deletions, at: recordedAt) { retraction in
+        let receipt = try retract(deletions, at: recordedAt) { retraction in
             switch retraction.outcome {
             case .graph(let graph):
                 graphs[retraction.deletion.uuid] = graph

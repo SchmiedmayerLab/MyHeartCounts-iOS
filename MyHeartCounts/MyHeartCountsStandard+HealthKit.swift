@@ -135,9 +135,9 @@ extension MyHeartCountsStandard {
         let staging: HealthUploadStaging
         /// The store an ECG's waveform and symptoms are fetched from.
         let healthKit: HealthKit
-        /// Builds the exporter of an upload file's HealthKit samples, fenced to `accountDataGeneration`; called only
-        /// for a file that has HealthKit samples.
-        let exporter: @Sendable (_ subject: FHIRExchangeSubject, _ accountDataGeneration: Int) async throws -> HealthKitFHIRExporter
+        /// The exporter of an upload file's HealthKit samples, fenced to `accountDataGeneration`; called only for a file
+        /// that has HealthKit samples.
+        let exporter: @Sendable (_ accountDataGeneration: Int) throws -> HealthKitFHIRExporter
         /// Durably stages one upload file of new observations for `accountDataGeneration`.
         let stageFile: @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
         /// Where the uploads are logged.
@@ -164,9 +164,8 @@ extension MyHeartCountsStandard {
             },
             staging: healthUploadStaging,
             healthKit: healthKit,
-            exporter: { subject, accountDataGeneration in
-                try await self.fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
-                    .healthKitExporter(subject: subject, ledger: ledger)
+            exporter: { accountDataGeneration in
+                try ledger.healthKitExporter(forBatchOf: accountDataGeneration)
             },
             stageFile: { file, accountDataGeneration in
                 try await managedFileUpload.stage(file, category: .liveHealthUpload, accountDataGeneration: accountDataGeneration)
@@ -325,10 +324,9 @@ extension MyHeartCountsStandard {
             let export = try await Observations.Element.export(
                 consume observations,
                 at: conversionInstant,
-                using: dependencies.healthKit
-            ) {
-                try await exporter(subject, accountDataGeneration)
-            } receive: { entry in
+                using: dependencies.healthKit,
+                exporter: try exporter(accountDataGeneration)
+            ) { entry in
                 entries.append(entry)
             }
             guard !entries.isEmpty else {
@@ -350,10 +348,11 @@ extension MyHeartCountsStandard {
             _ = try await Observations.Element.export(
                 consume observations,
                 at: conversionInstant,
-                using: dependencies.healthKit
-            ) {
-                throw HealthObservationUploadError.unsupportedStrategy
-            } receive: { entry in
+                using: dependencies.healthKit,
+                exporter: { () throws -> HealthKitFHIRExporter in
+                    throw HealthObservationUploadError.unsupportedStrategy
+                }()
+            ) { entry in
                 entries.append(entry)
             }
             for chunk in entries.chunks(ofCount: Self.directFirestoreUploadDefaultBatchSize) {

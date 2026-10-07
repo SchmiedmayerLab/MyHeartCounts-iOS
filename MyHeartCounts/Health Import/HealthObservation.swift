@@ -24,13 +24,13 @@ protocol HealthObservation: Sendable { // might want to rename this (@lukas); th
     /// Converts `batch`, calling `receive` with each entry as soon as it is produced.
     ///
     /// HealthKit samples go through ``HealthKitFHIRExporter/exportBatch(_:at:using:receive:)`` under the exporter
-    /// `exporter` builds; observations the app models itself become the resources they model and never call
-    /// `exporter`, so they never read the identity secret or the app facts, and never touch the ledger.
+    /// `exporter` returns; observations the app models itself become the resources they model and never call
+    /// `exporter`, so they upload even while no HealthKit exporter is available.
     static func export(
         _ batch: some Collection<Self>,
         at instant: Date,
         using healthKit: HealthKit,
-        exporter: () async throws -> HealthKitFHIRExporter,
+        exporter: @autoclosure () throws -> HealthKitFHIRExporter,
         receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
     ) async throws -> HealthKitBatchExport
 }
@@ -177,13 +177,13 @@ extension HKSample: HealthObservation {
     }
 
     // `Batch.Element: HKSample` rather than `== Self`: a non-final class cannot witness a same-type requirement on `Self`.
-    static func export<Batch: Collection>(
-        _ batch: Batch,
+    static func export(
+        _ batch: some Collection<some HKSample>,
         at instant: Date,
         using healthKit: HealthKit,
-        exporter: () async throws -> HealthKitFHIRExporter,
+        exporter: @autoclosure () throws -> HealthKitFHIRExporter,
         receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
-    ) async throws -> HealthKitBatchExport where Batch.Element: HKSample {
+    ) async throws -> HealthKitBatchExport {
         guard !batch.isEmpty else {
             return .empty
         }
@@ -204,13 +204,13 @@ extension TimedWalkingTestResult: SelfModelledHealthObservation {
 // MARK: Conversion
 
 extension SelfModelledHealthObservation {
-    static func export<Batch: Collection>(
-        _ batch: Batch,
+    static func export(
+        _ batch: some Collection<Self>,
         at instant: Date,
-        using healthKit: HealthKit,
-        exporter: () async throws -> HealthKitFHIRExporter,
+        using _: HealthKit,
+        exporter _: @autoclosure () throws -> HealthKitFHIRExporter,
         receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
-    ) async throws -> HealthKitBatchExport where Batch.Element == Self {
+    ) async throws -> HealthKitBatchExport {
         guard !batch.isEmpty else {
             return .empty
         }
