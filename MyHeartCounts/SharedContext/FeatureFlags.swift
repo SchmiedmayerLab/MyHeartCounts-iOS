@@ -53,6 +53,11 @@ enum FeatureFlags {
     static var disableAutomaticBulkHealthExport: Bool {
         LaunchOptions.launchOptions[.disableAutomaticBulkHealthExport]
     }
+
+    /// Whether the HealthKit exporter measures its throughput, logged after each export batch; for local profiling.
+    static var measureExporterThroughput: Bool {
+        LaunchOptions.launchOptions[.measureExporterThroughput]
+    }
     
     /// Whether the should load a special, different Firebase config instead of the one that would regularly get loaded.
     ///
@@ -74,6 +79,7 @@ extension LaunchOptions {
     static let overrideFirebaseConfig = LaunchOption<DeferredConfigLoading.FirebaseConfigSelector?>("--overrideFirebaseConfig", default: nil)
     
     static let disableAutomaticBulkHealthExport = LaunchOption<Bool>("--disableAutomaticBulkHealthExport", default: false)
+    static let measureExporterThroughput = LaunchOption<Bool>("--measureExporterThroughput", default: false)
     
     static let disableSensorKitUpload = LaunchOption<Bool>("--disableSensorKitUpload", default: false)
 }

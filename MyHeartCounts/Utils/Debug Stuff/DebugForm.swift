@@ -81,6 +81,9 @@ private struct DebugFormImpl: View {
                 NavigationLink("Health Observations Local Persistence" as String) {
                     HealthObservationsLocalPersistenceLayerDebugView()
                 }
+                NavigationLink("HealthKit Exporter Throughput" as String) {
+                    HealthKitExporterThroughputView()
+                }
                 NavigationLink("SensorKit" as String) {
                     SensorKitControlView()
                 }

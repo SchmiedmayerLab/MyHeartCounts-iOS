@@ -332,6 +332,10 @@ extension HealthKitFHIRExporter {
         if !warnings.isEmpty {
             logger.info("Grove exported \(samples.count) HealthKit samples with warnings:\n\(warnings.description)")
         }
+        if let throughput {
+            // Cumulative for this exporter, which live ingestion and the historical upload share.
+            logger.info("\(throughput.description)")
+        }
         return HealthKitBatchExport(refusals: refusals, warnings: warnings, receipt: HealthKitFHIRReservationReceipt(receipts))
     }
 }
