@@ -67,7 +67,7 @@ struct FHIRExchangeLedgerLifecycleTests {
         try handle.synchronize()
     }
 
-    /// M13: a commit reaches the device's storage, through a rollback journal, before it returns.
+    /// M13: a commit reaches the device's storage, through a fully synchronous write-ahead log, before it returns.
     @Test
     func productionConfigurationIsFullyDurable() throws {
         try withTemporaryDirectory { root in
@@ -76,17 +76,18 @@ struct FHIRExchangeLedgerLifecycleTests {
             let journalMode = try ledger.withDatabaseForTesting { try String.fetchOne($0, sql: "PRAGMA journal_mode") }
             let synchronous = try ledger.withDatabaseForTesting { try Int.fetchOne($0, sql: "PRAGMA synchronous") }
             let fullFSync = try ledger.withDatabaseForTesting { try Int.fetchOne($0, sql: "PRAGMA fullfsync") }
+            let checkpointFullFSync = try ledger.withDatabaseForTesting { try Int.fetchOne($0, sql: "PRAGMA checkpoint_fullfsync") }
             let autoVacuum = try ledger.withDatabaseForTesting { try Int.fetchOne($0, sql: "PRAGMA auto_vacuum") }
 
-            #expect(journalMode == "truncate")
+            #expect(journalMode == "wal")
             #expect(synchronous == 2)
             #expect(fullFSync == 1)
+            #expect(checkpointFullFSync == 1)
             #expect(autoVacuum == 2)
             let directory = try #require(ledger.directory)
             let isExcluded = try directory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup
+            // The log and its index live beside the database, so the directory's exclusion covers them too.
             #expect(isExcluded == true)
-            let files = try FileManager.default.contentsOfDirectory(atPath: directory.path(percentEncoded: false))
-            #expect(!files.contains { $0.hasSuffix("-wal") || $0.hasSuffix("-shm") })
         }
     }
 

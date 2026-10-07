@@ -13,10 +13,13 @@ import OSLog
 
 
 extension FHIRExchangeLedger {
-    /// A rollback journal with fully synchronous, device-flushed commits.
+    /// A write-ahead log with fully synchronous, device-flushed commits.
     ///
-    /// GRDB's WAL mode is not used: setting it up lowers `synchronous` to `NORMAL` after `prepareDatabase`
-    /// ran, and a commit must survive power loss before its sequence leaves the device.
+    /// WAL is set up here rather than through GRDB's `journalMode = .wal`, which lowers `synchronous` to `NORMAL`
+    /// after `prepareDatabase` ran (seen in GRDB 7.11.1's `Database.setUpWALMode()`; its documentation only names
+    /// "extra configurations"): a commit must survive power loss before its sequence leaves the device, and in WAL
+    /// mode `synchronous = FULL` syncs the log at every commit. An existing database switches to WAL when
+    /// it is next opened; the process-exclusive lock guarantees no other connection holds it.
     static var configuration: Configuration {
         var configuration = Configuration()
         configuration.label = "FHIRExchangeLedger"
@@ -25,9 +28,10 @@ extension FHIRExchangeLedger {
         configuration.prepareDatabase { db in
             // Effective only before the first table exists, so it sticks to a database created here.
             try db.execute(sql: "PRAGMA auto_vacuum = INCREMENTAL")
-            _ = try String.fetchOne(db, sql: "PRAGMA journal_mode = TRUNCATE")
+            _ = try String.fetchOne(db, sql: "PRAGMA journal_mode = WAL")
             try db.execute(sql: "PRAGMA synchronous = FULL")
             try db.execute(sql: "PRAGMA fullfsync = ON")
+            try db.execute(sql: "PRAGMA checkpoint_fullfsync = ON")
         }
         return configuration
     }
