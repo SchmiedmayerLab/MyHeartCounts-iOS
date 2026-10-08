@@ -41,15 +41,18 @@ struct FHIRExchangeLedgerLifecycleTests {
         }
     }
 
-    /// Overwrites the pages of `ledgerEntry` and its key index behind the open connection's back, and bumps the
-    /// file change counter so the connection reads them again.
+    /// Overwrites the pages of `ledgerEntry` and its key index while the ledger is closed, so it reads them when it
+    /// reopens. The write-ahead log is checkpointed first, so those pages are in the database file, and closing the
+    /// connection drops the pages it cached: an open connection in WAL mode never reads them again on its own.
     private static func corruptLedgerEntryPages(of ledger: FHIRExchangeLedger) throws {
         let (pageSize, rootPages) = try ledger.withDatabaseForTesting { db in
-            (
+            try db.execute(sql: "PRAGMA wal_checkpoint(TRUNCATE)")
+            return (
                 try #require(try Int.fetchOne(db, sql: "PRAGMA page_size")),
                 try Int.fetchAll(db, sql: "SELECT rootpage FROM sqlite_master WHERE tbl_name = 'ledgerEntry' AND rootpage > 0")
             )
         }
+        try ledger.closeForTesting()
         let file = try #require(ledger.directory).appending(path: FHIRExchangeLedger.databaseFileName)
         let handle = try FileHandle(forUpdating: file)
         defer {
@@ -59,11 +62,6 @@ struct FHIRExchangeLedgerLifecycleTests {
             try handle.seek(toOffset: UInt64((page - 1) * pageSize))
             try handle.write(contentsOf: Data(repeating: 0xFF, count: pageSize))
         }
-        try handle.seek(toOffset: 24)
-        let counter = try #require(try handle.read(upToCount: 4))
-        let bumped = counter.reduce(UInt32(0)) { $0 << 8 | UInt32($1) } &+ 1
-        try handle.seek(toOffset: 24)
-        try handle.write(contentsOf: withUnsafeBytes(of: bumped.bigEndian) { Data($0) })
         try handle.synchronize()
     }
 
@@ -144,8 +142,8 @@ struct FHIRExchangeLedgerLifecycleTests {
         }
     }
 
-    /// M14: a page corrupted after the database was opened fails the transaction, the directory is discarded,
-    /// and the next export starts over on a fresh producer instance.
+    /// M14: a page corrupted while the ledger was closed fails the transaction that reads it, the directory is
+    /// discarded, and the next export starts over on a fresh producer instance.
     @Test
     func corruptPageDiscardsTheDatabase() async throws {
         try await withTemporaryDirectory { root in
