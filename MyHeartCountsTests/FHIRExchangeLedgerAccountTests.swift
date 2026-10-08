@@ -50,26 +50,26 @@ struct FHIRExchangeLedgerAccountTests {
     }
 
     @Test
-    func staleWriterIsRefusedBeforeItWrites() throws {
+    func staleWriterIsRefusedBeforeItWrites() async throws {
         let harness = LedgerHarness(ledger: makeLedger())
         preferences.set(generation: 1, cleanupPending: false)
 
-        #expect(throws: FHIRExchangeDestinationError.accountChanged) {
-            try harness.deliver([LedgerHarness.steps(0)], generation: 0)
+        await #expect(throws: FHIRExchangeDestinationError.accountChanged) {
+            try await harness.deliver([LedgerHarness.steps(0)], generation: 0)
         }
         #expect(try harness.ledger.entriesForTesting().isEmpty)
         #expect(try harness.ledger.storedAccountGeneration() == nil)
     }
 
     @Test
-    func pendingCleanupRefusesEveryWriter() throws {
+    func pendingCleanupRefusesEveryWriter() async throws {
         let harness = LedgerHarness(ledger: makeLedger())
-        let receipt = try #require(try harness.deliver([LedgerHarness.steps(0)]).receipt)
+        let receipt = try await #require(try harness.deliver([LedgerHarness.steps(0)]).receipt)
         let entries = try harness.ledger.entriesForTesting()
         preferences.set(cleanupPending: true)
 
-        #expect(throws: FHIRExchangeDestinationError.accountChanged) {
-            try harness.deliver([LedgerHarness.steps(1)])
+        await #expect(throws: FHIRExchangeDestinationError.accountChanged) {
+            try await harness.deliver([LedgerHarness.steps(1)])
         }
         #expect(throws: FHIRExchangeDestinationError.accountChanged) {
             try harness.ledger.recover(accountDataGeneration: 0)
@@ -81,14 +81,14 @@ struct FHIRExchangeLedgerAccountTests {
     /// The live generation moved on without the ledger being reset: the next writer of the live generation
     /// empties it and adopts its generation.
     @Test
-    func ledgerOfAnEarlierGenerationIsEmptiedByTheLiveWriter() throws {
+    func ledgerOfAnEarlierGenerationIsEmptiedByTheLiveWriter() async throws {
         let harness = LedgerHarness(ledger: makeLedger())
         let sample = LedgerHarness.steps(0)
-        let old = try #require(try harness.deliver([sample]).events[sample.uuid])
+        let old = try await #require(try harness.deliver([sample]).events[sample.uuid])
         #expect(try harness.ledger.storedAccountGeneration() == 0)
 
         preferences.set(generation: 1, cleanupPending: false)
-        let new = try #require(try harness.deliver([sample], generation: 1).events[sample.uuid])
+        let new = try await #require(try harness.deliver([sample], generation: 1).events[sample.uuid])
 
         #expect(new.producerInstance != old.producerInstance)
         #expect(new.sequence.rawValue == "1")
@@ -98,14 +98,14 @@ struct FHIRExchangeLedgerAccountTests {
 
     /// A stored generation ahead of the live one, such as after the preferences were lost, heals the same way.
     @Test
-    func ledgerOfALaterGenerationIsEmptiedByTheLiveWriter() throws {
+    func ledgerOfALaterGenerationIsEmptiedByTheLiveWriter() async throws {
         let harness = LedgerHarness(ledger: makeLedger())
         let sample = LedgerHarness.steps(0)
         preferences.set(generation: 2, cleanupPending: false)
-        let ahead = try #require(try harness.deliver([sample], generation: 2).events[sample.uuid])
+        let ahead = try await #require(try harness.deliver([sample], generation: 2).events[sample.uuid])
 
         preferences.set(generation: 1, cleanupPending: false)
-        let live = try #require(try harness.deliver([sample], generation: 1).events[sample.uuid])
+        let live = try await #require(try harness.deliver([sample], generation: 1).events[sample.uuid])
 
         #expect(live.producerInstance != ahead.producerInstance)
         #expect(try harness.ledger.storedAccountGeneration() == 1)
@@ -117,7 +117,7 @@ struct FHIRExchangeLedgerAccountTests {
     func failingLedgerResetKeepsTheCleanupPending() async throws {
         let harness = LedgerHarness(ledger: makeLedger())
         let sample = LedgerHarness.steps(0)
-        let old = try #require(try harness.deliver([sample]).events[sample.uuid])
+        let old = try await #require(try harness.deliver([sample]).events[sample.uuid])
         try harness.ledger.withDatabaseForTesting { db in
             try db.execute(sql: "CREATE TEMP TRIGGER failReset BEFORE DELETE ON ledgerEntry BEGIN SELECT RAISE(ABORT, 'injected'); END")
         }
@@ -129,8 +129,8 @@ struct FHIRExchangeLedgerAccountTests {
         }
         #expect(otherStepRan)
         #expect(preferences.store[.pendingAccountDataCleanupRequired])
-        #expect(throws: FHIRExchangeDestinationError.accountChanged) {
-            try harness.deliver([sample], generation: 1)
+        await #expect(throws: FHIRExchangeDestinationError.accountChanged) {
+            try await harness.deliver([sample], generation: 1)
         }
 
         try harness.ledger.withDatabaseForTesting { db in
@@ -139,7 +139,7 @@ struct FHIRExchangeLedgerAccountTests {
         try await clearAccountData(harness.ledger)
         #expect(!preferences.store[.pendingAccountDataCleanupRequired])
         #expect(try harness.ledger.entriesForTesting().isEmpty)
-        let next = try #require(try harness.deliver([sample], generation: 1).events[sample.uuid])
+        let next = try await #require(try harness.deliver([sample], generation: 1).events[sample.uuid])
         #expect(next.producerInstance != old.producerInstance)
         #expect(next.sequence.rawValue == "1")
     }
@@ -148,7 +148,7 @@ struct FHIRExchangeLedgerAccountTests {
     @Test
     func failingStepKeepsTheCleanupPendingAndStillResetsTheLedger() async throws {
         let ledger = makeLedger()
-        _ = try LedgerHarness(ledger: ledger).deliver([LedgerHarness.steps(0)])
+        _ = try await LedgerHarness(ledger: ledger).deliver([LedgerHarness.steps(0)])
 
         preferences.set(generation: 1, cleanupPending: true)
         await #expect(throws: (any Error).self) {
@@ -171,10 +171,10 @@ struct FHIRExchangeLedgerAccountTests {
             deletedAfter: nil,
             detectedAt: LedgerHarness.start
         )
-        let oldRetraction = try harness.exporter(generation: 0).retract([deletion], at: LedgerHarness.start) { _ in }
+        let oldRetraction = try await harness.exporter(generation: 0).retract([deletion], at: LedgerHarness.start) { _ in }
 
         try await logOut(harness.ledger, rotatingTo: 1)
-        let reserved = try harness.deliver([sample], generation: 1)
+        let reserved = try await harness.deliver([sample], generation: 1)
         let entries = try harness.ledger.entriesForTesting()
         oldRetraction.release()
 
@@ -190,20 +190,20 @@ struct FHIRExchangeLedgerAccountTests {
         let harness = LedgerHarness(ledger: makeLedger())
         let samples = [LedgerHarness.steps(0), LedgerHarness.steps(1)]
         let oldExporter = try harness.exporter(generation: 0)
-        let old = try oldExporter.deliver(samples)
+        let old = try await oldExporter.deliver(samples)
 
         try await logOut(harness.ledger, rotatingTo: 1)
         #expect(!preferences.store[.pendingAccountDataCleanupRequired])
         #expect(try harness.ledger.entriesForTesting().isEmpty)
         #expect(try harness.ledger.storedAccountGeneration() == 1)
 
-        let new = try harness.deliver([samples[0]], generation: 1)
+        let new = try await harness.deliver([samples[0]], generation: 1)
         let event = try #require(new.events[samples[0].uuid])
         #expect(event.producerInstance != old.events[samples[0].uuid]?.producerInstance)
         #expect(event.sequence.rawValue == "1")
 
-        #expect(throws: FHIRExchangeDestinationError.accountChanged) {
-            try oldExporter.deliver([LedgerHarness.steps(2)])
+        await #expect(throws: FHIRExchangeDestinationError.accountChanged) {
+            try await oldExporter.deliver([LedgerHarness.steps(2)])
         }
         let entries = try harness.ledger.entriesForTesting()
         old.receipt?.release()

@@ -157,7 +157,7 @@ extension MHCSensorSampleUploadStrategy {
         }
         // One outcome per record, in input order.
         var outcomes: [SensorKitFHIRExporter.Export.Outcome] = []
-        let receipt = try publication.exporter().export(
+        let receipt = try await publication.exporter().export(
             records,
             sourceTimeZone: try publication.sourceTimeZone(),
             at: publication.conversionInstant

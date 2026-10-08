@@ -69,7 +69,7 @@ struct HealthKitSamplesFHIRUploaderTests {
         let receipt = try await uploader.process(samples, of: .stepCount)
 
         // Before the batch is persisted, the same exporter reproduces the events the batch reserved.
-        let graphs = try harness.exporter().deliver(samples)
+        let graphs = try await harness.exporter().deliver(samples)
         let ordered = graphs.graphs.sorted { $0.key.uuidString.lowercased() < $1.key.uuidString.lowercased() }
         #expect(files.all == [splicedJSONArray(ordered.map(\.value))])
         graphs.receipt?.release()

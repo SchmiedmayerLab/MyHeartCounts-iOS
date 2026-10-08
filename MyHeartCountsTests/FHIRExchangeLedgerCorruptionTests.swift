@@ -66,30 +66,30 @@ struct FHIRExchangeLedgerCorruptionTests {
     }
 
     @Test(arguments: Corruption.allCases)
-    func corruptEntryIsRefusedAndTheLedgerStartsOver(_ corruption: Corruption) throws {
+    func corruptEntryIsRefusedAndTheLedgerStartsOver(_ corruption: Corruption) async throws {
         let harness = LedgerHarness(ledger: .forTesting())
         let sample = LedgerHarness.steps(0)
-        let first = try #require(try harness.deliver([sample]).events[sample.uuid])
+        let first = try await #require(try harness.deliver([sample]).events[sample.uuid])
         let expected = try corruption.apply(to: harness.ledger)
 
-        #expect(throws: expected) {
-            try harness.deliver([sample])
+        await #expect(throws: expected) {
+            try await harness.deliver([sample])
         }
         #expect(try harness.ledger.entriesForTesting().isEmpty)
 
-        let next = try #require(try harness.deliver([sample]).events[sample.uuid])
+        let next = try await #require(try harness.deliver([sample]).events[sample.uuid])
         #expect(next.producerInstance != first.producerInstance)
         #expect(next.sequence.rawValue == "1")
     }
 
     /// A writer whose generation rotated cannot empty the ledger on a corrupt entry: the recovery is fenced too.
     @Test
-    func recoveryIsFencedToTheWritersGeneration() throws {
+    func recoveryIsFencedToTheWritersGeneration() async throws {
         let preferences = TestAccountPreferences(generation: 1)
         let ledger = FHIRExchangeLedger(location: .inMemory, fence: preferences.fence)
         let harness = LedgerHarness(ledger: ledger)
         let sample = LedgerHarness.steps(0)
-        _ = try harness.deliver([sample], generation: 1)
+        _ = try await harness.deliver([sample], generation: 1)
         let entries = try ledger.entriesForTesting()
 
         #expect(throws: FHIRExchangeDestinationError.accountChanged) {

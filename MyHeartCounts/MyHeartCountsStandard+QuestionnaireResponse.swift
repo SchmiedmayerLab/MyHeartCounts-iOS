@@ -91,9 +91,9 @@ extension MyHeartCountsStandard {
         answering questionnaire: ModelsR4.Questionnaire,
         through exporter: QuestionnaireFHIRExporter,
         at instant: Date = .now
-    ) throws -> ConversionBatch<HKSample, HealthKitSampleProjectionFailure>? {
+    ) async throws -> ConversionBatch<HKSample, HealthKitSampleProjectionFailure>? {
         var outcomes: [QuestionnaireFHIRExporter.Export.Outcome] = []
-        let receipt = try exporter.export(CollectionOfOne(.init(questionnaire: questionnaire, response: response)), at: instant) { export in
+        let receipt = try await exporter.export(CollectionOfOne(.init(questionnaire: questionnaire, response: response)), at: instant) { export in
             outcomes.append(export.outcome)
         }
         receipt.release()
@@ -163,7 +163,7 @@ extension MyHeartCountsStandard {
             let exporter = try fhirExchangeStateStore(
                 accountDataGeneration: submission.destination.accountDataGeneration
             ).questionnaireExporter(subject: submission.subject, ledger: fhirExchangeLedger)
-            guard let samples = try Self.healthKitSamples(extractedFrom: response, answering: questionnaire, through: exporter) else {
+            guard let samples = try await Self.healthKitSamples(extractedFrom: response, answering: questionnaire, through: exporter) else {
                 // A survey that measures nothing is the common case, not an error.
                 return
             }

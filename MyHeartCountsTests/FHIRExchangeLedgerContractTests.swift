@@ -73,10 +73,10 @@ struct FHIRExchangeLedgerContractTests {
 
     /// G1: new keys take consecutive sequences from one, all under the instance the ledger's producer entry names.
     @Test
-    func newKeysTakeConsecutiveSequencesUnderTheLedgersInstance() throws {
-        try withTemporaryDirectory { root in
+    func newKeysTakeConsecutiveSequencesUnderTheLedgersInstance() async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
-            let delivery = try harness.deliver((0..<3).map(LedgerHarness.steps))
+            let delivery = try await harness.deliver((0..<3).map(LedgerHarness.steps))
             let producer = try harness.ledger.producerEntry()
 
             #expect(Set(delivery.events.values.map(\.sequence.rawValue)) == ["1", "2", "3"])
@@ -89,18 +89,18 @@ struct FHIRExchangeLedgerContractTests {
 
     /// Durability across a closed connection: the reservation is read back, and the redelivery is exact.
     @Test
-    func reservationsSurviveClosingAndReopening() throws {
-        try withTemporaryDirectory { root in
+    func reservationsSurviveClosingAndReopening() async throws {
+        try await withTemporaryDirectory { root in
             let binding = InMemoryDeviceBinding()
             let harness = LedgerHarness(ledger: .inDirectory(root, binding: binding))
             let sample = LedgerHarness.steps(0)
-            let first = try harness.deliver([sample])
+            let first = try await harness.deliver([sample])
             let entries = try harness.ledger.entriesForTesting()
             try harness.ledger.closeForTesting()
 
             let reopened = LedgerHarness(identity: harness.identity, ledger: .inDirectory(root, binding: binding))
             #expect(try reopened.ledger.entriesForTesting() == entries)
-            let retry = try reopened.exporter().deliver([sample], at: LedgerHarness.start + 3600)
+            let retry = try await reopened.exporter().deliver([sample], at: LedgerHarness.start + 3600)
             #expect(retry.events == first.events)
             #expect(retry.graphs == first.graphs)
         }
@@ -109,8 +109,8 @@ struct FHIRExchangeLedgerContractTests {
     /// G5: across random interleavings of exports, releases, lapses, resets, reopened connections and context
     /// changes, no event identifier is ever delivered with different bytes.
     @Test(arguments: [1, 2, 3] as [UInt64])
-    func noEventIsEverDeliveredWithOtherContent(seed: UInt64) throws {
-        try withTemporaryDirectory { root in
+    func noEventIsEverDeliveredWithOtherContent(seed: UInt64) async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
             let otherSubject = try FHIRExchangeSubject(identity: BusinessIdentifier(
                 system: FHIRExchangeIdentifiers.participant,
@@ -126,7 +126,7 @@ struct FHIRExchangeLedgerContractTests {
                 case 0..<5:
                     let exporter = exporters[Int.random(in: 0..<exporters.count, using: &random)]
                     let chosen = samples.shuffled(using: &random).prefix(Int.random(in: 1...3, using: &random))
-                    let delivery = try exporter.deliver(Array(chosen), at: LedgerHarness.start + TimeInterval(step))
+                    let delivery = try await exporter.deliver(Array(chosen), at: LedgerHarness.start + TimeInterval(step))
                     oracle.record(delivery)
                     receipts.append(try #require(delivery.receipt))
                 case 5..<7 where !receipts.isEmpty:
@@ -148,43 +148,48 @@ struct FHIRExchangeLedgerContractTests {
 
     /// G6: eight threads exporting and releasing while another resets never share an event identifier.
     @Test
-    func concurrentExportsAndResetsNeverShareAnEvent() throws {
-        try withTemporaryDirectory { root in
+    func concurrentExportsAndResetsNeverShareAnEvent() async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
             let exporter = try harness.exporter()
             let samples = (0..<12).map(LedgerHarness.steps)
             let oracle = EventOracle()
-            let failures = Mutex(0)
-            DispatchQueue.concurrentPerform(iterations: 9) { worker in
-                do {
-                    if worker == 8 {
-                        for _ in 0..<10 {
-                            try harness.producer().resetLedger()
-                            usleep(5_000)
+            let failures = await withTaskGroup(of: Int.self) { group in
+                for worker in 0..<9 {
+                    group.addTask {
+                        do {
+                            if worker == 8 {
+                                for _ in 0..<10 {
+                                    try harness.producer().resetLedger()
+                                    usleep(5_000)
+                                }
+                                return 0
+                            }
+                            var random = SplitMix64(seed: UInt64(worker))
+                            for _ in 0..<25 {
+                                let delivery = try await exporter.deliver([samples[Int.random(in: 0..<samples.count, using: &random)]])
+                                oracle.record(delivery)
+                                if Bool.random(using: &random) {
+                                    delivery.receipt?.release()
+                                }
+                            }
+                            return 0
+                        } catch {
+                            return 1
                         }
-                        return
                     }
-                    var random = SplitMix64(seed: UInt64(worker))
-                    for _ in 0..<25 {
-                        let delivery = try exporter.deliver([samples[Int.random(in: 0..<samples.count, using: &random)]])
-                        oracle.record(delivery)
-                        if Bool.random(using: &random) {
-                            delivery.receipt?.release()
-                        }
-                    }
-                } catch {
-                    failures.withLock { $0 += 1 }
                 }
+                return await group.reduce(0, +)
             }
 
-            #expect(failures.withLock { $0 } == 0)
+            #expect(failures == 0)
             #expect(oracle.mismatchCount == 0)
         }
     }
 
     /// G7: a write that fails inside the transaction leaves nothing behind, and the retry numbers from one.
     @Test
-    func aFailedWriteLeavesNoPartialState() throws {
+    func aFailedWriteLeavesNoPartialState() async throws {
         let harness = LedgerHarness(ledger: .forTesting())
         let samples = (0..<3).map(LedgerHarness.steps)
         try harness.ledger.withDatabaseForTesting { db in
@@ -195,55 +200,55 @@ struct FHIRExchangeLedgerContractTests {
                 """)
         }
 
-        #expect(throws: DatabaseError.self) {
-            try harness.deliver(samples)
+        await #expect(throws: DatabaseError.self) {
+            try await harness.deliver(samples)
         }
         #expect(try harness.ledger.entriesForTesting().isEmpty)
 
         try harness.ledger.withDatabaseForTesting { db in
             try db.execute(sql: "DROP TRIGGER failSecondEvent")
         }
-        let retry = try harness.deliver(samples)
+        let retry = try await harness.deliver(samples)
         #expect(Set(retry.events.values.map(\.sequence.rawValue)) == ["1", "2", "3"])
         #expect(Set(retry.events.values.map(\.producerInstance)).count == 1)
     }
 
     /// G7: a commit that fails leaves nothing behind, and the retry numbers from one.
     @Test
-    func aFailedCommitLeavesNoPartialState() throws {
+    func aFailedCommitLeavesNoPartialState() async throws {
         let harness = LedgerHarness(ledger: .forTesting())
         let samples = (0..<3).map(LedgerHarness.steps)
         try harness.ledger.withDatabaseForTesting { db in
             db.add(transactionObserver: FailingCommit(), extent: .nextTransaction)
         }
 
-        #expect(throws: InjectedCommitFailure.self) {
-            try harness.deliver(samples)
+        await #expect(throws: InjectedCommitFailure.self) {
+            try await harness.deliver(samples)
         }
         #expect(try harness.ledger.entriesForTesting().isEmpty)
 
-        let retry = try harness.deliver(samples)
+        let retry = try await harness.deliver(samples)
         #expect(Set(retry.events.values.map(\.sequence.rawValue)) == ["1", "2", "3"])
     }
 
     /// G12: a reset mints a new instance numbering from one, forgets the old facts, and old receipts release nothing.
     @Test
-    func resetMintsANewInstanceAndOrphansOldReceipts() throws {
-        try withTemporaryDirectory { root in
+    func resetMintsANewInstanceAndOrphansOldReceipts() async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
             let sample = LedgerHarness.steps(0)
-            let before = try harness.deliver([sample, LedgerHarness.steps(1)])
+            let before = try await harness.deliver([sample, LedgerHarness.steps(1)])
 
             try harness.producer().resetLedger()
             #expect(try harness.ledger.entriesForTesting().isEmpty)
 
-            let after = try harness.deliver([sample])
+            let after = try await harness.deliver([sample])
             let event = try #require(after.events[sample.uuid])
             #expect(event.producerInstance != before.events[sample.uuid]?.producerInstance)
             #expect(event.sequence.rawValue == "1")
 
             before.receipt?.release()
-            let redelivery = try harness.deliver([sample])
+            let redelivery = try await harness.deliver([sample])
             #expect(redelivery.events[sample.uuid] == event)
             #expect(try harness.ledger.entryKeys(prefixedBy: "event/").count == 1)
         }
@@ -252,20 +257,20 @@ struct FHIRExchangeLedgerContractTests {
     /// G13: forgetting the reservations made before a cutoff removes exactly those and the facts no remaining
     /// reservation references, and keeps the producer, so later sequences continue under the same instance.
     @Test
-    func forgetReservationsRemovesOnlyOlderReservationsAndUnreferencedFacts() throws {
-        try withTemporaryDirectory { root in
+    func forgetReservationsRemovesOnlyOlderReservationsAndUnreferencedFacts() async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
             let older = LedgerHarness.steps(0)
             let newer = LedgerHarness.steps(1)
-            _ = try harness.deliver([older], at: LedgerHarness.start)
-            let kept = try harness.deliver([newer], at: LedgerHarness.start + 3600)
+            _ = try await harness.deliver([older], at: LedgerHarness.start)
+            let kept = try await harness.deliver([newer], at: LedgerHarness.start + 3600)
             let producer = try harness.ledger.producerEntry()
             let maintenance = try harness.producer()
 
             #expect(try maintenance.forgetReservations(madeBefore: LedgerHarness.start + 1800) == 1)
             #expect(try harness.ledger.entryKeys(prefixedBy: "event/").count == 1)
             #expect(try harness.ledger.entryKeys(prefixedBy: "facts/").count == 1)
-            #expect(try harness.deliver([newer]).events == kept.events)
+            await #expect(try harness.deliver([newer]).events == kept.events)
 
             #expect(try maintenance.forgetReservations(madeBefore: LedgerHarness.start + 7200) == 1)
             #expect(try harness.ledger.entryKeys(prefixedBy: "event/").isEmpty)
@@ -274,7 +279,7 @@ struct FHIRExchangeLedgerContractTests {
             #expect(current.instance == producer.instance)
             #expect(current.next == producer.next)
 
-            let redelivered = try #require(try harness.deliver([older]).events[older.uuid])
+            let redelivered = try await #require(try harness.deliver([older]).events[older.uuid])
             #expect(redelivered.producerInstance == producer.instance)
             #expect(redelivered.sequence.rawValue == producer.next)
         }

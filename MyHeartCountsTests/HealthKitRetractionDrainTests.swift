@@ -97,7 +97,7 @@ struct HealthKitRetractionDrainTests {
             ))
             let rows = chunk.rows.sorted { $0.sampleId.uuidString.lowercased() < $1.sampleId.uuidString.lowercased() }
             let exporter = try staging.healthKitExporter(accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
-            let retry = try exporter.healthKitRetractions(
+            let retry = try await exporter.healthKitRetractions(
                 of: rows.map { row in
                     HealthKitDeletedRecord(
                         sourceTypeIdentifier: row.sampleType,

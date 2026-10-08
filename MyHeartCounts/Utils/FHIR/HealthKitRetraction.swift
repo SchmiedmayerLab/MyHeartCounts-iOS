@@ -56,13 +56,13 @@ extension HealthKitFHIRExporter {
     func healthKitRetractions(
         of records: [HealthKitDeletedRecord],
         recordedAt: Date
-    ) throws -> HealthKitRetractions {
+    ) async throws -> HealthKitRetractions {
         let deletions = records.compactMap(\.deletion)
         guard !deletions.isEmpty else {
             return HealthKitRetractions(graphs: Array(repeating: nil, count: records.count), receipt: HealthKitFHIRReservationReceipt())
         }
         var graphs: [UUID: ExchangeGraph] = [:]
-        let receipt = try retract(deletions, at: recordedAt) { retraction in
+        let receipt = try await retract(deletions, at: recordedAt) { retraction in
             switch retraction.outcome {
             case .graph(let graph):
                 graphs[retraction.deletion.uuid] = graph

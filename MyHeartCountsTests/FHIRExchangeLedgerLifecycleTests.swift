@@ -69,10 +69,10 @@ struct FHIRExchangeLedgerLifecycleTests {
 
     /// M13: a commit reaches the device's storage, through a fully synchronous write-ahead log, before it returns.
     @Test
-    func productionConfigurationIsFullyDurable() throws {
-        try withTemporaryDirectory { root in
+    func productionConfigurationIsFullyDurable() async throws {
+        try await withTemporaryDirectory { root in
             let ledger = FHIRExchangeLedger.inDirectory(root)
-            _ = try LedgerHarness(ledger: ledger).deliver([LedgerHarness.steps(0)])
+            _ = try await LedgerHarness(ledger: ledger).deliver([LedgerHarness.steps(0)])
             let journalMode = try ledger.withDatabaseForTesting { try String.fetchOne($0, sql: "PRAGMA journal_mode") }
             let synchronous = try ledger.withDatabaseForTesting { try Int.fetchOne($0, sql: "PRAGMA synchronous") }
             let fullFSync = try ledger.withDatabaseForTesting { try Int.fetchOne($0, sql: "PRAGMA fullfsync") }
@@ -93,12 +93,12 @@ struct FHIRExchangeLedgerLifecycleTests {
 
     /// M9d: the schema migrates once; migrating again changes nothing and keeps every entry.
     @Test
-    func migratorIsIdempotent() throws {
-        try withTemporaryDirectory { root in
+    func migratorIsIdempotent() async throws {
+        try await withTemporaryDirectory { root in
             let binding = InMemoryDeviceBinding()
             let harness = LedgerHarness(ledger: .inDirectory(root, binding: binding))
             let sample = LedgerHarness.steps(0)
-            let first = try harness.deliver([sample])
+            let first = try await harness.deliver([sample])
             let entries = try harness.ledger.entriesForTesting()
             try harness.ledger.closeForTesting()
 
@@ -106,19 +106,19 @@ struct FHIRExchangeLedgerLifecycleTests {
             let queue = try DatabaseQueue(path: file.path(percentEncoded: false), configuration: FHIRExchangeLedger.configuration)
             try FHIRExchangeLedger.migrator.migrate(queue)
             try FHIRExchangeLedger.migrator.migrate(queue)
-            #expect(try queue.read { try FHIRExchangeLedger.migrator.appliedIdentifiers($0) } == ["v1"])
+            await #expect(try queue.read { try FHIRExchangeLedger.migrator.appliedIdentifiers($0) } == ["v1"])
             try queue.close()
 
             let reopened = LedgerHarness(identity: harness.identity, ledger: .inDirectory(root, binding: binding))
             #expect(try reopened.ledger.entriesForTesting() == entries)
-            #expect(try reopened.deliver([sample]).events == first.events)
+            await #expect(try reopened.deliver([sample]).events == first.events)
         }
     }
 
     /// M14: creating the module touches nothing on disk.
     @Test
-    func creatingTheLedgerCreatesNoFile() throws {
-        try withTemporaryDirectory { root in
+    func creatingTheLedgerCreatesNoFile() async throws {
+        try await withTemporaryDirectory { root in
             let ledger = FHIRExchangeLedger.inDirectory(root)
             _ = ledger.storage(accountDataGeneration: 0)
             let files = try FileManager.default.contentsOfDirectory(atPath: root.path(percentEncoded: false))
@@ -128,18 +128,18 @@ struct FHIRExchangeLedgerLifecycleTests {
 
     /// M14: a failed open fails the export, and a later export opens the ledger once it can.
     @Test
-    func failedOpenIsRetriedByTheNextCall() throws {
-        try withTemporaryDirectory { root in
+    func failedOpenIsRetriedByTheNextCall() async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
             let rootPath = root.path(percentEncoded: false)
             try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: rootPath)
 
-            #expect(throws: (any Error).self) {
-                try harness.deliver([LedgerHarness.steps(0)])
+            await #expect(throws: (any Error).self) {
+                try await harness.deliver([LedgerHarness.steps(0)])
             }
 
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: rootPath)
-            let delivery = try harness.deliver([LedgerHarness.steps(0)])
+            let delivery = try await harness.deliver([LedgerHarness.steps(0)])
             #expect(delivery.events.values.map(\.sequence.rawValue) == ["1"])
         }
     }
@@ -147,21 +147,21 @@ struct FHIRExchangeLedgerLifecycleTests {
     /// M14: a page corrupted after the database was opened fails the transaction, the directory is discarded,
     /// and the next export starts over on a fresh producer instance.
     @Test
-    func corruptPageDiscardsTheDatabase() throws {
-        try withTemporaryDirectory { root in
+    func corruptPageDiscardsTheDatabase() async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
             let sample = LedgerHarness.steps(0)
-            let first = try #require(try harness.deliver([sample]).events[sample.uuid])
+            let first = try await #require(try harness.deliver([sample]).events[sample.uuid])
             try Self.corruptLedgerEntryPages(of: harness.ledger)
 
-            let error = #expect(throws: (any Error).self) {
-                try harness.deliver([sample])
+            let error = await #expect(throws: (any Error).self) {
+                try await harness.deliver([sample])
             }
             #expect(error.map(FHIRExchangeLedger.isCorruption) == true)
             let directory = try #require(harness.ledger.directory)
             #expect(!FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)))
 
-            let next = try #require(try harness.deliver([sample]).events[sample.uuid])
+            let next = try await #require(try harness.deliver([sample]).events[sample.uuid])
             #expect(next.producerInstance != first.producerInstance)
             #expect(next.sequence.rawValue == "1")
         }
@@ -170,21 +170,21 @@ struct FHIRExchangeLedgerLifecycleTests {
     /// M14: a file that is not a database, found when the ledger opens, fails the call and is discarded with its
     /// directory, and the next export starts at sequence one.
     @Test
-    func corruptFileFoundAtOpenIsDiscarded() throws {
-        try withTemporaryDirectory { root in
+    func corruptFileFoundAtOpenIsDiscarded() async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
             let directory = try #require(harness.ledger.directory)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try Data(repeating: 0x42, count: 8192).write(to: directory.appending(path: FHIRExchangeLedger.databaseFileName))
             let sample = LedgerHarness.steps(0)
 
-            let error = #expect(throws: (any Error).self) {
-                try harness.deliver([sample])
+            let error = await #expect(throws: (any Error).self) {
+                try await harness.deliver([sample])
             }
             #expect(error.map(FHIRExchangeLedger.isCorruption) == true)
             #expect(!FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)))
 
-            let next = try #require(try harness.deliver([sample]).events[sample.uuid])
+            let next = try await #require(try harness.deliver([sample]).events[sample.uuid])
             #expect(next.sequence.rawValue == "1")
             #expect(try harness.ledger.producerEntry().instance == next.producerInstance)
         }
@@ -193,24 +193,24 @@ struct FHIRExchangeLedgerLifecycleTests {
     /// Two ledgers over one directory in this process share its connection: when one discards the corrupt
     /// database, the other continues on the replacement instead of on the deleted file.
     @Test
-    func ledgersOverOneDirectoryContinueOnTheReplacementTogether() throws {
-        try withTemporaryDirectory { root in
+    func ledgersOverOneDirectoryContinueOnTheReplacementTogether() async throws {
+        try await withTemporaryDirectory { root in
             let binding = InMemoryDeviceBinding()
             let first = LedgerHarness(ledger: .inDirectory(root, binding: binding))
             let second = LedgerHarness(identity: first.identity, ledger: .inDirectory(root, binding: binding))
             let sample = LedgerHarness.steps(0)
-            let original = try #require(try first.deliver([sample]).events[sample.uuid])
-            #expect(try second.deliver([sample]).events[sample.uuid] == original)
+            let original = try await #require(try first.deliver([sample]).events[sample.uuid])
+            await #expect(try second.deliver([sample]).events[sample.uuid] == original)
             try Self.corruptLedgerEntryPages(of: first.ledger)
 
-            #expect(throws: (any Error).self) {
-                try first.deliver([sample])
+            await #expect(throws: (any Error).self) {
+                try await first.deliver([sample])
             }
-            let replacement = try #require(try first.deliver([sample]).events[sample.uuid])
+            let replacement = try await #require(try first.deliver([sample]).events[sample.uuid])
             #expect(replacement.producerInstance != original.producerInstance)
 
             let other = LedgerHarness.steps(1)
-            let next = try #require(try second.deliver([other]).events[other.uuid])
+            let next = try await #require(try second.deliver([other]).events[other.uuid])
             #expect(next.producerInstance == replacement.producerInstance)
             #expect(next.sequence.rawValue == "2")
             #expect(try first.ledger.entryKeys(prefixedBy: "event/").count == 2)
@@ -220,20 +220,20 @@ struct FHIRExchangeLedgerLifecycleTests {
     /// While a connection has the database open, it holds the lock file beside the directory; a ledger whose lock
     /// file another process holds opens nothing and deletes nothing, and opens once that process lets go.
     @Test
-    func directoryAnotherProcessHoldsIsNeitherOpenedNorDiscarded() throws {
-        try withTemporaryDirectory { root in
+    func directoryAnotherProcessHoldsIsNeitherOpenedNorDiscarded() async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
             let directory = try #require(harness.ledger.directory)
             let otherProcess = try ForeignLockHolder(of: directory)
             try #require(otherProcess.tryLock())
 
-            #expect(throws: FHIRExchangeLedger.OwnershipError.directoryInUse) {
-                try harness.deliver([LedgerHarness.steps(0)])
+            await #expect(throws: FHIRExchangeLedger.OwnershipError.directoryInUse) {
+                try await harness.deliver([LedgerHarness.steps(0)])
             }
             #expect(!FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)))
 
             otherProcess.unlock()
-            let delivery = try harness.deliver([LedgerHarness.steps(0)])
+            let delivery = try await harness.deliver([LedgerHarness.steps(0)])
             #expect(delivery.events.values.map(\.sequence.rawValue) == ["1"])
             #expect(!otherProcess.tryLock())
 

@@ -27,7 +27,7 @@ extension HealthUploadStaging {
         let recordedAt = Date.now
         try Swift::Task.checkCancellation()
         // One ledger transaction reserves the whole chunk before any retraction uses its identity.
-        let retractions = try exporter.healthKitRetractions(
+        let retractions = try await exporter.healthKitRetractions(
             of: rows.map { row in
                 HealthKitDeletedRecord(
                     sourceTypeIdentifier: row.sampleType,

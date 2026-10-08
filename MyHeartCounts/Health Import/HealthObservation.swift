@@ -303,11 +303,11 @@ extension HealthKitFHIRExporter {
         var receipts: [ExchangeProducer.Receipt] = []
         var pending: [Record] = []
         var pendingVoltageMeasurements = 0
-        func flush() throws {
+        func flush() async throws {
             guard !pending.isEmpty else {
                 return
             }
-            receipts.append(try export(records: pending, at: instant) { export in
+            receipts.append(try await export(records: pending, at: instant) { export in
                 // A throw drops this call's receipt, so its holds lapse.
                 try Swift::Task.checkCancellation()
                 warnings.add(export)
@@ -323,12 +323,12 @@ extension HealthKitFHIRExporter {
             // Exported before the fetch, so the voltages held never exceed the budget but for one ECG larger than it.
             let voltageMeasurements = recordProvider.voltageMeasurements(for: sample)
             if voltageMeasurements > 0, pendingVoltageMeasurements + voltageMeasurements > Self.voltageBudget {
-                try flush()
+                try await flush()
             }
             pending.append(try await recordProvider.record(for: sample))
             pendingVoltageMeasurements += voltageMeasurements
         }
-        try flush()
+        try await flush()
         if !warnings.isEmpty {
             logger.info("Grove exported \(samples.count) HealthKit samples with warnings:\n\(warnings.description)")
         }

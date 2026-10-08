@@ -107,7 +107,7 @@ struct HealthKitBatchExportTests {
 
         // Before the anchor commits, the same exporter reproduces the events staging reserved.
         let exporter = try staging.healthKitExporter(accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
-        let graphs = try exporter.deliver(samples)
+        let graphs = try await exporter.deliver(samples)
         #expect(staged == graphs.graphs)
         graphs.receipt?.release()
         try await receipt.commitAnchor()
@@ -175,7 +175,7 @@ struct HealthKitBatchExportTests {
         #expect(try staging.drainStagedSamples().isEmpty)
 
         // Before the anchor commits, the same exporter reproduces the events the file carries.
-        let graphs = try staging.healthKitExporter(accountDataGeneration: accountDataGeneration).deliver(samples)
+        let graphs = try await staging.healthKitExporter(accountDataGeneration: accountDataGeneration).deliver(samples)
         let ordered = graphs.graphs.sorted { $0.key.uuidString.lowercased() < $1.key.uuidString.lowercased() }
         #expect(files.all == [splicedJSONArray(ordered.map(\.value))])
         graphs.receipt?.release()
@@ -378,7 +378,7 @@ extension HealthKitBatchExportTests {
             entries.append(entry)
         }
 
-        let graphs = try exporter.deliver(samples)
+        let graphs = try await exporter.deliver(samples)
         #expect(entries.map(\.sourceID) == samples.map(\.uuid))
         for entry in entries {
             guard case .graph(let json) = entry.content else {

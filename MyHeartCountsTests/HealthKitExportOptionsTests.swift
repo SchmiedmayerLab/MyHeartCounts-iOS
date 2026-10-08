@@ -52,28 +52,28 @@ struct HealthKitExportOptionsTests {
         return try #require(bundle.entry?.first { $0.fullUrl?.value?.url.absoluteString == reference }?.resource?.get(if: Device.self))
     }
 
-    private static func graph(of sample: HKSample) throws -> ExchangeGraph {
+    private static func graph(of sample: HKSample) async throws -> ExchangeGraph {
         var graph: ExchangeGraph?
-        _ = try LedgerHarness(ledger: .forTesting()).exporter().export([sample]) { export in
+        _ = try await LedgerHarness(ledger: .forTesting()).exporter().export([sample]) { export in
             graph = export.graph
         }
         return try #require(graph)
     }
 
     @Test
-    func sampleMHCWroteStatesMHCAsItsAuthor() throws {
+    func sampleMHCWroteStatesMHCAsItsAuthor() async throws {
         let bundleIdentifier = try #require(Bundle.main.bundleIdentifier)
         let sample = try Self.sample(writtenBy: bundleIdentifier, name: "My Heart Counts")
-        let author = try #require(try Self.author(in: Self.graph(of: sample)))
+        let author = try await #require(try Self.author(in: Self.graph(of: sample)))
 
         #expect(author.deviceName?.first?.name.value?.string == "My Heart Counts")
         #expect(author.version?.contains { $0.value.value?.string == "1" } == true)
     }
 
     @Test
-    func sampleAnotherSourceWroteStatesNoAuthor() throws {
+    func sampleAnotherSourceWroteStatesNoAuthor() async throws {
         let sample = try Self.sample(writtenBy: "org.example.other-app", name: "Other App")
 
-        #expect(try Self.author(in: Self.graph(of: sample)) == nil)
+        await #expect(try Self.author(in: Self.graph(of: sample)) == nil)
     }
 }

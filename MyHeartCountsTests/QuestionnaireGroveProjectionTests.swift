@@ -212,7 +212,7 @@ struct QuestionnaireHealthKitProjectionTests {
         response: QuestionnaireResponse,
         store: FHIRExchangeStateStore = FHIRExchangeStateStore(),
         ledger: FHIRExchangeLedger = .forTesting()
-    ) throws -> ConversionBatch<HKSample, HealthKitSampleProjectionFailure>? {
+    ) async throws -> ConversionBatch<HKSample, HealthKitSampleProjectionFailure>? {
         var response = response
         response.apply(writerContext: try .current(
             applicationIdentifierSystem: FHIRExchangeIdentifiers.application
@@ -224,7 +224,7 @@ struct QuestionnaireHealthKitProjectionTests {
             )),
             ledger: ledger
         )
-        return try MyHeartCountsStandard.healthKitSamples(
+        return try await MyHeartCountsStandard.healthKitSamples(
             extractedFrom: response,
             answering: questionnaire,
             through: exporter,
@@ -233,11 +233,11 @@ struct QuestionnaireHealthKitProjectionTests {
     }
 
     @Test
-    func bloodPressureBuildsOneCorrelationWithTwoComponents() throws {
+    func bloodPressureBuildsOneCorrelationWithTwoComponents() async throws {
         let (questionnaire, response) = try Self.pair()
         let store = FHIRExchangeStateStore()
         let ledger = FHIRExchangeLedger.forTesting()
-        let samples = try #require(try Self.samples(questionnaire: questionnaire, response: response, store: store, ledger: ledger)).conversions
+        let samples = try await #require(try Self.samples(questionnaire: questionnaire, response: response, store: store, ledger: ledger)).conversions
         // The bundle is discarded, so the response's event is released at once.
         #expect(try ledger.reservationCount == 0)
         let correlation = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
@@ -258,7 +258,7 @@ struct QuestionnaireHealthKitProjectionTests {
         // response re-projected through the same store replaces its earlier samples.
         let syncID = try #require(correlation.metadata?[HKMetadataKeySyncIdentifier] as? String)
         #expect(syncID.hasPrefix("v0:store:1:"))
-        let again = try #require(try Self.samples(questionnaire: questionnaire, response: response, store: store, ledger: ledger))
+        let again = try await #require(try Self.samples(questionnaire: questionnaire, response: response, store: store, ledger: ledger))
         let repeated = try #require(again.conversions.compactMap { $0 as? HKCorrelation }.first)
         #expect(repeated.metadata?[HKMetadataKeySyncIdentifier] as? String == syncID)
     }
@@ -267,42 +267,42 @@ struct QuestionnaireHealthKitProjectionTests {
     /// the questionnaire repository of the known store. It cannot change without every response projected again adding
     /// its samples beside those an earlier build saved, instead of replacing them.
     @Test
-    func questionnaireSampleIdentityIsPinned() throws {
+    func questionnaireSampleIdentityIsPinned() async throws {
         let (questionnaire, response) = try Self.pair()
         let store = FHIRExchangeStateStore()
         try store.useKnownIdentitySecret()
-        let samples = try #require(try Self.samples(questionnaire: questionnaire, response: response, store: store)).conversions
+        let samples = try await #require(try Self.samples(questionnaire: questionnaire, response: response, store: store)).conversions
         let correlation = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
         #expect(correlation.metadata?[HKMetadataKeySyncIdentifier] as? String == "v0:store:1:VAeqn87IPCdpRg3YcblP91tyUYyNnEwD4WggA2uNvrA")
     }
 
     @Test
-    func bloodPressureRefusesAnIncompleteComponentSet() throws {
+    func bloodPressureRefusesAnIncompleteComponentSet() async throws {
         let (questionnaire, response) = try Self.pair(diastolic: nil)
         // A half-answered panel still refuses: the blood-pressure profile requires both components.
-        #expect(throws: ObservationExtractionError.componentIncomplete(measurement: "blood-pressure", missing: "8462-4")) {
-            _ = try Self.samples(questionnaire: questionnaire, response: response)
+        await #expect(throws: ObservationExtractionError.componentIncomplete(measurement: "blood-pressure", missing: "8462-4")) {
+            _ = try await Self.samples(questionnaire: questionnaire, response: response)
         }
     }
 
     /// Bone mass extracts but has no HealthKit type to land on, so it is the reading that is lost.
     @Test
-    func oneUnprojectableMeasurementStillYieldsTheOthers() throws {
+    func oneUnprojectableMeasurementStillYieldsTheOthers() async throws {
         let (questionnaire, response) = try Self.pair()
-        let samples = try #require(try Self.samples(questionnaire: questionnaire, response: response))
+        let samples = try await #require(try Self.samples(questionnaire: questionnaire, response: response))
         #expect(samples.conversions.compactMap { $0 as? HKCorrelation }.count == 1)
         #expect(samples.failures.map(\.error) == [.measurementNotMappable(id: "bone-mass")])
     }
 
     @Test
-    func unmarkedItemsNeverProject() throws {
+    func unmarkedItemsNeverProject() async throws {
         var (questionnaire, response) = try Self.pair()
         questionnaire.item?[0].extension = nil
         questionnaire.item?[1].extension = nil
         // A survey that measures nothing yields nothing before any identity is minted, so nothing
         // reaches HealthKit and no exchange event is spent on it.
         let ledger = FHIRExchangeLedger.forTesting()
-        #expect(try Self.samples(questionnaire: questionnaire, response: response, ledger: ledger) == nil)
+        await #expect(try Self.samples(questionnaire: questionnaire, response: response, ledger: ledger) == nil)
         #expect(try ledger.entriesForTesting().isEmpty)
     }
 }

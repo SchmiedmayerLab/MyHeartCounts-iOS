@@ -126,16 +126,16 @@ struct LedgerHarness {
     }
 
     /// Exports `samples` through a fresh exporter of `generation`.
-    func deliver(_ samples: [HKSample], generation: Int = 0, at instant: Date = start) throws -> LedgerDelivery {
-        try exporter(generation: generation).deliver(samples, at: instant)
+    func deliver(_ samples: [HKSample], generation: Int = 0, at instant: Date = start) async throws -> LedgerDelivery {
+        try await exporter(generation: generation).deliver(samples, at: instant)
     }
 }
 
 
 extension HealthKitFHIRExporter {
-    func deliver(_ samples: [HKSample], at instant: Date = LedgerHarness.start) throws -> LedgerDelivery {
+    func deliver(_ samples: [HKSample], at instant: Date = LedgerHarness.start) async throws -> LedgerDelivery {
         var delivery = LedgerDelivery()
-        delivery.receipt = try export(samples, at: instant) { export in
+        delivery.receipt = try await export(samples, at: instant) { export in
             guard let graph = export.graph else {
                 return
             }
@@ -218,14 +218,14 @@ extension FHIRExchangeLedger {
 
 
 /// Runs `body` with a fresh temporary directory, removed afterwards, even when `body` locked it.
-func withTemporaryDirectory<R>(_ body: (URL) throws -> R) throws -> R {
+func withTemporaryDirectory<R>(_ body: (URL) async throws -> R) async throws -> R {
     let root = URL.temporaryDirectory.appending(path: "FHIRExchangeLedgerTests-\(UUID().uuidString)", directoryHint: .isDirectory)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer {
         try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: root.path(percentEncoded: false))
         try? FileManager.default.removeItem(at: root)
     }
-    return try body(root)
+    return try await body(root)
 }
 
 

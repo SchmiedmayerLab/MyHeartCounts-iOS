@@ -78,15 +78,15 @@ final class FHIRExchangeLedgerKeychainBindingTests {
 
     /// A ledger bound through the keychain keeps its entries when it is opened again.
     @Test
-    func ledgerReopenedOnThisDeviceKeepsItsEntries() throws {
-        try withTemporaryDirectory { root in
+    func ledgerReopenedOnThisDeviceKeepsItsEntries() async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: Self.ledger(in: root))
             let sample = LedgerHarness.steps(0)
-            let first = try harness.deliver([sample])
+            let first = try await harness.deliver([sample])
             try harness.ledger.closeForTesting()
 
             let reopened = LedgerHarness(identity: harness.identity, ledger: Self.ledger(in: root))
-            #expect(try reopened.deliver([sample]).events == first.events)
+            await #expect(try reopened.deliver([sample]).events == first.events)
             #expect(try reopened.ledger.storedDeviceToken() == FHIRExchangeLedgerKeychainBinding().deviceToken())
         }
     }

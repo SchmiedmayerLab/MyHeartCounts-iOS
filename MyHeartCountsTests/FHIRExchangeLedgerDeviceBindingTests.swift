@@ -17,34 +17,34 @@ import Testing
 @Suite
 struct FHIRExchangeLedgerDeviceBindingTests {
     @Test
-    func matchingTokenKeepsTheLedger() throws {
-        try withTemporaryDirectory { root in
+    func matchingTokenKeepsTheLedger() async throws {
+        try await withTemporaryDirectory { root in
             let binding = InMemoryDeviceBinding()
             let harness = LedgerHarness(ledger: .inDirectory(root, binding: binding))
             let sample = LedgerHarness.steps(0)
-            let first = try harness.deliver([sample])
+            let first = try await harness.deliver([sample])
             try harness.ledger.closeForTesting()
 
             let reopened = LedgerHarness(identity: harness.identity, ledger: .inDirectory(root, binding: binding))
-            #expect(try reopened.deliver([sample]).events == first.events)
+            await #expect(try reopened.deliver([sample]).events == first.events)
         }
     }
 
     /// A ledger copied or restored onto a device whose keychain never held its token.
     @Test
-    func missingTokenDiscardsTheLedger() throws {
-        try discardsTheLedger(whenReopenedWith: InMemoryDeviceBinding())
+    func missingTokenDiscardsTheLedger() async throws {
+        try await discardsTheLedger(whenReopenedWith: InMemoryDeviceBinding())
     }
 
     /// A ledger copied from another installation, whose token differs from this device's.
     @Test
-    func differingTokenDiscardsTheLedger() throws {
-        try discardsTheLedger(whenReopenedWith: InMemoryDeviceBinding(token: FHIRExchangeLedger.newDeviceToken()))
+    func differingTokenDiscardsTheLedger() async throws {
+        try await discardsTheLedger(whenReopenedWith: InMemoryDeviceBinding(token: FHIRExchangeLedger.newDeviceToken()))
     }
 
     @Test
-    func emptyLedgerAdoptsTheDevicesToken() throws {
-        try withTemporaryDirectory { root in
+    func emptyLedgerAdoptsTheDevicesToken() async throws {
+        try await withTemporaryDirectory { root in
             let token = FHIRExchangeLedger.newDeviceToken()
             let binding = InMemoryDeviceBinding(token: token)
             let stored = try FHIRExchangeLedger.inDirectory(root, binding: binding).storedDeviceToken()
@@ -54,17 +54,17 @@ struct FHIRExchangeLedgerDeviceBindingTests {
         }
     }
 
-    private func discardsTheLedger(whenReopenedWith otherBinding: InMemoryDeviceBinding) throws {
-        try withTemporaryDirectory { root in
+    private func discardsTheLedger(whenReopenedWith otherBinding: InMemoryDeviceBinding) async throws {
+        try await withTemporaryDirectory { root in
             let harness = LedgerHarness(ledger: .inDirectory(root))
             let sample = LedgerHarness.steps(0)
-            let first = try #require(try harness.deliver([sample]).events[sample.uuid])
+            let first = try await #require(try harness.deliver([sample]).events[sample.uuid])
             try harness.ledger.closeForTesting()
 
             let reopened = LedgerHarness(identity: harness.identity, ledger: .inDirectory(root, binding: otherBinding))
             #expect(try reopened.ledger.entriesForTesting().isEmpty)
             #expect(try reopened.ledger.storedDeviceToken() == otherBinding.storedToken)
-            let next = try #require(try reopened.deliver([sample]).events[sample.uuid])
+            let next = try await #require(try reopened.deliver([sample]).events[sample.uuid])
             #expect(next.producerInstance != first.producerInstance)
             #expect(next.sequence.rawValue == "1")
         }
