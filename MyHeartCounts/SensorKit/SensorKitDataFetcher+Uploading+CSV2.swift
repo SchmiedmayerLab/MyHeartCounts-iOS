@@ -33,7 +33,7 @@ struct UploadStrategyWristTemperature: MHCSensorSampleUploadStrategy {
             }
             uploads.append(SensorKitRecordUpload(
                 ordinal: recordOrdinal,
-                sidecar: SensorKitUploadSidecar(data: recording.data, format: recording.format),
+                sidecar: SensorKitUploadSidecar(data: recording.data, fileExtension: "csv"),
                 retryEvidence: recording.retryEvidence
             ) { sourceRecordID, title, sidecarPath in
                 guard let sidecarPath else {

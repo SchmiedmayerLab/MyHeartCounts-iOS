@@ -13,9 +13,11 @@ import GroveSensorKitFHIR
 import OSLog
 
 
+/// The exact bytes of a record's recording, staged next to its graph under the file extension the upload strategy that
+/// wrote them names.
 struct SensorKitUploadSidecar: Sendable {
     let data: Data
-    let format: RegisteredRecordingFormat
+    let fileExtension: String
 }
 
 
@@ -113,7 +115,7 @@ struct SensorKitRecordRefusal {
 
 extension MHCSensorSampleUploadStrategy {
     private static func filename(of sidecar: SensorKitUploadSidecar, sourceRecordID: SensorKitSourceRecordID) -> String {
-        "\(sourceRecordID.value).\(sidecar.format.fileExtension)"
+        "\(sourceRecordID.value).\(sidecar.fileExtension)"
     }
 
     /// Publishes the records prepared from one fetched batch through MHC's storage backend.

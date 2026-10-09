@@ -68,6 +68,7 @@ let package = Package(
             name: "SensorKitCLI",
             dependencies: [
                 "MyHeartCountsShared",
+                .product(name: "GroveSensorKitFHIR", package: "Grove"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             swiftSettings: commonSwiftSettings

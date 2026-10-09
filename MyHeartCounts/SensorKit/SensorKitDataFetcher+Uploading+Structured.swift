@@ -40,7 +40,7 @@ where Sample.SafeRepresentation: GroveStructuredSensorSample {
             }
             uploads.append(SensorKitRecordUpload(
                 ordinal: recordOrdinal,
-                sidecar: prepared.nativePayload.map { SensorKitUploadSidecar(data: $0, format: .nativeRecording) },
+                sidecar: prepared.nativePayload.map { SensorKitUploadSidecar(data: $0, fileExtension: "json") },
                 retryEvidence: prepared.retryEvidence
             ) { sourceRecordID, title, sidecarPath in
                 if prepared.nativePayload == nil {

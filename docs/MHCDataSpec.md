@@ -352,11 +352,13 @@ SPDX-License-Identifier: MIT
 | ambientLight     | CSV file per batch (`.csv.zstd`) |
 | accelerometer    | CSV file per batch (`.csv.zstd`) |
 | ambientPressure  | CSV file per batch (`.csv.zstd`) |
-| ppg              | custom binary format (`.mhcPPG`) |
+| ppg              | binary recording (`.mhcPPG2`; `.mhcPPG` before PPG export moved to Grove) |
 
-- The `.mhcPPG` files used for the PPG data are a custom binary format
-  - The reference implementation in the `MyHeartCountsShared` package serves as the format's definition (see also the `SensorKitCLI` target, which implements offline decoding of these files)
-  - Note: in contrast to the other SensorKit upload formats, `.mhcPPG` files are not zstd-compressed
+- PPG data is a binary recording in one of two encodings. Neither carries a version, so the file extension says which one a file holds:
+  - `.mhcPPG2`: Grove's registered `photoplethysmogram-samples` format, defined and implemented by Grove's `SensorKitPPGRecording` (`GroveSensorKitFHIR`)
+  - `.mhcPPG`: the original My Heart Counts encoding; Grove reads it with `SensorKitPPGRecording(legacyMyHeartCountsData:)`
+  - The `SensorKitCLI` target in the `MyHeartCountsShared` package decodes either into JSON (`decode-ppg <file> [output]`)
+  - Note: in contrast to the other SensorKit upload formats, PPG files are not zstd-compressed
 
 
 
