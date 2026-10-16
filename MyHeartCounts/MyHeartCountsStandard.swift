@@ -466,17 +466,3 @@ extension MyHeartCountsStandard {
         preferences[.pendingAccountDataCleanupRequired] = false
     }
 }
-
-
-extension MyHeartCountsStandard {
-    func stageHistoricalHealthKitFile(
-        at url: URL,
-        accountDataGeneration: Int
-    ) async throws {
-        try await managedFileUpload.stage(
-            url,
-            category: .historicalHealthUpload,
-            accountDataGeneration: accountDataGeneration
-        )
-    }
-}
