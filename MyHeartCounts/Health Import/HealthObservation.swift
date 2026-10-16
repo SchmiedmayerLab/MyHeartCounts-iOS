@@ -156,7 +156,10 @@ extension HKSample: HealthObservation {
         guard !batch.isEmpty else {
             return .empty
         }
-        return try await exporter().exportBatch(batch, at: instant, recordProvider: recordProvider, receive: receive)
+        let exporter = try exporter()
+        return try await HealthKitExportLog.record(.live, samples: HealthKitExportLog.counts(batch), exporter: exporter) {
+            try await exporter.exportBatch(batch, at: instant, recordProvider: recordProvider, receive: receive)
+        }
     }
 }
 

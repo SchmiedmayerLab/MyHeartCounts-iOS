@@ -58,6 +58,12 @@ enum FeatureFlags {
     static var measureExporterThroughput: Bool {
         LaunchOptions.launchOptions[.measureExporterThroughput]
     }
+
+    /// Whether every HealthKit batch export is recorded in ``HealthKitExportLog``, with the exporter's throughput; for
+    /// analysing test runs off the device.
+    static var recordHealthKitExportLog: Bool {
+        LaunchOptions.launchOptions[.recordHealthKitExportLog]
+    }
     
     /// Whether the should load a special, different Firebase config instead of the one that would regularly get loaded.
     ///
@@ -80,6 +86,7 @@ extension LaunchOptions {
     
     static let disableAutomaticBulkHealthExport = LaunchOption<Bool>("--disableAutomaticBulkHealthExport", default: false)
     static let measureExporterThroughput = LaunchOption<Bool>("--measureExporterThroughput", default: false)
+    static let recordHealthKitExportLog = LaunchOption<Bool>("--recordHealthKitExportLog", default: false)
     
     static let disableSensorKitUpload = LaunchOption<Bool>("--disableSensorKitUpload", default: false)
 }

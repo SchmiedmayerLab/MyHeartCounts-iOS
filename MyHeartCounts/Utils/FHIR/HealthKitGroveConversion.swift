@@ -50,7 +50,7 @@ extension HealthKitFHIRExporter.Options {
         options.legacyBundleID = .healthKitUUID
         options.role = .gatewayForOwnWrites
         options.writer = .applications(Set([Bundle.main.bundleIdentifier].compactMap(\.self)))
-        options.measuresThroughput = FeatureFlags.measureExporterThroughput
+        options.measuresThroughput = FeatureFlags.measureExporterThroughput || FeatureFlags.recordHealthKitExportLog
         return options
     }()
 }

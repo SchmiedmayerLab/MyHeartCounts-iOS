@@ -52,22 +52,28 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         let numSamples = samples.count
         let exporter = exporter
         do {
-            var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
-            let export = try await exporter(accountDataGeneration).exportBatch(
-                samples,
-                at: .now,
-                recordProvider: .healthKit(healthKit)
-            ) { entry in
-                entries.append(entry)
+            let exporter = try await exporter(accountDataGeneration)
+            let samples = samples
+            // The logged outcome covers the staging too: a batch counts as exported once its upload file is staged.
+            let export = try await HealthKitExportLog.record(.historical, samples: HealthKitExportLog.counts(samples), exporter: exporter) {
+                var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+                let export = try await exporter.exportBatch(
+                    samples,
+                    at: .now,
+                    recordProvider: .healthKit(healthKit)
+                ) { entry in
+                    entries.append(entry)
+                }
+                guard !entries.isEmpty else {
+                    return export
+                }
+                let url = try HealthUploadBatch.write(entries, typePrefix: sampleType.id)
+                defer {
+                    try? FileManager.default.removeItem(at: url)
+                }
+                try await stage(url, accountDataGeneration)
+                return export
             }
-            guard !entries.isEmpty else {
-                return export.receipt
-            }
-            let url = try HealthUploadBatch.write(entries, typePrefix: sampleType.id)
-            defer {
-                try? FileManager.default.removeItem(at: url)
-            }
-            try await stage(url, accountDataGeneration)
             return export.receipt
         } catch {
             logger.warning("Failed exporting \(numSamples) \(sampleType.id) samples: \(String(describing: error))")
@@ -99,7 +105,11 @@ extension HealthKitSamplesFHIRUploader {
                 return try ledger.healthKitExporter(forBatchOf: accountDataGeneration)
             }
         } stage: { file, accountDataGeneration in
-            try await standard.stageHistoricalHealthKitFile(at: file, accountDataGeneration: accountDataGeneration)
+            try await standard.managedFileUpload.stage(
+                file,
+                category: .historicalHealthUpload,
+                accountDataGeneration: accountDataGeneration
+            )
         }
     }
 }
