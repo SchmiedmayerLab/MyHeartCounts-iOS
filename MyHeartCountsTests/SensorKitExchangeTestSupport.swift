@@ -65,7 +65,13 @@ extension SensorKitBatchPublication {
     /// The identity of the record at `ordinal`, once `evidence` is checked as publishing a batch of only that record
     /// checks it.
     func sourceRecordID(ordinal: Int, evidence: Data) throws -> SensorKitSourceRecordID {
-        let upload = SensorKitRecordUpload(ordinal: ordinal, sampleCount: 1, sidecar: nil, retryEvidence: evidence) { _, _, _ in
+        let upload = SensorKitRecordUpload(
+            ordinal: ordinal,
+            sampleCount: 1,
+            timeRange: SensorKitPublicationHarness.start..<SensorKitPublicationHarness.start,
+            sidecar: nil,
+            retryEvidence: evidence
+        ) { _, _, _ in
             // Never built: checking a record's evidence only derives its identity.
             throw CancellationError()
         }

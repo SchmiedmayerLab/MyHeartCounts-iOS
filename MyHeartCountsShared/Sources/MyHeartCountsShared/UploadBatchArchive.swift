@@ -21,6 +21,10 @@ public import Foundation
 /// Bundle is kept until ``finalize()`` writes `bundles.json` and `batchinfo.json`. An archive that is not finalized
 /// removes its file. Every entry is compressed with Zstandard, unless that would not make it smaller.
 ///
+/// The same records, added in the same order, always produce the same entries. The archive's compressed bytes are the
+/// same only under the same version of Zstandard, which guarantees reproducible output within a release only; an
+/// archive rebuilt after an update may differ from an earlier one byte for byte while holding the same entries.
+///
 /// ``Reader`` reads an archive back.
 public struct UploadBatchArchive: ~Copyable {
     /// A recording a record's Bundle references.
@@ -202,14 +206,14 @@ extension UploadBatchArchive {
         public let recordingPaths: [String]
         private let archive: ZipArchive.Reader
 
-        /// Reads the archive at `url`.
-        public init(contentsOf url: URL) throws {
-            try self.init(archive: ZipArchive.Reader(contentsOf: url))
+        /// Reads the archive at `url`, refusing to decompress any part larger than `maximumEntrySize`.
+        public init(contentsOf url: URL, maximumEntrySize: Int = ZipArchive.Reader.defaultMaximumEntrySize) throws {
+            try self.init(archive: ZipArchive.Reader(contentsOf: url, maximumEntrySize: maximumEntrySize))
         }
 
-        /// Reads the archive `data` holds.
-        public init(_ data: Data) throws {
-            try self.init(archive: ZipArchive.Reader(data))
+        /// Reads the archive `data` holds, refusing to decompress any part larger than `maximumEntrySize`.
+        public init(_ data: Data, maximumEntrySize: Int = ZipArchive.Reader.defaultMaximumEntrySize) throws {
+            try self.init(archive: ZipArchive.Reader(data, maximumEntrySize: maximumEntrySize))
         }
 
         private init(archive: ZipArchive.Reader) throws {

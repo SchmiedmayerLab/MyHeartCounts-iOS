@@ -32,6 +32,17 @@ private struct ExportedRecord {
     let sidecar: SensorKitUploadSidecar?
     /// The number of the batch's samples the record holds, which the batch's info sums up.
     let sampleCount: Int
+    /// The time span the record's samples cover, which the batch's info sums up.
+    let timeRange: Range<Date>
+
+    /// The record `upload` prepared, under the identity `sourceRecordID`.
+    init(_ upload: SensorKitRecordUpload, sourceRecordID: SensorKitSourceRecordID) {
+        ordinal = upload.ordinal
+        self.sourceRecordID = sourceRecordID
+        sidecar = upload.sidecar
+        sampleCount = upload.sampleCount
+        timeRange = upload.timeRange
+    }
 }
 
 
@@ -93,6 +104,8 @@ struct SensorKitRecordUpload {
     let ordinal: Int
     /// The number of the batch's samples the record holds.
     let sampleCount: Int
+    /// The time span the record's samples cover, from the earliest sample's start to the latest sample's end.
+    let timeRange: Range<Date>
     /// The exact bytes uploaded beside the record's graph, if it has any.
     let sidecar: SensorKitUploadSidecar?
     /// The bytes a retry of the record must reproduce: Grove's retry evidence of the record.
@@ -109,6 +122,7 @@ struct SensorKitRecordUpload {
     init(
         ordinal: Int,
         sampleCount: Int,
+        timeRange: Range<Date>,
         sidecar: SensorKitUploadSidecar?,
         retryEvidence: Data,
         supplementalRetryEvidence: Data? = nil,
@@ -116,6 +130,7 @@ struct SensorKitRecordUpload {
     ) {
         self.ordinal = ordinal
         self.sampleCount = sampleCount
+        self.timeRange = timeRange
         self.sidecar = sidecar
         self.retryEvidence = retryEvidence
         self.supplementalRetryEvidence = supplementalRetryEvidence
@@ -157,8 +172,7 @@ extension MHCSensorSampleUploadStrategy {
                             contents: sidecar.data
                         )
                     },
-                    // SensorKit states no time span per record, only one for the batch.
-                    timeRange: publication.info.timeRange,
+                    timeRange: record.timeRange,
                     sampleCount: record.sampleCount
                 )
                 recordIDs.append(record.sourceRecordID.uuid)
@@ -210,12 +224,7 @@ extension MHCSensorSampleUploadStrategy {
                 SensorKitRecordRefusal(underlying: error).log(for: sensor, recordOrdinal: upload.ordinal)
                 continue
             }
-            exported.append(ExportedRecord(
-                ordinal: upload.ordinal,
-                sourceRecordID: sourceRecordID,
-                sidecar: upload.sidecar,
-                sampleCount: upload.sampleCount
-            ))
+            exported.append(ExportedRecord(upload, sourceRecordID: sourceRecordID))
         }
         guard !records.isEmpty else {
             return nil
@@ -248,5 +257,27 @@ extension MHCSensorSampleUploadStrategy {
         try publication.destination.validateCurrentAccount()
         try await publication.uploader.stageFile(file, ManagedFileUpload.Category(sensor), publication.destination.accountDataGeneration)
         return receipt
+    }
+}
+
+
+extension Sequence where Element: SensorKitSampleSafeRepresentation {
+    /// The time span the samples cover, from the earliest sample's start to the latest sample's end; `nil` if there are
+    /// no samples.
+    ///
+    /// Unlike a fetched batch's `timeRange`, which spans the samples' starts only, this includes the last sample's duration.
+    var coveredTimeRange: Range<Date>? {
+        var iterator = self.makeIterator()
+        guard let fstSampleTimeRange = iterator.next()?.timeRange else {
+            return nil
+        }
+        var lowerBound = fstSampleTimeRange.lowerBound
+        var upperBound = fstSampleTimeRange.upperBound
+        while let sample = iterator.next() {
+            let sampleRange = sample.timeRange
+            lowerBound = Swift::min(lowerBound, sampleRange.lowerBound)
+            upperBound = Swift::max(upperBound, sampleRange.upperBound)
+        }
+        return lowerBound..<upperBound
     }
 }

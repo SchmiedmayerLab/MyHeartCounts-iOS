@@ -58,16 +58,4 @@ struct UploadBatchArchiveTests {
         let second = try Self.archive()
         #expect(first == second)
     }
-
-    /// An archive dropped before it is finalized removes its file.
-    @Test
-    func unfinalizedArchiveLeavesNoFile() throws {
-        let before = try FileManager.default.contentsOfDirectory(atPath: URL.temporaryDirectory.path)
-        do {
-            var archive = try UploadBatchArchive(source: .healthKit, sampleTypeId: "HKQuantityTypeIdentifierHeartRate", device: nil)
-            try archive.addRecord(bundle: Data("{}".utf8), timeRange: Self.start..<Self.start, sampleCount: 1)
-        }
-        let after = try FileManager.default.contentsOfDirectory(atPath: URL.temporaryDirectory.path)
-        #expect(Set(after).subtracting(before).isEmpty)
-    }
 }

@@ -61,6 +61,8 @@ public struct ZipArchive: ~Copyable {
         case writeFailed
         /// The archive could not be parsed, or an entry's contents do not match its stored size or CRC-32.
         case malformedArchive
+        /// Reading the entry at `path` would exceed the reader's size limit.
+        case sizeLimitExceeded(path: String)
         /// An entry is encrypted, or compressed with a method other than storing, deflating or Zstandard.
         case unsupportedEntry(path: String)
     }
@@ -239,16 +241,19 @@ extension ZipArchive {
         defer {
             deflateEnd(&stream)
         }
-        guard let inputCount = uInt(exactly: contents.count) else {
+        // zlib counts its buffers in 32 bits, and the bound on the output can exceed the input's count.
+        guard let inputCount = uInt(exactly: contents.count),
+              let outputCount = uInt(exactly: deflateBound(&stream, uLong(inputCount))),
+              let outputByteCount = Int(exactly: outputCount) else {
             throw ZipError.tooLarge
         }
-        var output = Data(count: Int(deflateBound(&stream, uLong(inputCount))))
+        var output = Data(count: outputByteCount)
         let status = contents.withUnsafeBytes { input in
             output.withUnsafeMutableBytes { output in
                 stream.next_in = input.baseAddress.map { UnsafeMutablePointer(mutating: $0.assumingMemoryBound(to: Bytef.self)) }
                 stream.avail_in = inputCount
                 stream.next_out = output.baseAddress?.assumingMemoryBound(to: Bytef.self)
-                stream.avail_out = uInt(output.count)
+                stream.avail_out = outputCount
                 return deflate(&stream, Z_FINISH)
             }
         }
@@ -316,34 +321,43 @@ extension ZipArchive {
     /// Creating a reader reads only the archive's central directory, which lists its ``entries``; ``contents(of:)`` then
     /// reads, decompresses and checks the contents of one entry, and of no other. Reading from a file seeks to the parts
     /// it needs, so the archive is never held in memory as a whole.
+    ///
+    /// An archive states each entry's size itself, so the reader refuses to decompress any entry larger than its
+    /// `maximumEntrySize` before it allocates any memory for the entry.
     public struct Reader {
+        /// The largest entry a reader decompresses unless told otherwise: 1 GiB.
+        public static let defaultMaximumEntrySize = 1 << 30
+
         /// The archive's entries, in central-directory order.
         public let entries: [EntryInfo]
+        /// The size of the largest entry this reader decompresses, in bytes.
+        public let maximumEntrySize: Int
         private let source: Source
 
         /// Reads the central directory of the archive at `url`.
-        public init(contentsOf url: URL) throws {
-            try self.init(source: Source(fileAt: url))
+        public init(contentsOf url: URL, maximumEntrySize: Int = Reader.defaultMaximumEntrySize) throws {
+            try self.init(source: Source(fileAt: url), maximumEntrySize: maximumEntrySize)
         }
 
         /// Reads the central directory of the archive `data` holds.
-        public init(_ data: Data) throws {
-            try self.init(source: Source(data))
+        public init(_ data: Data, maximumEntrySize: Int = Reader.defaultMaximumEntrySize) throws {
+            try self.init(source: Source(data), maximumEntrySize: maximumEntrySize)
         }
 
-        private init(source: Source) throws {
+        private init(source: Source, maximumEntrySize: Int) throws {
             let endRecordOffset = try Self.endOfCentralDirectoryOffset(in: source)
             var endRecord = ByteReader(try source.read(at: endRecordOffset + 4, count: 18), offset: 0)
             let disk = try endRecord.read(UInt16.self)
             let centralDirectoryDisk = try endRecord.read(UInt16.self)
             let entriesOnDisk = try endRecord.read(UInt16.self)
             let entryCount = try endRecord.read(UInt16.self)
-            let centralDirectorySize = Int(try endRecord.read(UInt32.self))
-            let centralDirectoryOffset = Int(try endRecord.read(UInt32.self))
+            let centralDirectorySize = try endRecord.readSize()
+            let centralDirectoryOffset = try endRecord.readSize()
             guard disk == 0,
                   centralDirectoryDisk == 0,
                   entriesOnDisk == entryCount,
-                  centralDirectoryOffset + centralDirectorySize <= endRecordOffset else {
+                  centralDirectoryOffset <= endRecordOffset,
+                  centralDirectorySize <= endRecordOffset - centralDirectoryOffset else {
                 throw ZipError.malformedArchive
             }
             var centralDirectory = ByteReader(
@@ -352,10 +366,17 @@ extension ZipArchive {
             )
             var entries: [EntryInfo] = []
             entries.reserveCapacity(Int(entryCount))
+            var paths = Set<String>()
             for _ in 0..<entryCount {
-                entries.append(try Self.readEntryInfo(at: &centralDirectory))
+                let entry = try Self.readEntryInfo(at: &centralDirectory)
+                // Readers disagree on which of two entries under one path wins, so an archive may not have any.
+                guard paths.insert(entry.path).inserted else {
+                    throw ZipError.duplicatePath(entry.path)
+                }
+                entries.append(entry)
             }
             self.entries = entries
+            self.maximumEntrySize = maximumEntrySize
             self.source = source
         }
 
@@ -371,27 +392,31 @@ extension ZipArchive {
             _ = try centralDirectory.read(UInt16.self) // modification time
             _ = try centralDirectory.read(UInt16.self) // modification date
             let crc32 = try centralDirectory.read(UInt32.self)
-            let compressedSize = try centralDirectory.read(UInt32.self)
-            let size = try centralDirectory.read(UInt32.self)
+            let compressedSize = try centralDirectory.readSize()
+            let size = try centralDirectory.readSize()
             let nameLength = try centralDirectory.read(UInt16.self)
             let extraLength = try centralDirectory.read(UInt16.self)
             let commentLength = try centralDirectory.read(UInt16.self)
             _ = try centralDirectory.read(UInt16.self) // disk number start
             _ = try centralDirectory.read(UInt16.self) // internal attributes
             _ = try centralDirectory.read(UInt32.self) // external attributes
-            let localHeaderOffset = try centralDirectory.read(UInt32.self)
+            let localHeaderOffset = try centralDirectory.readSize()
             let path = String(decoding: try centralDirectory.read(byteCount: Int(nameLength)), as: UTF8.self)
             _ = try centralDirectory.read(byteCount: Int(extraLength) + Int(commentLength))
             guard !flags.contains(.encrypted), let method = Method(rawValue: method) else {
                 throw ZipError.unsupportedEntry(path: path)
             }
+            // A stored entry's contents are its stored bytes.
+            guard method != .stored || compressedSize == size else {
+                throw ZipError.malformedArchive
+            }
             return EntryInfo(
                 path: path,
-                size: Int(size),
-                compressedSize: Int(compressedSize),
+                size: size,
+                compressedSize: compressedSize,
                 compression: method.compression,
                 crc32: crc32,
-                localHeaderOffset: Int(localHeaderOffset)
+                localHeaderOffset: localHeaderOffset
             )
         }
 
@@ -406,7 +431,12 @@ extension ZipArchive {
             let tail = try source.read(at: tailOffset, count: source.size - tailOffset)
             for offset in stride(from: tail.count - recordSize, through: 0, by: -1) {
                 var reader = ByteReader(tail, offset: offset)
-                if try reader.read(UInt32.self) == ZipArchive.endOfCentralDirectorySignature {
+                guard try reader.read(UInt32.self) == ZipArchive.endOfCentralDirectorySignature else {
+                    continue
+                }
+                _ = try reader.read(byteCount: 16) // disks, entry counts, central directory size and offset
+                // The record is followed by exactly its comment; a signature within a comment is followed by more.
+                if offset + recordSize + Int(try reader.read(UInt16.self)) == tail.count {
                     return tailOffset + offset
                 }
             }
@@ -414,15 +444,43 @@ extension ZipArchive {
         }
 
         /// The contents of `entry`, one of this archive's ``entries``, checked against its size and CRC-32.
+        ///
+        /// - throws: ``ZipError/sizeLimitExceeded(path:)`` for an entry larger than ``maximumEntrySize``.
         public func contents(of entry: EntryInfo) throws -> Data {
+            guard entry.size <= maximumEntrySize else {
+                throw ZipError.sizeLimitExceeded(path: entry.path)
+            }
             var localHeader = ByteReader(try source.read(at: entry.localHeaderOffset, count: 30), offset: 0)
             guard try localHeader.read(UInt32.self) == ZipArchive.localFileHeaderSignature else {
                 throw ZipError.malformedArchive
             }
-            _ = try localHeader.read(byteCount: 22) // version needed, flags, method, time, date, CRC-32, sizes
+            _ = try localHeader.read(UInt16.self) // version needed to extract
+            let flags = GeneralPurposeFlags(rawValue: try localHeader.read(UInt16.self))
+            let method = try localHeader.read(UInt16.self)
+            _ = try localHeader.read(UInt16.self) // modification time
+            _ = try localHeader.read(UInt16.self) // modification date
+            let crc32 = try localHeader.read(UInt32.self)
+            let compressedSize = try localHeader.readSize()
+            let size = try localHeader.readSize()
             let nameLength = Int(try localHeader.read(UInt16.self))
             let extraLength = Int(try localHeader.read(UInt16.self))
-            let payload = try source.read(at: entry.localHeaderOffset + 30 + nameLength + extraLength, count: entry.compressedSize)
+            // The local header precedes the stored bytes `entry.localHeaderOffset` points at, which the read above checked.
+            let nameOffset = entry.localHeaderOffset + 30
+            let name = try source.read(at: nameOffset, count: nameLength)
+            // The local header must describe the entry as the central directory does; with a data descriptor, it leaves
+            // the CRC-32 and the sizes to the descriptor that follows the stored bytes.
+            guard String(decoding: name, as: UTF8.self) == entry.path,
+                  Method(rawValue: method)?.compression == entry.compression,
+                  !flags.contains(.encrypted),
+                  flags.contains(.dataDescriptor)
+                    || (crc32 == entry.crc32 && compressedSize == entry.compressedSize && size == entry.size) else {
+                throw ZipError.malformedArchive
+            }
+            let (dataOffset, overflow) = nameOffset.addingReportingOverflow(nameLength + extraLength)
+            guard !overflow else {
+                throw ZipError.malformedArchive
+            }
+            let payload = try source.read(at: dataOffset, count: entry.compressedSize)
             let contents: Data
             switch entry.compression {
             case .none:
@@ -460,7 +518,10 @@ extension ZipArchive {
 
         init(fileAt url: URL) throws {
             let handle = try FileHandle(forReadingFrom: url)
-            size = Int(try handle.seekToEnd())
+            guard let size = Int(exactly: try handle.seekToEnd()) else {
+                throw ZipError.tooLarge
+            }
+            self.size = size
             readBytes = { offset, count in
                 try handle.seek(toOffset: UInt64(offset))
                 return try handle.read(upToCount: count) ?? Data()
@@ -481,8 +542,19 @@ extension ZipArchive {
     }
 
     /// Reads all entries of the archive `data` holds, with their contents, in central-directory order.
-    public static func entries(in data: Data) throws -> [Entry] {
-        let reader = try Reader(data)
+    ///
+    /// - parameter maximumTotalSize: The largest number of bytes all entries' contents may add up to; an archive whose
+    ///     entries exceed it is refused before any entry is read.
+    public static func entries(in data: Data, maximumTotalSize: Int = Reader.defaultMaximumEntrySize) throws -> [Entry] {
+        let reader = try Reader(data, maximumEntrySize: maximumTotalSize)
+        var totalSize = 0
+        for entry in reader.entries {
+            // Compared before adding, so that the sum cannot overflow.
+            guard entry.size <= maximumTotalSize - totalSize else {
+                throw ZipError.sizeLimitExceeded(path: entry.path)
+            }
+            totalSize += entry.size
+        }
         return try reader.entries.map { Entry(path: $0.path, contents: try reader.contents(of: $0)) }
     }
 }
@@ -520,6 +592,8 @@ extension ZipArchive {
     private struct GeneralPurposeFlags: OptionSet {
         /// Bit 0: the entry is encrypted.
         static let encrypted = Self(rawValue: 1 << 0)
+        /// Bit 3: the entry's CRC-32 and sizes follow its stored bytes, in a data descriptor, rather than its local header.
+        static let dataDescriptor = Self(rawValue: 1 << 3)
         /// Bit 11, the language encoding flag: the entry's path is UTF-8.
         static let utf8Path = Self(rawValue: 1 << 11)
 
@@ -646,6 +720,14 @@ extension ZipArchive {
             let start = data.startIndex + offset
             offset += byteCount
             return Data(data[start..<(start + byteCount)])
+        }
+
+        /// A 32-bit size or offset, which is malformed where it does not fit an `Int` (whose width is 32 bits on watchOS).
+        mutating func readSize() throws -> Int {
+            guard let size = Int(exactly: try read(UInt32.self)) else {
+                throw ZipArchive.ZipError.malformedArchive
+            }
+            return size
         }
 
         mutating func read<Value: FixedWidthInteger>(_: Value.Type) throws -> Value {

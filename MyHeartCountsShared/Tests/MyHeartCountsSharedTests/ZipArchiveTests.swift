@@ -224,4 +224,55 @@ extension ZipArchiveTests {
             try ZipArchive.entries(in: archive.dropLast(1))
         }
     }
+
+    /// An entry larger than the reader's limit is refused before it is decompressed, as are entries larger in total.
+    @Test
+    func entriesBeyondTheSizeLimitAreRefused() throws {
+        let entry = Self.entries[0]
+        let reader = try ZipArchive.Reader(Self.archive([entry]), maximumEntrySize: entry.contents.count - 1)
+        let info = try #require(reader.entries.first)
+        #expect(throws: ZipArchive.ZipError.sizeLimitExceeded(path: entry.path)) {
+            try reader.contents(of: info)
+        }
+        #expect(throws: ZipArchive.ZipError.sizeLimitExceeded(path: Self.entries[1].path)) {
+            try ZipArchive.entries(in: Self.archive(Self.entries), maximumTotalSize: entry.contents.count)
+        }
+    }
+
+    /// The end record is the one its comment ends the archive after, not an end-record signature within that comment.
+    @Test
+    func endRecordSignatureWithinTheCommentIsSkipped() throws {
+        var archive = try Self.archive(Self.entries)
+        // A comment that holds a would-be end record of an empty archive, followed by one more byte.
+        let comment = Data([0x50, 0x4B, 0x05, 0x06] + [UInt8](repeating: 0, count: 18) + [0x41])
+        archive[archive.endIndex - 2] = UInt8(comment.count)
+        archive.append(comment)
+        #expect(try ZipArchive.entries(in: archive) == Self.entries)
+    }
+
+    /// Two entries under one path make an archive malformed, whichever of them a reader would pick.
+    @Test
+    func duplicatePathsAreRefused() throws {
+        let archive = try Self.archive([
+            .init(path: "entry-one", contents: Data("1".utf8)),
+            .init(path: "entry-two", contents: Data("2".utf8))
+        ])
+        let duplicated = archive.replacing(Data("entry-two".utf8), with: Data("entry-one".utf8))
+        #expect(throws: ZipArchive.ZipError.duplicatePath("entry-one")) {
+            try ZipArchive.Reader(duplicated)
+        }
+    }
+
+    /// A local header that describes its entry differently from the central directory makes the entry malformed.
+    @Test
+    func localHeaderMustMatchTheCentralDirectory() throws {
+        var archive = try Self.archive([.init(path: "entry-one", contents: Data("1".utf8))])
+        // The local header, which comes first, states the path right after its 30 fixed bytes.
+        archive.replaceSubrange((archive.startIndex + 30)..<(archive.startIndex + 39), with: Data("entry-two".utf8))
+        let reader = try ZipArchive.Reader(archive)
+        let entry = try #require(reader.entries.first)
+        #expect(throws: ZipArchive.ZipError.malformedArchive) {
+            try reader.contents(of: entry)
+        }
+    }
 }

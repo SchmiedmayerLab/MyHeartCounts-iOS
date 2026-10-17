@@ -252,7 +252,8 @@ extension DeviceUsageFHIRExchangeTests {
         #expect(info.numRecords == 1)
         #expect(info.numSamples == 1)
         #expect(info.startDate == Self.timestamp)
-        #expect(info.endDate == Self.timestamp.addingTimeInterval(600))
+        // The report's own span, which its duration ends, rather than the fetched batch's.
+        #expect(info.endDate == Self.timestamp.addingTimeInterval(600.25))
         let graphs = try uploads.graphs
         #expect(graphs.count == 1)
         #expect(try stagedEvent(try #require(graphs.first)).sequence.rawValue == "1")
