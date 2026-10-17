@@ -67,7 +67,11 @@ final class ConsentTests: MHCTestCase, @unchecked Sendable {
         let consentPdf = app.otherElements["QLPreviewControllerView"].textViews.element
         XCTAssert(consentPdf.waitForExistence(timeout: 5))
         XCTAssert(consentPdf.staticTexts["My Heart Counts Consent Form"].waitForExistence(timeout: 2))
-        XCTAssert(consentPdf.staticTexts["# STANFORD UNIVERSITY\n## CONSENT TO BE PART OF A RESEARCH STUDY"].waitForExistence(timeout: 2))
+        XCTAssert(
+            consentPdf.staticTexts.matching("label LIKE %@", "Exported: * at *").element.waitForExistence(timeout: 2)
+        )
+        XCTAssert(consentPdf.staticTexts["STANFORD UNIVERSITY"].waitForExistence(timeout: 2))
+        XCTAssert(consentPdf.staticTexts["CONSENT TO BE PART OF A RESEARCH STUDY"].waitForExistence(timeout: 2))
         XCTAssert(
             consentPdf.staticTexts.element(
                 matching: "label BEGINSWITH %@", #"You are invited to participate in a research study, "My Heart Counts,""#
