@@ -69,17 +69,6 @@ struct ZipArchiveTests {
         UInt16(archive[archive.startIndex + 8]) | UInt16(archive[archive.startIndex + 9]) << 8
     }
 
-    private static func unzip(_ arguments: [String]) throws -> Int32 {
-        let process = Process()
-        process.executableURL = URL(filePath: unzipPath)
-        process.arguments = arguments
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-        process.waitUntilExit()
-        return process.terminationStatus
-    }
-
     @Test
     func crc32MatchesTheKnownAnswer() {
         let crc32 = ZipArchive.crc32
@@ -155,7 +144,22 @@ struct ZipArchiveTests {
             #expect(!FileManager.default.fileExists(atPath: url.path))
         }
     }
+}
 
+
+#if os(macOS) || os(Linux)
+extension ZipArchiveTests {
+    private static func unzip(_ arguments: [String]) throws -> Int32 {
+        let process = Process()
+        process.executableURL = URL(filePath: unzipPath)
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        return process.terminationStatus
+    }
+    
     /// An independent extractor accepts the archive and recovers every entry's exact bytes.
     ///
     /// The archive is extracted as a whole: `Process` passes its arguments in their file system representation, whose
@@ -178,6 +182,7 @@ struct ZipArchiveTests {
         }
     }
 }
+#endif
 
 
 extension ZipArchiveTests {
