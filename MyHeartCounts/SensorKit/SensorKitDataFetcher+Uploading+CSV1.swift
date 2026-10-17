@@ -37,6 +37,7 @@ where Sample.SafeRepresentation: SensorKitTabularSample {
         }
         let upload = SensorKitRecordUpload(
             ordinal: 0,
+            sampleCount: samples.count,
             sidecar: SensorKitUploadSidecar(data: recording.data, fileExtension: "csv"),
             retryEvidence: recording.retryEvidence
         ) { sourceRecordID, title, sidecarPath in

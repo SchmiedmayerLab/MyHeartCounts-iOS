@@ -36,6 +36,7 @@ extension SRPhotoplethysmogramSample {
             }
             let upload = SensorKitRecordUpload(
                 ordinal: 0,
+                sampleCount: ppgSamples.count,
                 sidecar: SensorKitUploadSidecar(data: prepared.data, fileExtension: "mhcPPG2"),
                 retryEvidence: prepared.retryEvidence
             ) { sourceRecordID, title, sidecarPath in

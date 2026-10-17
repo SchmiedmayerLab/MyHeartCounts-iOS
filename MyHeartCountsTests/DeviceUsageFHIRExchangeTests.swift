@@ -20,63 +20,6 @@ import Testing
 @testable import MyHeartCounts
 
 
-/// What a publication under test staged, in order.
-final class RecordedSensorKitUploads: Sendable {
-    /// One batch file staged under its remote path, with its exact bytes.
-    struct StagedFile: Equatable {
-        let path: String
-        let bytes: Data
-    }
-
-    struct StageFailure: Error {}
-
-    private let files = Mutex<[StagedFile]>([])
-    /// Whether staging a file fails, after the file was recorded.
-    private let failsStaging: Bool
-
-    var all: [StagedFile] {
-        files.withLock { $0 }
-    }
-
-    /// The entries of the staged archives, in staging order and, within an archive, in archive order.
-    var entries: [ZipArchive.Entry] {
-        get throws {
-            try all.flatMap { try ZipArchive.entries(in: $0.bytes) }
-        }
-    }
-
-    /// The graphs the staged archives carry, in staging order and, within an archive, in record order.
-    var graphs: [Data] {
-        get throws {
-            try entries.filter { $0.path.hasPrefix("bundles/") }.map(\.contents)
-        }
-    }
-
-    /// The recordings the staged archives carry, by their path within their archive.
-    var recordings: [String: Data] {
-        get throws {
-            Dictionary(try entries.filter { $0.path.hasPrefix("recordings/") }.map { ($0.path, $0.contents) }) { _, later in later }
-        }
-    }
-
-    var uploader: SensorKitRecordUploader {
-        SensorKitRecordUploader { file, category, _ in
-            let bytes = try Data(contentsOf: file)
-            self.files.withLock { $0.append(StagedFile(path: category.remotePath(for: file.lastPathComponent), bytes: bytes)) }
-            if self.failsStaging {
-                throw StageFailure()
-            }
-            // Staging takes the file, as the managed file upload does.
-            try FileManager.default.removeItem(at: file)
-        }
-    }
-
-    init(failingStaging: Bool = false) {
-        self.failsStaging = failingStaging
-    }
-}
-
-
 /// Serialized: every test publishes the same records, whose batch files are staged under names their identities derive.
 @Suite(.serialized)
 struct DeviceUsageFHIRExchangeTests {
@@ -290,7 +233,7 @@ struct DeviceUsageFHIRExchangeTests {
 
 extension DeviceUsageFHIRExchangeTests {
     /// The batch is staged as one archive, named by the identities of its records, holding each record's graph and
-    /// recording; the batch's events stay reserved until its receipt is released.
+    /// recording, and the batch's info; the batch's events stay reserved until its receipt is released.
     @Test
     func publishedBatchStagesOneArchiveOfItsGraphsAndRecordings() async throws {
         let publication = try publication()
@@ -301,8 +244,15 @@ extension DeviceUsageFHIRExchangeTests {
         let receipt = try #require(try await Self.upload([report], publication: publication))
 
         #expect(uploads.all.map(\.path) == [Self.batchFilePath(of: [sourceRecordID])])
-        #expect(try uploads.entries.map(\.path) == ["bundles/\(sourceRecordID.value).json", "recordings/\(sourceRecordID.value).json"])
+        #expect(try uploads.entries.map(\.path) == ["recordings/\(sourceRecordID.value).json", "bundles.json", "batchinfo.json"])
         #expect(try uploads.recordings["recordings/\(sourceRecordID.value).json"] == prepared.nativePayload)
+        let info = try #require(try uploads.archives.first).info
+        #expect(info.source == .sensorKit)
+        #expect(info.sampleTypeId == Sensor.deviceUsage.id)
+        #expect(info.numRecords == 1)
+        #expect(info.numSamples == 1)
+        #expect(info.startDate == Self.timestamp)
+        #expect(info.endDate == Self.timestamp.addingTimeInterval(600))
         let graphs = try uploads.graphs
         #expect(graphs.count == 1)
         #expect(try stagedEvent(try #require(graphs.first)).sequence.rawValue == "1")

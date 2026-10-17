@@ -38,6 +38,7 @@ struct UploadStrategyECG: MHCSensorSampleUploadStrategy {
             }
             uploads.append(SensorKitRecordUpload(
                 ordinal: recordOrdinal,
+                sampleCount: 1,
                 sidecar: SensorKitUploadSidecar(data: payload, fileExtension: "json"),
                 retryEvidence: prepared.retryEvidence,
                 supplementalRetryEvidence: session.retryEvidenceSupplement
