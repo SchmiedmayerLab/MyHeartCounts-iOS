@@ -227,7 +227,7 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
     /// Publishes one fetched batch and advances its cursor as one indivisible step.
     ///
     /// The unstructured task deliberately does not inherit a background-task cancellation that may
-    /// arrive after sidecar staging but before the Bundle and the cursor are durable. The batch's events
+    /// arrive after the batch's file is staged but before its cursor is durable. The batch's events
     /// are released only once its cursor is acknowledged: until then, a redelivery restates them.
     private func publishAndAcknowledge<Sample, Strategy: MHCSensorSampleUploadStrategy<Sample>>(
         _ batch: SensorKit.AnchoredBatch<Sample.SafeRepresentation>,
@@ -256,7 +256,7 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
     }
 
 
-    /// Fetches all new SensorKit samples for the specified sensor (relative to the last time the function was called for the sensor), and uploads them all into the Firestore.
+    /// Fetches all new SensorKit samples for the specified sensor (relative to the last time the function was called for the sensor), and uploads them all.
     ///
     /// Other than a cancellation or unavailable protected data, a failure is logged rather than thrown, so that one sensor cannot stop the others.
     /// If the failure means that the sensor's pending batch can never be acknowledged, the batch is abandoned, and the next fetch reads its range again.
@@ -332,7 +332,7 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
     }
     
     
-    /// Fetches all SensorKit samples for the specified sensor, and uploads them all into the Firestore.
+    /// Fetches all SensorKit samples for the specified sensor, and uploads them all.
     ///
     /// Primarily intended for testing purposes.
     @concurrent

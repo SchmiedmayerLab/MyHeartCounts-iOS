@@ -39,7 +39,7 @@ private final class PinnedVisit: SRVisit, @unchecked Sendable {
 /// The configuration MHC's SensorKit exporter factory passes Grove, pinned through the graphs it exports, as no part of
 /// it can change without re-identifying, or silently changing, every SensorKit record already exported.
 ///
-/// Serialized: every test publishes records whose sidecars are written under their source-record identifiers.
+/// Serialized: every test publishes records whose batch files are staged under names their identities derive.
 @Suite(.serialized)
 struct SensorKitExporterConfigurationTests {
     private static let sourceRecordSystem = "https://myheartcounts.stanford.edu/fhir/NamingSystem/grove-source-record-v0/store/1"
@@ -54,13 +54,13 @@ struct SensorKitExporterConfigurationTests {
         try harness.store.useKnownIdentitySecret()
         let publication = try harness.publication(uploads: uploads)
         let receipt = try await DeviceUsageFHIRExchangeTests.upload([DeviceUsageFHIRExchangeTests.report()], publication: publication)
-        let (documentID, json) = try #require(uploads.graphs.first)
+        let json = try #require(try uploads.graphs.first)
         let identifiers = try statedIdentifiers(in: json)
+        let sourceRecordID = "80fa7885-e782-8341-878d-fa432e1db83a"
         let sourceRecord = "v0:store:1:5umAJNjJxfgxT9yk_MVFyZqNFQi_nzDE6bEsxY1_--w"
 
-        #expect(documentID == "80fa7885-e782-8341-878d-fa432e1db83a")
         #expect(identifiers.contains {
-            $0.system == "https://myheartcounts.stanford.edu/fhir/identifiers/sensorkit-record" && $0.value == documentID
+            $0.system == "https://myheartcounts.stanford.edu/fhir/identifiers/sensorkit-record" && $0.value == sourceRecordID
         })
         #expect(Set(identifiers.filter { $0.system == Self.sourceRecordSystem }.map(\.value)) == [sourceRecord])
         // That is the record's source-record identity in the SensorKit repository of the known store.
@@ -72,7 +72,7 @@ struct SensorKitExporterConfigurationTests {
             adapterID: "sensorkit",
             sourceType: publication.sourceToken,
             repositoryScope: repository,
-            nativeRecordID: documentID
+            nativeRecordID: sourceRecordID
         ).identifier.identifier.value == sourceRecord)
         receipt?.release()
     }
@@ -88,7 +88,7 @@ struct SensorKitExporterConfigurationTests {
             for: Sensor.visits,
             activity: SensorKitDataFetcher.InProgressActivity(sensor: Sensor.visits)
         )
-        let json = try #require(uploads.graphs.values.first)
+        let json = try #require(try uploads.graphs.first)
         let locationID = PinnedVisit.locationID.uuidString.lowercased()
 
         #expect(
