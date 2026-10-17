@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import GroveFHIRContract
 import GroveSensorKit
 import GroveSensorKitFHIR
 import SensorKit
@@ -20,39 +21,35 @@ extension SRPhotoplethysmogramSample {
             _ samples: consuming some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
             publication: SensorKitBatchPublication,
             for sensor: Sensor<SRPhotoplethysmogramSample>,
-            to standard: MyHeartCountsStandard,
             activity: SensorKitDataFetcher.InProgressActivity
-        ) async throws {
+        ) async throws -> ExchangeProducer.Receipt? {
             guard !samples.isEmpty else {
-                return
+                return nil
             }
             let ppgSamples = Array(samples)
-            do {
-                // The whole batch is one record, so a batch Grove refuses is skipped as a whole.
-                let prepared = try SensorKitRecordRefusal.refusing {
-                    try SensorKitPPGRecording(samples: ppgSamples).prepared()
-                }
-                try await self.upload(
-                    sidecar: SensorKitUploadSidecar(data: prepared.data, format: prepared.format),
-                    retryEvidence: prepared.retryEvidence,
-                    for: sensor,
-                    publication: publication,
-                    to: standard,
-                    activity: activity
-                ) { sourceRecordID, title, sidecarPath in
-                    guard let sidecarPath else {
-                        throw SensorKitRecordError.missingProviderValue("photoplethysmogram.location")
-                    }
-                    return try prepared.sensorKitRecord(
-                        sourceRecordID: sourceRecordID,
-                        title: title,
-                        location: .sidecar(path: sidecarPath),
-                        admission: .callerAuthorizedOpaquePayload
-                    )
-                }
-            } catch let refusal as SensorKitRecordRefusal {
-                refusal.log(for: sensor, recordOrdinal: 0)
+            // The whole batch is one record, so a batch Grove refuses is skipped as a whole.
+            let prepared = try SensorKitRecordRefusal.preparing(record: 0, of: sensor, in: publication) {
+                try SensorKitPPGRecording(samples: ppgSamples).prepared()
             }
+            guard let prepared else {
+                return nil
+            }
+            let upload = SensorKitRecordUpload(
+                ordinal: 0,
+                sidecar: SensorKitUploadSidecar(data: prepared.data, fileExtension: "mhcPPG2"),
+                retryEvidence: prepared.retryEvidence
+            ) { sourceRecordID, title, sidecarPath in
+                guard let sidecarPath else {
+                    throw SensorKitRecordError.missingProviderValue("photoplethysmogram.location")
+                }
+                return try prepared.sensorKitRecord(
+                    sourceRecordID: sourceRecordID,
+                    title: title,
+                    location: .sidecar(path: sidecarPath),
+                    admission: .callerAuthorizedOpaquePayload
+                )
+            }
+            return try await publish([upload], for: sensor, publication: publication, activity: activity)
         }
     }
 }

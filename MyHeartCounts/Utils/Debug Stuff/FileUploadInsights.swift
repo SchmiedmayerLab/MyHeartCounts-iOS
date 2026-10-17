@@ -14,6 +14,8 @@ import SwiftUI
 struct FileUploadInsights: View {
     @Environment(ManagedFileUpload.self)
     private var managedFileUpload
+    /// When the queue was last reread: every two seconds, and at once when pulled down.
+    @State private var refreshed = Date.now
 
     private var inactiveCategories: [ManagedFileUpload.Category] {
         managedFileUpload.categories.filter { category in
@@ -26,11 +28,36 @@ struct FileUploadInsights: View {
     }
     
     var body: some View {
+        form
+            .refreshable {
+                refreshed = .now
+            }
+            .task {
+                // A category's `Progress` and its pending files' size change without notifying SwiftUI, so the queue
+                // is reread every two seconds. Only a change of the view's own state rereads the rows; a
+                // `TimelineView` tick redraws the timestamp but leaves them as they were.
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(2))
+                    refreshed = .now
+                }
+            }
+    }
+
+    private var form: some View {
         Form {
+            Section {
+                Text("Updated \(refreshed.formatted(date: .omitted, time: .standard))" as String)
+                    .foregroundStyle(.secondary)
+            }
             ForEach(Array(managedFileUpload.categories)) { category in
                 if let progress = managedFileUpload.progressByCategory[category] {
                     Section {
-                        ProgressView(progress)
+                        ProgressView(
+                            value: Double(progress.completedUnitCount),
+                            total: Double(max(progress.totalUnitCount, 1))
+                        ) {
+                            Text("\(progress.completedUnitCount) of \(progress.totalUnitCount) uploaded" as String)
+                        }
                     } header: {
                         Text(category.title)
                     } footer: {

@@ -16,6 +16,7 @@ import GroveFirebaseAccount
 import GroveFirestore
 import GroveFoundation
 import GroveHealthKit
+import GroveHealthKitFHIR
 import GroveLocalStorage
 import GroveNotifications
 import GroveScheduler
@@ -45,6 +46,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(Scheduler.self) var scheduler
     @Dependency(SensorKitDataFetcher.self) private var sensorKitFetcher
     @Dependency(HealthUploadStaging.self) var healthUploadStaging
+    @Dependency(FHIRExchangeLedger.self) var fhirExchangeLedger
     @Dependency(HealthUploadStagingUploader.self) private var healthUploadStagingUploader
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
@@ -67,7 +69,28 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         try DeferredConfigLoading.setActiveStudyVariant(variant)
     }
 
-    /// The encrypted, installation-scoped ledger shared by every FHIR publication path.
+    /// The encrypted, installation-scoped identity and SensorKit retry state.
+    ///
+    /// Every exchange event is reserved in ``fhirExchangeLedger`` instead.
+    /// Builds the app's one HealthKit exporter for the signed-in account and its current enrollment, or clears it
+    /// while no account is signed in; called when either changes, never per batch.
+    func refreshHealthKitExporter() async {
+        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
+        var exporter: HealthKitFHIRExporter?
+        do {
+            let subject = try await firebaseConfiguration.fhirExchangeSubject
+            exporter = try fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
+                .healthKitExporter(subject: subject, ledger: fhirExchangeLedger)
+        } catch {
+            logger.notice("No HealthKit exporter for the current account: \(error)")
+        }
+        // A logout while this refresh awaited the account must not see its exporter installed.
+        guard LocalPreferencesStore.standard[.accountDataGeneration] == accountDataGeneration else {
+            return
+        }
+        fhirExchangeLedger.setHealthKitExporter(exporter, accountDataGeneration: accountDataGeneration)
+    }
+
     func fhirExchangeStateStore(accountDataGeneration: Int) -> FHIRExchangeStateStore {
         FHIRExchangeStateStore(
             localStorage: localStorage,
@@ -78,6 +101,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @MainActor
     func configure() {
         Swift::Task {
+            await refreshHealthKitExporter()
             await handleIsLoggedOut()
             await handleStudyBundleUpdates()
         }
@@ -143,6 +167,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                 }
             }
             await Self._updateCurrentEnrollmentInfo(studyManager)
+            await refreshHealthKitExporter()
         } catch StudyManager.StudyEnrollmentError.alreadyEnrolledInNewerStudyRevision {
             // should be unreachable, but we'll handle this as a non-error just to be safe.
         } catch {
@@ -181,6 +206,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                     return
                 }
             }
+            await refreshHealthKitExporter()
             await managedFileUpload.resumePendingUploads()
             Swift::Task {
                 async let updateEnvTracking = environmentTracking?.triggerAll()
@@ -203,6 +229,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             logger.notice("account is being logged out")
             LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
             LocalPreferencesStore.standard[.accountDataGeneration] += 1
+            fhirExchangeLedger.setHealthKitExporter(nil, accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
             async let updateFCMToken = try? notificationsManager.setFCMToken(nil)
             async let syncAchievements = try? achievementsManager?.syncNow()
             _ = await (updateFCMToken, syncAchievements)
@@ -235,6 +262,7 @@ extension MyHeartCountsStandard {
             // we still want this to happen if the study bundle loading below failed
             Swift::Task {
                 await Self._updateCurrentEnrollmentInfo(studyManager)
+                await self.refreshHealthKitExporter()
             }
         }
         guard let studyBundle else {
@@ -272,6 +300,7 @@ extension MyHeartCountsStandard {
         // (flag first, then bump: a concurrent reader that snapshots the new generation must never see the flag still unset.)
         LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
         LocalPreferencesStore.standard[.accountDataGeneration] += 1
+        await fhirExchangeLedger.setHealthKitExporter(nil, accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
         // Account deletion and forced sign-outs bypass the achievement teardown in willLogOut.
         await achievementsManager?.disassociateFromAccount()
         switch context {
@@ -363,69 +392,77 @@ extension MyHeartCountsStandard {
     private func clearPendingAccountData() async throws {
         await healthUploadStagingUploader.cancelAndWaitForQuiescence()
         await sensorKitFetcher.cancelAllActiveCollection()
-
-        func attempt(_ name: String, _ operation: () async throws -> Void) async -> Bool {
-            do {
-                try await operation()
-                return true
-            } catch {
-                self.logger.error("Unable to clear \(name): \(error)")
-                return false
-            }
-        }
-        let historicalDataCleared = await attempt("historical HealthKit export state") {
-            try await historicalUploadManager.fullyResetSession(restart: false, clearPendingUploads: false)
-        }
-        let stagedFilesCleared = await attempt("staged upload files") {
-            try await managedFileUpload.clearPendingUploads()
-        }
-        let stagedHealthDataCleared = await attempt("staged health observations") {
-            try healthUploadStaging.clear()
-        }
-        let exchangeStateCleared = await attempt("FHIR exchange identity and retry state") {
-            try fhirExchangeStateStore(
-                accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
-            ).reset()
-        }
-        // An anchor left in place would make the next account resume where the previous account's SensorKit collection stopped.
-        let sensorKitAnchorsReset = await attempt("SensorKit query anchors") {
-            try await sensorKitFetcher.resetAllQueryAnchors()
-        }
-        await clinicalRecordPermissions.resetTracking()
-
-        guard historicalDataCleared,
-              stagedFilesCleared,
-              stagedHealthDataCleared,
-              exchangeStateCleared,
-              sensorKitAnchorsReset else {
-            throw PendingAccountDataCleanupError.failed
-        }
-        LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = false
+        try await Self.clearAccountData(
+            [
+                AccountDataCleanupStep("historical HealthKit export state") {
+                    try await self.historicalUploadManager.fullyResetSession(restart: false, clearPendingUploads: false)
+                },
+                AccountDataCleanupStep("staged upload files") {
+                    try await self.managedFileUpload.clearPendingUploads()
+                },
+                AccountDataCleanupStep("staged health observations") {
+                    try self.healthUploadStaging.clear()
+                },
+                AccountDataCleanupStep("FHIR exchange identity and retry state") {
+                    let generation = LocalPreferencesStore.standard[.accountDataGeneration]
+                    try self.fhirExchangeStateStore(accountDataGeneration: generation).reset()
+                },
+                // An anchor left in place would make the next account resume where the previous account's SensorKit collection stopped.
+                AccountDataCleanupStep("SensorKit query anchors") {
+                    try await self.sensorKitFetcher.resetAllQueryAnchors()
+                },
+                AccountDataCleanupStep("clinical record permission tracking") {
+                    await self.clinicalRecordPermissions.resetTracking()
+                }
+            ],
+            exchangeLedger: fhirExchangeLedger,
+            preferences: .standard,
+            logger: logger
+        )
     }
 }
 
 
 extension MyHeartCountsStandard {
-    func stageHistoricalHealthKitFile(
-        at url: URL,
-        accountDataGeneration: Int
-    ) async throws {
-        try await managedFileUpload.stage(
-            url,
-            category: .historicalHealthUpload,
-            accountDataGeneration: accountDataGeneration
-        )
+    /// One step of clearing the previous account's local data.
+    struct AccountDataCleanupStep {
+        let name: String
+        let run: () async throws -> Void
+
+        init(_ name: String, _ run: @escaping () async throws -> Void) {
+            self.name = name
+            self.run = run
+        }
     }
 
-    func uploadSensorKitFile(
-        at url: URL,
-        for sensor: Sensor<some Any>,
-        accountDataGeneration: Int
+    /// Clears the previous account's local data: runs every step, each one even when an earlier one failed, then
+    /// resets `exchangeLedger` to the account generation the logout rotated to, and ends the pending cleanup only
+    /// when all of them succeeded.
+    ///
+    /// The ledger reset is not live-fenced, as cleanup is pending while it runs and the preferences rotated the
+    /// generation first. While it fails, cleanup stays pending, so the ledger's live fence keeps refusing every
+    /// HealthKit export until a later cleanup succeeds.
+    static func clearAccountData(
+        _ steps: [AccountDataCleanupStep],
+        exchangeLedger: FHIRExchangeLedger,
+        preferences: LocalPreferencesStore,
+        logger: Logger
     ) async throws {
-        try await managedFileUpload.stage(
-            url,
-            category: ManagedFileUpload.Category(sensor),
-            accountDataGeneration: accountDataGeneration
-        )
+        let ledgerReset = AccountDataCleanupStep("FHIR exchange ledger") {
+            try exchangeLedger.reset(toAccountDataGeneration: preferences[.accountDataGeneration])
+        }
+        var allSucceeded = true
+        for step in steps + [ledgerReset] {
+            do {
+                try await step.run()
+            } catch {
+                logger.error("Unable to clear \(step.name): \(error)")
+                allSucceeded = false
+            }
+        }
+        guard allSucceeded else {
+            throw PendingAccountDataCleanupError.failed
+        }
+        preferences[.pendingAccountDataCleanupRequired] = false
     }
 }

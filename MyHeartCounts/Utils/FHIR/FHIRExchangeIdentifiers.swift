@@ -11,42 +11,6 @@ import GroveFHIRContract
 import ModelsR4
 
 
-/// The installation facts every event context of one source repository is built from.
-///
-/// A batch reads them once, so building each of its records' contexts touches neither the
-/// encrypted ledger nor the keychain.
-struct FHIRExchangeEventScope: Sendable {
-    let producerInstance: UUID
-    let identityScope: OpaqueIdentityScope
-    let repositoryScope: BusinessIdentifier
-
-    /// The complete shared context of one persisted event, rebuilt identically on every retry.
-    func context(
-        for event: PersistedFHIRExchangeEvent,
-        subject: FHIRExchangeSubject,
-        converterRole: ConverterRole = .assembler,
-        repositoryIDs: [ExchangeGraphNode: RepositoryID] = [:]
-    ) throws -> ExchangeEventContext {
-        ExchangeEventContext(
-            subject: .logical(subject.identity),
-            event: try FHIRExchangeStateStore.eventIdentifier(
-                for: event,
-                producerInstance: producerInstance,
-                in: identityScope
-            ),
-            identityScope: identityScope,
-            repositoryScope: repositoryScope,
-            application: try event.facts.application,
-            host: try event.facts.host,
-            conversionInstant: event.recordedAt,
-            converterRole: converterRole,
-            studies: try event.facts.studies(for: subject),
-            repositoryIDs: repositoryIDs
-        )
-    }
-}
-
-
 enum FHIRExchangeIdentifiers {
     enum SourceRepository: String, Sendable {
         case healthKit = "healthkit"
@@ -124,50 +88,5 @@ extension FHIRExchangeEventFacts {
                 )
             )
         ]
-    }
-}
-
-
-extension FHIRExchangeStateStore {
-    /// Reads the facts one repository's event contexts are built from, under the producer instance
-    /// a reservation returned.
-    func eventScope(
-        _ repository: FHIRExchangeIdentifiers.SourceRepository,
-        subject: FHIRExchangeSubject,
-        producerInstance: UUID
-    ) throws -> FHIRExchangeEventScope {
-        FHIRExchangeEventScope(
-            producerInstance: producerInstance,
-            identityScope: try identityScope(),
-            repositoryScope: try repositoryScope(repository, subject: subject)
-        )
-    }
-
-    /// The complete shared context of one persisted event, rebuilt identically on every retry.
-    func eventContext(
-        for event: PersistedFHIRExchangeEvent,
-        subject: FHIRExchangeSubject,
-        repository: FHIRExchangeIdentifiers.SourceRepository,
-        converterRole: ConverterRole = .assembler,
-        repositoryIDs: [ExchangeGraphNode: RepositoryID] = [:]
-    ) throws -> ExchangeEventContext {
-        try eventScope(repository, subject: subject, producerInstance: producerInstance()).context(
-            for: event,
-            subject: subject,
-            converterRole: converterRole,
-            repositoryIDs: repositoryIDs
-        )
-    }
-}
-
-
-extension PersistedFHIRExchangeEvent {
-    var sourceTimeZone: TimeZone {
-        get throws {
-            guard let timeZone = TimeZone(identifier: sourceTimeZoneIdentifier) else {
-                throw FHIRExchangeStateError.invalidPersistedTimeZone(sourceTimeZoneIdentifier)
-            }
-            return timeZone
-        }
     }
 }
