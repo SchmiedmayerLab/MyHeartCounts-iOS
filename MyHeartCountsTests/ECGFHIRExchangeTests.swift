@@ -15,7 +15,7 @@ import SensorKit
 import Testing
 
 
-/// Serialized: every test publishes the same session, whose sidecar is written under its source-record identifier.
+/// Serialized: every test publishes the same session, whose batch file is staged under a name its identity derives.
 @Suite(.serialized)
 struct ECGFHIRExchangeTests {
     private struct Session {
@@ -64,8 +64,8 @@ struct ECGFHIRExchangeTests {
     @Test
     func sessionPropertyDriftFailsTheBatch() async throws {
         let original = Session().value
-        let failing = RecordedSensorKitUploads(failingWrites: true)
-        await #expect(throws: RecordedSensorKitUploads.WriteFailure.self) {
+        let failing = RecordedSensorKitUploads(failingStaging: true)
+        await #expect(throws: RecordedSensorKitUploads.StageFailure.self) {
             _ = try await Self.upload([original], publication: harness.publication(uploads: failing))
         }
         let evidence = try SensorKitPreparedStructuredRecord(electrocardiogram: original).retryEvidence
@@ -107,7 +107,7 @@ struct ECGFHIRExchangeTests {
         )
 
         let receipt = try await Self.upload([session], publication: publication)
-        #expect(uploads.graphs.count == 1)
+        #expect(try uploads.graphs.count == 1)
         receipt?.release()
     }
 }

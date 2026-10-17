@@ -16,7 +16,7 @@ import Testing
 /// How a published SensorKit batch ends: acknowledged, then released, then cleaned; or abandoned when no retry can
 /// reproduce it.
 ///
-/// Serialized: every test publishes the same record, whose sidecar is written under its source-record identifier.
+/// Serialized: every test publishes the same record, whose batch file is staged under a name its identity derives.
 @Suite(.serialized)
 struct SensorKitBatchAcknowledgementTests {
     private struct AcknowledgementFailure: Error {}
@@ -66,7 +66,7 @@ struct SensorKitBatchAcknowledgementTests {
 
         #expect(reservationsWhileAcknowledging == 1)
         #expect(refusedDriftWhileAcknowledging)
-        #expect(uploads.graphs.count == 1)
+        #expect(try uploads.graphs.count == 1)
         #expect(try harness.ledger.reservationCount == 0)
         #expect(!Self.refusesDrift(publication))
     }
@@ -109,7 +109,7 @@ extension SensorKitBatchAcknowledgementTests {
             FHIRExchangeStateError.staleAccountGeneration(captured: 1, current: 2),
             FHIRExchangeDestinationError.accountChanged,
             SensorKit.QueryAnchorAcknowledgementError.staleCursor,
-            RecordedSensorKitUploads.WriteFailure(),
+            RecordedSensorKitUploads.StageFailure(),
             AcknowledgementFailure()
         ]
         for (errors, abandons) in [(unreplayable, true), (replayable, false)] {

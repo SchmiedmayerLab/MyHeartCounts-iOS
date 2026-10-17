@@ -10,10 +10,11 @@ import Foundation
 import GroveFHIRContract
 import GroveSensorKit
 import GroveSensorKitFHIR
+import MyHeartCountsShared
 import OSLog
 
 
-/// The exact bytes of a record's recording, staged next to its graph under the file extension the upload strategy that
+/// The exact bytes of a record's recording, archived next to its graph under the file extension the upload strategy that
 /// wrote them names.
 struct SensorKitUploadSidecar: Sendable {
     let data: Data
@@ -48,7 +49,8 @@ struct SensorKitRecordUpload {
     /// Checked under a digest of its own, so a pending batch whose `retryEvidence` an earlier build recorded still
     /// matches it.
     let supplementalRetryEvidence: Data?
-    /// Builds the record Grove exports, under its identity, its display title and its sidecar's remote path.
+    /// Builds the record Grove exports, under its identity, its display title and its sidecar's path within the batch's
+    /// archive.
     let makeRecord: MakeRecord
 
     init(
@@ -114,20 +116,57 @@ struct SensorKitRecordRefusal {
 
 
 extension MHCSensorSampleUploadStrategy {
-    private static func filename(of sidecar: SensorKitUploadSidecar, sourceRecordID: SensorKitSourceRecordID) -> String {
-        "\(sourceRecordID.value).\(sidecar.fileExtension)"
+    /// The path of a record's graph within its batch's archive.
+    private static func bundlePath(of sourceRecordID: SensorKitSourceRecordID) -> String {
+        "bundles/\(sourceRecordID.value).json"
+    }
+
+    /// The path of a record's sidecar within its batch's archive, which its graph's DocumentReference states.
+    private static func recordingPath(of sidecar: SensorKitUploadSidecar, sourceRecordID: SensorKitSourceRecordID) -> String {
+        "recordings/\(sourceRecordID.value).\(sidecar.fileExtension)"
+    }
+
+    /// The entries of a batch's archive, every graph before any recording so that listing the archive shows every record
+    /// first, and the identities of the records it holds. A record Grove refused is logged and left out.
+    ///
+    /// - parameter entries: pairs of ``ExportedRecord``s and their export outcomes.
+    private static func archiveEntries(
+        _ entries: some Sequence<(ExportedRecord, SensorKitFHIRExporter.Export.Outcome)>,
+        for sensor: Sensor<Sample>
+    ) -> (entries: [ZipArchive.Entry], recordIDs: [UUID]) {
+        var bundles: [ZipArchive.Entry] = []
+        var recordings: [ZipArchive.Entry] = []
+        var recordIDs: [UUID] = []
+        for (record, outcome) in entries {
+            switch outcome {
+            case .graph(let graph):
+                bundles.append(ZipArchive.Entry(path: bundlePath(of: record.sourceRecordID), contents: graph.json))
+                if let sidecar = record.sidecar {
+                    recordings.append(ZipArchive.Entry(
+                        path: recordingPath(of: sidecar, sourceRecordID: record.sourceRecordID),
+                        contents: sidecar.data
+                    ))
+                }
+                recordIDs.append(record.sourceRecordID.uuid)
+            case .refused(let reason):
+                SensorKitRecordRefusal(underlying: reason).log(for: sensor, recordOrdinal: record.ordinal)
+            }
+        }
+        return (bundles + recordings, recordIDs)
     }
 
     /// Publishes the records prepared from one fetched batch through MHC's storage backend.
     ///
-    /// Grove owns the exact payload bytes and the FHIR graphs; MHC owns the retry check, the durable sidecar upload,
-    /// the Firestore destination and the acknowledgement boundary. In order:
+    /// Grove owns the exact payload bytes and the FHIR graphs; MHC owns the retry check, the durable file upload and
+    /// the acknowledgement boundary. In order:
     /// 1. Each record's bytes are checked against those first seen at its acquisition coordinate, all in one
     ///    transaction of the retry state, so a batch whose content drifted fails before anything is exported.
     /// 2. The records are exported in one call, stating the zone the batch was first published in. A record Grove
     ///    refuses is logged and skipped.
-    /// 3. Each graph's sidecar is staged, then the graph is written to the document its source-record identifier
-    ///    names, so a redelivery overwrites what an earlier attempt wrote.
+    /// 3. The batch is staged for upload as one ZIP archive: each graph, verbatim, under `bundles/`, and each sidecar
+    ///    under `recordings/`, at the path relative to the archive's root its graph's DocumentReference states. The
+    ///    archive is named by the exported records' identities, so a redelivery overwrites what an earlier attempt
+    ///    uploaded.
     ///
     /// - returns: The export's receipt, or `nil` when nothing was exported. Release it once the batch is
     ///     acknowledged; until then, a redelivery of the batch restates the same events, byte for byte.
@@ -140,12 +179,11 @@ extension MHCSensorSampleUploadStrategy {
     ) async throws -> ExchangeProducer.Receipt? {
         // Presentation only: the record's identity travels as the typed Identifier, never a label.
         let title = sensor.displayName
-        let category = ManagedFileUpload.Category(sensor)
         var records: [SensorKitRecord] = []
         var exported: [ExportedRecord] = []
         let sourceRecordIDs = try publication.sourceRecordIDs(of: uploads)
         for (upload, sourceRecordID) in zip(uploads, sourceRecordIDs) {
-            let sidecarPath = upload.sidecar.map { category.remotePath(for: Self.filename(of: $0, sourceRecordID: sourceRecordID)) }
+            let sidecarPath = upload.sidecar.map { Self.recordingPath(of: $0, sourceRecordID: sourceRecordID) }
             do {
                 records.append(try upload.makeRecord(sourceRecordID, title, sidecarPath))
             } catch {
@@ -166,30 +204,31 @@ extension MHCSensorSampleUploadStrategy {
         ) { export in
             outcomes.append(export.outcome)
         }
-        activity.updateMessage("Submitting for upload")
-        for (record, outcome) in zip(exported, outcomes) {
-            let graph: ExchangeGraph
-            switch outcome {
-            case .graph(let exportedGraph):
-                graph = exportedGraph
-            case .refused(let reason):
-                SensorKitRecordRefusal(underlying: reason).log(for: sensor, recordOrdinal: record.ordinal)
-                continue
-            }
-            if let sidecar = record.sidecar {
-                // Export validated the complete graph before the referenced exact bytes become durably staged.
-                // Registered SensorKit payloads remain uncompressed.
-                let url = URL.temporaryDirectory.appending(component: Self.filename(of: sidecar, sourceRecordID: record.sourceRecordID))
-                try sidecar.data.write(to: url, options: .atomic)
-                defer {
-                    try? FileManager.default.removeItem(at: url)
-                }
-                try await publication.uploader.stageSidecar(url, category, publication.destination.accountDataGeneration)
-            }
-            // Do not introduce a cancellation point here: once a sidecar is durably staged, its one
-            // complete Bundle must be persisted before the anchored batch may be acknowledged.
-            try await publication.uploader.writeGraph(graph, record.sourceRecordID, sensor.id, publication.destination)
+        assert(outcomes.count == exported.count)
+        let (entries, archivedRecordIDs) = Self.archiveEntries(zip(exported, outcomes), for: sensor)
+        guard !archivedRecordIDs.isEmpty else {
+            return receipt
         }
+        activity.updateMessage("Submitting for upload")
+        let file = URL.temporaryDirectory.appending(
+            path: HealthUploadBatch.filename(typePrefix: sensor.id, identifiers: archivedRecordIDs, fileExtension: "zip"),
+            directoryHint: .notDirectory
+        )
+        defer {
+            // Staging moves the file; this only removes it if staging failed.
+            try? FileManager.default.removeItem(at: file)
+        }
+        var archive = try ZipArchive(writingTo: file)
+        for entry in entries {
+            try archive.addEntry(
+                at: entry.path,
+                contents: entry.contents,
+                compression: .zstd
+            )
+        }
+        try archive.finalize()
+        try publication.destination.validateCurrentAccount()
+        try await publication.uploader.stageFile(file, ManagedFileUpload.Category(sensor), publication.destination.accountDataGeneration)
         return receipt
     }
 }

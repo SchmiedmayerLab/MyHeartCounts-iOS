@@ -6,7 +6,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-@preconcurrency import FirebaseFirestore
 import Foundation
 import GroveFHIRContract
 import GroveFoundation
@@ -16,24 +15,15 @@ import MyHeartCountsShared
 import OSLog
 
 
-/// Where the records of a published SensorKit batch go: each sidecar is staged for upload, then each graph is
-/// written to the record's Firestore document.
+/// Where a published SensorKit batch goes: its graphs, as one file staged for upload.
 ///
 /// Injected, so tests publish a batch without Firebase.
 struct SensorKitRecordUploader: Sendable {
-    /// Durably stages one sidecar file for upload under `category`, fenced to `accountDataGeneration`.
-    let stageSidecar: @Sendable (
+    /// Durably stages one batch file for upload under `category`, fenced to `accountDataGeneration`.
+    let stageFile: @Sendable (
         _ file: URL,
         _ category: ManagedFileUpload.Category,
         _ accountDataGeneration: Int
-    ) async throws -> Void
-    /// Writes one record's graph to the document of `sampleType` named by the record's source-record identifier, in
-    /// `destination`'s account.
-    let writeGraph: @Sendable (
-        _ graph: ExchangeGraph,
-        _ sourceRecordID: SensorKitSourceRecordID,
-        _ sampleType: String,
-        _ destination: FHIRExchangeDestination
     ) async throws -> Void
 }
 
@@ -173,17 +163,10 @@ struct SensorKitBatchPublication: Sendable {
 
 
 extension SensorKitRecordUploader {
-    /// The app's: sidecars go to the managed file upload, graphs to the participant's health observations.
+    /// The app's: batch files go to the managed file upload.
     static func managed(by managedFileUpload: ManagedFileUpload) -> Self {
         Self { file, category, accountDataGeneration in
             try await managedFileUpload.stage(file, category: category, accountDataGeneration: accountDataGeneration)
-        } writeGraph: { graph, sourceRecordID, sampleType, destination in
-            let document = try MyHeartCountsStandard.healthObservationDocument(
-                forSampleType: sampleType,
-                id: sourceRecordID.value,
-                destination: destination
-            )
-            try await document.setData(try Firestore.Encoder().encode(graph.bundle))
         }
     }
 }

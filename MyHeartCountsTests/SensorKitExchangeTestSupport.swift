@@ -101,7 +101,7 @@ struct SensorKitPublicationHarness {
     let sensor: any AnySensor
     let store: FHIRExchangeStateStore
     let ledger: FHIRExchangeLedger
-    /// The acquisition sequence of the batch. Each suite takes its own, so no two suites stage a sidecar under one name.
+    /// The acquisition sequence of the batch. Each suite takes its own, so no two suites stage a batch archive under one name.
     let sequence: UInt64
 
     var subject: FHIRExchangeSubject {
