@@ -89,4 +89,6 @@ extension LaunchOptions {
     static let recordHealthKitExportLog = LaunchOption<Bool>("--recordHealthKitExportLog", default: false)
     
     static let disableSensorKitUpload = LaunchOption<Bool>("--disableSensorKitUpload", default: false)
+    /// Stages every file upload as usual, but never performs any of them; for measuring how much a workload stages.
+    static let disableFileUploads = LaunchOption<Bool>("--disableFileUploads", default: false)
 }
