@@ -13,6 +13,7 @@ import Foundation
 import Grove
 import GroveAccount
 import GroveFoundation
+import Observation
 import OSLog
 import SwiftData
 import enum SwiftUI.ScenePhase
@@ -96,7 +97,7 @@ final class ManagedFileUpload: Grove::Module, EnvironmentAccessible, Sendable {
         }
     }
 
-    private enum UploadError: Error, Sendable {
+    enum UploadError: Error, Sendable {
         case databaseUnavailable
         case noAccount
         case cancelled
@@ -246,6 +247,17 @@ final class ManagedFileUpload: Grove::Module, EnvironmentAccessible, Sendable {
 
     func isActive(_ category: Category) -> Bool {
         progressByCategory[category] != nil
+    }
+
+    /// Whether the database still holds uploads for the category, queued or waiting for a retry.
+    func hasPendingUploads(for category: Category) throws -> Bool {
+        guard let modelContext else {
+            throw UploadError.databaseUnavailable
+        }
+        let categoryId = category.id
+        return try modelContext.fetchCount(
+            FetchDescriptor<ScheduledUpload>(predicate: #Predicate { $0.categoryId == categoryId })
+        ) > 0
     }
 
     /// The total on-disk size, in bytes, of all files pending upload within the specified category.
@@ -823,6 +835,26 @@ extension ManagedFileUpload {
         }
         await withCheckedContinuation { continuation in
             quiescenceWaiters.append(continuation)
+        }
+    }
+
+    /// Waits until every file staged under `category` has been uploaded.
+    ///
+    /// Unlike ``waitUntilQuiescent()``, a failed upload that is waiting for its retry keeps the wait going;
+    /// uploads left for a later launch keep it going for the rest of this one.
+    func waitUntilDrained(_ category: Category) async throws {
+        while true {
+            try Swift::Task.checkCancellation()
+            guard try isActive(category) || hasPendingUploads(for: category) else {
+                return
+            }
+            let (changes, continuation) = AsyncStream<Void>.makeStream()
+            withObservationTracking {
+                _ = progressByCategory[category]
+            } onChange: {
+                continuation.finish()
+            }
+            for await _ in changes { }
         }
     }
 
