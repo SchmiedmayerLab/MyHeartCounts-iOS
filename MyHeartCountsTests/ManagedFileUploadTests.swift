@@ -6,6 +6,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+// swiftlint:disable file_length
+
 import Foundation
 import Grove
 import GroveFoundation
@@ -409,6 +411,114 @@ extension ManagedFileUploadTests {
         await uploader.waitUntilQuiescent()
         #expect(await probe.cancelledCount == 1)
         #expect(await probe.startedCount == 2)
+        #expect(regularFiles(in: uploader.stagingDirectory).isEmpty)
+    }
+}
+
+
+extension ManagedFileUploadTests {
+    /// Draining is per category and means uploaded, not attempted: uploads in other categories don't hold it up,
+    /// and it returns immediately when nothing is pending.
+    @Test
+    func waitUntilDrainedReturnsOnceTheCategoryIsUploaded() async throws {
+        let root = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: root)
+        }
+        let otherCategory = ManagedFileUpload.Category(id: "Other", title: "Other", firebasePath: "other")
+        let probe = UploadProbe()
+        let otherProbe = UploadProbe()
+        var configuration = makeConfiguration(root: root, accountId: "account-a")
+        configuration.uploadOperation = { _, category, accountId, filename, _ in
+            let probe = category.id == otherCategory.id ? otherProbe : probe
+            try await probe.upload(categoryId: category.id, filename: filename, accountId: accountId)
+        }
+        let uploader = ManagedFileUpload(categories: [category, otherCategory], configuration: configuration)
+        resolveDependencies(of: uploader)
+        #expect(try !uploader.hasPendingUploads(for: category))
+        try await uploader.waitUntilDrained(category)
+
+        for index in 0..<3 {
+            try await uploader.stage(try makeSourceFile(index: index, in: root), category: category)
+        }
+        try await uploader.stage(try makeSourceFile(index: 99, in: root), category: otherCategory)
+        await probe.waitUntilStarted(2)
+        #expect(try uploader.hasPendingUploads(for: category))
+
+        let drained = Mutex(false)
+        let waiter = Swift::Task { @MainActor in
+            try await uploader.waitUntilDrained(category)
+            drained.withLock { $0 = true }
+        }
+        try await Swift::Task.sleep(for: .milliseconds(50))
+        #expect(!drained.withLock { $0 })
+
+        await probe.releaseUploads()
+        try await waiter.value
+        #expect(try !uploader.hasPendingUploads(for: category))
+        #expect(try uploader.hasPendingUploads(for: otherCategory))
+        #expect(await otherProbe.startedCount == 1)
+
+        await otherProbe.releaseUploads()
+        await uploader.waitUntilQuiescent()
+        #expect(regularFiles(in: uploader.stagingDirectory).isEmpty)
+    }
+
+    /// A failed attempt keeps the category pending until its retry succeeds.
+    @Test
+    func waitUntilDrainedOutlastsRetries() async throws {
+        let root = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: root)
+        }
+        let attempts = Mutex(0)
+        var configuration = makeConfiguration(root: root, accountId: "account-a")
+        configuration.retryDelay = { _ in .milliseconds(10) }
+        configuration.uploadOperation = { _, _, _, _, _ in
+            let attempt = attempts.withLock { attempts in
+                attempts += 1
+                return attempts
+            }
+            guard attempt >= 2 else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+        }
+        let uploader = ManagedFileUpload(categories: [category], configuration: configuration)
+        resolveDependencies(of: uploader)
+        try await uploader.stage(try makeSourceFile(index: 0, in: root), category: category)
+
+        try await uploader.waitUntilDrained(category)
+        #expect(attempts.withLock { $0 } == 2)
+        #expect(try !uploader.hasPendingUploads(for: category))
+        #expect(regularFiles(in: uploader.stagingDirectory).isEmpty)
+    }
+
+    /// Cancelling the waiting task releases it promptly and leaves the uploads untouched.
+    @Test
+    func waitUntilDrainedIsCancellable() async throws {
+        let root = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: root)
+        }
+        let probe = UploadProbe()
+        let uploader = makeUploader(root: root, accountId: "account-a", probe: probe)
+        resolveDependencies(of: uploader)
+        try await uploader.stage(try makeSourceFile(index: 0, in: root), category: category)
+        await probe.waitUntilStarted(1)
+
+        let waiter = Swift::Task { @MainActor in
+            try await uploader.waitUntilDrained(category)
+        }
+        try await Swift::Task.sleep(for: .milliseconds(50))
+        waiter.cancel()
+        await #expect(throws: CancellationError.self) {
+            try await waiter.value
+        }
+        #expect(try uploader.hasPendingUploads(for: category))
+        #expect(regularFiles(in: uploader.stagingDirectory).count == 1)
+
+        await probe.releaseUploads()
+        await uploader.waitUntilQuiescent()
         #expect(regularFiles(in: uploader.stagingDirectory).isEmpty)
     }
 }
