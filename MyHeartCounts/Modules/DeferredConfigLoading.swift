@@ -287,6 +287,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
                         .manual(\.futureStudies),
                         .manual(\.hasWithdrawnFromStudy),
                         .manual(\.dateOfEnrollment),
+                        .manual(\.historicalHealthUploadCompletedDate),
                         // consent tracking
                         .manual(\.lastSignedConsentDate),
                         .manual(\.lastSignedConsentVersion),
