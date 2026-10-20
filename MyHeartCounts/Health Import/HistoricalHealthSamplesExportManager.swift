@@ -42,6 +42,7 @@ final class HistoricalHealthSamplesExportManager: Module, EnvironmentAccessible,
     @ObservationIgnored private var isResetting = false
     @ObservationIgnored private var restoresBatteryMonitoring = false
     @ObservationIgnored private var startTask: Task<Bool, Never>?
+    @ObservationIgnored private var completionTask: Task<Void, Never>?
 
     func configure() {
         if let account, account.signedIn {
@@ -73,6 +74,9 @@ final class HistoricalHealthSamplesExportManager: Module, EnvironmentAccessible,
         startTask?.cancel()
         _ = await startTask?.value
         self.startTask = nil
+        completionTask?.cancel()
+        _ = await completionTask?.value
+        completionTask = nil
         if let session {
             await session.pause()
         }
@@ -133,9 +137,7 @@ final class HistoricalHealthSamplesExportManager: Module, EnvironmentAccessible,
         guard let session = try? await getSession() else {
             return false
         }
-        guard !Task.isCancelled,
-              preferences[.accountDataGeneration] == accountDataGeneration,
-              !preferences[.pendingAccountDataCleanupRequired] else {
+        guard !Task.isCancelled, isCurrent(accountDataGeneration) else {
             return false
         }
         self.session = session
@@ -144,11 +146,12 @@ final class HistoricalHealthSamplesExportManager: Module, EnvironmentAccessible,
         }
         do {
             logger.notice("Will start BulkHealthExport session")
-            _ = try session.start(
+            let batchResults: AsyncStream<HealthKitSamplesFHIRUploader.Output> = try session.start(
                 retryFailedBatches: true,
                 // Each batch retains samples, FHIR resources, and encoded output in memory.
                 concurrencyLevel: .limit(ProcessInfo.isProDevice ? 2 : 1)
             )
+            trackCompletion(of: session, batchResults: batchResults, accountDataGeneration: accountDataGeneration)
             return true
         } catch {
             logger.error("Error starting session: \(error)")
@@ -267,6 +270,64 @@ final class HistoricalHealthSamplesExportManager: Module, EnvironmentAccessible,
 
     isolated deinit {
         stopWaitingForSuitablePower()
+        completionTask?.cancel()
+    }
+}
+
+
+// MARK: Completion Tracking
+
+extension HistoricalHealthSamplesExportManager {
+    private func trackCompletion(
+        of session: any BulkExportSession<HealthKitSamplesFHIRUploader>,
+        batchResults: AsyncStream<HealthKitSamplesFHIRUploader.Output>,
+        accountDataGeneration: Int
+    ) {
+        completionTask?.cancel()
+        completionTask = Task { @MainActor [weak self] in
+            // the stream ends once the session has reached its final state
+            for await _ in batchResults { }
+            guard !Task.isCancelled, let self else {
+                return
+            }
+            await recordCompletionIfConcluded(of: session, accountDataGeneration: accountDataGeneration)
+        }
+    }
+
+    /// Records the conclusion of the historical upload in the account, once every batch was processed without failures
+    /// and every resulting file has been uploaded.
+    private func recordCompletionIfConcluded(
+        of session: any BulkExportSession<HealthKitSamplesFHIRUploader>,
+        accountDataGeneration: Int
+    ) async {
+        guard session.state == .completed, session.failedBatches.isEmpty, let account, account.signedIn else {
+            return
+        }
+        await account.waitForAccountDetailsReady()
+        guard isCurrent(accountDataGeneration), account.details?.historicalHealthUploadCompletedDate == nil else {
+            return
+        }
+        do {
+            try await managedFileUpload.waitUntilDrained(.historicalHealthUpload)
+        } catch {
+            return
+        }
+        guard isCurrent(accountDataGeneration), account.signedIn, account.details?.historicalHealthUploadCompletedDate == nil else {
+            return
+        }
+        var details = AccountDetails()
+        details.historicalHealthUploadCompletedDate = .now
+        do {
+            try await account.accountService.updateAccountDetails(AccountModifications(modifiedDetails: details))
+            logger.notice("Recorded conclusion of the historical health upload")
+        } catch {
+            logger.error("Unable to record conclusion of the historical health upload: \(error)")
+        }
+    }
+
+    private func isCurrent(_ accountDataGeneration: Int) -> Bool {
+        let preferences = LocalPreferencesStore.standard
+        return preferences[.accountDataGeneration] == accountDataGeneration && !preferences[.pendingAccountDataCleanupRequired]
     }
 }
 
