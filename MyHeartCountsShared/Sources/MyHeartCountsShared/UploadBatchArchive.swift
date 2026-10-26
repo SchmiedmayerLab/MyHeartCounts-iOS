@@ -114,14 +114,24 @@ public struct UploadBatchArchive: ~Copyable {
     }
 
     /// Writes `bundles.json` and `batchinfo.json`, and completes the archive.
-    ///
-    /// - returns: The archive's file, in a temporary directory; the caller takes it over.
-    public consuming func finalize() throws -> URL {
+    public consuming func finalize() throws -> Finalized {
         bundles.append(UInt8(ascii: "]"))
+        let batchInfo = try Self.encoder.encode(info)
         try archive.addEntry(at: Self.bundlesPath, contents: bundles, compression: .zstd)
-        try archive.addEntry(at: Self.batchInfoPath, contents: Self.encoder.encode(info), compression: .zstd)
+        try archive.addEntry(at: Self.batchInfoPath, contents: batchInfo, compression: .zstd)
         try archive.finalize()
-        return url
+        return Finalized(url: url, batchInfo: batchInfo)
+    }
+}
+
+
+extension UploadBatchArchive {
+    /// The finalized archive.
+    public struct Finalized {
+        /// The archive's file, in a temporary directory.
+        public let url: URL
+        /// The exact bytes of the batch's `batchinfo.json`.
+        public let batchInfo: Data
     }
 }
 
