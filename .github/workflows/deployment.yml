@@ -24,6 +24,15 @@ on:
           - development
           - staging
           - production
+      region:
+        description: |
+          The study region the build is for. `uk` locks the onboarding to the UK and distributes to the "UK Testers" TestFlight group.
+        required: true
+        default: 'us'
+        type: choice
+        options:
+          - us
+          - uk
       version:
         description: |
           The semantic version of the app that should be released.
@@ -48,6 +57,12 @@ on:
         required: false
         type: string
         default: staging
+      region:
+        description: |
+          The study region the build is for. `uk` locks the onboarding to the UK and distributes to the "UK Testers" TestFlight group.
+        required: false
+        type: string
+        default: us
       version:
         description: |
           The semantic version of the app that should be released.
@@ -141,6 +156,7 @@ jobs:
       setup_signing: true
       command: >-
         fastlane deploy environment:"${{ needs.determineenvironment.outputs.environment }}"
+        region:"${{ inputs.region || 'us' }}"
         versionname:"${{ needs.vars.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
         ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
         strip_sensorkit_entitlement:false

@@ -34,6 +34,13 @@ enum FeatureFlags {
         #endif
     }
 
+    /// Locks the onboarding's region selection to a single region, which then is eligible for enrollment.
+    ///
+    /// Set via the `MHCForcedStudyRegion` Info.plist key, which `fastlane deploy region:uk` adds for the UK TestFlight builds.
+    static var forcedStudyRegion: Locale.Region? {
+        (Bundle.main.object(forInfoDictionaryKey: "MHCForcedStudyRegion") as? String).map { Locale.Region($0) }
+    }
+
     /// Disables the Firebase interactions, including the login/sign-up step and the Firebase Firestore upload.
     ///
     /// - Note: This takes precedence over all other firebase-related flags.

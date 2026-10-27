@@ -154,8 +154,17 @@ platform :ios do
     versionname = options[:versionname].to_s.strip.empty? ? APP_CONFIG[:default_version_name] : options[:versionname]
     releasenotes = options[:releasenotes].to_s.strip.empty? ? APP_CONFIG[:default_release_notes] : options[:releasenotes]
     strip_sensorkit_entitlement = options[:strip_sensorkit_entitlement].to_s == "true"
+    region = options[:region].to_s.strip.empty? ? "us" : options[:region].to_s.strip.downcase
+
+    unless ["us", "uk"].include?(region)
+      UI.user_error!("Unknown region '#{region}'. Expected 'us' or 'uk'.")
+    end
+    if region == "uk" && environment == "production"
+      UI.user_error!("UK builds are TestFlight-only.")
+    end
 
     UI.message("Using environment: #{environment}")
+    UI.message("Using region: #{region}")
     UI.message("Using app identifier: #{appidentifier}")
     UI.message("Using secondary app identifier: #{secondaryAppIdentifier}")
     UI.message("Using provisioning profile: #{provisioningProfile}")
@@ -202,6 +211,11 @@ platform :ios do
       sh('plutil', '-remove', 'com\.apple\.developer\.sensorkit\.reader\.allow', '../MyHeartCounts/Supporting Files/MyHeartCounts.entitlements')
     end
 
+    if region == "uk"
+      puts 'Locking the onboarding region to the UK'
+      sh('plutil', '-insert', 'MHCForcedStudyRegion', '-string', 'GB', "../#{APP_CONFIG[:plist_path]}")
+    end
+
     archive(
       appidentifier: appidentifier,
       secondaryAppIdentifier: secondaryAppIdentifier,
@@ -225,31 +239,25 @@ platform :ios do
         automatic_release: true,
         precheck_include_in_app_purchases: false,
       )
-    elsif environment == "development"
-      upload_to_testflight(
-        app_identifier: appidentifier,
-        distribute_external: true,
-        reject_build_waiting_for_review: true,
-        expire_previous_builds: false,
-        groups: [
-          "Development"
-        ],
-        submit_beta_review: true,
-        notify_external_testers: true,
-        changelog: commit[:message]
-      )
     else
+      testflight_group = if region == "uk"
+        "UK Testers"
+      elsif environment == "development"
+        "Development"
+      else
+        "External Testers"
+      end
       upload_to_testflight(
         app_identifier: appidentifier,
         distribute_external: true,
         reject_build_waiting_for_review: true,
         expire_previous_builds: false,
         groups: [
-          "External Testers"
+          testflight_group
         ],
         submit_beta_review: true,
         notify_external_testers: true,
-        changelog: commit[:message]
+        changelog: region == "uk" ? "[UK] #{commit[:message]}" : commit[:message]
       )
     end
   end
