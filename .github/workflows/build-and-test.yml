@@ -20,7 +20,7 @@ concurrency:
 env:
   UI_TEST_DESTINATION: 'platform=iOS Simulator,name=iPhone 18 Pro,OS=latest'
   UI_TEST_PRODUCTS_PATH: .ci-cache/MHC-App-UITests.xctestproducts
-  UI_TEST_XCODE_VERSION: '27'
+  UI_TEST_XCODE_VERSION: '27.2'
 
 jobs:
   mhc_app_unit_tests:
@@ -30,7 +30,7 @@ jobs:
       contents: read
     with:
       runsonlabels: '["macOS", "self-hosted"]'
-      xcodeversion: '27'
+      xcodeversion: '27.2'
       destination: 'platform=iOS Simulator,name=iPhone 18 Pro,OS=latest'
       scheme: MyHeartCounts
       testplan: MyHeartCounts Unit Tests
@@ -255,7 +255,7 @@ jobs:
       fail-fast: false
     with:
       runsonlabels: '["macOS", "self-hosted"]'
-      xcodeversion: '27'
+      xcodeversion: '27.2'
       path: MyHeartCountsShared
       scheme: MyHeartCountsShared-Package
       buildConfig: ${{ matrix.config }}
