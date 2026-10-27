@@ -26,7 +26,7 @@ on:
           - production
       variant:
         description: |
-          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "UK Testers" TestFlight group.
+          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "External Testers (Imperial)" TestFlight group.
         required: true
         default: 'stanford'
         type: choice
@@ -59,7 +59,7 @@ on:
         default: staging
       variant:
         description: |
-          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "UK Testers" TestFlight group.
+          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "External Testers (Imperial)" TestFlight group.
         required: false
         type: string
         default: stanford

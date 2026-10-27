@@ -241,7 +241,7 @@ platform :ios do
       )
     else
       testflight_group = if variant == "imperial"
-        "UK Testers"
+        "External Testers (Imperial)"
       elsif environment == "development"
         "Development"
       else
