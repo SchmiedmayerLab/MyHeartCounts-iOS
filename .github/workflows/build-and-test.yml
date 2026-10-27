@@ -29,7 +29,7 @@ jobs:
     permissions:
       contents: read
     with:
-      runsonlabels: '["macOS", "self-hosted"]'
+      runsonlabels: '["macOS", "self-hosted", "xcode-26.6"]'
       xcodeversion: '26.6'
       destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
       scheme: MyHeartCounts
@@ -39,7 +39,7 @@ jobs:
 
   mhc_app_ui_test_build:
     name: App UI Tests (Build)
-    runs-on: [macOS, self-hosted]
+    runs-on: [macOS, self-hosted, xcode-26.6]
     permissions:
       contents: read
     outputs:
@@ -109,7 +109,7 @@ jobs:
   mhc_app_ui_test_run:
     name: App UI Tests (Run; ${{ matrix.name }})
     needs: mhc_app_ui_test_build
-    runs-on: [macOS, self-hosted]
+    runs-on: [macOS, self-hosted, xcode-26.6]
     permissions:
       contents: read
     strategy:
@@ -184,7 +184,7 @@ jobs:
     name: App UI Tests / Test using xcodebuild or run fastlane
     if: always()
     needs: mhc_app_ui_test_run
-    runs-on: [macOS, self-hosted]
+    runs-on: [macOS, self-hosted, xcode-26.6]
     permissions:
       contents: read
     steps:
@@ -254,7 +254,7 @@ jobs:
             destination: 'platform=macOS,arch=arm64'
       fail-fast: false
     with:
-      runsonlabels: '["macOS", "self-hosted"]'
+      runsonlabels: '["macOS", "self-hosted", "xcode-26.6"]'
       xcodeversion: '26.6'
       path: MyHeartCountsShared
       scheme: MyHeartCountsShared-Package

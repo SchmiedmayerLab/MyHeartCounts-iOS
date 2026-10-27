@@ -34,7 +34,7 @@ jobs:
     permissions:
       contents: read
     with:
-      runsonlabels: '["macOS", "self-hosted"]'
+      runsonlabels: '["macOS", "self-hosted", "xcode-26.6"]'
       xcode-version: '26.6'
       strict: false
       # we need to exclude this bc FHIRModels doesn't compile for older watch models (pre series 4).
