@@ -457,6 +457,8 @@ extension ManagedFileUploadTests {
         try await waiter.value
         #expect(try !uploader.hasPendingUploads(for: category))
         #expect(try uploader.hasPendingUploads(for: otherCategory))
+        // The other file only gets an upload slot once the first two are released, so it may not have started yet.
+        await otherProbe.waitUntilStarted(1)
         #expect(await otherProbe.startedCount == 1)
 
         await otherProbe.releaseUploads()
