@@ -18,6 +18,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Temporary: the self-hosted runners have different Xcode versions. The UI test build and its shards need the same one
+  # (the test products cache key includes it), so they run on the `xcode-26.6` runners; all other jobs use each runner's
+  # latest stable Xcode and simulator runtime.
   UI_TEST_DESTINATION: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
   UI_TEST_PRODUCTS_PATH: .ci-cache/MHC-App-UITests.xctestproducts
   UI_TEST_XCODE_VERSION: '26.6'
@@ -29,9 +32,9 @@ jobs:
     permissions:
       contents: read
     with:
-      runsonlabels: '["macOS", "self-hosted", "xcode-26.6"]'
-      xcodeversion: '26.6'
-      destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
+      runsonlabels: '["macOS", "self-hosted"]'
+      xcodeversion: 'latest-stable'
+      destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'
       scheme: MyHeartCounts
       testplan: MyHeartCounts Unit Tests
       resultBundle: MHC-App-UnitTests.xcresult
@@ -249,13 +252,13 @@ jobs:
         config: [Debug, Release]
         platform:
           - name: iOS
-            destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
+            destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'
           - name: macOS
             destination: 'platform=macOS,arch=arm64'
       fail-fast: false
     with:
-      runsonlabels: '["macOS", "self-hosted", "xcode-26.6"]'
-      xcodeversion: '26.6'
+      runsonlabels: '["macOS", "self-hosted"]'
+      xcodeversion: 'latest-stable'
       path: MyHeartCountsShared
       scheme: MyHeartCountsShared-Package
       buildConfig: ${{ matrix.config }}

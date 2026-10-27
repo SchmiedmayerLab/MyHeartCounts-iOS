@@ -34,8 +34,8 @@ jobs:
     permissions:
       contents: read
     with:
-      runsonlabels: '["macOS", "self-hosted", "xcode-26.6"]'
-      xcode-version: '26.6'
+      runsonlabels: '["macOS", "self-hosted"]'
+      xcode-version: 'latest-stable'
       strict: false
       # we need to exclude this bc FHIRModels doesn't compile for older watch models (pre series 4).
       # not a problem for MHC, since our iOS 18 / watchOS 11 deployment target means that we don't
