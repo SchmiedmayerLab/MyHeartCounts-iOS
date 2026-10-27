@@ -50,14 +50,14 @@ struct IsFromRegion: ScreeningComponent {
                     Text(region.localizedName(in: locale, includeEmoji: .none))
                         .foregroundStyle(.textLabel.secondary)
                 }
-                if FeatureFlags.forcedStudyRegion == nil {
+                if FeatureFlags.forcedStudyVariant == nil {
                     DisclosureIndicator()
                         .accessibilityHidden(true)
                 }
             }
             .contentShape(Rectangle())
         }
-        .disabled(FeatureFlags.forcedStudyRegion != nil)
+        .disabled(FeatureFlags.forcedStudyVariant != nil)
         .sheet(isPresented: $isPresentingRegionPicker) {
             ListSelectionSheet("Select a Region", items: regionsList, selection: $data.screening.region) { region in
                 region.localizedName(in: locale, includeEmoji: .front)

@@ -34,11 +34,11 @@ enum FeatureFlags {
         #endif
     }
 
-    /// Locks the onboarding's region selection to a single region, which then is eligible for enrollment.
+    /// Locks the onboarding to a single study variant: the region selection is fixed to the variant's region, which then is eligible for enrollment.
     ///
-    /// Set via the `MHCForcedStudyRegion` Info.plist key, which `fastlane deploy region:uk` adds for the UK TestFlight builds.
-    static var forcedStudyRegion: Locale.Region? {
-        (Bundle.main.object(forInfoDictionaryKey: "MHCForcedStudyRegion") as? String).map { Locale.Region($0) }
+    /// Set via the `MHCForcedStudyVariant` Info.plist key, which `fastlane deploy variant:imperial` adds for the Imperial TestFlight builds.
+    static var forcedStudyVariant: StudyVariant? {
+        (Bundle.main.object(forInfoDictionaryKey: "MHCForcedStudyVariant") as? String).flatMap(StudyVariant.init(rawValue:))
     }
 
     /// Disables the Firebase interactions, including the login/sign-up step and the Firebase Firestore upload.

@@ -154,17 +154,17 @@ platform :ios do
     versionname = options[:versionname].to_s.strip.empty? ? APP_CONFIG[:default_version_name] : options[:versionname]
     releasenotes = options[:releasenotes].to_s.strip.empty? ? APP_CONFIG[:default_release_notes] : options[:releasenotes]
     strip_sensorkit_entitlement = options[:strip_sensorkit_entitlement].to_s == "true"
-    region = options[:region].to_s.strip.empty? ? "us" : options[:region].to_s.strip.downcase
+    variant = options[:variant].to_s.strip.empty? ? "stanford" : options[:variant].to_s.strip.downcase
 
-    unless ["us", "uk"].include?(region)
-      UI.user_error!("Unknown region '#{region}'. Expected 'us' or 'uk'.")
+    unless ["stanford", "imperial"].include?(variant)
+      UI.user_error!("Unknown study variant '#{variant}'. Expected 'stanford' or 'imperial'.")
     end
-    if region == "uk" && environment == "production"
-      UI.user_error!("UK builds are TestFlight-only.")
+    if variant == "imperial" && environment == "production"
+      UI.user_error!("Imperial builds are TestFlight-only.")
     end
 
     UI.message("Using environment: #{environment}")
-    UI.message("Using region: #{region}")
+    UI.message("Using study variant: #{variant}")
     UI.message("Using app identifier: #{appidentifier}")
     UI.message("Using secondary app identifier: #{secondaryAppIdentifier}")
     UI.message("Using provisioning profile: #{provisioningProfile}")
@@ -211,9 +211,9 @@ platform :ios do
       sh('plutil', '-remove', 'com\.apple\.developer\.sensorkit\.reader\.allow', '../MyHeartCounts/Supporting Files/MyHeartCounts.entitlements')
     end
 
-    if region == "uk"
-      puts 'Locking the onboarding region to the UK'
-      sh('plutil', '-insert', 'MHCForcedStudyRegion', '-string', 'GB', "../#{APP_CONFIG[:plist_path]}")
+    if variant == "imperial"
+      puts 'Locking the onboarding to the Imperial study variant'
+      sh('plutil', '-insert', 'MHCForcedStudyVariant', '-string', 'imperial', "../#{APP_CONFIG[:plist_path]}")
     end
 
     archive(
@@ -240,7 +240,7 @@ platform :ios do
         precheck_include_in_app_purchases: false,
       )
     else
-      testflight_group = if region == "uk"
+      testflight_group = if variant == "imperial"
         "UK Testers"
       elsif environment == "development"
         "Development"
@@ -257,7 +257,7 @@ platform :ios do
         ],
         submit_beta_review: true,
         notify_external_testers: true,
-        changelog: region == "uk" ? "[UK] #{commit[:message]}" : commit[:message]
+        changelog: variant == "imperial" ? "[UK] #{commit[:message]}" : commit[:message]
       )
     end
   end

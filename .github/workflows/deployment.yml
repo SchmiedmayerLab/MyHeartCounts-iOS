@@ -24,15 +24,15 @@ on:
           - development
           - staging
           - production
-      region:
+      variant:
         description: |
-          The study region the build is for. `uk` locks the onboarding to the UK and distributes to the "UK Testers" TestFlight group.
+          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "UK Testers" TestFlight group.
         required: true
-        default: 'us'
+        default: 'stanford'
         type: choice
         options:
-          - us
-          - uk
+          - stanford
+          - imperial
       version:
         description: |
           The semantic version of the app that should be released.
@@ -57,12 +57,12 @@ on:
         required: false
         type: string
         default: staging
-      region:
+      variant:
         description: |
-          The study region the build is for. `uk` locks the onboarding to the UK and distributes to the "UK Testers" TestFlight group.
+          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "UK Testers" TestFlight group.
         required: false
         type: string
-        default: us
+        default: stanford
       version:
         description: |
           The semantic version of the app that should be released.
@@ -156,7 +156,7 @@ jobs:
       setup_signing: true
       command: >-
         fastlane deploy environment:"${{ needs.determineenvironment.outputs.environment }}"
-        region:"${{ inputs.region || 'us' }}"
+        variant:"${{ inputs.variant || 'stanford' }}"
         versionname:"${{ needs.vars.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
         ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
         strip_sensorkit_entitlement:false
