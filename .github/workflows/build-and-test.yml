@@ -18,9 +18,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  UI_TEST_DESTINATION: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
+  # The UI tests remote-control the Health app and don't support its iOS 27 redesign yet, so each UI test job runs on a
+  # fresh iOS 26.5 simulator (see create-ui-test-simulator.sh). The UI test build and its shards must use the same Xcode
+  # version, since the test products cache key includes it.
   UI_TEST_PRODUCTS_PATH: .ci-cache/MHC-App-UITests.xctestproducts
-  UI_TEST_XCODE_VERSION: '26.6'
+  UI_TEST_SIMULATOR_DEVICE_TYPE: com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro
+  UI_TEST_SIMULATOR_RUNTIME: '26.5'
+  UI_TEST_XCODE_VERSION: 'latest-stable'
 
 jobs:
   mhc_app_unit_tests:
@@ -30,8 +34,8 @@ jobs:
       contents: read
     with:
       runsonlabels: '["macOS", "self-hosted"]'
-      xcodeversion: '26.6'
-      destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
+      xcodeversion: 'latest-stable'
+      destination: 'platform=iOS Simulator,name=iPhone 17,OS=latest'
       scheme: MyHeartCounts
       testplan: MyHeartCounts Unit Tests
       resultBundle: MHC-App-UnitTests.xcresult
@@ -54,6 +58,8 @@ jobs:
           xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
       - name: Use selected Xcode for this job
         run: echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Create UI test simulator
+        run: .github/scripts/create-ui-test-simulator.sh
       - name: Resolve test products cache key
         id: toolchain
         run: |
@@ -105,6 +111,13 @@ jobs:
         with:
           path: ${{ env.UI_TEST_PRODUCTS_PATH }}
           key: ${{ steps.toolchain.outputs.cache-key }}
+      - name: Delete UI test simulator
+        if: always()
+        run: |
+          if [ -n "${UI_TEST_SIMULATOR_UDID:-}" ]; then
+            xcrun simctl shutdown "$UI_TEST_SIMULATOR_UDID" || true
+            xcrun simctl delete "$UI_TEST_SIMULATOR_UDID"
+          fi
 
   mhc_app_ui_test_run:
     name: App UI Tests (Run; ${{ matrix.name }})
@@ -126,6 +139,8 @@ jobs:
           xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
       - name: Use selected Xcode for this job
         run: echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Create UI test simulator
+        run: .github/scripts/create-ui-test-simulator.sh
       - name: Resolve test products cache key
         id: toolchain
         run: |
@@ -179,6 +194,13 @@ jobs:
           if-no-files-found: warn
           overwrite: true
           retention-days: 7
+      - name: Delete UI test simulator
+        if: always()
+        run: |
+          if [ -n "${UI_TEST_SIMULATOR_UDID:-}" ]; then
+            xcrun simctl shutdown "$UI_TEST_SIMULATOR_UDID" || true
+            xcrun simctl delete "$UI_TEST_SIMULATOR_UDID"
+          fi
 
   mhc_app_ui_tests:
     name: App UI Tests / Test using xcodebuild or run fastlane
@@ -249,13 +271,13 @@ jobs:
         config: [Debug, Release]
         platform:
           - name: iOS
-            destination: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
+            destination: 'platform=iOS Simulator,name=iPhone 17,OS=latest'
           - name: macOS
             destination: 'platform=macOS,arch=arm64'
       fail-fast: false
     with:
       runsonlabels: '["macOS", "self-hosted"]'
-      xcodeversion: '26.6'
+      xcodeversion: 'latest-stable'
       path: MyHeartCountsShared
       scheme: MyHeartCountsShared-Package
       buildConfig: ${{ matrix.config }}
