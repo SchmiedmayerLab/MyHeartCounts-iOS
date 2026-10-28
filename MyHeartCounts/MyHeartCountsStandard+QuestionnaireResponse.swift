@@ -22,42 +22,23 @@ import MyHeartCountsShared
 import OSLog
 
 
-/// Converts the main-actor questionnaire state before crossing into the app's Standard actor.
-///
-/// `locale` is the one the questionnaire was rendered in; its language becomes `QuestionnaireResponse.language`.
-@MainActor
-func submitQuestionnaire(
-    _ responses: GroveQuestionnaire.QuestionnaireResponses,
-    renderedIn locale: Locale,
-    to standard: MyHeartCountsStandard,
-    authored: Date = .now,
-    authoredTimeZone: TimeZone = .current
-) async throws {
-    let submission = try await standard.questionnaireSubmissionContext()
-    let writerContext = try QuestionnaireWriterContext.current(
-        applicationIdentifierSystem: FHIRExchangeIdentifiers.application
-    )
-    let pair = try ResourceBuilder().pair(
-        from: responses,
-        subject: submission.subject.reference,
-        author: submission.subject.reference,
-        responseSource: submission.subject.reference,
-        writerContext: writerContext,
-        renderedIn: locale,
-        authored: authored,
-        authoredTimeZone: authoredTimeZone
-    )
-    try await standard.add(pair.response, in: submission)
-}
-
-
-struct QuestionnaireSubmissionContext: Sendable {
-    let subject: FHIRExchangeSubject
-    let destination: FHIRExchangeDestination
-}
-
-
 extension MyHeartCountsStandard {
+    struct QuestionnaireAuthorDate: Sendable {
+        static var now: Self {
+            Self(date: .now, timeZone: .current)
+        }
+        
+        let date: Date
+        let timeZone: TimeZone
+    }
+    
+    
+    struct QuestionnaireSubmissionContext: Sendable {
+        let subject: FHIRExchangeSubject
+        let destination: FHIRExchangeDestination
+    }
+    
+    
     @MainActor
     private static func enrolledQuestionnaire(
         for canonical: QuestionnaireCanonicalIdentity,
@@ -78,7 +59,61 @@ extension MyHeartCountsStandard {
         }
         return nil
     }
+    
+    private func questionnaireSubmissionContext() async throws -> QuestionnaireSubmissionContext {
+        // Read before the await: capturing it afterwards would compare the current generation with
+        // itself and let an account rotation that happened during the await through.
+        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
+        let subject = try await firebaseConfiguration.fhirExchangeSubject
+        return QuestionnaireSubmissionContext(
+            subject: subject,
+            destination: try FHIRExchangeDestination.capture(
+                accountID: subject.identity.value,
+                accountDataGeneration: accountDataGeneration
+            )
+        )
+    }
+    
+    /// - parameter locale: is the one the questionnaire was rendered in; its language becomes `QuestionnaireResponse.language`.
+    nonisolated func add(
+        _ responses: GroveQuestionnaire.QuestionnaireResponses,
+        renderedIn locale: Locale,
+        authoredDate: QuestionnaireAuthorDate = .now
+    ) async throws {
+        let submission = try await self.questionnaireSubmissionContext()
+        let writerContext = try QuestionnaireWriterContext.current(
+            applicationIdentifierSystem: FHIRExchangeIdentifiers.application
+        )
+        let pair = try ResourceBuilder().pair(
+            from: responses,
+            subject: submission.subject.reference,
+            author: submission.subject.reference,
+            responseSource: submission.subject.reference,
+            writerContext: writerContext,
+            renderedIn: locale,
+            authored: authoredDate.date,
+            authoredTimeZone: authoredDate.timeZone
+        )
+        let response = pair.response
+        guard let id = response.identifier?.value?.value?.string else {
+            throw ContractError.incompleteResponseIdentifier
+        }
+        try submission.destination.validateCurrentAccount()
+        let document = FirebaseConfiguration.usersCollection
+            .document(submission.destination.accountID)
+            .collection("questionnaireResponses")
+            .document(id)
+        let data = try Firestore.Encoder().encode(response)
+        try await document.setData(data)
+        await parseIfApplicable(response, in: submission)
+        if let timestamp = try? response.authored?.value?.asNSDate() {
+            await achievementsManager?.record(.completeQuestionnaire, timestamp: timestamp)
+        }
+    }
+}
 
+
+extension MyHeartCountsStandard {
     /// The HealthKit samples the measurements `response` extracts land as, through `exporter`.
     ///
     /// Extraction has no retry to protect: the response is already durable and its exchange graph is discarded, so the
@@ -86,7 +121,7 @@ extension MyHeartCountsStandard {
     ///
     /// - returns: `nil` when the response measures nothing.
     /// - throws: The `ObservationExtractionError` Grove refused the response with, or what the ledger threw.
-    static func healthKitSamples(
+    fileprivate static func healthKitSamples(
         extractedFrom response: ModelsR4.QuestionnaireResponse,
         answering questionnaire: ModelsR4.Questionnaire,
         through exporter: QuestionnaireFHIRExporter,
@@ -106,42 +141,8 @@ extension MyHeartCountsStandard {
             throw refusal
         }
     }
-
-    func questionnaireSubmissionContext() async throws -> QuestionnaireSubmissionContext {
-        // Read before the await: capturing it afterwards would compare the current generation with
-        // itself and let an account rotation that happened during the await through.
-        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
-        let subject = try await firebaseConfiguration.fhirExchangeSubject
-        return QuestionnaireSubmissionContext(
-            subject: subject,
-            destination: try FHIRExchangeDestination.capture(
-                accountID: subject.identity.value,
-                accountDataGeneration: accountDataGeneration
-            )
-        )
-    }
-
-    func add(
-        _ response: ModelsR4.QuestionnaireResponse,
-        in submission: QuestionnaireSubmissionContext
-    ) async throws {
-        guard let id = response.identifier?.value?.value?.string else {
-            throw ContractError.incompleteResponseIdentifier
-        }
-        try submission.destination.validateCurrentAccount()
-        let document = FirebaseConfiguration.usersCollection
-            .document(submission.destination.accountID)
-            .collection("questionnaireResponses")
-            .document(id)
-        let data = try Firestore.Encoder().encode(response)
-        try await document.setData(data)
-        await parseIfApplicable(response, in: submission)
-        if let timestamp = try? response.authored?.value?.asNSDate() {
-            await achievementsManager?.record(.completeQuestionnaire, timestamp: timestamp)
-        }
-    }
-
-
+    
+    
     private func parseIfApplicable(
         _ response: ModelsR4.QuestionnaireResponse,
         in submission: QuestionnaireSubmissionContext
