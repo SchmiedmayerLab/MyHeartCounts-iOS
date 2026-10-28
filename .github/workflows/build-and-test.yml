@@ -19,8 +19,7 @@ concurrency:
 
 env:
   # The UI tests remote-control the Health app and don't support its iOS 27 redesign yet, so each UI test job runs on a
-  # fresh iOS 26.5 simulator (see create-ui-test-simulator.sh). The UI test build and its shards must use the same Xcode
-  # version, since the test products cache key includes it.
+  # fresh iOS 26.5 simulator (see create-ui-test-simulator.sh).
   UI_TEST_PRODUCTS_PATH: .ci-cache/MHC-App-UITests.xctestproducts
   UI_TEST_SIMULATOR_DEVICE_TYPE: com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro
   UI_TEST_SIMULATOR_RUNTIME: '26.5'
@@ -74,21 +73,7 @@ jobs:
           key: ${{ steps.toolchain.outputs.cache-key }}
       - name: Build for testing
         if: steps.restore-test-products.outputs.cache-hit != 'true'
-        run: |
-          set -o pipefail
-          mkdir -p "$(dirname "$UI_TEST_PRODUCTS_PATH")"
-          xcodebuild \
-            -scheme MyHeartCounts \
-            -configuration Debug \
-            -destination "$UI_TEST_DESTINATION" \
-            -testPlan 'MyHeartCounts UI Tests' \
-            -enableCodeCoverage YES \
-            -testProductsPath "$UI_TEST_PRODUCTS_PATH" \
-            -derivedDataPath .derivedData \
-            -skipPackagePluginValidation \
-            -skipMacroValidation \
-            build-for-testing \
-          | xcbeautify
+        run: .github/scripts/build-ui-test-products.sh
       - name: Validate test products
         run: |
           test -f "$UI_TEST_PRODUCTS_PATH/Info.plist"
@@ -148,11 +133,16 @@ jobs:
           echo "Using Xcode $xcode_version on $RUNNER_OS/$RUNNER_ARCH"
           echo "cache-key=mhc-ui-test-products-v1-$RUNNER_OS-$RUNNER_ARCH-xcode-$xcode_version-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
       - name: Restore test products
+        id: restore-test-products
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.UI_TEST_PRODUCTS_PATH }}
           key: ${{ steps.toolchain.outputs.cache-key }}
-          fail-on-cache-miss: true
+      # The cache key includes the Xcode version, so a shard whose runner has a different latest stable Xcode than the
+      # build job's builds its own test products.
+      - name: Build for testing
+        if: steps.restore-test-products.outputs.cache-hit != 'true'
+        run: .github/scripts/build-ui-test-products.sh
       - name: Validate test products
         run: |
           test -f "$UI_TEST_PRODUCTS_PATH/Info.plist"
