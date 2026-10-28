@@ -160,12 +160,12 @@ extension HealthUploadStaging {
 
 extension HealthUploadStaging {
     @discardableResult
-    func add<Observations: Collection & Sendable>(
-        _ samples: consuming Observations,
+    func add(
+        _ samples: consuming some Collection<some HealthObservation> & Sendable,
         commonSampleType: String? = nil,
         ingestionTimestamp: Date = .now,
         accountDataGeneration: Int? = nil
-    ) async throws -> HealthKitFHIRReservationReceipt where Observations.Element: HealthObservation {
+    ) async throws -> HealthKitFHIRReservationReceipt {
         guard !samples.isEmpty else {
             return HealthKitFHIRReservationReceipt()
         }
