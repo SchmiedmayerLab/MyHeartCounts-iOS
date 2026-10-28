@@ -121,7 +121,7 @@ extension MyHeartCountsStandard {
     ///
     /// - returns: `nil` when the response measures nothing.
     /// - throws: The `ObservationExtractionError` Grove refused the response with, or what the ledger threw.
-    static func healthKitSamples( /* private-but-testable */ 
+    static func healthKitSamples( // private but testable
         extractedFrom response: ModelsR4.QuestionnaireResponse,
         answering questionnaire: ModelsR4.Questionnaire,
         through exporter: QuestionnaireFHIRExporter,
