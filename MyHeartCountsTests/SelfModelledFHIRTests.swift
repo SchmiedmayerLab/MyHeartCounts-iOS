@@ -18,7 +18,7 @@ import Testing
 
 
 @Suite
-struct SelfModelledQuantityFHIRTests { // swiftlint:disable:this file_types_order
+struct SelfModelledQuantityFHIRTests {
     @Test
     func writerSeparatesClinicalCodeFromUCUMQuantity() throws {
         let sample = QuantitySample(
@@ -189,6 +189,36 @@ struct TimedWalkingTestFHIRTests {
 
         let decoded = try #require(TimedWalkingTestResult(observation))
         #expect(decoded == result)
+    }
+
+    @Test
+    func readerPreservesHistoricalTimedWalkResults() throws {
+        let result = testResult()
+        var observation = try result.fhirObservation(issuedDate: nil, extensions: [])
+        for (code, unit) in [
+            (LOINC.exerciseDuration, "min"),
+            (.pedometerNumStepsInUnspecifiedTime, "count"),
+            (.pedometerWalkingDistanceInUnspecifiedTime, "m"),
+            (.sixMinuteWalkTest, "m")
+        ] {
+            try replaceQuantity(in: &observation, for: code) { quantity in
+                quantity.system = LOINC.system
+                quantity.code = code.code
+                quantity.unit = unit.asFHIRStringPrimitive()
+            }
+        }
+        #expect(try #require(TimedWalkingTestResult(observation)) == result)
+
+        var wrongCode = observation
+        try replaceQuantity(in: &wrongCode, for: .exerciseDuration) { quantity in
+            quantity.code = LOINC.pedometerWalkingDistanceInUnspecifiedTime.code
+        }
+        #expect(TimedWalkingTestResult(wrongCode) == nil)
+
+        try replaceQuantity(in: &observation, for: .exerciseDuration) { quantity in
+            quantity.unit = "s".asFHIRStringPrimitive()
+        }
+        #expect(TimedWalkingTestResult(observation) == nil)
     }
 
     @Test
