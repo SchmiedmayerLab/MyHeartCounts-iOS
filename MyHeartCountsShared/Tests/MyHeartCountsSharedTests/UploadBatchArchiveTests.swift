@@ -29,7 +29,7 @@ struct UploadBatchArchiveTests {
             timeRange: start.addingTimeInterval(30)..<start.addingTimeInterval(90),
             sampleCount: 1
         )
-        let url = try archive.finalize()
+        let url = try archive.finalize().url
         defer {
             try? FileManager.default.removeItem(at: url)
         }

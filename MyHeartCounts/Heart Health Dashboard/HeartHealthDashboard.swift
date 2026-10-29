@@ -268,7 +268,7 @@ private struct HealthDashboardQuestionnaireView: View {
                 QuestionnaireSheet(questionnaire) { result in
                     switch result {
                     case .completed(let responses):
-                        try await submitQuestionnaire(responses, renderedIn: locale, to: standard)
+                        try await standard.add(responses, renderedIn: locale)
                     case .cancelled:
                         break
                     }

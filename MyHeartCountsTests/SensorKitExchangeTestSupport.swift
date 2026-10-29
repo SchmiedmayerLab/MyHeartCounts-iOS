@@ -86,6 +86,8 @@ final class RecordedSensorKitUploads: Sendable {
     struct StagedFile: Equatable {
         let path: String
         let bytes: Data
+        /// The metadata the file is uploaded with.
+        let metadata: [String: String]
     }
 
     struct StageFailure: Error {}
@@ -137,10 +139,12 @@ final class RecordedSensorKitUploads: Sendable {
         }
     }
 
-    var uploader: SensorKitRecordUploader {
-        SensorKitRecordUploader { file, category, _ in
+    var uploader: SensorKitBatchUploader {
+        ._custom { file, category, _, metadata in
             let bytes = try Data(contentsOf: file)
-            self.files.withLock { $0.append(StagedFile(path: category.remotePath(for: file.lastPathComponent), bytes: bytes)) }
+            self.files.withLock {
+                $0.append(StagedFile(path: category.remotePath(for: file.lastPathComponent), bytes: bytes, metadata: metadata))
+            }
             if self.failsStaging {
                 throw StageFailure()
             }

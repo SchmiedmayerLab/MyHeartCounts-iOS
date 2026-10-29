@@ -18,12 +18,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Temporary: the self-hosted runners have different Xcode versions. The UI test build and its shards need the same one
-  # (the test products cache key includes it), so they run on the `xcode-26.6` runners; all other jobs use each runner's
-  # latest stable Xcode and simulator runtime.
-  UI_TEST_DESTINATION: 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
+  # The UI tests remote-control the Health app and don't support its iOS 27 redesign yet, so each UI test job runs on a
+  # fresh iOS 26.5 simulator (see create-ui-test-simulator.sh).
   UI_TEST_PRODUCTS_PATH: .ci-cache/MHC-App-UITests.xctestproducts
-  UI_TEST_XCODE_VERSION: '26.6'
+  UI_TEST_SIMULATOR_DEVICE_TYPE: com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro
+  UI_TEST_SIMULATOR_RUNTIME: '26.5'
+  UI_TEST_XCODE_VERSION: 'latest-stable'
 
 jobs:
   mhc_app_unit_tests:
@@ -42,7 +42,7 @@ jobs:
 
   mhc_app_ui_test_build:
     name: App UI Tests (Build)
-    runs-on: [macOS, self-hosted, xcode-26.6]
+    runs-on: [macOS, self-hosted]
     permissions:
       contents: read
     outputs:
@@ -57,6 +57,8 @@ jobs:
           xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
       - name: Use selected Xcode for this job
         run: echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Create UI test simulator
+        run: .github/scripts/create-ui-test-simulator.sh
       - name: Resolve test products cache key
         id: toolchain
         run: |
@@ -71,21 +73,7 @@ jobs:
           key: ${{ steps.toolchain.outputs.cache-key }}
       - name: Build for testing
         if: steps.restore-test-products.outputs.cache-hit != 'true'
-        run: |
-          set -o pipefail
-          mkdir -p "$(dirname "$UI_TEST_PRODUCTS_PATH")"
-          xcodebuild \
-            -scheme MyHeartCounts \
-            -configuration Debug \
-            -destination "$UI_TEST_DESTINATION" \
-            -testPlan 'MyHeartCounts UI Tests' \
-            -enableCodeCoverage YES \
-            -testProductsPath "$UI_TEST_PRODUCTS_PATH" \
-            -derivedDataPath .derivedData \
-            -skipPackagePluginValidation \
-            -skipMacroValidation \
-            build-for-testing \
-          | xcbeautify
+        run: .github/scripts/build-ui-test-products.sh
       - name: Validate test products
         run: |
           test -f "$UI_TEST_PRODUCTS_PATH/Info.plist"
@@ -108,11 +96,18 @@ jobs:
         with:
           path: ${{ env.UI_TEST_PRODUCTS_PATH }}
           key: ${{ steps.toolchain.outputs.cache-key }}
+      - name: Delete UI test simulator
+        if: always()
+        run: |
+          if [ -n "${UI_TEST_SIMULATOR_UDID:-}" ]; then
+            xcrun simctl shutdown "$UI_TEST_SIMULATOR_UDID" || true
+            xcrun simctl delete "$UI_TEST_SIMULATOR_UDID"
+          fi
 
   mhc_app_ui_test_run:
     name: App UI Tests (Run; ${{ matrix.name }})
     needs: mhc_app_ui_test_build
-    runs-on: [macOS, self-hosted, xcode-26.6]
+    runs-on: [macOS, self-hosted]
     permissions:
       contents: read
     strategy:
@@ -129,6 +124,8 @@ jobs:
           xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
       - name: Use selected Xcode for this job
         run: echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Create UI test simulator
+        run: .github/scripts/create-ui-test-simulator.sh
       - name: Resolve test products cache key
         id: toolchain
         run: |
@@ -136,11 +133,16 @@ jobs:
           echo "Using Xcode $xcode_version on $RUNNER_OS/$RUNNER_ARCH"
           echo "cache-key=mhc-ui-test-products-v1-$RUNNER_OS-$RUNNER_ARCH-xcode-$xcode_version-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
       - name: Restore test products
+        id: restore-test-products
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.UI_TEST_PRODUCTS_PATH }}
           key: ${{ steps.toolchain.outputs.cache-key }}
-          fail-on-cache-miss: true
+      # The cache key includes the Xcode version, so a shard whose runner has a different latest stable Xcode than the
+      # build job's builds its own test products.
+      - name: Build for testing
+        if: steps.restore-test-products.outputs.cache-hit != 'true'
+        run: .github/scripts/build-ui-test-products.sh
       - name: Validate test products
         run: |
           test -f "$UI_TEST_PRODUCTS_PATH/Info.plist"
@@ -182,12 +184,19 @@ jobs:
           if-no-files-found: warn
           overwrite: true
           retention-days: 7
+      - name: Delete UI test simulator
+        if: always()
+        run: |
+          if [ -n "${UI_TEST_SIMULATOR_UDID:-}" ]; then
+            xcrun simctl shutdown "$UI_TEST_SIMULATOR_UDID" || true
+            xcrun simctl delete "$UI_TEST_SIMULATOR_UDID"
+          fi
 
   mhc_app_ui_tests:
     name: App UI Tests / Test using xcodebuild or run fastlane
     if: always()
     needs: mhc_app_ui_test_run
-    runs-on: [macOS, self-hosted, xcode-26.6]
+    runs-on: [macOS, self-hosted]
     permissions:
       contents: read
     steps:
