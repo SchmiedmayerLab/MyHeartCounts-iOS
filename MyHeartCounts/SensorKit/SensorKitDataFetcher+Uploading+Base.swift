@@ -92,6 +92,15 @@ struct SensorKitRecordRefusal {
 }
 
 
+/// A batch's finalized archive, ready to be staged for upload.
+private struct ArchivedBatch {
+    /// The finalized batch archive
+    let finalizedArchive: UploadBatchArchive.Finalized
+    /// The identities of the records the archive holds, from which its upload name derives.
+    let recordIDs: [UUID]
+}
+
+
 /// One record an upload strategy prepared from its fetched batch, before the record has its identity.
 struct SensorKitRecordUpload {
     typealias MakeRecord = (
@@ -148,13 +157,13 @@ extension MHCSensorSampleUploadStrategy {
     /// Archives the records of one batch that Grove exported, logging and leaving out each record it refused.
     ///
     /// - parameter records: The batch's exported records, each with its export outcome.
-    /// - returns: The finalized archive's file and the identities of the records it holds, or `nil` if Grove refused
-    ///     every record.
+    /// - returns: The finalized archive's file, its batch info's JSON and the identities of the records it holds, or `nil`
+    ///     if Grove refused every record.
     private static func archive(
         _ records: some Sequence<(ExportedRecord, SensorKitFHIRExporter.Export.Outcome)>,
         for sensor: Sensor<Sample>,
         publication: SensorKitBatchPublication
-    ) throws -> (file: URL, recordIDs: [UUID])? {
+    ) throws -> ArchivedBatch? {
         var archive = try UploadBatchArchive(
             source: .sensorKit,
             sampleTypeId: sensor.id,
@@ -184,7 +193,8 @@ extension MHCSensorSampleUploadStrategy {
         guard !recordIDs.isEmpty else {
             return nil
         }
-        return (try archive.finalize(), recordIDs)
+        let finalizedArchive = try archive.finalize()
+        return ArchivedBatch(finalizedArchive: finalizedArchive, recordIDs: recordIDs)
     }
 
     /// Publishes the records prepared from one fetched batch through MHC's storage backend.
@@ -249,15 +259,30 @@ extension MHCSensorSampleUploadStrategy {
         )
         defer {
             // Staging moves the file; these only remove what staging did not take.
-            try? FileManager.default.removeItem(at: archived.file)
+            try? FileManager.default.removeItem(at: archived.finalizedArchive.url)
             try? FileManager.default.removeItem(at: file)
         }
         try? FileManager.default.removeItem(at: file)
-        try FileManager.default.moveItem(at: archived.file, to: file)
+        try FileManager.default.moveItem(at: archived.finalizedArchive.url, to: file)
         try publication.destination.validateCurrentAccount()
-        try await publication.uploader.stageFile(file, ManagedFileUpload.Category(sensor), publication.destination.accountDataGeneration)
+        try await publication.uploader.stageFile(
+            at: file,
+            category: ManagedFileUpload.Category(sensor),
+            accountDataGeneration: publication.destination.accountDataGeneration,
+            // The batch info travels with the file, so that the batch can be inspected without downloading it.
+            metadata: [UploadBatchArchive.batchInfoMetadataKey: String(decoding: archived.finalizedArchive.batchInfo, as: UTF8.self)]
+        )
         return receipt
     }
+}
+
+
+extension UploadBatchArchive {
+    /// The key under which an uploaded archive's object metadata carries its batch info, as the JSON `batchinfo.json`
+    /// holds, so that the batch can be inspected without downloading the archive.
+    ///
+    /// Lowercase, as object stores may treat metadata keys as case-insensitive HTTP header names.
+    static let batchInfoMetadataKey = "batchinfo"
 }
 
 

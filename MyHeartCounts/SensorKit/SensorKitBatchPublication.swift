@@ -15,16 +15,28 @@ import MyHeartCountsShared
 import OSLog
 
 
-/// Where a published SensorKit batch goes: its graphs, as one file staged for upload.
-///
-/// Injected, so tests publish a batch without Firebase.
-struct SensorKitRecordUploader: Sendable {
-    /// Durably stages one batch file for upload under `category`, fenced to `accountDataGeneration`.
-    let stageFile: @Sendable (
+/// Used to control where SensorKit batch files get published/uploaded to.
+enum SensorKitBatchUploader: Sendable {
+    /// Hands the batch file to ``ManagedFileUpload``, which then stages it for upload to firebase storage.
+    case fileUpload(ManagedFileUpload)
+    /// for testing purposes only, in order to be able to inject a custom file staging implementation when firebase isn't available.
+    case _custom(@Sendable ( // swiftlint:disable:this identifier_name
         _ file: URL,
         _ category: ManagedFileUpload.Category,
-        _ accountDataGeneration: Int
-    ) async throws -> Void
+        _ accountDataGeneration: Int,
+        _ metadata: [String: String]
+    ) async throws -> Void)
+    
+    /// Durably stages one batch file for upload under `category`, fenced to `accountDataGeneration`, with `metadata`
+    /// attached to the uploaded file.
+    func stageFile(at url: URL, category: ManagedFileUpload.Category, accountDataGeneration: Int, metadata: [String: String]) async throws {
+        switch self {
+        case .fileUpload(let managedFileUpload):
+            try await managedFileUpload.stage(url, category: category, accountDataGeneration: accountDataGeneration, metadata: metadata)
+        case ._custom(let handler):
+            try await handler(url, category, accountDataGeneration, metadata)
+        }
+    }
 }
 
 
@@ -35,7 +47,7 @@ struct SensorKitBatchPublication: Sendable {
     let destination: FHIRExchangeDestination
     let info: SensorKit.BatchInfo
     /// Where the batch's records go.
-    let uploader: SensorKitRecordUploader
+    let uploader: SensorKitBatchUploader
     /// When the batch's new events are reserved; a redelivery before the batch is acknowledged restates the first.
     let conversionInstant: Date
 
@@ -52,7 +64,7 @@ struct SensorKitBatchPublication: Sendable {
         destination: FHIRExchangeDestination,
         stateStore: FHIRExchangeStateStore,
         ledger: FHIRExchangeLedger,
-        uploader: SensorKitRecordUploader,
+        uploader: SensorKitBatchUploader,
         conversionInstant: Date = .now
     ) throws {
         guard let sourceToken = SensorKitCatalog.current.entry(for: sensor)?.sourceToken else {
@@ -162,16 +174,6 @@ struct SensorKitBatchPublication: Sendable {
 }
 
 
-extension SensorKitRecordUploader {
-    /// The app's: batch files go to the managed file upload.
-    static func managed(by managedFileUpload: ManagedFileUpload) -> Self {
-        Self { file, category, accountDataGeneration in
-            try await managedFileUpload.stage(file, category: category, accountDataGeneration: accountDataGeneration)
-        }
-    }
-}
-
-
 extension MyHeartCountsStandard {
     func sensorKitBatchPublication(
         for sensor: some AnySensor,
@@ -190,7 +192,7 @@ extension MyHeartCountsStandard {
             destination: destination,
             stateStore: fhirExchangeStateStore(accountDataGeneration: accountDataGeneration),
             ledger: fhirExchangeLedger,
-            uploader: .managed(by: managedFileUpload)
+            uploader: .fileUpload(managedFileUpload)
         )
     }
 

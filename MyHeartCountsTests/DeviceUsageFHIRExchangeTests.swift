@@ -246,6 +246,9 @@ extension DeviceUsageFHIRExchangeTests {
         #expect(uploads.all.map(\.path) == [Self.batchFilePath(of: [sourceRecordID])])
         #expect(try uploads.entries.map(\.path) == ["recordings/\(sourceRecordID.value).json", "bundles.json", "batchinfo.json"])
         #expect(try uploads.recordings["recordings/\(sourceRecordID.value).json"] == prepared.nativePayload)
+        // The file's metadata carries the archive's batch info, byte for byte.
+        let batchInfo = try #require(try uploads.entries.first { $0.path == "batchinfo.json" }).contents
+        #expect(uploads.all.map(\.metadata) == [[UploadBatchArchive.batchInfoMetadataKey: String(decoding: batchInfo, as: UTF8.self)]])
         let info = try #require(try uploads.archives.first).info
         #expect(info.source == .sensorKit)
         #expect(info.sampleTypeId == Sensor.deviceUsage.id)

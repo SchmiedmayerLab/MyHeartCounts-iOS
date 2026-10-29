@@ -170,7 +170,7 @@ private struct UserTaskPerforming: ViewModifier {
                     QuestionnaireSheet(questionnaire) { result in
                         switch result {
                         case .completed(let responses):
-                            try await submitQuestionnaire(responses, renderedIn: locale, to: standard)
+                            try await standard.add(responses, renderedIn: locale)
                             task.markCompleted(didSucceed: true)
                         case .cancelled:
                             task.markCompleted(didSucceed: false)

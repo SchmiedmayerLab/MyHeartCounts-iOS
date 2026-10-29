@@ -122,6 +122,15 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
             guard !LaunchOptions.launchOptions[.disableSensorKitUpload] else {
                 return
             }
+            // Every fetch publishes new archives, so a launch only fetches if the last fetch started at least the minimum interval ago
+            // (or the clock has since been set back). The background task is exempt: iOS runs it sparingly, and a launch's fetch,
+            // which often stops early once the app is suspended, must not hold off the run that drains the backlog.
+            if let lastAttempt = LocalPreferencesStore.standard[.lastSensorKitFetchAttempt] {
+                let elapsed = Date.now.timeIntervalSince(lastAttempt)
+                guard elapsed < 0 || elapsed >= LaunchOptions.launchOptions[.sensorKitMinimumFetchInterval] else {
+                    return
+                }
+            }
             let allowance = await DeviceBattery.workAllowance(
                 lastRun: LocalPreferencesStore.standard[.lastSensorKitFetch],
                 staleness: TimeConstants.day
@@ -194,6 +203,7 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
     @concurrent
     private func _fetchAndUploadNewData(_ allowance: DeviceBattery.WorkAllowance) async throws {
         try Task.checkCancellation()
+        LocalPreferencesStore.standard[.lastSensorKitFetchAttempt] = .now
         let maximumBatchesPerSensor = allowance == .limited ? 1 : nil
         let concurrencyLimit = allowance == .limited ? 1 : (ProcessInfo.isProDevice ? 3 : 1)
         var allSensorsSucceeded = true
@@ -411,6 +421,8 @@ extension MHCBackgroundTasks.TaskIdentifier {
 extension LocalPreferenceKeys {
     /// The last time a SensorKit fetch completed without error for every sensor.
     static let lastSensorKitFetch = LocalPreferenceKey<Date?>("lastSensorKitFetch")
+    /// The last time a SensorKit fetch started, whether or not it then succeeded.
+    static let lastSensorKitFetchAttempt = LocalPreferenceKey<Date?>("lastSensorKitFetchAttempt")
 }
 
 

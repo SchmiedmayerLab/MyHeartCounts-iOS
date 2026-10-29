@@ -13,6 +13,7 @@ import Foundation
 import Grove
 import GroveAccount
 import GroveFoundation
+import MyHeartCountsShared
 import Observation
 import OSLog
 import SwiftData
@@ -77,6 +78,9 @@ final class ManagedFileUpload: Grove::Module, EnvironmentAccessible, Sendable {
         /// Each in-flight upload retains its request body, and the module always spends someone else's background
         /// execution budget, so this is kept deliberately small.
         var maximumConcurrentUploads = 2
+        /// Whether staged files are uploaded at all; with `false`, every upload is still staged and kept, but none is
+        /// ever performed (`--disableFileUploads`).
+        var performsUploads = !LaunchOptions.launchOptions[.disableFileUploads]
         /// Resolves the currently signed-in account's id; `nil` to read it from the `Account` module.
         var accountIdProvider: (@Sendable () async -> String?)?
         /// Performs the actual upload; `nil` to upload into the Firebase Storage.
@@ -134,6 +138,10 @@ final class ManagedFileUpload: Grove::Module, EnvironmentAccessible, Sendable {
     /// Entries are removed again when the upload finishes, in any way — unlike a plain "already seen" set, a
     /// failed upload therefore stays eligible for a later retry instead of being blacklisted for the launch.
     private var enqueuedUploads: [PersistentIdentifier: Category] = [:]
+    /// Uploads counted into their category's progress but never handed to the queue, as `performsUploads` is `false`.
+    ///
+    /// Kept apart from ``enqueuedUploads``, which the quiescence wait drains: a held upload never finishes.
+    private var heldUploads: Set<PersistentIdentifier> = []
     /// The currently in-flight uploads, so that they can be cancelled and awaited.
     private var activeUploads: [PersistentIdentifier: Swift::Task<UploadOutcome, Never>] = [:]
     private var quiescenceWaiters: [CheckedContinuation<Void, Never>] = []
@@ -261,22 +269,13 @@ final class ManagedFileUpload: Grove::Module, EnvironmentAccessible, Sendable {
     }
 
     /// The total on-disk size, in bytes, of all files pending upload within the specified category.
-    func totalPendingFileSize(for category: Category) -> Int64? {
-        guard let modelContext else {
+    /// The total size of the category's staged files that have not been uploaded yet, in bytes, read off the main actor;
+    /// `nil` if the pending uploads cannot be read.
+    func totalPendingFileSize(for category: Category) async -> Int64? {
+        guard let modelContainer = modelContainer.value else {
             return nil
         }
-        let categoryId = category.id
-        guard let uploads = try? modelContext.fetch(
-            FetchDescriptor<ScheduledUpload>(predicate: #Predicate { $0.categoryId == categoryId })
-        ) else {
-            return nil
-        }
-        var total: Int64 = 0
-        for upload in uploads {
-            let url = stagingUrl(forUploadWithId: upload.id)
-            total += Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
-        }
-        return total
+        return try? await pendingFileSnapshots(in: category.id, from: modelContainer).reduce(0) { $0 + ($1.size ?? 0) }
     }
 }
 
@@ -751,9 +750,15 @@ extension ManagedFileUpload {
 
     /// Hands an upload to the queue, counting it into its category's progress.
     ///
-    /// Ignored if the queue is closed, or if this upload is already in flight.
+    /// Ignored if the queue is closed, or if this upload is already in flight. Where uploads are not performed at all,
+    /// the upload is only counted into its category's progress, once, and stays staged.
     private func enqueue(_ uploadId: PersistentIdentifier, category: Category) {
-        guard acceptsUploads, enqueuedUploads[uploadId] == nil else {
+        guard acceptsUploads, enqueuedUploads[uploadId] == nil, !heldUploads.contains(uploadId) else {
+            return
+        }
+        guard configuration.performsUploads else {
+            heldUploads.insert(uploadId)
+            addUploadToProgress(for: category)
             return
         }
         // Being queued now supersedes any retry that was still waiting for its delay to pass.
@@ -1234,6 +1239,7 @@ extension ManagedFileUpload {
         }
         resetAllProgress()
         enqueuedUploads.removeAll()
+        heldUploads.removeAll()
         failedAttempts.removeAll()
         try removeContents(of: stagingDirectory)
         // Also sweep any legacy per-category directories: the migration deliberately leaves behind directories
@@ -1260,6 +1266,7 @@ extension ManagedFileUpload {
                     try fileManager.removeItem(at: url)
                 }
                 enqueuedUploads.removeValue(forKey: upload.persistentModelID)
+                heldUploads.remove(upload.persistentModelID)
                 failedAttempts.removeValue(forKey: upload.persistentModelID)
                 modelContext.delete(upload)
             }
@@ -1296,6 +1303,115 @@ extension ManagedFileUpload {
         }
         if let firstError {
             throw firstError
+        }
+    }
+}
+
+
+// MARK: Inspection
+
+extension ManagedFileUpload {
+    /// A staged file that has not been uploaded yet, as far as this launch knows it.
+    struct PendingFile: Identifiable, Hashable, Sendable {
+        /// Where a pending file currently is in the module's queue.
+        enum State: Hashable, Sendable {
+            /// Handed to the queue, waiting for an upload slot.
+            case queued
+            /// Being uploaded right now.
+            case uploading
+            /// Counted into its category's progress, but kept back from the queue, as `--disableFileUploads` is set.
+            case held
+            /// Failed `failedAttempts` times during this launch, and waiting for its next attempt.
+            case waitingForRetry(failedAttempts: Int)
+            /// Not in the queue during this launch: not resumed yet, or out of retries until the next resume.
+            case idle
+        }
+
+        /// The id of the file's entry in the pending-uploads database.
+        let id: UUID
+        /// The name the file will have in the Firebase Storage, within its category's folder.
+        let filename: String
+        /// The file's path in the Firebase Storage, relative to its account's directory.
+        let remotePath: String
+        /// The size of the staged file, in bytes; `nil` if it could not be read.
+        let size: Int64?
+        /// When the file was staged.
+        let creationDate: Date
+        /// The account data generation the file was staged under.
+        let accountDataGeneration: Int
+        /// Where the file currently is in the module's queue.
+        let state: State
+    }
+
+    /// A pending file as the database and the staging directory state it, read off the main actor.
+    private struct PendingFileSnapshot: Sendable {
+        let persistentId: PersistentIdentifier
+        let id: UUID
+        let filename: String
+        let remotePath: String
+        let size: Int64?
+        let creationDate: Date
+        let accountDataGeneration: Int
+    }
+
+    /// The staged files of `category` that have not been uploaded yet, oldest first.
+    ///
+    /// The entries and the files' sizes are read off the main actor, on a throwaway context, so that a large backlog
+    /// neither blocks the main actor nor stays registered with the main context; only each file's queue state is
+    /// read on the main actor.
+    func pendingFiles(in category: Category) async -> [PendingFile] {
+        guard let modelContainer = modelContainer.value,
+              let snapshots = try? await pendingFileSnapshots(in: category.id, from: modelContainer) else {
+            return []
+        }
+        return snapshots.map { snapshot in
+            PendingFile(
+                id: snapshot.id,
+                filename: snapshot.filename,
+                remotePath: snapshot.remotePath,
+                size: snapshot.size,
+                creationDate: snapshot.creationDate,
+                accountDataGeneration: snapshot.accountDataGeneration,
+                state: queueState(of: snapshot.persistentId)
+            )
+        }
+    }
+
+    /// The pending uploads of the category `categoryId`, oldest first, with their staged files' sizes.
+    ///
+    /// Deliberately not the `mainContext`, as ``loadPendingUploads(from:)`` explains.
+    @concurrent
+    private func pendingFileSnapshots(in categoryId: String, from container: ModelContainer) async throws -> [PendingFileSnapshot] {
+        let context = ModelContext(container)
+        let uploads = try context.fetch(FetchDescriptor<ScheduledUpload>(
+            predicate: #Predicate { $0.categoryId == categoryId },
+            sortBy: [SortDescriptor(\.creationDate)]
+        ))
+        return uploads.map { upload in
+            let size = (try? stagingUrl(forUploadWithId: upload.id).resourceValues(forKeys: [.fileSizeKey]))?.fileSize
+            return PendingFileSnapshot(
+                persistentId: upload.persistentModelID,
+                id: upload.id,
+                filename: upload.filename,
+                remotePath: "\(upload.categoryFirebasePath)/\(upload.filename)",
+                size: size.map(Int64.init),
+                creationDate: upload.creationDate,
+                accountDataGeneration: upload.accountDataGeneration
+            )
+        }
+    }
+
+    private func queueState(of uploadId: PersistentIdentifier) -> PendingFile.State {
+        if activeUploads[uploadId] != nil {
+            .uploading
+        } else if enqueuedUploads[uploadId] != nil {
+            .queued
+        } else if heldUploads.contains(uploadId) {
+            .held
+        } else if retryTasks[uploadId] != nil {
+            .waitingForRetry(failedAttempts: failedAttempts[uploadId] ?? 0)
+        } else {
+            .idle
         }
     }
 }

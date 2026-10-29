@@ -6,8 +6,10 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Algorithms
 import Foundation
 import GroveFoundation
+import GroveViews
 import SwiftUI
 
 
@@ -16,6 +18,10 @@ struct FileUploadInsights: View {
     private var managedFileUpload
     /// When the queue was last reread: every two seconds, and at once when pulled down.
     @State private var refreshed = Date.now
+    /// Each category's pending files' total size, as last read off the main actor.
+    @State private var pendingSizes: [ManagedFileUpload.Category: Int64] = [:]
+    
+    @State private var detailsSheetCategory: ManagedFileUpload.Category?
 
     private var inactiveCategories: [ManagedFileUpload.Category] {
         managedFileUpload.categories.filter { category in
@@ -28,51 +34,215 @@ struct FileUploadInsights: View {
     }
     
     var body: some View {
-        form
-            .refreshable {
+        Form {
+            ForEach(categoryInfos, id: \.category) { categoryInfo in
+                row(for: categoryInfo)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack {
+                    Text("ManagedFileUpload" as String)
+                        .font(.headline)
+                    Text("Updated \(refreshed.formatted(date: .omitted, time: .standard))" as String)
+                        .font(.subheadline)
+                }
+            }
+        }
+        .refreshable {
+            await reloadPendingSizes()
+            refreshed = .now
+        }
+        .task {
+            // A category's `Progress` and its pending files' size change without notifying SwiftUI, so the queue
+            // is reread every two seconds. Only a change of the view's own state rereads the rows; a
+            // `TimelineView` tick redraws the timestamp but leaves them as they were.
+            while !Task.isCancelled {
+                await reloadPendingSizes()
+                try? await Task.sleep(for: .seconds(2))
                 refreshed = .now
             }
-            .task {
-                // A category's `Progress` and its pending files' size change without notifying SwiftUI, so the queue
-                // is reread every two seconds. Only a change of the view's own state rereads the rows; a
-                // `TimelineView` tick redraws the timestamp but leaves them as they were.
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(2))
-                    refreshed = .now
+        }
+        .sheet(item: $detailsSheetCategory) { category in
+            CategoryDetailsSheet(category: category)
+        }
+    }
+}
+
+
+extension FileUploadInsights {
+    private struct CategoryInfo: Equatable {
+        let category: ManagedFileUpload.Category
+        let progress: Progress?
+        let totalPendingSizeInBytes: Int64?
+        
+        var isActive: Bool {
+            guard let progress else {
+                return false
+            }
+            return !(progress.isCancelled || progress.isPaused)
+        }
+    }
+    
+    private var categoryInfos: [CategoryInfo] {
+        _ = refreshed
+        return managedFileUpload.categories
+            .map {
+                CategoryInfo(
+                    category: $0,
+                    progress: managedFileUpload.progressByCategory[$0],
+                    totalPendingSizeInBytes: pendingSizes[$0]
+                )
+            }
+            .sorted { lhs, rhs in
+                switch (lhs.totalPendingSizeInBytes, rhs.totalPendingSizeInBytes) {
+                case (.some, .none):
+                    true
+                case (.none, .some):
+                    false
+                case let (.some(lhsSize), .some(rhsSize)):
+                    lhsSize > rhsSize || (lhsSize == rhsSize && lhs.category.id < rhs.category.id)
+                case (.none, .none):
+                    lhs.category.id < rhs.category.id
                 }
             }
     }
+    
+    /// Rereads every category's pending files' total size, which the upload module reads off the main actor.
+    private func reloadPendingSizes() async {
+        var sizes: [ManagedFileUpload.Category: Int64] = [:]
+        for category in managedFileUpload.categories {
+            sizes[category] = await managedFileUpload.totalPendingFileSize(for: category)
+        }
+        pendingSizes = sizes
+    }
 
-    private var form: some View {
-        Form {
-            Section {
-                Text("Updated \(refreshed.formatted(date: .omitted, time: .standard))" as String)
-                    .foregroundStyle(.secondary)
-            }
-            ForEach(Array(managedFileUpload.categories)) { category in
-                if let progress = managedFileUpload.progressByCategory[category] {
-                    Section {
+    @ViewBuilder
+    private func row(for categoryInfo: CategoryInfo) -> some View {
+        Button {
+            detailsSheetCategory = categoryInfo.category
+        } label: {
+            VStack(alignment: .leading) {
+                Text(categoryInfo.category.title)
+                    .font(.headline)
+                if let progress = categoryInfo.progress {
+                    VStack {
                         ProgressView(
                             value: Double(progress.completedUnitCount),
                             total: Double(max(progress.totalUnitCount, 1))
-                        ) {
-                            Text("\(progress.completedUnitCount) of \(progress.totalUnitCount) uploaded" as String)
+                        )
+                        HStack {
+                            Text("\(progress.completedUnitCount) / \(progress.totalUnitCount)" as String)
+                            Spacer()
+                            if let size = categoryInfo.totalPendingSizeInBytes {
+                                Text(size, format: .byteCount(style: .file))
+                            }
                         }
-                    } header: {
-                        Text(category.title)
-                    } footer: {
-                        if let size = managedFileUpload.totalPendingFileSize(for: category) {
-                            let size = size.formatted(.byteCount(style: .file))
-                            Text("Total Size: \(size)" as String)
-                        }
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
                     }
                 }
             }
-            Section("Inactive / Complete" as String) {
-                ForEach(inactiveCategories) { category in
-                    Text(category.title)
+        }
+        .foregroundStyle(.textLabel)
+    }
+}
+
+
+extension FileUploadInsights {
+    private struct CategoryDetailsSheet: View {
+        @Environment(ManagedFileUpload.self)
+        private var managedFileUpload
+        
+        let category: ManagedFileUpload.Category
+        @State private var pendingFiles: [ManagedFileUpload.PendingFile] = []
+        @State private var refreshTrigger = AsyncStream.makeStream(of: Void.self)
+        
+        var body: some View {
+            NavigationStack {
+                Form {
+                    Section {
+                        ForEach(pendingFiles) { pendingFile in
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(pendingFile.filename)
+                                        .font(.caption2.monospaced())
+                                    Text(pendingFile.state.displayText)
+                                }
+                                Spacer()
+                                if let size = pendingFile.size {
+                                    Text(size, format: .byteCount(style: .file))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationTitle(category.title)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        DismissButton()
+                    }
+                }
+                .task {
+                    await refreshFiles()
+                    for await _ in refreshTrigger.stream {
+                        await refreshFiles()
+                    }
+                }
+                .refreshable {
+                    refreshTrigger.continuation.yield()
                 }
             }
+        }
+        
+        private func refreshFiles() async {
+            let compare: (ManagedFileUpload.PendingFile, ManagedFileUpload.PendingFile) -> Bool = { lhs, rhs in
+                let lhsSize = lhs.size ?? 0
+                let rhsSize = rhs.size ?? 0
+                return lhsSize > rhsSize || lhs.filename < rhs.filename
+            }
+            pendingFiles = await managedFileUpload
+                .pendingFiles(in: category)
+                .grouped(by: \.state)
+                .mapValues { $0.sorted(by: compare) }
+                .sorted(using: KeyPathComparator(\.key.indexForSorting))
+                .flatMap(\.value)
+        }
+    }
+}
+
+
+extension ManagedFileUpload.PendingFile.State {
+    fileprivate var displayText: String {
+        switch self {
+        case .queued:
+            "queued"
+        case .uploading:
+            "uploading"
+        case .held:
+            "held"
+        case .waitingForRetry(let failedAttempts):
+            "waiting for retry (#failed: \(failedAttempts))"
+        case .idle:
+            "idle"
+        }
+    }
+    
+    fileprivate var indexForSorting: Int {
+        switch self {
+        case .queued:
+            1
+        case .uploading:
+            0
+        case .held:
+            4
+        case .waitingForRetry:
+            2
+        case .idle:
+            3
         }
     }
 }
