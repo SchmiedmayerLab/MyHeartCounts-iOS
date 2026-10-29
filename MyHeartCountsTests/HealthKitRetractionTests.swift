@@ -165,21 +165,13 @@ struct HealthKitRetractionTests {
         #expect(identifier.system?.value?.url.absoluteString == FHIRExchangeIdentifiers.healthKitNativeRecord.rawValue)
     }
 
-    /// A workout exports its session alone, under the first of the row's two measurements, so a deleted
-    /// workout must retract that exact output rather than pass as unexported.
+    /// A workout deletion names the source record so it covers the session and every event/activity segment.
     @Test
-    func deletedWorkoutRetractsItsSessionObservation() async throws {
+    func deletedWorkoutRetractsItsSourceRecord() async throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
         let record = try Self.record(sourceType: HKWorkoutType.workoutType().identifier)
-        let expected = try Self.expected(
-            Output(role: "workout", discriminator: "single", resourceType: .observation, targetRole: "primary-output"),
-            of: record,
-            in: store,
-            subject: subject
-        )
-
-        await #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == [expected])
+        try await Self.validateSourceRecordRetraction(of: record, in: store, subject: subject)
     }
 
     /// Clinical records and CDA documents are platform-exclusive rows carrying no measurement, yet
@@ -204,19 +196,13 @@ struct HealthKitRetractionTests {
         await #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == [expected])
     }
 
-    /// An ECG that carried a period average published it as its own output, which the waveform's
-    /// retraction alone would orphan.
+    /// An ECG deletion covers the waveform and an optional average-heart-rate child whose presence it cannot know.
     @Test
-    func deletedElectrocardiogramAlsoRetractsItsAverageHeartRate() async throws {
+    func deletedElectrocardiogramRetractsItsSourceRecord() async throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
         let record = try Self.record(sourceType: HKObjectType.electrocardiogramType().identifier)
-        let expected = try [
-            Output(role: "electrocardiogram", discriminator: "single", resourceType: .observation, targetRole: "primary-output"),
-            Output(role: "average-heart-rate", discriminator: "single", resourceType: .observation, targetRole: "child-output")
-        ].map { try Self.expected($0, of: record, in: store, subject: subject) }
-
-        await #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == expected)
+        try await Self.validateSourceRecordRetraction(of: record, in: store, subject: subject)
     }
 
     /// A record class Grove never exports has nothing to retract, so no event is spent on it.
@@ -346,4 +332,35 @@ private func mintedSourceOutput(of graph: ExchangeGraph, in store: FHIRExchangeS
         }
         return observation.identifier?.first { $0.system?.value?.url.absoluteString == sourceOutputSystem }?.value?.value?.string
     }.first)
+}
+
+
+extension HealthKitRetractionTests {
+    /// Conditional children are retracted through their source record, without inventing output identities.
+    private static func validateSourceRecordRetraction(
+        of record: HealthKitDeletedRecord,
+        in store: FHIRExchangeStateStore,
+        subject: FHIRExchangeSubject
+    ) async throws {
+        let graph = try await retraction(of: record, in: store, subject: subject)
+        let source = try sourceRecord(of: record, in: store, subject: subject).identifier.identifier
+        let expected = DescribedTarget(
+            identifier: source.value,
+            system: source.system.rawValue,
+            resourceType: nil,
+            role: "source-record"
+        )
+        #expect(try targets(in: graph) == [expected])
+        let target = try #require(try provenance(in: graph).target.first)
+        #expect(target.type == nil, "A source record is not a FHIR resource type")
+        let native = try #require(target.extension?.first { extensionValue in
+            extensionValue.url.value?.url.absoluteString == Canonicals.retractionTargetNativeIdentifier.value?.url.absoluteString
+        })
+        guard case .identifier(let identifier)? = native.value else {
+            Issue.record("The source-record target must preserve the native record identifier")
+            return
+        }
+        #expect(identifier.value?.value?.string == record.nativeRecordID.uuidString.lowercased())
+        #expect(identifier.system?.value?.url.absoluteString == FHIRExchangeIdentifiers.healthKitNativeRecord.rawValue)
+    }
 }
