@@ -28,6 +28,9 @@ jobs:
     uses: SchmiedmayerLab/.github/.github/workflows/swiftlint.yml@v0.5
     permissions:
       contents: read
+    with:
+      # The SwiftLint Linux binary needs libxml2.so.2, which `ubuntu-latest` (Ubuntu 26.04) no longer ships.
+      runs_on_labels: '["ubuntu-24.04"]'
   periphery:
     name: Periphery
     uses: SchmiedmayerLab/.github/.github/workflows/periphery.yml@v0.5
