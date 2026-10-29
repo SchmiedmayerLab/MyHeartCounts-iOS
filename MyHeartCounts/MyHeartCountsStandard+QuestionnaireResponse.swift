@@ -60,6 +60,16 @@ extension MyHeartCountsStandard {
         return nil
     }
     
+    /// Queue the response in Firestore's local cache without waiting for a server acknowledgement.
+    /// Awaiting `setData` would prevent an offline participant from completing the questionnaire.
+    nonisolated static func enqueueQuestionnaireResponse(
+        _ response: ModelsR4.QuestionnaireResponse,
+        to document: FirebaseFirestore.DocumentReference
+    ) throws {
+        let data = try Firestore.Encoder().encode(response)
+        document.setData(data, completion: nil)
+    }
+
     private func questionnaireSubmissionContext() async throws -> QuestionnaireSubmissionContext {
         // Read before the await: capturing it afterwards would compare the current generation with
         // itself and let an account rotation that happened during the await through.
@@ -103,8 +113,7 @@ extension MyHeartCountsStandard {
             .document(submission.destination.accountID)
             .collection("questionnaireResponses")
             .document(id)
-        let data = try Firestore.Encoder().encode(response)
-        try await document.setData(data)
+        try Self.enqueueQuestionnaireResponse(response, to: document)
         await parseIfApplicable(response, in: submission)
         if let timestamp = try? response.authored?.value?.asNSDate() {
             await achievementsManager?.record(.completeQuestionnaire, timestamp: timestamp)
