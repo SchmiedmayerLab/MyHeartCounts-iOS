@@ -214,11 +214,10 @@ final class ConsentTests: MHCTestCase, @unchecked Sendable {
             app.terminate()
         }
         
-        // launch again and verify no second prompt will take place.
+        // Wait for setup and the home screen before checking that no second prompt appears.
         try launchAppAndEnrollIntoStudy(
             locale: locale,
-            testEnvironmentConfig: config,
-            skipGoingToHomeTab: true
+            testEnvironmentConfig: config
         )
         XCTAssert(app.otherElements["MHC:ConsentRenewalFlow"].waitForNonExistence(timeout: 10))
         if expectRenewalFlow {
