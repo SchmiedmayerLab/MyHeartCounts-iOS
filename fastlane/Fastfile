@@ -7,6 +7,7 @@
 #
 
 require_relative "xcodeproj_patch"
+require_relative "study_variant"
 
 default_platform(:ios)
 
@@ -211,17 +212,14 @@ platform :ios do
       sh('plutil', '-remove', 'com\.apple\.developer\.sensorkit\.reader\.allow', '../MyHeartCounts/Supporting Files/MyHeartCounts.entitlements')
     end
 
-    if variant == "imperial"
-      puts 'Locking the onboarding to the Imperial study variant'
-      sh('plutil', '-insert', 'MHCForcedStudyVariant', '-string', 'imperial', "../#{APP_CONFIG[:plist_path]}")
+    with_forced_study_variant(File.expand_path("../#{APP_CONFIG[:plist_path]}", __dir__), variant) do
+      archive(
+        appidentifier: appidentifier,
+        secondaryAppIdentifier: secondaryAppIdentifier,
+        provisioningProfile: provisioningProfile,
+        secondaryProvisioningProfile: secondaryProvisioningProfile,
+      )
     end
-
-    archive(
-      appidentifier: appidentifier,
-      secondaryAppIdentifier: secondaryAppIdentifier,
-      provisioningProfile: provisioningProfile,
-      secondaryProvisioningProfile: secondaryProvisioningProfile,
-    )
     commit = last_git_commit
     
     if environment == "production"
