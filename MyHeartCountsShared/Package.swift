@@ -13,9 +13,9 @@ import PackageDescription
 var packageDeps: [Package.Dependency] = [
     .package(
         url: "https://github.com/SchmiedmayerLab/Grove.git",
-        revision: "ebf81caa48ebf7d5062222104fc46c7398036f9c"
+        revision: "d9fc17ade571d960a40f993feb74aaf93eb9bed1"
     ),
-    .package(url: "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git", revision: "6e464fa8b61be54ae7107e8cc024613e992ec5b1"),
+    .package(url: "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git", revision: "d3cfd5a49fd78ece78cc3abd2522530db030ba98"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0")
 ]
 
