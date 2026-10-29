@@ -13,6 +13,7 @@ import GroveFoundation
 import GroveLocalization
 import GroveStudy
 import GroveStudyDefinition
+import MHCStudyDefinition
 @testable import MyHeartCounts
 import Testing
 import UniformTypeIdentifiers
@@ -20,6 +21,26 @@ import UniformTypeIdentifiers
 
 @Suite
 struct ConsentLoadingTests {
+    @Test
+    func spanishPreferenceUsesTheScreenedConsentLanguageForEachVariant() throws {
+        let studyBundle = try makeStudyBundle()
+        let spanish = Locale(identifier: "es-GB")
+        let imperialLocale = StudyVariant.imperial.consentLocale(preferred: spanish)
+        #expect(imperialLocale.language.languageCode == .english)
+        #expect(studyBundle.bundle.consentText(
+            for: .consent,
+            in: imperialLocale,
+            using: .requirePerfectMatch,
+            fallbackLocale: nil
+        ) == "Hey en-UK!")
+        #expect(studyBundle.bundle.consentText(
+            for: .consent,
+            in: StudyVariant.stanford.consentLocale(preferred: spanish),
+            using: .requirePerfectMatch,
+            fallbackLocale: nil
+        ) == "Hey es-US!")
+    }
+
     @Test
     func consentLoading() throws {
         let studyBundle = try makeStudyBundle()

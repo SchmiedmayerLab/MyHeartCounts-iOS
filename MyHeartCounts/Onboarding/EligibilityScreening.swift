@@ -16,20 +16,27 @@ import SwiftUI
 struct EligibilityScreening: View {
     @Environment(StudyBundleLoader.self)
     private var studyLoader
+    @Environment(OnboardingDataCollection.self)
+    private var data
+    @Environment(\.locale)
+    private var locale
 
-    private let components: [any ScreeningComponent] = [
-        AgeAtLeast(style: .toggle, minAge: 18),
-        IsFromRegion(
-            enabledRegions: [FeatureFlags.forcedStudyVariant?.region ?? .unitedStates],
-            comingSoonRegions: [.unitedKingdom]
-        ),
-        // We ask if the user speaks the current language.
-        // Since MHC only enables localization for languages we officially support (English and Spanish),
-        // this will always ask for one of the two, even if the user's phone is set e.g. to German.
-        // (Bc it'll fall back to EN or ES...)
-        SpeaksLanguage(allowedLanguage: .current),
-        IsUsingSharedAppleID()
-    ]
+    private var consentLanguage: Locale.Language {
+        let variant = FeatureFlags.forcedStudyVariant ?? (data.screening.region == .unitedKingdom ? .imperial : .stanford)
+        return variant.consentLocale(preferred: locale).language
+    }
+
+    private var components: [any ScreeningComponent] {
+        [
+            AgeAtLeast(style: .toggle, minAge: 18),
+            IsFromRegion(
+                enabledRegions: [FeatureFlags.forcedStudyVariant?.region ?? .unitedStates],
+                comingSoonRegions: [.unitedKingdom]
+            ),
+            SpeaksLanguage(allowedLanguage: .specific(consentLanguage)),
+            IsUsingSharedAppleID()
+        ]
+    }
     
     
     var body: some View {
@@ -46,6 +53,10 @@ struct EligibilityScreening: View {
             return nonnil(\.dateOfBirth) && nonnil(\.region) && nonnil(\.speaksEnglish) && nonnil(\.sharedAppleID)
         } continue: { data, path in
             await process(data: data, path: path)
+        }
+        .onChange(of: consentLanguage) {
+            // A previous answer must not authorize consent in a newly selected language.
+            data.screening.speaksEnglish = nil
         }
     }
     

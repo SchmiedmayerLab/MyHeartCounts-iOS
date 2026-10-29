@@ -40,4 +40,12 @@ extension StudyVariant {
         case .imperial: "/public/news-UK/"
         }
     }
+
+    /// Imperial currently has an English consent only; eligibility asks participants to confirm that language.
+    func consentLocale(preferred locale: Locale) -> Locale {
+        Locale(
+            languageCode: self == .imperial ? .english : locale.language.languageCode,
+            languageRegion: region
+        )
+    }
 }
