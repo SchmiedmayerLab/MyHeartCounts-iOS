@@ -18,7 +18,7 @@ import Testing
 
 
 @Suite
-struct SelfModelledQuantityFHIRTests {
+struct SelfModelledQuantityFHIRTests { // swiftlint:disable:this file_types_order
     @Test
     func writerSeparatesClinicalCodeFromUCUMQuantity() throws {
         let sample = QuantitySample(
@@ -101,6 +101,32 @@ struct SelfModelledQuantityFHIRTests {
         #expect(sample.sampleType == .custom(.bloodLipids))
     }
 
+    @Test
+    func readerPreservesLegacyLDLValues() throws {
+        let observation = try bloodLipidsObservation(
+            system: LOINC.system,
+            code: "18262-6",
+            display: "mg/dL",
+            codingSystem: MHCCodingSystem.supersededSystem
+        )
+        let sample = try #require(QuantitySample(observation))
+        #expect(sample.id.uuidString == observation.id?.value?.string)
+        #expect(sample.sampleType == .custom(.bloodLipids))
+        #expect(sample.value(as: sample.sampleType.canonicalUnit) == 50)
+        #expect(sample.startDate == Date(timeIntervalSince1970: 1_788_000_000))
+        #expect(sample.endDate == sample.startDate)
+        #expect(QuantitySample(observation, sampleTypeHint: .custom(.nicotineExposure)) == nil)
+    }
+
+    @Test(arguments: [("18262-6", "mmol/L"), ("2093-3", "mg/dL")])
+    func readerRejectsOtherLegacyQuantities(code: String, unit: String) throws {
+        #expect(QuantitySample(try bloodLipidsObservation(
+            system: LOINC.system,
+            code: code,
+            display: unit
+        )) == nil)
+    }
+
     private func bloodLipidsObservation(
         system: FHIRPrimitive<FHIRURI>?,
         code: String?,
@@ -109,6 +135,7 @@ struct SelfModelledQuantityFHIRTests {
     ) throws -> Observation {
         var observation = Observation(
             code: CodeableConcept(coding: [
+                Coding(code: "18262-6".asFHIRStringPrimitive(), system: LOINC.system),
                 Coding(
                     code: CustomQuantitySampleType.bloodLipids.id.asFHIRStringPrimitive(),
                     system: codingSystem

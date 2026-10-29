@@ -134,8 +134,7 @@ extension QuantitySample {
         guard observation.status.value == .final,
               let id = (observation.id?.value?.string).flatMap({ UUID(uuidString: $0) }),
               case .quantity(let quantity) = observation.value,
-              quantity.system == UCUM.system,
-              let ucumCode = quantity.code?.value?.string,
+              let quantityCode = quantity.code?.value?.string,
               let value = (quantity.value?.value?.decimal).map({ Double($0) }),
               let effective = observation.effective,
               let coding = observation.code.coding else {
@@ -183,6 +182,19 @@ extension QuantitySample {
             sampleType = .custom(mhcSampleType)
         } else {
             // no hint and also we were unable to extract smth we know / can handle
+            return nil
+        }
+        let ucumCode: String
+        if quantity.system == UCUM.system {
+            ucumCode = quantityCode
+        } else if sampleType == .custom(.bloodLipids),
+                  quantity.system == LOINC.system,
+                  quantityCode == "18262-6",
+                  quantity.unit?.value?.string == "mg/dL",
+                  coding.contains(where: { $0.system == LOINC.system && $0.code?.value?.string == "18262-6" }) {
+            // Older app and backend writers placed the LDL clinical code in the quantity.
+            ucumCode = "mg/dL"
+        } else {
             return nil
         }
         let unit: HKUnit?
