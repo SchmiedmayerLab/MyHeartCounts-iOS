@@ -291,3 +291,160 @@ struct FHIRExchangeStateTests {
         #expect(retry == newEvent)
     }
 }
+
+
+// MARK: Batch Reservation
+
+extension FHIRExchangeStateTests {
+    /// A batch mints consecutive sequences for its new keys in input order in one transaction.
+    @Test
+    func batchReservationMintsNewKeysInInputOrder() throws {
+        let store = FHIRExchangeStateStore()
+        let recordedAt = Date(timeIntervalSince1970: 1_788_000_000)
+        let existing = try store.event(key: "existing", recordedAt: recordedAt, facts: Self.eventFacts())
+        let batch = try store.events(
+            forKeys: ["new-a", "existing", "new-b"],
+            recordedAt: recordedAt + 60,
+            facts: Self.eventFacts(study: "study-of-the-batch")
+        )
+
+        #expect(batch.events.map(\.sequence) == [existing.sequence + 1, existing.sequence, existing.sequence + 2])
+        #expect(batch.events[1] == existing)
+        #expect(batch.events[0].recordedAt == recordedAt + 60)
+        #expect(batch.events[2].facts.study?.id == "study-of-the-batch")
+        #expect(try batch.producerInstance == store.producerInstance())
+    }
+
+    /// Keys that are all reserved already come back unchanged and consume no sequence.
+    @Test
+    func batchReservationReturnsExistingEventsWithoutConsumingSequences() throws {
+        let store = FHIRExchangeStateStore()
+        let recordedAt = Date(timeIntervalSince1970: 1_788_000_000)
+        let first = try store.events(forKeys: ["a", "b"], recordedAt: recordedAt, facts: Self.eventFacts())
+        let retry = try store.events(
+            forKeys: ["b", "a"],
+            recordedAt: recordedAt + 3600,
+            facts: Self.eventFacts(study: "study-changed-during-retry")
+        )
+
+        #expect(retry.events == [first.events[1], first.events[0]])
+        #expect(retry.producerInstance == first.producerInstance)
+        let next = try store.event(key: "c", recordedAt: recordedAt, facts: Self.eventFacts())
+        #expect(next.sequence == first.events[1].sequence + 1)
+    }
+
+    /// A late publisher of a rotated account is fenced whether its keys hit or miss the ledger.
+    @Test
+    func batchReservationRejectsStaleAccountGeneration() throws {
+        let oldStore = FHIRExchangeStateStore(accountDataGeneration: 7)
+        let recordedAt = Date(timeIntervalSince1970: 1_788_000_000)
+        _ = try oldStore.events(forKeys: ["shared"], recordedAt: recordedAt, facts: Self.eventFacts())
+        let newStore = oldStore.testingView(accountDataGeneration: 8)
+        try newStore.reset()
+        let newEvents = try newStore.events(forKeys: ["shared"], recordedAt: recordedAt, facts: Self.eventFacts())
+
+        let stale = FHIRExchangeStateError.staleAccountGeneration(captured: 7, current: 8)
+        #expect(throws: stale) {
+            try oldStore.events(forKeys: ["shared"], recordedAt: recordedAt, facts: Self.eventFacts())
+        }
+        #expect(throws: stale) {
+            try oldStore.events(forKeys: ["shared", "late"], recordedAt: recordedAt, facts: Self.eventFacts())
+        }
+        let retry = try newStore.events(forKeys: ["shared"], recordedAt: recordedAt, facts: Self.eventFacts())
+        #expect(retry.events == newEvents.events)
+    }
+
+    /// A HealthKit batch reserves every sample before converting any, and serves each one the
+    /// context the single-sample path rebuilds for it.
+    @Test
+    func healthKitBatchReservesEverySampleUpFront() throws {
+        let store = FHIRExchangeStateStore()
+        let subject = try Self.subject
+        let start = Date(timeIntervalSince1970: 1_788_000_000)
+        let samples: [HKQuantitySample] = (0..<3).map { (index: Int) -> HKQuantitySample in
+            let sampleStart = start.addingTimeInterval(TimeInterval(index) * 60)
+            return HKQuantitySample(
+                type: HKQuantityType(.stepCount),
+                quantity: HKQuantity(unit: .count(), doubleValue: Double(index + 1)),
+                start: sampleStart,
+                end: sampleStart.addingTimeInterval(30)
+            )
+        }
+        let batch = try HealthKitConversionBatch(
+            reserving: samples,
+            subject: subject,
+            conversionInstant: start,
+            stateStore: store
+        )
+        let unreserved = HKQuantitySample(
+            type: HKQuantityType(.stepCount),
+            quantity: HKQuantity(unit: .count(), doubleValue: 4),
+            start: start,
+            end: start.addingTimeInterval(30)
+        )
+        let onDemand = try batch.reservation(for: unreserved)
+
+        for (index, sample) in samples.enumerated() {
+            let reservation = try batch.reservation(for: sample)
+            let single = try store.healthKitConversion(for: sample, subject: subject, conversionInstant: start.addingTimeInterval(3600))
+            #expect(reservation.eventKey == single.eventKey)
+            #expect(reservation.context.event.event == single.context.event.event)
+            #expect(reservation.context.event.event.sequence.rawValue == String(index + 1))
+        }
+        #expect(onDemand.context.event.event.sequence.rawValue == "4")
+    }
+}
+
+
+extension FHIRExchangeStateTests {
+    @Test
+    func abandoningSensorBatchesDropsOnlyThatSourcesRetryState() throws {
+        let store = FHIRExchangeStateStore()
+        let subject = try Self.subject
+        let coordinate = SensorKit.AcquisitionBatchCoordinate(
+            cursorTimestamp: Date(timeIntervalSince1970: 1_788_000_000),
+            resetGeneration: 2,
+            sequence: 7
+        )
+        func record(of sourceToken: String) -> (batchKey: String, sourceID: SensorKitSourceRecordID) {
+            (
+                store.sensorKitBatchKey(
+                    subject: subject,
+                    acquisitionBatch: coordinate,
+                    sourceToken: sourceToken,
+                    deviceProductType: "iPhone18,1"
+                ),
+                SensorKitSourceRecordID.derived(
+                    acquisitionBatch: coordinate,
+                    sourceToken: sourceToken,
+                    deviceProductType: "iPhone18,1",
+                    recordOrdinal: 0
+                )
+            )
+        }
+        func event(for record: (batchKey: String, sourceID: SensorKitSourceRecordID)) throws -> PersistedFHIRExchangeEvent {
+            try store.event(
+                key: store.sensorKitEventKey(batchKey: record.batchKey, sourceRecordID: record.sourceID),
+                recordedAt: Date(timeIntervalSince1970: 1_788_000_001),
+                facts: Self.eventFacts()
+            )
+        }
+        let abandoned = record(of: "SRSensor.heartRate")
+        // Shares the abandoned token as a string prefix, but is a different source.
+        let unrelated = record(of: "SRSensor.heartRateSibling")
+        for entry in [abandoned, unrelated] {
+            try store.verifySensorRetryDigest(Data("first".utf8), batchKey: entry.batchKey, sourceRecordID: entry.sourceID)
+        }
+        _ = try event(for: abandoned)
+        let unrelatedEvent = try event(for: unrelated)
+
+        try store.abandonSensorBatches(subject: subject, sourceToken: "SRSensor.heartRate")
+
+        try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: abandoned.batchKey, sourceRecordID: abandoned.sourceID)
+        #expect(try event(for: abandoned).sequence == unrelatedEvent.sequence + 1)
+        #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: unrelated.sourceID.value)) {
+            try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: unrelated.batchKey, sourceRecordID: unrelated.sourceID)
+        }
+        #expect(try event(for: unrelated).sequence == unrelatedEvent.sequence)
+    }
+}

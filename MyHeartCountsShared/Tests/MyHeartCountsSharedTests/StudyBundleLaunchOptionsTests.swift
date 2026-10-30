@@ -23,6 +23,13 @@ struct StudyBundleLaunchOptionsTests {
         #expect(try options._decode(.studyBundleSelector) == expected)
     }
 
+    /// Release builds launch without `--studyBundle`, so the default decides whether installed apps ever see a newly published study revision.
+    @Test
+    func defaultsToFirebase() {
+        let options = LaunchOptions.commandLineOptionsContainer(for: [""])
+        #expect(options[.studyBundleSelector] == .firebase(.stanford))
+    }
+
     @Test(arguments: StudyVariant.allCases)
     func namedSourceRoundTrip(_ variant: StudyVariant) throws {
         for selector in [StudyBundleSelector.firebase(variant), .bundledWithApp(variant)] {

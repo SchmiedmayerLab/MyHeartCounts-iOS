@@ -12,7 +12,7 @@ import GroveSensorKitFHIR
 import SensorKit
 
 
-/// Uploads each SensorKit ECG session using Grove's prepared hybrid representation.
+/// Uploads each SensorKit ECG session using Grove's prepared hybrid representation, skipping sessions Grove refuses.
 struct UploadStrategyECG: MHCSensorSampleUploadStrategy {
     typealias Sample = SRElectrocardiogramSample
 
@@ -25,28 +25,36 @@ struct UploadStrategyECG: MHCSensorSampleUploadStrategy {
     ) async throws {
         for (recordOrdinal, session) in samples.enumerated() {
             activity.updateMessage("Converting ECG session")
-            let prepared = try SensorKitPreparedStructuredRecord(electrocardiogram: session)
-            guard let payload = prepared.nativePayload else {
-                throw SensorKitRecordError.missingProviderValue("electrocardiogram.nativePayload")
-            }
-            try await upload(
-                sidecar: SensorKitUploadSidecar(data: payload, format: .nativeRecording),
-                retryEvidence: prepared.retryEvidence,
-                for: sensor,
-                publication: publication,
-                to: standard,
-                activity: activity,
-                recordOrdinal: recordOrdinal
-            ) { sourceRecordID, title, sidecarPath in
-                guard let sidecarPath else {
-                    throw SensorKitRecordError.missingProviderValue("electrocardiogram.location")
+            do {
+                let prepared = try SensorKitRecordRefusal.refusing {
+                    try SensorKitPreparedStructuredRecord(electrocardiogram: session)
                 }
-                return try prepared.sensorKitRecord(
-                    sourceRecordID: sourceRecordID,
-                    title: title,
-                    location: .sidecar(path: sidecarPath),
-                    admission: .callerAuthorizedOpaquePayload
-                )
+                guard let payload = prepared.nativePayload else {
+                    throw SensorKitRecordRefusal(
+                        underlying: SensorKitRecordError.missingProviderValue("electrocardiogram.nativePayload")
+                    )
+                }
+                try await upload(
+                    sidecar: SensorKitUploadSidecar(data: payload, format: .nativeRecording),
+                    retryEvidence: prepared.retryEvidence,
+                    for: sensor,
+                    publication: publication,
+                    to: standard,
+                    activity: activity,
+                    recordOrdinal: recordOrdinal
+                ) { sourceRecordID, title, sidecarPath in
+                    guard let sidecarPath else {
+                        throw SensorKitRecordError.missingProviderValue("electrocardiogram.location")
+                    }
+                    return try prepared.sensorKitRecord(
+                        sourceRecordID: sourceRecordID,
+                        title: title,
+                        location: .sidecar(path: sidecarPath),
+                        admission: .callerAuthorizedOpaquePayload
+                    )
+                }
+            } catch let refusal as SensorKitRecordRefusal {
+                refusal.log(for: sensor, recordOrdinal: recordOrdinal)
             }
         }
     }

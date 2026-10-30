@@ -20,9 +20,27 @@ private enum SensorKitProcessingError: Error {
 }
 
 
+private enum SensorKitQueryAnchorResetError: Error {
+    case failed(sensorIDs: [String])
+}
+
+
 private struct SensorKitActiveFetch: Sendable {
     let task: Task<Void, any Error>
     let allowance: DeviceBattery.WorkAllowance
+}
+
+
+/// Whether `error` means that a sensor's pending batch can never be acknowledged, because a retry no longer reproduces it:
+/// either SensorKit no longer returns the batch's exact delivery boundary, or a record's bytes changed at its reserved coordinate.
+private func cannotReplayPendingBatch(after error: any Error) -> Bool {
+    if let error = error as? SensorKit.QueryAnchorAcknowledgementError {
+        return error == .pendingBatchMismatch
+    }
+    if case .retryContentChanged? = error as? FHIRExchangeStateError {
+        return true
+    }
+    return false
 }
 
 
@@ -34,7 +52,7 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
         @MainActor private(set) var timeRange: Range<Date>?
         @MainActor private(set) var message = ""
         
-        nonisolated fileprivate init(sensor: any AnySensor) {
+        nonisolated init(sensor: any AnySensor) {
             self.sensor = sensor
         }
         
@@ -190,9 +208,10 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
         try Task.checkCancellation()
         let maximumBatchesPerSensor = allowance == .limited ? 1 : nil
         let concurrencyLimit = allowance == .limited ? 1 : (ProcessInfo.isProDevice ? 3 : 1)
+        var allSensorsSucceeded = true
         for definitions in SensorKit.mhcSensorUploadDefinitions.chunks(ofCount: concurrencyLimit) {
             try Task.checkCancellation()
-            try await withThrowingDiscardingTaskGroup { taskGroup in
+            let chunkSucceeded = try await withThrowingTaskGroup(of: Bool.self, returning: Bool.self) { taskGroup in
                 for uploadDefinition in definitions {
                     taskGroup.addTask {
                         try await self.fetchAndUploadAnchored(
@@ -201,10 +220,19 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
                         )
                     }
                 }
+                var succeeded = true
+                for try await sensorSucceeded in taskGroup {
+                    succeeded = succeeded && sensorSucceeded
+                }
+                return succeeded
             }
+            allSensorsSucceeded = allSensorsSucceeded && chunkSucceeded
         }
         try Task.checkCancellation()
-        LocalPreferencesStore.standard[.lastSensorKitFetch] = .now
+        // A failed sensor leaves the fetch stale, so that the next battery-limited opportunity retries it.
+        if allSensorsSucceeded {
+            LocalPreferencesStore.standard[.lastSensorKitFetch] = .now
+        }
     }
     
     
@@ -248,20 +276,25 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
 
 
     /// Fetches all new SensorKit samples for the specified sensor (relative to the last time the function was called for the sensor), and uploads them all into the Firestore.
+    ///
+    /// Other than a cancellation or unavailable protected data, a failure is logged rather than thrown, so that one sensor cannot stop the others.
+    /// If the failure means that the sensor's pending batch can never be acknowledged, the batch is abandoned, and the next fetch reads its range again.
+    ///
+    /// - returns: `false` if fetching or uploading the sensor's new samples failed.
     @concurrent
     private func fetchAndUploadAnchored(
         _ uploadDefinition: some AnyMHCSensorUploadDefinition<some Any, some Any>,
         maximumBatches: Int?
-    ) async throws {
+    ) async throws -> Bool {
         try Task.checkCancellation()
         guard SensorKit.isAvailable else {
-            return
+            return true
         }
         let uploadDefinition = MHCSensorUploadDefinition(uploadDefinition)
         let sensor = uploadDefinition.sensor
         guard sensorKit.authorizationStatus(for: sensor) == .authorized else {
             logger.notice("Skipping Sensor '\(sensor.displayName)' bc it's not authorized")
-            return
+            return true
         }
         logger.notice("Starting anchored fetch for SensorKit sensor '\(sensor.id)'")
         let activity = InProgressActivity(sensor: sensor)
@@ -296,12 +329,38 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
         } catch let error as SensorKitProcessingError {
             throw error
         } catch {
-            if Task.isCancelled {
-                throw CancellationError()
-            }
-            logger.error("Failed to fetch & upload data for Sensor '\(sensor.displayName)': \(error)")
+            try await handleFailedFetch(of: sensor, error)
+            return false
         }
         logger.notice("Anchored fetch for '\(sensor.id)' is complete.")
+        return true
+    }
+
+
+    /// Rethrows a cancellation; otherwise logs the failure, and abandons the sensor's pending batches if a retry can no longer reproduce them.
+    ///
+    /// The next fetch reads an abandoned range again under fresh acquisition coordinates. Records already published from an abandoned
+    /// batch stay published, so up to one batch may be uploaded twice; that is preferable to the sensor never advancing again.
+    private func handleFailedFetch(of sensor: some AnySensor, _ error: any Error) async throws {
+        if Task.isCancelled {
+            throw CancellationError()
+        }
+        logger.error("Failed to fetch & upload data for Sensor '\(sensor.displayName)': \(error)")
+        guard cannotReplayPendingBatch(after: error) else {
+            return
+        }
+        do {
+            try await sensorKit.discardPendingBatches(for: sensor)
+        } catch {
+            logger.error("Failed to discard the pending batches of SensorKit sensor '\(sensor.id)': \(error)")
+            return
+        }
+        do {
+            try await standard.abandonSensorKitBatches(for: sensor)
+        } catch {
+            // Only retry-only state is left behind, which the next account cleanup removes.
+            logger.error("Could not clean abandoned SensorKit FHIR state: \(error)")
+        }
     }
     
     
@@ -337,17 +396,28 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
         }
     }
     
-    /// Intended for debugging and development purposes
-    func resetAllQueryAnchors() async {
+    /// Resets the query anchors of every sensor this module fetches, so that the next account starts from a fresh cursor instead of the previous account's.
+    ///
+    /// Attempts every sensor, and throws if the anchors of an authorized sensor could not be reset. A pending batch is abandoned along with its anchor.
+    /// The failure of a sensor without authorization is only logged: it is not fetched, and it must not block the account cleanup (and with it all data collection)
+    /// for participants who never shared SensorKit data.
+    func resetAllQueryAnchors() async throws {
         guard SensorKit.isAvailable else {
             return
         }
-        func imp(_ sensor: some AnySensor) async {
-            let sensor = Sensor(sensor)
-            try? await sensorKit.resetQueryAnchors(for: sensor)
+        var failedSensorIDs: [String] = []
+        for sensor in SensorKit.mhcSensors {
+            do {
+                try await sensorKit.resetQueryAnchors(for: sensor)
+            } catch {
+                logger.error("Failed to reset the query anchors of SensorKit sensor '\(sensor.id)': \(error)")
+                if sensor.authorizationStatus == .authorized {
+                    failedSensorIDs.append(sensor.id)
+                }
+            }
         }
-        for sensor in SensorKit.allKnownSensors {
-            await imp(sensor)
+        guard failedSensorIDs.isEmpty else {
+            throw SensorKitQueryAnchorResetError.failed(sensorIDs: failedSensorIDs)
         }
     }
     
@@ -371,7 +441,7 @@ extension MHCBackgroundTasks.TaskIdentifier {
 
 
 extension LocalPreferenceKeys {
-    /// The last time a SensorKit fetch was performed.
+    /// The last time a SensorKit fetch completed without error for every sensor.
     static let lastSensorKitFetch = LocalPreferenceKey<Date?>("lastSensorKitFetch")
 }
 

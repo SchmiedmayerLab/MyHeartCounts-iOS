@@ -34,34 +34,62 @@ extension FHIRExchangeStateStore {
         subject: FHIRExchangeSubject,
         recordedAt: Date
     ) throws -> (eventKey: String, graph: ExchangeGraph)? {
-        guard let sourceType = HealthKitSourceType(rawValue: record.sourceTypeIdentifier),
-              !HealthKitCatalog.outputs(for: sourceType).isEmpty else {
-            return nil
+        try healthKitRetractions(of: [record], subject: subject, recordedAt: recordedAt)[0]
+    }
+
+    /// The Grove Mobile Retraction Bundles for many deleted HealthKit records, one per record.
+    ///
+    /// Every event is reserved in one ledger transaction and the identity facts are read once, so a
+    /// drain chunk costs a constant number of encrypted ledger passes instead of several per record.
+    ///
+    /// - Returns: The retraction of each record at its index; `nil` where the record's type never
+    ///   produced an exported graph node.
+    func healthKitRetractions(
+        of records: [HealthKitDeletedRecord],
+        subject: FHIRExchangeSubject,
+        recordedAt: Date
+    ) throws -> [(eventKey: String, graph: ExchangeGraph)?] {
+        let targets = records.indices.compactMap { index -> (index: Int, sourceType: HealthKitSourceType)? in
+            guard let sourceType = HealthKitSourceType(rawValue: records[index].sourceTypeIdentifier),
+                  !HealthKitCatalog.outputs(for: sourceType).isEmpty else {
+                return nil
+            }
+            return (index: index, sourceType: sourceType)
         }
-        let eventKey = healthKitRetractionEventKey(
-            subject: subject,
-            sourceType: record.sourceTypeIdentifier,
-            nativeRecordID: record.nativeRecordID
-        )
-        let event = try event(key: eventKey, recordedAt: recordedAt, facts: .current())
-        let context = HealthKitConversionContext(
-            event: try eventContext(
-                for: event,
+        var retractions: [(eventKey: String, graph: ExchangeGraph)?] = Array(repeating: nil, count: records.count)
+        guard !targets.isEmpty else {
+            return retractions
+        }
+        let eventKeys = targets.map { target in
+            healthKitRetractionEventKey(
                 subject: subject,
-                repository: .healthKit,
-                repositoryIDs: [.bundle: RepositoryID(healthKitRecord: record.nativeRecordID)]
-            ),
-            options: .myHeartCounts
-        )
-        // A backwards clock adjustment can put the saved query time after detection. Keep the
-        // known upper bound without asserting an invalid period that would prevent draining.
-        let deletedAfter = record.deletedAfter.flatMap { $0 <= record.detectedAt ? $0 : nil }
-        let retraction = try HealthKitConverter().retraction(
-            for: HealthKitSourceRecord(uuid: record.nativeRecordID, type: sourceType),
-            context: context,
-            occurred: .period(start: deletedAfter, end: record.detectedAt)
-        )
-        return (eventKey, retraction.graph)
+                sourceType: records[target.index].sourceTypeIdentifier,
+                nativeRecordID: records[target.index].nativeRecordID
+            )
+        }
+        let reservations = try events(forKeys: eventKeys, recordedAt: recordedAt, facts: .current())
+        let scope = try eventScope(.healthKit, subject: subject, producerInstance: reservations.producerInstance)
+        for (target, (eventKey, event)) in zip(targets, zip(eventKeys, reservations.events)) {
+            let record = records[target.index]
+            let context = HealthKitConversionContext(
+                event: try scope.context(
+                    for: event,
+                    subject: subject,
+                    repositoryIDs: [.bundle: RepositoryID(healthKitRecord: record.nativeRecordID)]
+                ),
+                options: .myHeartCounts
+            )
+            // A backwards clock adjustment can put the saved query time after detection. Keep the
+            // known upper bound without asserting an invalid period that would prevent draining.
+            let deletedAfter = record.deletedAfter.flatMap { $0 <= record.detectedAt ? $0 : nil }
+            let retraction = try HealthKitConverter().retraction(
+                for: HealthKitSourceRecord(uuid: record.nativeRecordID, type: target.sourceType),
+                context: context,
+                occurred: .period(start: deletedAfter, end: record.detectedAt)
+            )
+            retractions[target.index] = (eventKey: eventKey, graph: retraction.graph)
+        }
+        return retractions
     }
 
     func healthKitRetractionEventKey(

@@ -21,8 +21,14 @@ import Testing
 struct DeviceUsageFHIRExchangeTests {
     private static let timestamp = Date(timeIntervalSince1970: 1_788_000_000.125)
 
+    /// A report unlocked for longer than it lasted, which Grove refuses to convert.
+    private static var refusedReport: SRDeviceUsageReport.SafeRepresentation {
+        report(totalUnlockDuration: 900)
+    }
+
     private static func report(
-        textInputSessionIdentifier: String = "text-session-1"
+        textInputSessionIdentifier: String = "text-session-1",
+        totalUnlockDuration: TimeInterval = 123.75
     ) -> SRDeviceUsageReport.SafeRepresentation {
         let applicationCategory = SRDeviceUsageReport.CategoryKey(rawValue: "application-category")
         let notificationCategory = SRDeviceUsageReport.CategoryKey(rawValue: "notification-category")
@@ -32,7 +38,7 @@ struct DeviceUsageFHIRExchangeTests {
             duration: 600.25,
             totalScreenWakes: 9,
             totalUnlocks: 7,
-            totalUnlockDuration: 123.75,
+            totalUnlockDuration: totalUnlockDuration,
             version: "algorithm-v0",
             appUsageByCategory: [
                 applicationCategory: [
@@ -77,7 +83,8 @@ struct DeviceUsageFHIRExchangeTests {
     /// The publication production builds, so its account fence, ordinal-derived source ids, and
     /// event facts are the ones under test rather than a copy of them.
     private static func publication(
-        store: FHIRExchangeStateStore = FHIRExchangeStateStore()
+        store: FHIRExchangeStateStore = FHIRExchangeStateStore(),
+        accountDataGeneration: Int = LocalPreferencesStore.standard[.accountDataGeneration]
     ) throws -> SensorKitBatchPublication {
         let subject = try FHIRExchangeSubject(
             identity: BusinessIdentifier(
@@ -98,11 +105,25 @@ struct DeviceUsageFHIRExchangeTests {
             ),
             subject: subject,
             destination: FHIRExchangeDestination(
-                accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration],
+                accountDataGeneration: accountDataGeneration,
                 accountID: subject.identity.value
             ),
             stateStore: store,
             conversionInstant: timestamp
+        )
+    }
+
+    private static func uploadStructured(
+        _ reports: [SRDeviceUsageReport.SafeRepresentation],
+        publication: SensorKitBatchPublication
+    ) async throws {
+        // A refused record never reaches the standard, so an unconfigured one suffices.
+        try await UploadStrategyStructured<SRDeviceUsageReport>().upload(
+            reports,
+            publication: publication,
+            for: Sensor.deviceUsage,
+            to: MyHeartCountsStandard(),
+            activity: SensorKitDataFetcher.InProgressActivity(sensor: Sensor.deviceUsage)
         )
     }
 
@@ -123,6 +144,37 @@ struct DeviceUsageFHIRExchangeTests {
                     deviceUsage: Self.report(textInputSessionIdentifier: "changed-session")
                 ).retryEvidence
             )
+        }
+    }
+
+    @Test
+    func refusedRecordsDoNotFailTheirBatch() async throws {
+        let store = FHIRExchangeStateStore()
+        let publication = try Self.publication(store: store)
+
+        try await Self.uploadStructured([Self.refusedReport, Self.refusedReport], publication: publication)
+
+        // Both records were reserved and refused, and the first one's event was released: reserving it again mints a third event.
+        let reservation = try publication.reserve(
+            recordOrdinal: 0,
+            evidence: try SensorKitPreparedStructuredRecord(deviceUsage: Self.refusedReport).retryEvidence
+        )
+        let event = try store.event(
+            key: store.sensorKitEventKey(batchKey: publication.batchKey, sourceRecordID: reservation.sourceRecordID),
+            recordedAt: Self.timestamp,
+            facts: .current()
+        )
+        #expect(event.sequence == 3)
+    }
+
+    @Test
+    func accountFenceAbortsBatchInsteadOfRefusingRecord() async throws {
+        let publication = try Self.publication(
+            accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration] + 1
+        )
+
+        await #expect(throws: FHIRExchangeDestinationError.accountChanged) {
+            try await Self.uploadStructured([Self.refusedReport], publication: publication)
         }
     }
 

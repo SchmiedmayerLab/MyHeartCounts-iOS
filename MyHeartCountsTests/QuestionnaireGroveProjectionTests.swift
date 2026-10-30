@@ -276,7 +276,8 @@ struct QuestionnaireHealthKitProjectionTests {
     @Test
     func bloodPressureRefusesAnIncompleteComponentSet() throws {
         let (questionnaire, response) = try Self.pair(diastolic: nil)
-        #expect(throws: ObservationExtractionError.answerMissing(linkID: "diastolic")) {
+        // A half-answered panel still refuses: the blood-pressure profile requires both components.
+        #expect(throws: ObservationExtractionError.componentIncomplete(measurement: "blood-pressure", missing: "8462-4")) {
             _ = try Self.samples(questionnaire: questionnaire, response: response)
         }
     }

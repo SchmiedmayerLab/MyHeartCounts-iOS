@@ -387,13 +387,17 @@ extension MyHeartCountsStandard {
                 accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration]
             ).reset()
         }
-        await sensorKitFetcher.resetAllQueryAnchors()
+        // An anchor left in place would make the next account resume where the previous account's SensorKit collection stopped.
+        let sensorKitAnchorsReset = await attempt("SensorKit query anchors") {
+            try await sensorKitFetcher.resetAllQueryAnchors()
+        }
         await clinicalRecordPermissions.resetTracking()
 
         guard historicalDataCleared,
               stagedFilesCleared,
               stagedHealthDataCleared,
-              exchangeStateCleared else {
+              exchangeStateCleared,
+              sensorKitAnchorsReset else {
             throw PendingAccountDataCleanupError.failed
         }
         LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = false

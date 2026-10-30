@@ -40,17 +40,18 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         let stateStore = await standard.fhirExchangeStateStore(
             accountDataGeneration: accountDataGeneration
         )
+        let conversionBatch = try HealthKitConversionBatch(
+            reserving: samples.map { $0 as HKSample },
+            subject: subject,
+            conversionInstant: conversionInstant,
+            stateStore: stateStore
+        )
         var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
         for sample in consume samples {
             try Task.checkCancellation()
             let healthSample = sample as HKSample
             do {
-                let payload = try await healthSample.prepareFHIRPayload(
-                    conversionInstant: conversionInstant,
-                    subject: subject,
-                    stateStore: stateStore,
-                    using: healthKit
-                )
+                let payload = try await healthSample.prepareFHIRPayload(in: conversionBatch, using: healthKit)
                 entries.append(contentsOf: payload.entries)
             } catch {
                 await standard.logger.warning(

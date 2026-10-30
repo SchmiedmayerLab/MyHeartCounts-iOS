@@ -26,24 +26,32 @@ extension SRPhotoplethysmogramSample {
             guard !samples.isEmpty else {
                 return
             }
-            let prepared = try SensorKitPPGRecording(samples: Array(samples)).prepared()
-            try await self.upload(
-                sidecar: SensorKitUploadSidecar(data: prepared.data, format: prepared.format),
-                retryEvidence: prepared.retryEvidence,
-                for: sensor,
-                publication: publication,
-                to: standard,
-                activity: activity
-            ) { sourceRecordID, title, sidecarPath in
-                guard let sidecarPath else {
-                    throw SensorKitRecordError.missingProviderValue("photoplethysmogram.location")
+            let ppgSamples = Array(samples)
+            do {
+                // The whole batch is one record, so a batch Grove refuses is skipped as a whole.
+                let prepared = try SensorKitRecordRefusal.refusing {
+                    try SensorKitPPGRecording(samples: ppgSamples).prepared()
                 }
-                return try prepared.sensorKitRecord(
-                    sourceRecordID: sourceRecordID,
-                    title: title,
-                    location: .sidecar(path: sidecarPath),
-                    admission: .callerAuthorizedOpaquePayload
-                )
+                try await self.upload(
+                    sidecar: SensorKitUploadSidecar(data: prepared.data, format: prepared.format),
+                    retryEvidence: prepared.retryEvidence,
+                    for: sensor,
+                    publication: publication,
+                    to: standard,
+                    activity: activity
+                ) { sourceRecordID, title, sidecarPath in
+                    guard let sidecarPath else {
+                        throw SensorKitRecordError.missingProviderValue("photoplethysmogram.location")
+                    }
+                    return try prepared.sensorKitRecord(
+                        sourceRecordID: sourceRecordID,
+                        title: title,
+                        location: .sidecar(path: sidecarPath),
+                        admission: .callerAuthorizedOpaquePayload
+                    )
+                }
+            } catch let refusal as SensorKitRecordRefusal {
+                refusal.log(for: sensor, recordOrdinal: 0)
             }
         }
     }

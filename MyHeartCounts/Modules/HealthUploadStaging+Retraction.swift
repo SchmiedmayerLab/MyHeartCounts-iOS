@@ -26,21 +26,25 @@ extension HealthUploadStaging {
         let subject = try await resolvedSubject()
         let stateStore = resolvedStateStore(accountDataGeneration: accountDataGeneration)
         let recordedAt = Date.now
-        var bundles: [ModelsR4.Bundle] = []
-        var identifiers: [UUID] = []
-        var eventKeys = Set<String>()
-        for row in rows {
-            try Swift::Task.checkCancellation()
-            guard let retraction = try stateStore.healthKitRetraction(
-                of: HealthKitDeletedRecord(
+        try Swift::Task.checkCancellation()
+        // One ledger transaction reserves the whole chunk before any retraction uses its identity.
+        let retractions = try stateStore.healthKitRetractions(
+            of: rows.map { row in
+                HealthKitDeletedRecord(
                     sourceTypeIdentifier: row.sampleType,
                     nativeRecordID: row.sampleId,
                     deletedAfter: row.deletedAfter,
                     detectedAt: row.timestamp
-                ),
-                subject: subject,
-                recordedAt: recordedAt
-            ) else {
+                )
+            },
+            subject: subject,
+            recordedAt: recordedAt
+        )
+        var bundles: [ModelsR4.Bundle] = []
+        var identifiers: [UUID] = []
+        var eventKeys = Set<String>()
+        for (row, retraction) in zip(rows, retractions) {
+            guard let retraction else {
                 continue
             }
             bundles.append(retraction.graph.bundle)
