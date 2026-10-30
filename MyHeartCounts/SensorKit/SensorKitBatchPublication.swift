@@ -6,7 +6,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-@preconcurrency import FirebaseFirestore
 import Foundation
 import GroveFHIRContract
 import GroveFoundation
@@ -16,25 +15,28 @@ import MyHeartCountsShared
 import OSLog
 
 
-/// Where the records of a published SensorKit batch go: each sidecar is staged for upload, then each graph is
-/// written to the record's Firestore document.
-///
-/// Injected, so tests publish a batch without Firebase.
-struct SensorKitRecordUploader: Sendable {
-    /// Durably stages one sidecar file for upload under `category`, fenced to `accountDataGeneration`.
-    let stageSidecar: @Sendable (
+/// Used to control where SensorKit batch files get published/uploaded to.
+enum SensorKitBatchUploader: Sendable {
+    /// Hands the batch file to ``ManagedFileUpload``, which then stages it for upload to firebase storage.
+    case fileUpload(ManagedFileUpload)
+    /// for testing purposes only, in order to be able to inject a custom file staging implementation when firebase isn't available.
+    case _custom(@Sendable ( // swiftlint:disable:this identifier_name
         _ file: URL,
         _ category: ManagedFileUpload.Category,
-        _ accountDataGeneration: Int
-    ) async throws -> Void
-    /// Writes one record's graph to the document of `sampleType` named by the record's source-record identifier, in
-    /// `destination`'s account.
-    let writeGraph: @Sendable (
-        _ graph: ExchangeGraph,
-        _ sourceRecordID: SensorKitSourceRecordID,
-        _ sampleType: String,
-        _ destination: FHIRExchangeDestination
-    ) async throws -> Void
+        _ accountDataGeneration: Int,
+        _ metadata: [String: String]
+    ) async throws -> Void)
+    
+    /// Durably stages one batch file for upload under `category`, fenced to `accountDataGeneration`, with `metadata`
+    /// attached to the uploaded file.
+    func stageFile(at url: URL, category: ManagedFileUpload.Category, accountDataGeneration: Int, metadata: [String: String]) async throws {
+        switch self {
+        case .fileUpload(let managedFileUpload):
+            try await managedFileUpload.stage(url, category: category, accountDataGeneration: accountDataGeneration, metadata: metadata)
+        case ._custom(let handler):
+            try await handler(url, category, accountDataGeneration, metadata)
+        }
+    }
 }
 
 
@@ -45,7 +47,7 @@ struct SensorKitBatchPublication: Sendable {
     let destination: FHIRExchangeDestination
     let info: SensorKit.BatchInfo
     /// Where the batch's records go.
-    let uploader: SensorKitRecordUploader
+    let uploader: SensorKitBatchUploader
     /// When the batch's new events are reserved; a redelivery before the batch is acknowledged restates the first.
     let conversionInstant: Date
 
@@ -62,7 +64,7 @@ struct SensorKitBatchPublication: Sendable {
         destination: FHIRExchangeDestination,
         stateStore: FHIRExchangeStateStore,
         ledger: FHIRExchangeLedger,
-        uploader: SensorKitRecordUploader,
+        uploader: SensorKitBatchUploader,
         conversionInstant: Date = .now
     ) throws {
         guard let sourceToken = SensorKitCatalog.current.entry(for: sensor)?.sourceToken else {
@@ -172,23 +174,6 @@ struct SensorKitBatchPublication: Sendable {
 }
 
 
-extension SensorKitRecordUploader {
-    /// The app's: sidecars go to the managed file upload, graphs to the participant's health observations.
-    static func managed(by managedFileUpload: ManagedFileUpload) -> Self {
-        Self { file, category, accountDataGeneration in
-            try await managedFileUpload.stage(file, category: category, accountDataGeneration: accountDataGeneration)
-        } writeGraph: { graph, sourceRecordID, sampleType, destination in
-            let document = try MyHeartCountsStandard.healthObservationDocument(
-                forSampleType: sampleType,
-                id: sourceRecordID.value,
-                destination: destination
-            )
-            try await document.setData(try Firestore.Encoder().encode(graph.bundle))
-        }
-    }
-}
-
-
 extension MyHeartCountsStandard {
     func sensorKitBatchPublication(
         for sensor: some AnySensor,
@@ -207,7 +192,7 @@ extension MyHeartCountsStandard {
             destination: destination,
             stateStore: fhirExchangeStateStore(accountDataGeneration: accountDataGeneration),
             ledger: fhirExchangeLedger,
-            uploader: .managed(by: managedFileUpload)
+            uploader: .fileUpload(managedFileUpload)
         )
     }
 

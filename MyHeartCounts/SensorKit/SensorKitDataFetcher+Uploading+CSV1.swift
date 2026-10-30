@@ -22,7 +22,7 @@ where Sample.SafeRepresentation: SensorKitTabularSample {
         for sensor: Sensor<Sample>,
         activity: SensorKitDataFetcher.InProgressActivity
     ) async throws -> ExchangeProducer.Receipt? {
-        guard !samples.isEmpty else {
+        guard let timeRange = samples.coveredTimeRange else {
             return nil
         }
         activity.updateMessage("Writing to CSV")
@@ -37,6 +37,8 @@ where Sample.SafeRepresentation: SensorKitTabularSample {
         }
         let upload = SensorKitRecordUpload(
             ordinal: 0,
+            sampleCount: samples.count,
+            timeRange: timeRange,
             sidecar: SensorKitUploadSidecar(data: recording.data, fileExtension: "csv"),
             retryEvidence: recording.retryEvidence
         ) { sourceRecordID, title, sidecarPath in

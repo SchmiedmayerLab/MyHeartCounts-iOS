@@ -89,4 +89,8 @@ extension LaunchOptions {
     static let recordHealthKitExportLog = LaunchOption<Bool>("--recordHealthKitExportLog", default: false)
     
     static let disableSensorKitUpload = LaunchOption<Bool>("--disableSensorKitUpload", default: false)
+    /// The minimum time, in seconds, between two SensorKit fetches started by app launches; `0` fetches on every launch.
+    static let sensorKitMinimumFetchInterval = LaunchOption<TimeInterval>("--sensorKitMinimumFetchInterval", default: 12 * TimeConstants.hour)
+    /// Stages every file upload as usual, but never performs any of them; for measuring how much a workload stages.
+    static let disableFileUploads = LaunchOption<Bool>("--disableFileUploads", default: false)
 }

@@ -23,7 +23,7 @@ extension SRPhotoplethysmogramSample {
             for sensor: Sensor<SRPhotoplethysmogramSample>,
             activity: SensorKitDataFetcher.InProgressActivity
         ) async throws -> ExchangeProducer.Receipt? {
-            guard !samples.isEmpty else {
+            guard let timeRange = samples.coveredTimeRange else {
                 return nil
             }
             let ppgSamples = Array(samples)
@@ -36,6 +36,8 @@ extension SRPhotoplethysmogramSample {
             }
             let upload = SensorKitRecordUpload(
                 ordinal: 0,
+                sampleCount: ppgSamples.count,
+                timeRange: timeRange,
                 sidecar: SensorKitUploadSidecar(data: prepared.data, fileExtension: "mhcPPG2"),
                 retryEvidence: prepared.retryEvidence
             ) { sourceRecordID, title, sidecarPath in

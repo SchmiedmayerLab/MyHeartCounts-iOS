@@ -44,12 +44,20 @@ let package = Package(
     ],
     dependencies: packageDeps,
     targets: [
+        .systemLibrary(
+            name: "MyHeartCountsCZlib",
+            path: "Sources/CZlib",
+            pkgConfig: "zlib",
+            providers: [.apt(["zlib1g-dev"])]
+        ),
         .target(
             name: "MyHeartCountsShared",
             dependencies: { () -> [Target.Dependency] in
                 var deps: [Target.Dependency] = [
                     .product(name: "GroveFoundation", package: "Grove"),
-                    .product(name: "MHCStudyDefinition", package: "MyHeartCounts-StudyDefinitions")
+                    .product(name: "MHCStudyDefinition", package: "MyHeartCounts-StudyDefinitions"),
+                    // Apple's SDKs ship zlib as a module of their own.
+                    .target(name: "MyHeartCountsCZlib", condition: .when(platforms: [.linux]))
                 ]
                 #if !os(Linux)
                 deps += [

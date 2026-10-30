@@ -12,6 +12,7 @@ import GroveFoundation
 import GroveSensorKit
 import GroveSensorKitFHIR
 @testable import MyHeartCounts
+import MyHeartCountsShared
 import SensorKit
 import Synchronization
 import Testing
@@ -64,11 +65,96 @@ extension SensorKitBatchPublication {
     /// The identity of the record at `ordinal`, once `evidence` is checked as publishing a batch of only that record
     /// checks it.
     func sourceRecordID(ordinal: Int, evidence: Data) throws -> SensorKitSourceRecordID {
-        let upload = SensorKitRecordUpload(ordinal: ordinal, sidecar: nil, retryEvidence: evidence) { _, _, _ in
+        let upload = SensorKitRecordUpload(
+            ordinal: ordinal,
+            sampleCount: 1,
+            timeRange: SensorKitPublicationHarness.start..<SensorKitPublicationHarness.start,
+            sidecar: nil,
+            retryEvidence: evidence
+        ) { _, _, _ in
             // Never built: checking a record's evidence only derives its identity.
             throw CancellationError()
         }
         return try #require(try sourceRecordIDs(of: [upload]).first)
+    }
+}
+
+
+/// What a publication under test staged, in order.
+final class RecordedSensorKitUploads: Sendable {
+    /// One batch file staged under its remote path, with its exact bytes.
+    struct StagedFile: Equatable {
+        let path: String
+        let bytes: Data
+        /// The metadata the file is uploaded with.
+        let metadata: [String: String]
+    }
+
+    struct StageFailure: Error {}
+
+    private let files = Mutex<[StagedFile]>([])
+    /// Whether staging a file fails, after the file was recorded.
+    private let failsStaging: Bool
+
+    var all: [StagedFile] {
+        files.withLock { $0 }
+    }
+
+    /// The entries of the staged archives, in staging order and, within an archive, in archive order.
+    var entries: [ZipArchive.Entry] {
+        get throws {
+            try all.flatMap { try ZipArchive.entries(in: $0.bytes) }
+        }
+    }
+
+    /// The staged archives, in staging order.
+    var archives: [UploadBatchArchive.Reader] {
+        get throws {
+            try all.map { try UploadBatchArchive.Reader($0.bytes) }
+        }
+    }
+
+    /// The graphs the staged archives carry, in staging order and, within an archive, in record order.
+    var graphs: [Data] {
+        get throws {
+            try archives.flatMap { archive in
+                let bundles = try JSONSerialization.jsonObject(with: try archive.bundles())
+                return try #require(bundles as? [Any]).map { bundle in
+                    try JSONSerialization.data(withJSONObject: bundle, options: [.sortedKeys, .withoutEscapingSlashes])
+                }
+            }
+        }
+    }
+
+    /// The recordings the staged archives carry, by their path within their archive.
+    var recordings: [String: Data] {
+        get throws {
+            var recordings: [String: Data] = [:]
+            for archive in try archives {
+                for path in archive.recordingPaths {
+                    recordings[path] = try archive.recording(at: path)
+                }
+            }
+            return recordings
+        }
+    }
+
+    var uploader: SensorKitBatchUploader {
+        ._custom { file, category, _, metadata in
+            let bytes = try Data(contentsOf: file)
+            self.files.withLock {
+                $0.append(StagedFile(path: category.remotePath(for: file.lastPathComponent), bytes: bytes, metadata: metadata))
+            }
+            if self.failsStaging {
+                throw StageFailure()
+            }
+            // Staging takes the file, as the managed file upload does.
+            try FileManager.default.removeItem(at: file)
+        }
+    }
+
+    init(failingStaging: Bool = false) {
+        self.failsStaging = failingStaging
     }
 }
 
@@ -101,7 +187,7 @@ struct SensorKitPublicationHarness {
     let sensor: any AnySensor
     let store: FHIRExchangeStateStore
     let ledger: FHIRExchangeLedger
-    /// The acquisition sequence of the batch. Each suite takes its own, so no two suites stage a sidecar under one name.
+    /// The acquisition sequence of the batch. Each suite takes its own, so no two suites stage a batch archive under one name.
     let sequence: UInt64
 
     var subject: FHIRExchangeSubject {
