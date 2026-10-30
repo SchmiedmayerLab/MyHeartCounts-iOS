@@ -20,7 +20,7 @@ struct EligibilityScreening: View {
     private let components: [any ScreeningComponent] = [
         AgeAtLeast(style: .toggle, minAge: 18),
         IsFromRegion(
-            enabledRegions: [.unitedStates],
+            enabledRegions: [FeatureFlags.forcedStudyVariant?.region ?? .unitedStates],
             comingSoonRegions: [.unitedKingdom]
         ),
         // We ask if the user speaks the current language.
@@ -57,7 +57,10 @@ struct EligibilityScreening: View {
                 // unreachable
                 return
             }
-            if await loadStudy(variant: .stanford, backendRegion: region, path: path) {
+            // Only the Imperial TestFlight builds (see `FeatureFlags.forcedStudyVariant`) enroll into the Imperial study.
+            // There's no UK backend yet, so they use the US one, like the Coming Soon screen's testing path.
+            let variant = FeatureFlags.forcedStudyVariant ?? .stanford
+            if await loadStudy(variant: variant, backendRegion: variant == .imperial ? .unitedStates : region, path: path) {
                 path.nextStep()
             }
         } else {

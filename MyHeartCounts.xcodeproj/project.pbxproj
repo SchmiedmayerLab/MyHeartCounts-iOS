@@ -1234,7 +1234,7 @@
 			repositoryURL = "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git";
 			requirement = {
 				kind = revision;
-				revision = fa1b3eeec340c95f7ec94b2d48ae85da44d42641;
+				revision = 9bcc6cc921a3914d8377a19a58cd3d2f8d877eb6;
 			};
 		};
 		8076696C2D772C07001B980B /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {

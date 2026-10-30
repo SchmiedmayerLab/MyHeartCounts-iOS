@@ -137,7 +137,9 @@ final class StudyBundleLoader: Module, Sendable {
         returnCachedBundleOnError: Bool = true
     ) async throws(LoadError) -> StudyBundle {
         let source = Source(
-            selector: LaunchOptions.launchOptions[.studyBundleSelector].withVariant(DeferredConfigLoading.activeStudyVariant),
+            // Variant-locked TestFlight builds use the study bundle they were built with, not the one published to the backend.
+            selector: (FeatureFlags.forcedStudyVariant.map(StudyBundleSelector.bundledWithApp) ?? LaunchOptions.launchOptions[.studyBundleSelector])
+                .withVariant(DeferredConfigLoading.activeStudyVariant),
             firebaseConfig: FeatureFlags.overrideFirebaseConfig ?? DeferredConfigLoading.activeFirebaseConfig
         )
         if self.source != source {

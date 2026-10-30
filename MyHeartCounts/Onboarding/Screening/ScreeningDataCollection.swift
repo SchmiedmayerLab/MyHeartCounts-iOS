@@ -23,7 +23,7 @@ final class OnboardingDataCollection: Sendable {
         }
         
         var dateOfBirth: DateOfBirthResponse?
-        var region: Locale.Region?
+        var region: Locale.Region? = FeatureFlags.forcedStudyVariant?.region
         var speaksEnglish: Bool?
         var sharedAppleID: Bool?
         // periphery:ignore

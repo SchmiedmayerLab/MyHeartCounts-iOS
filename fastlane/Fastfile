@@ -154,8 +154,17 @@ platform :ios do
     versionname = options[:versionname].to_s.strip.empty? ? APP_CONFIG[:default_version_name] : options[:versionname]
     releasenotes = options[:releasenotes].to_s.strip.empty? ? APP_CONFIG[:default_release_notes] : options[:releasenotes]
     strip_sensorkit_entitlement = options[:strip_sensorkit_entitlement].to_s == "true"
+    variant = options[:variant].to_s.strip.empty? ? "stanford" : options[:variant].to_s.strip.downcase
+
+    unless ["stanford", "imperial"].include?(variant)
+      UI.user_error!("Unknown study variant '#{variant}'. Expected 'stanford' or 'imperial'.")
+    end
+    if variant == "imperial" && environment == "production"
+      UI.user_error!("Imperial builds are TestFlight-only.")
+    end
 
     UI.message("Using environment: #{environment}")
+    UI.message("Using study variant: #{variant}")
     UI.message("Using app identifier: #{appidentifier}")
     UI.message("Using secondary app identifier: #{secondaryAppIdentifier}")
     UI.message("Using provisioning profile: #{provisioningProfile}")
@@ -202,6 +211,11 @@ platform :ios do
       sh('plutil', '-remove', 'com\.apple\.developer\.sensorkit\.reader\.allow', '../MyHeartCounts/Supporting Files/MyHeartCounts.entitlements')
     end
 
+    if variant == "imperial"
+      puts 'Locking the onboarding to the Imperial study variant'
+      sh('plutil', '-insert', 'MHCForcedStudyVariant', '-string', 'imperial', "../#{APP_CONFIG[:plist_path]}")
+    end
+
     archive(
       appidentifier: appidentifier,
       secondaryAppIdentifier: secondaryAppIdentifier,
@@ -225,31 +239,25 @@ platform :ios do
         automatic_release: true,
         precheck_include_in_app_purchases: false,
       )
-    elsif environment == "development"
-      upload_to_testflight(
-        app_identifier: appidentifier,
-        distribute_external: true,
-        reject_build_waiting_for_review: true,
-        expire_previous_builds: false,
-        groups: [
-          "Development"
-        ],
-        submit_beta_review: true,
-        notify_external_testers: true,
-        changelog: commit[:message]
-      )
     else
+      testflight_group = if variant == "imperial"
+        "External Testers (Imperial)"
+      elsif environment == "development"
+        "Development"
+      else
+        "External Testers"
+      end
       upload_to_testflight(
         app_identifier: appidentifier,
         distribute_external: true,
         reject_build_waiting_for_review: true,
         expire_previous_builds: false,
         groups: [
-          "External Testers"
+          testflight_group
         ],
         submit_beta_review: true,
         notify_external_testers: true,
-        changelog: commit[:message]
+        changelog: variant == "imperial" ? "[UK] #{commit[:message]}" : commit[:message]
       )
     end
   end
