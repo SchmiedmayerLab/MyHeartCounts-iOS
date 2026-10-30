@@ -10,6 +10,7 @@ import Foundation
 import GroveLocalization
 import UniformTypeIdentifiers
 import XCTest
+import XCTGroveQuestionnaire
 import XCTHealthKit
 
 
@@ -116,31 +117,12 @@ extension MHCScreenshotting {
         // open the diet questionnaire
         // note: we make use of the fact here that the english and spanish titles have the same prefix "Diet" vs "Dieta".
         app.buttons.matching("identifier BEGINSWITH %@", "Answer Survey: Diet").element.tap()
-        try navigateResearchKitQuestionnaire(title: nil, steps: [
-            // initial page
-            .init(actions: [.continue]),
-            // "fruits and vegetables" page
-            .init(actions: [.scrollDown, .continue]),
-            // "fat" page
-            .init(actions: [.scrollDown, .continue]),
-            // "starchy foods" page
-            .init(actions: [
-                .selectOption(
-                    title: try lookupLocalizedString("Yes"),
-                    questionId: "055647aa-77aa-4877-81ae-40a2f08b8c5e"
-                ),
-                .selectOption(
-                    title: try lookupLocalizedString("No"),
-                    questionId: "784f7a2c-6ec8-414b-caa4-b59f1e8a6a1c"
-                ),
-                .scrollUp,
-                .custom {
-                    // survey screenshot
-                    try self.recordScreenshot("2_APP_IPHONE_67_2")
-                },
-                .cancel
-            ])
-        ])
+        XCTAssert(questionnaire.waitUntilPresented())
+        questionnaire.question("055647aa-77aa-4877-81ae-40a2f08b8c5e").select(try lookupLocalizedString("Yes"))
+        questionnaire.question("784f7a2c-6ec8-414b-caa4-b59f1e8a6a1c").select(try lookupLocalizedString("No"))
+        try recordScreenshot("2_APP_IPHONE_67_2")
+        questionnaire.closeDiscardingAnswers()
+        XCTAssert(questionnaire.waitUntilDismissed())
         
         // trigger nudge notification and take a screenshot
         do {

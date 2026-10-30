@@ -12,13 +12,19 @@ import Foundation
 import GroveFoundation
 import GroveHealthKitFHIR
 import GroveStudyDefinition
+import HealthKit
 import ModelsR4
 import MyHeartCountsShared
 
 
 extension TimedWalkingTestResult {
+    enum FHIRObservationConversionError: Error, Equatable {
+        case invalidDistance
+        case invalidDuration
+        case invalidStepCount
+    }
+
     func resource(
-        withMapping: SampleTypesFHIRMapping,
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> ModelsR4.ResourceProxy {
@@ -30,13 +36,22 @@ extension TimedWalkingTestResult {
         issuedDate: ModelsR4.FHIRPrimitive<ModelsR4.Instant>?,
         extensions: [any FHIRExtensionBuilderProtocol]
     ) throws -> Observation {
+        guard numberOfSteps >= 0 else {
+            throw FHIRObservationConversionError.invalidStepCount
+        }
+        guard distanceCovered.isFinite, distanceCovered >= 0 else {
+            throw FHIRObservationConversionError.invalidDistance
+        }
+        let durationInMinutes = test.duration.timeInterval / 60
+        guard durationInMinutes.isFinite, durationInMinutes > 0 else {
+            throw FHIRObservationConversionError.invalidDuration
+        }
         var observation = Observation(
             code: CodeableConcept(),
             status: FHIRPrimitive(.final)
         )
         // Set basic elements applicable to all observations
         observation.id = self.id.uuidString.asFHIRStringPrimitive()
-        observation.append(identifier: Identifier(id: observation.id))
         try observation.setEffective(startDate: self.startDate, endDate: self.endDate, timeZone: .current)
         if let issuedDate {
             observation.issued = issuedDate
@@ -47,27 +62,27 @@ extension TimedWalkingTestResult {
             observation.append(coding: Coding(code: LOINC.phenXSixMinuteWalkTest))
             observation.append(component: .init(
                 code: LOINC.sixMinuteWalkTest,
-                quantityUnit: "m",
+                quantityUnit: .ucum(code: "m"),
                 quantityValue: distanceCovered
             ))
         }
         observation.append(coding: Coding(code: LOINC.pedometerTrackingPanel))
         observation.append(component: .init(
             code: LOINC.pedometerNumStepsInUnspecifiedTime,
-            quantityUnit: "count",
+            quantityUnit: .ucum(code: "{steps}", display: "steps"),
             quantityValue: Double(numberOfSteps)
         ))
         observation.append(component: .init(
             code: LOINC.pedometerWalkingDistanceInUnspecifiedTime,
-            quantityUnit: "m",
+            quantityUnit: .ucum(code: "m"),
             quantityValue: distanceCovered
         ))
         // we also append the duration and the activity type
         // in the case of the six-minute walk test, this is redundant, but for all other cases it's important.
         observation.append(component: .init(
             code: LOINC.exerciseDuration,
-            quantityUnit: "min",
-            quantityValue: test.duration.timeInterval / 60
+            quantityUnit: .ucum(code: "min"),
+            quantityValue: durationInMinutes
         ))
         observation.append(component: .init(
             code: CodeableConcept(coding: [Coding(code: LOINC.exerciseActivity)]),
@@ -83,7 +98,6 @@ extension TimedWalkingTestResult {
         for builder in extensions {
             try builder.apply(typeErasedInput: self, to: &observation)
         }
-        observation.addMHCAppAsSource()
         return observation
     }
 }
@@ -91,32 +105,22 @@ extension TimedWalkingTestResult {
 
 extension TimedWalkingTestResult {
     init?(_ observation: ModelsR4.Observation) {
-        func getComponent(_ loinc: LOINC) -> ObservationComponent? {
-            observation.component?.first { ($0.code.coding ?? []).contains { $0.code == loinc.code } }
-        }
-        func getQuantityValue(_ loinc: LOINC) -> Decimal? {
-            switch getComponent(loinc)?.value {
-            case .quantity(let quantity):
-                quantity.value?.value?.decimal
-            default:
-                nil
-            }
-        }
-        func getCodeableConceptValue(_ loinc: LOINC) -> CodeableConcept? {
-            switch getComponent(loinc)?.value {
-            case .codeableConcept(let codeableConcept):
-                codeableConcept
-            default:
-                nil
-            }
-        }
-        guard let id = (observation.id?.value?.string).flatMap({ UUID(uuidString: $0) }),
+        guard observation.status.value == .final,
+              observation.hasLOINCCode(.pedometerTrackingPanel),
+              let id = (observation.id?.value?.string).flatMap({ UUID(uuidString: $0) }),
               let timeRange = try? observation.effectiveTimePeriod,
-              let duration = getQuantityValue(.exerciseDuration)?.doubleValue,
-              let numSteps = getQuantityValue(.pedometerNumStepsInUnspecifiedTime)?.intValue,
-              let distance = getQuantityValue(.pedometerWalkingDistanceInUnspecifiedTime)?.doubleValue,
-              let activity = (getCodeableConceptValue(.exerciseActivity)?.coding?.first?.code).map({ LOINC($0) }),
-              let activity = TimedWalkingTestConfiguration.Kind(activity) else {
+              timeRange.lowerBound < timeRange.upperBound,
+              let duration = observation.quantityValue(.exerciseDuration, in: .minute()),
+              duration > 0,
+              let rawStepCount = observation.quantityValue(.pedometerNumStepsInUnspecifiedTime, in: .count()),
+              rawStepCount >= 0,
+              let numSteps = Int(exactly: rawStepCount),
+              let distance = observation.quantityValue(.pedometerWalkingDistanceInUnspecifiedTime, in: .meter()),
+              distance >= 0,
+              let activityCoding = observation.codeableConceptValue(.exerciseActivity)?.coding?.first(where: {
+                  $0.system == LOINC.system
+              })?.code,
+              let activity = TimedWalkingTestConfiguration.Kind(LOINC(activityCoding)) else {
             return nil
         }
         self.init(
@@ -153,6 +157,42 @@ extension Observation {
             }
         }
     }
+
+    fileprivate func hasLOINCCode(_ loinc: LOINC) -> Bool {
+        code.coding?.contains {
+            $0.system == LOINC.system && $0.code == loinc.code
+        } == true
+    }
+
+    private func component(_ loinc: LOINC) -> ObservationComponent? {
+        component?.first {
+            $0.code.coding?.contains {
+                $0.system == LOINC.system && $0.code == loinc.code
+            } == true
+        }
+    }
+
+    fileprivate func quantityValue(_ loinc: LOINC, in expectedUnit: HKUnit) -> Double? {
+        guard case .quantity(let quantity) = component(loinc)?.value,
+              quantity.system == UCUM.system,
+              let code = quantity.code?.value?.string,
+              let unit = HealthKitCatalog.unit(forUCUMCode: code),
+              let value = quantity.value?.value?.decimal.doubleValue else {
+            return nil
+        }
+        let healthKitQuantity = HKQuantity(unit: unit, doubleValue: value)
+        guard healthKitQuantity.is(compatibleWith: expectedUnit) else {
+            return nil
+        }
+        return healthKitQuantity.doubleValue(for: expectedUnit)
+    }
+
+    fileprivate func codeableConceptValue(_ loinc: LOINC) -> CodeableConcept? {
+        guard case .codeableConcept(let codeableConcept) = component(loinc)?.value else {
+            return nil
+        }
+        return codeableConcept
+    }
 }
 
 
@@ -166,12 +206,5 @@ extension TimedWalkingTestConfiguration.Kind {
         default:
             return nil
         }
-    }
-}
-
-
-extension Decimal {
-    var intValue: Int {
-        Int(self)
     }
 }

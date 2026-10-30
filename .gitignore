@@ -10,6 +10,7 @@
 *.xcodeproj
 *.swiftpm
 *.derivedData
+.derivedData*
 *.build
 .docs
 !MyHeartCounts.xcodeproj

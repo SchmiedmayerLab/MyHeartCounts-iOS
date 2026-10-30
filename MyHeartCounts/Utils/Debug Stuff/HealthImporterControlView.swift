@@ -48,6 +48,9 @@ struct HealthImporterControlView: View {
             LabeledContent("State" as String) {
                 Text(session.state.displayTitle)
             }
+            if !session.failedBatches.isEmpty {
+                LabeledContent("Failed Batches" as String, value: session.failedBatches.count.formatted())
+            }
             if let progress = session.progress {
                 HStack {
                     Text("Progress" as String)
@@ -74,8 +77,14 @@ struct HealthImporterControlView: View {
 extension BulkExportSessionState {
     var displayTitle: String {
         switch self {
-        case .paused:
-            "paused"
+        case .paused(reason: .notStarted):
+            "paused (not started)"
+        case .paused(reason: .requested):
+            "paused (requested)"
+        case .paused(reason: .failedBatches):
+            "paused (failed batches)"
+        case .paused(reason: .failure(.checkpointWriteFailed)):
+            "paused (checkpoint write failed)"
         case .running:
             "running"
         case .completed:

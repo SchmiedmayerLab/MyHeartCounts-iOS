@@ -6,65 +6,45 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Algorithms
-import Foundation
-import GroveFoundation
 import GroveSensorKit
-import ModelsR4
-import MyHeartCountsShared
+import GroveSensorKitFHIR
 
 
-/// A SensorKit sample that can be appended to a CSV file containing a collection of samples of this type.
-protocol CSVAppendableSensorSample: Sendable {
-    /// The CSV columns required to CSV-encode an instance of this type.
-    static var csvColumns: [String] { get }
-    
-    /// This sample's values for the columns defined in ``csvColumns``
-    var csvFieldValues: [any CSVWriter.FieldValue] { get }
-}
-
-
-/// An upload strategy that encodes a batch of samples into a CSV files, uploads that, and creates a corresponding FHIR observation.
+/// Uploads one fetched batch using its Grove-owned registered tabular representation.
 struct UploadStrategyCSVFile<Sample: SensorKitSampleProtocol>: MHCSensorSampleUploadStrategy
-where Sample.SafeRepresentation: CSVAppendableSensorSample {
+where Sample.SafeRepresentation: SensorKitTabularSample {
     func upload(
         _ samples: some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
-        batchInfo: SensorKit.BatchInfo,
+        publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
         to standard: MyHeartCountsStandard,
         activity: SensorKitDataFetcher.InProgressActivity
     ) async throws {
-        guard let firstSample = samples.first else {
+        guard !samples.isEmpty else {
             return
         }
-        let writer = try CSVWriter(columns: Sample.SafeRepresentation.csvColumns + ["device"])
         activity.updateMessage("Writing to CSV")
-        let deviceInfoCol = CollectionOfOne<any CSVWriter.FieldValue>(batchInfo.device.description)
-        for sample in samples {
-            try writer.appendRow(fields: chain(sample.csvFieldValues, deviceInfoCol))
-        }
+        let recording = try SensorKitTabularRecording(
+            samples: Array(samples),
+            deviceProductType: publication.info.device.productType
+        )
         try await upload(
-            data: writer.data(),
-            fileExtension: "csv",
+            sidecar: SensorKitUploadSidecar(data: recording.data, format: recording.format),
+            retryEvidence: recording.retryEvidence,
             for: sensor,
-            deviceInfo: batchInfo.device,
+            publication: publication,
             to: standard,
-            observationDocName: "\(batchInfo.timeRange.lowerBound.ISO8601Format())_\(batchInfo.timeRange.upperBound.ISO8601Format())",
             activity: activity
-        ) { observation in
-            let (minDate, maxDate) = {
-                var minDate = firstSample.timeRange.lowerBound
-                var maxDate = firstSample.timeRange.upperBound
-                for sample in samples {
-                    minDate = min(minDate, sample.timeRange.lowerBound)
-                    maxDate = max(maxDate, sample.timeRange.upperBound)
-                }
-                return (minDate, maxDate)
-            }()
-            observation.effective = try .period(Period(
-                end: FHIRPrimitive(DateTime(date: maxDate)),
-                start: FHIRPrimitive(DateTime(date: minDate))
-            ))
+        ) { sourceRecordID, title, sidecarPath in
+            guard let sidecarPath else {
+                throw SensorKitRecordError.missingProviderValue("tabular.location")
+            }
+            return try recording.sensorKitRecord(
+                sourceRecordID: sourceRecordID,
+                title: title,
+                location: .sidecar(path: sidecarPath),
+                admission: .callerAuthorizedOpaquePayload
+            )
         }
     }
 }
