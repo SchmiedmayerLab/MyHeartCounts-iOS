@@ -30,6 +30,7 @@ extension HealthUploadStaging {
             case sampleType
             case sampleId
             case fhirJson
+            case uploadClaimed
         }
         static let databaseTableName = "pendingSamples"
         static var timestampColumn: Column { Column(Columns.timestamp.name) }
@@ -40,6 +41,8 @@ extension HealthUploadStaging {
         let sampleId: UUID
         /// zstd-compressed
         let fhirJson: Data
+        /// Once a drain has taken this row, its addition may already be in the upload queue.
+        var uploadClaimed = false
     }
 
     struct PendingDeletionRecord: _PendingEntityRecord {
@@ -73,6 +76,11 @@ extension HealthUploadStaging {
         migrator.registerMigration("v3") { db in
             try db.alter(table: PendingDeletionRecord.databaseTableName) {
                 $0.add(column: PendingDeletionRecord.Columns.deletedAfter.name, .text)
+            }
+        }
+        migrator.registerMigration("v4") { db in
+            try db.alter(table: PendingSampleRecord.databaseTableName) {
+                $0.add(column: PendingSampleRecord.Columns.uploadClaimed.name, .integer).notNull().defaults(to: false)
             }
         }
         if let targetMigration {
@@ -131,6 +139,38 @@ extension HealthUploadStaging {
         )
     }
 
+    static func fetchNextDrainChunk<R: _PendingEntityRecord>(
+        of _: R.Type,
+        before cutoff: Date,
+        limit: Int,
+        in db: Database
+    ) throws -> DrainChunk<R>? {
+        var request = R.filter(R.timestampColumn < cutoff)
+        if R.self == PendingDeletionRecord.self {
+            let samples = PendingSampleRecord.databaseTableName
+            let deletions = PendingDeletionRecord.databaseTableName
+            request = request.filter(sql: """
+                NOT EXISTS (SELECT 1 FROM \(samples)
+                WHERE \(samples).sampleType = \(deletions).sampleType AND \(samples).sampleId = \(deletions).sampleId)
+                """)
+        }
+        guard let sampleType = try String.fetchOne(
+            db,
+            request
+                .select(R.sampleTypeColumn)
+                .order(R.timestampColumn, R.sampleTypeColumn)
+                .limit(1)
+        ) else {
+            return nil
+        }
+        let rows = try request
+            .filter(R.sampleTypeColumn == sampleType)
+            .order(R.timestampColumn)
+            .limit(limit)
+            .fetchAll(db)
+        return DrainChunk(sampleType: sampleType, rows: rows)
+    }
+
     func elidePendingUploads(in dbQueue: DatabaseQueue) throws -> [String: Int] {
         var summary: [String: Int] = [:]
         while true {
@@ -144,6 +184,7 @@ extension HealthUploadStaging {
                     .filter(
                         sampleAlias[SampleColumn.sampleType] == deletionAlias[DeletionColumn.sampleType]
                             && sampleAlias[SampleColumn.sampleId] == deletionAlias[DeletionColumn.sampleId]
+                            && sampleAlias[SampleColumn.uploadClaimed] == false
                     )
                     .exists()
                 let keys = try PendingDeletionRecord
