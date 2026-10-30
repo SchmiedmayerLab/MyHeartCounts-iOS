@@ -49,8 +49,8 @@ extension FHIRExchangeStateStore {
         return secret
     }
 
-    func identityScope() throws -> OpaqueIdentityScope {
-        let secret = try identitySecret()
+    /// The identity scope `secret` keys.
+    static func identityScope(of secret: FHIRExchangeIdentitySecret) throws -> OpaqueIdentityScope {
         let keyID = FHIRExchangeIdentifiers.identityKeyID
         let epoch = try EventSequence(String(secret.epoch))
         return try OpaqueIdentityScope(
@@ -65,17 +65,17 @@ extension FHIRExchangeStateStore {
         )
     }
 
-    /// The repository one source's records live in: the synced store, partitioned per account.
+    /// The repository one source's records live in: the synced store `secret` belongs to, partitioned per account.
     ///
     /// The store id keeps the same reading's identities equal across the participant's devices
     /// and reinstalls; the account identity keeps different accounts unlinkable even though
     /// they share the store-bound key.
-    func repositoryScope(
+    static func repositoryScope(
         _ source: FHIRExchangeIdentifiers.SourceRepository,
-        subject: FHIRExchangeSubject
+        subject: FHIRExchangeSubject,
+        secret: FHIRExchangeIdentitySecret
     ) throws -> BusinessIdentifier {
-        let secret = try identitySecret()
-        return try BusinessIdentifier(
+        try BusinessIdentifier(
             system: FHIRExchangeIdentifiers.repository,
             value: "\(source.rawValue):\(secret.storeID.uuidString.lowercased()):\(subject.identity.value)"
         )

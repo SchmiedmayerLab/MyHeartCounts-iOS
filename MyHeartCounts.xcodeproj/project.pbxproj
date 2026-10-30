@@ -1234,7 +1234,7 @@
 			repositoryURL = "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git";
 			requirement = {
 				kind = revision;
-				revision = d1cbe285185b197816d3a87ad997658b093c4a26;
+				revision = fa1b3eeec340c95f7ec94b2d48ae85da44d42641;
 			};
 		};
 		8076696C2D772C07001B980B /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
@@ -1298,7 +1298,7 @@
 			repositoryURL = "https://github.com/SchmiedmayerLab/Grove.git";
 			requirement = {
 				kind = revision;
-				revision = 611d0cd83b841aa51b8ba1b0cafef144b74a424c;
+				revision = 6e40cfbffcecafd59b253d6d1d9e2cfbdc89b1d0;
 			};
 			traits = (
 				Textual,

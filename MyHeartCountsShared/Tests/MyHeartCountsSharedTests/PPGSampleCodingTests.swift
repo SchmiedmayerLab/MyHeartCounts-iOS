@@ -12,15 +12,7 @@ import Testing
 
 
 @Suite
-struct PPGBinaryCodingTests {
-    @Test
-    func encodeAndDecodeBinary() throws {
-        let samples = [PPGSample.testSample1, .testSample2, .testSample3]
-        let encoded = try BinaryEncoder.encode(samples)
-        let decoded = try BinaryDecoder.decode([PPGSample].self, from: encoded)
-        #expect(decoded == samples)
-    }
-    
+struct PPGSampleCodingTests {
     @Test
     func encodeAndDecodeJSON() throws {
         let samples = [PPGSample.testSample1, .testSample2, .testSample3]

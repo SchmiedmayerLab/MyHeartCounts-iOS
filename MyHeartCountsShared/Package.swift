@@ -13,10 +13,9 @@ import PackageDescription
 var packageDeps: [Package.Dependency] = [
     .package(
         url: "https://github.com/SchmiedmayerLab/Grove.git",
-        revision: "611d0cd83b841aa51b8ba1b0cafef144b74a424c"
+        revision: "6e40cfbffcecafd59b253d6d1d9e2cfbdc89b1d0"
     ),
-    .package(url: "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git", revision: "d1cbe285185b197816d3a87ad997658b093c4a26"),
-    .package(url: "https://github.com/apple/swift-nio.git", from: "2.93.0"),
+    .package(url: "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git", revision: "fa1b3eeec340c95f7ec94b2d48ae85da44d42641"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0")
 ]
 
@@ -50,9 +49,7 @@ let package = Package(
             dependencies: { () -> [Target.Dependency] in
                 var deps: [Target.Dependency] = [
                     .product(name: "GroveFoundation", package: "Grove"),
-                    .product(name: "MHCStudyDefinition", package: "MyHeartCounts-StudyDefinitions"),
-                    .product(name: "NIOCore", package: "swift-nio"),
-                    .product(name: "NIOFoundationCompat", package: "swift-nio")
+                    .product(name: "MHCStudyDefinition", package: "MyHeartCounts-StudyDefinitions")
                 ]
                 #if !os(Linux)
                 deps += [
@@ -68,6 +65,7 @@ let package = Package(
             name: "SensorKitCLI",
             dependencies: [
                 "MyHeartCountsShared",
+                .product(name: "GroveSensorKitFHIR", package: "Grove"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             swiftSettings: commonSwiftSettings

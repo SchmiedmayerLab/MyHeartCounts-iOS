@@ -11,27 +11,10 @@ import Foundation
 import GRDB
 import Grove
 import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitFHIR
 import MyHeartCountsShared
 import OSLog
-
-
-enum HealthUploadBatchFilename {
-    private static let digestByteCount = 12
-
-    static func make(
-        typePrefix: String,
-        identifiers: some Sequence<UUID>,
-        fileExtension: String
-    ) -> String {
-        let canonicalIdentifiers = identifiers
-            .map { $0.uuidString.lowercased() }
-            .sorted()
-            .joined(separator: "\n")
-        let digest = SHA256.hash(data: Data(canonicalIdentifiers.utf8))
-        let key = digest.prefix(digestByteCount).lowercaseHexString
-        return "\(typePrefix)_\(key).\(fileExtension)"
-    }
-}
 
 
 /// The one definition of a staged upload batch's wire format.
@@ -43,17 +26,35 @@ enum HealthUploadBatch {
         return encoder
     }()
 
-    /// Sorts, encodes, compresses, and writes one batch, returning the file staged uploads take.
+    private static let filenameDigestByteCount = 12
+
+    /// The file name of a batch: its type prefix and a digest of its sorted identifiers, so the same batch is always
+    /// written, and uploaded, under the same name.
+    static func filename(
+        typePrefix: String,
+        identifiers: some Sequence<UUID>,
+        fileExtension: String
+    ) -> String {
+        let canonicalIdentifiers = identifiers
+            .map { $0.uuidString.lowercased() }
+            .sorted()
+            .joined(separator: "\n")
+        let digest = SHA256.hash(data: Data(canonicalIdentifiers.utf8))
+        let key = digest.prefix(filenameDigestByteCount).lowercaseHexString
+        return "\(typePrefix)_\(key).\(fileExtension)"
+    }
+
+    /// Sorts, splices, compresses, and writes one batch, returning the file staged uploads take.
     ///
-    /// Every path producing a batch goes through here, so their bytes and filenames cannot diverge.
+    /// Every path producing a batch goes through here, so their bytes and filenames cannot diverge. A graph's
+    /// validated bytes are spliced in verbatim, never re-encoded.
     static func write(
         _ entries: consuming [PreparedHealthObservationFHIRPayload.Entry],
         typePrefix: String
     ) throws -> URL {
         var entries = consume entries
         entries.sort(by: precedes)
-        let compressed = try encoder
-            .encode(entries.map(\.resource))
+        let compressed = try jsonArray(entries) { try $0.json() }
             .compressed(using: Zstd.self)
         return try write(
             compressed,
@@ -71,7 +72,7 @@ enum HealthUploadBatch {
         fileExtension: String
     ) throws -> URL {
         let url = URL.temporaryDirectory.appending(
-            path: HealthUploadBatchFilename.make(
+            path: filename(
                 typePrefix: typePrefix,
                 identifiers: identifiers,
                 fileExtension: fileExtension
@@ -80,6 +81,27 @@ enum HealthUploadBatch {
         )
         try (consume payload).write(to: url, options: .atomic)
         return url
+    }
+
+    /// One JSON array of `elements`, each spliced in verbatim as the bytes `json` gives for it.
+    static func jsonArray<Element>(
+        _ elements: some Sequence<Element>,
+        reservingCapacity capacity: Int = 0,
+        json: (Element) throws -> Data
+    ) rethrows -> Data {
+        var array = Data()
+        array.reserveCapacity(capacity)
+        array.append(UInt8(ascii: "["))
+        var isFirst = true
+        for element in elements {
+            if !isFirst {
+                array.append(UInt8(ascii: ","))
+            }
+            isFirst = false
+            array.append(try json(element))
+        }
+        array.append(UInt8(ascii: "]"))
+        return array
     }
 
     /// The order entries are written in, so redelivery reproduces the same bytes.
@@ -92,10 +114,7 @@ enum HealthUploadBatch {
         if lhsID != rhsID {
             return lhsID < rhsID
         }
-        if lhs.sourceTypeIdentifier != rhs.sourceTypeIdentifier {
-            return lhs.sourceTypeIdentifier < rhs.sourceTypeIdentifier
-        }
-        return (lhs.eventKey ?? "") < (rhs.eventKey ?? "")
+        return lhs.sourceTypeIdentifier < rhs.sourceTypeIdentifier
     }
 }
 
@@ -256,12 +275,13 @@ final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, S
         guard didDrainSamples else {
             return
         }
-        let didDrainDeletions = try await drainPendingDeletions(
+        let didDrainDeletions = try await Self.drainPendingDeletions(
             from: healthUploadStaging,
-            to: managedFileUpload,
             before: processingCutoff,
             maximumChunks: maximumChunksPerTable
-        )
+        ) { url in
+            try await managedFileUpload.stage(url, category: .healthDeletions)
+        }
         if didDrainDeletions {
             LocalPreferencesStore.standard[.lastStagedHealthUploadDrain] = .now
         }
@@ -270,6 +290,60 @@ final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, S
 
 
 extension HealthUploadStagingUploader {
+    /// Drains staged deletions chunk by chunk, each of one sample type.
+    ///
+    /// One exporter call retracts a chunk; `stage` takes its payload, the chunk is removed, and only then are
+    /// the chunk's reservations released, so a crash anywhere before redelivers the chunk as an exact retry.
+    nonisolated static func drainPendingDeletions(
+        from healthUploadStaging: HealthUploadStaging,
+        before processingCutoff: Date,
+        maximumChunks: Int?,
+        stage: (URL) async throws -> Void
+    ) async throws -> Bool {
+        var drainedChunks = 0
+        while maximumChunks.map({ drainedChunks < $0 }) ?? true {
+            try Task.checkCancellation()
+            guard !ProcessInfo.processInfo.isLowPowerModeEnabled else {
+                return false
+            }
+            guard let chunkSize = Self.drainChunkSize else {
+                return false
+            }
+            guard let chunk = try healthUploadStaging.fetchNextDrainChunk(
+                of: HealthUploadStaging.PendingDeletionRecord.self,
+                before: processingCutoff,
+                limit: chunkSize
+            ) else {
+                return true
+            }
+            guard !ProcessInfo.processInfo.isLowPowerModeEnabled else {
+                return false
+            }
+            let rows = chunk.rows.sorted {
+                $0.sampleId.uuidString.lowercased() < $1.sampleId.uuidString.lowercased()
+            }
+            let batch = try await healthUploadStaging.retractionBatch(for: rows)
+            // A chunk without anything to retract stages nothing, but still releases what it reserved.
+            if let payload = batch.payload {
+                let url = try HealthUploadBatch.write(
+                    try payload.compressed(using: Zstd.self),
+                    typePrefix: chunk.sampleType,
+                    identifiers: batch.identifiers,
+                    fileExtension: "json.zstd"
+                )
+                defer {
+                    try? FileManager.default.removeItem(at: url)
+                }
+                try Task.checkCancellation()
+                try await stage(url)
+            }
+            try healthUploadStaging.remove(chunk)
+            batch.receipt.completeAfterSourceAcknowledgement()
+            drainedChunks += 1
+        }
+        return true
+    }
+
     @concurrent
     private func drainPendingSamples(
         from healthUploadStaging: HealthUploadStaging,
@@ -319,78 +393,18 @@ extension HealthUploadStagingUploader {
         }
         return true
     }
-
-    @concurrent
-    private func drainPendingDeletions(
-        from healthUploadStaging: HealthUploadStaging,
-        to managedFileUpload: ManagedFileUpload,
-        before processingCutoff: Date,
-        maximumChunks: Int?
-    ) async throws -> Bool {
-        var drainedChunks = 0
-        while maximumChunks.map({ drainedChunks < $0 }) ?? true {
-            try Task.checkCancellation()
-            guard !ProcessInfo.processInfo.isLowPowerModeEnabled else {
-                return false
-            }
-            guard let chunkSize = Self.drainChunkSize else {
-                return false
-            }
-            guard let chunk = try healthUploadStaging.fetchNextDrainChunk(
-                of: HealthUploadStaging.PendingDeletionRecord.self,
-                before: processingCutoff,
-                limit: chunkSize
-            ) else {
-                return true
-            }
-            guard !ProcessInfo.processInfo.isLowPowerModeEnabled else {
-                return false
-            }
-            let rows = chunk.rows.sorted {
-                $0.sampleId.uuidString.lowercased() < $1.sampleId.uuidString.lowercased()
-            }
-            guard let batch = try await healthUploadStaging.retractionBatch(for: rows) else {
-                // Nothing in this chunk left an exported graph node behind, so nothing to retract.
-                try healthUploadStaging.remove(chunk)
-                drainedChunks += 1
-                continue
-            }
-            let url = try HealthUploadBatch.write(
-                try batch.payload.compressed(using: Zstd.self),
-                typePrefix: chunk.sampleType,
-                identifiers: batch.identifiers,
-                fileExtension: "json.zstd"
-            )
-            defer {
-                try? FileManager.default.removeItem(at: url)
-            }
-            try Task.checkCancellation()
-            try await managedFileUpload.stage(url, category: .healthDeletions)
-            try healthUploadStaging.remove(chunk)
-            batch.receipt.completeAfterSourceAcknowledgement()
-            drainedChunks += 1
-        }
-        return true
-    }
 }
 
 
 extension Collection where Element == HealthUploadStaging.PendingSampleRecord {
     /// Combines the records' decompressed FHIR JSON payloads into a single JSON array.
     func jsonArrayData() throws -> Data {
-        var json = Data()
-        json.reserveCapacity(self.reduce(into: 2 + count) { $0 += $1.fhirJson.count * 6 }) // ~6x expected zstd ratio
-        json.append(UInt8(ascii: "["))
-        var isFirst = true
-        for record in self {
-            if !isFirst {
-                json.append(UInt8(ascii: ","))
-            }
-            isFirst = false
-            json.append(try record.fhirJson.decompressed(using: Zstd.self))
+        try HealthUploadBatch.jsonArray(
+            self,
+            reservingCapacity: self.reduce(into: 2 + count) { $0 += $1.fhirJson.count * 6 } // ~6x expected zstd ratio
+        ) { record in
+            try record.fhirJson.decompressed(using: Zstd.self)
         }
-        json.append(UInt8(ascii: "]"))
-        return json
     }
 }
 

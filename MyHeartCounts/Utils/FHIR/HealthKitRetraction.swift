@@ -9,6 +9,18 @@
 import Foundation
 import GroveFHIRContract
 import GroveHealthKitFHIR
+import OSLog
+
+
+/// The retractions of one drained chunk, and the reservations they hold until the chunk is durable.
+struct HealthKitRetractions: Sendable {
+    /// The retraction of each record at its index; `nil` where the record's type never produced an
+    /// exported graph node or Grove refused the retraction.
+    let graphs: [ExchangeGraph?]
+    /// The chunk's reservations; complete it once the graphs are staged and the chunk is removed. Completing it
+    /// also forgets each deleted record's active reservation.
+    let receipt: HealthKitFHIRReservationReceipt
+}
 
 
 /// One deleted HealthKit record, as the per-type anchored query reported it.
@@ -19,85 +31,54 @@ struct HealthKitDeletedRecord: Sendable {
     let deletedAfter: Date?
     /// When the anchored query reported the deletion; HealthKit never states when it happened.
     let detectedAt: Date
+
+    /// The exporter's view of the record; `nil` for a record class Grove does not inventory.
+    var deletion: HealthKitFHIRExporter.Deletion? {
+        guard let sourceType = HealthKitSourceType(rawValue: sourceTypeIdentifier) else {
+            return nil
+        }
+        return HealthKitFHIRExporter.Deletion(
+            uuid: nativeRecordID,
+            sourceType: sourceType,
+            deletedAfter: deletedAfter,
+            detectedAt: detectedAt
+        )
+    }
 }
 
 
-extension FHIRExchangeStateStore {
-    /// The Grove Mobile Retraction Bundle for one deleted HealthKit record.
-    ///
-    /// Grove re-mints every target from the record's own coordinates, so nothing has to survive the
-    /// addition for a deletion to name what it retracts.
-    ///
-    /// - Returns: `nil` when the record's type never produced an exported graph node.
-    func healthKitRetraction(
-        of record: HealthKitDeletedRecord,
-        subject: FHIRExchangeSubject,
-        recordedAt: Date
-    ) throws -> (eventKey: String, graph: ExchangeGraph)? {
-        try healthKitRetractions(of: [record], subject: subject, recordedAt: recordedAt)[0]
-    }
-
+extension HealthKitFHIRExporter {
     /// The Grove Mobile Retraction Bundles for many deleted HealthKit records, one per record.
     ///
-    /// Every event is reserved in one ledger transaction and the identity facts are read once, so a
-    /// drain chunk costs a constant number of encrypted ledger passes instead of several per record.
-    ///
-    /// - Returns: The retraction of each record at its index; `nil` where the record's type never
-    ///   produced an exported graph node.
+    /// Grove re-mints every target from the record's own coordinates, so nothing has to survive the
+    /// addition for a deletion to name what it retracts. The whole chunk is one exporter call, so every
+    /// event of the chunk is reserved in one ledger transaction.
     func healthKitRetractions(
         of records: [HealthKitDeletedRecord],
-        subject: FHIRExchangeSubject,
         recordedAt: Date
-    ) throws -> [(eventKey: String, graph: ExchangeGraph)?] {
-        let targets = records.indices.compactMap { index -> (index: Int, sourceType: HealthKitSourceType)? in
-            guard let sourceType = HealthKitSourceType(rawValue: records[index].sourceTypeIdentifier),
-                  !HealthKitCatalog.outputs(for: sourceType).isEmpty else {
-                return nil
+    ) async throws -> HealthKitRetractions {
+        let deletions = records.compactMap(\.deletion)
+        guard !deletions.isEmpty else {
+            return HealthKitRetractions(graphs: Array(repeating: nil, count: records.count), receipt: HealthKitFHIRReservationReceipt())
+        }
+        var graphs: [UUID: ExchangeGraph] = [:]
+        let receipt = try await retract(deletions, at: recordedAt) { retraction in
+            switch retraction.outcome {
+            case .graph(let graph):
+                graphs[retraction.deletion.uuid] = graph
+            case .refused(let reason):
+                // Never with the record's HealthKit UUID, which must not propagate into logs.
+                let diagnostic = reason.diagnostic
+                logger.warning(
+                    "Grove refused retracting a \(retraction.deletion.sourceType.rawValue) record: \(diagnostic.code) at \(diagnostic.location)"
+                )
+            case .nothingToRetract:
+                break
             }
-            return (index: index, sourceType: sourceType)
         }
-        var retractions: [(eventKey: String, graph: ExchangeGraph)?] = Array(repeating: nil, count: records.count)
-        guard !targets.isEmpty else {
-            return retractions
-        }
-        let eventKeys = targets.map { target in
-            healthKitRetractionEventKey(
-                subject: subject,
-                sourceType: records[target.index].sourceTypeIdentifier,
-                nativeRecordID: records[target.index].nativeRecordID
-            )
-        }
-        let reservations = try events(forKeys: eventKeys, recordedAt: recordedAt, facts: .current())
-        let scope = try eventScope(.healthKit, subject: subject, producerInstance: reservations.producerInstance)
-        for (target, (eventKey, event)) in zip(targets, zip(eventKeys, reservations.events)) {
-            let record = records[target.index]
-            let context = HealthKitConversionContext(
-                event: try scope.context(
-                    for: event,
-                    subject: subject,
-                    repositoryIDs: [.bundle: RepositoryID(healthKitRecord: record.nativeRecordID)]
-                ),
-                options: .myHeartCounts
-            )
-            // A backwards clock adjustment can put the saved query time after detection. Keep the
-            // known upper bound without asserting an invalid period that would prevent draining.
-            let deletedAfter = record.deletedAfter.flatMap { $0 <= record.detectedAt ? $0 : nil }
-            let retraction = try HealthKitConverter().retraction(
-                for: HealthKitSourceRecord(uuid: record.nativeRecordID, type: target.sourceType),
-                context: context,
-                occurred: .period(start: deletedAfter, end: record.detectedAt)
-            )
-            retractions[target.index] = (eventKey: eventKey, graph: retraction.graph)
-        }
-        return retractions
-    }
-
-    func healthKitRetractionEventKey(
-        subject: FHIRExchangeSubject,
-        sourceType: String,
-        nativeRecordID: UUID
-    ) -> String {
-        let native = nativeRecordID.uuidString.lowercased()
-        return "healthkit-retraction|\(subject.identity.system.rawValue)|\(subject.identity.value)|\(sourceType)|\(native)"
+        return HealthKitRetractions(
+            graphs: records.map { graphs[$0.nativeRecordID] },
+            receipt: HealthKitFHIRReservationReceipt(CollectionOfOne(receipt))
+        )
     }
 }

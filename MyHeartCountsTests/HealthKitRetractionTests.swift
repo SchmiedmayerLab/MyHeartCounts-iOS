@@ -32,7 +32,8 @@ struct HealthKitRetractionTests {
         let role: String
         let discriminator: String
         let resourceType: ResourceType
-        let targetRole: RetractionTargetRole
+        /// The retraction target role's wire code, such as `primary-output`.
+        let targetRole: String
     }
 
     private static let detectedAt = Date(timeIntervalSince1970: 1_788_000_000)
@@ -113,27 +114,28 @@ struct HealthKitRetractionTests {
             identifier: identifier.value,
             system: identifier.system.rawValue,
             resourceType: output.resourceType.rawValue,
-            role: output.targetRole.rawValue
+            role: output.targetRole
         )
     }
 
     private static func retraction(
         of record: HealthKitDeletedRecord,
         in store: FHIRExchangeStateStore,
+        ledger: FHIRExchangeLedger = .forTesting(),
         subject: FHIRExchangeSubject
-    ) throws -> ExchangeGraph {
-        try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: recordedAt)).graph
+    ) async throws -> ExchangeGraph {
+        try await #require(try store.retraction(of: record, subject: subject, ledger: ledger, recordedAt: recordedAt))
     }
 
     @Test
-    func retractionNamesTheSameIdentitiesTheAdditionMinted() throws {
+    func retractionNamesTheSameIdentitiesTheAdditionMinted() async throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
         let record = try Self.record()
-        let graph = try Self.retraction(of: record, in: store, subject: subject)
+        let graph = try await Self.retraction(of: record, in: store, subject: subject)
         let expectedSourceRecord = try Self.sourceRecord(of: record, in: store, subject: subject)
         let expected = try Self.expected(
-            Output(role: "step-count", discriminator: "single", resourceType: .observation, targetRole: .primaryOutput),
+            Output(role: "step-count", discriminator: "single", resourceType: .observation, targetRole: "primary-output"),
             of: record,
             in: store,
             subject: subject
@@ -147,9 +149,9 @@ struct HealthKitRetractionTests {
     }
 
     @Test
-    func retractionTargetCarriesTheLowercasedNativeRecordIdentifier() throws {
+    func retractionTargetCarriesTheLowercasedNativeRecordIdentifier() async throws {
         let store = FHIRExchangeStateStore()
-        let graph = try Self.retraction(of: try Self.record(), in: store, subject: try Self.subject)
+        let graph = try await Self.retraction(of: try Self.record(), in: store, subject: try Self.subject)
         let target = try #require(try Self.provenance(in: graph).target.first)
         let native = try #require(target.extension?.first { extensionValue in
             extensionValue.url.value?.url.absoluteString == Canonicals.retractionTargetNativeIdentifier.value?.url.absoluteString
@@ -163,21 +165,21 @@ struct HealthKitRetractionTests {
         #expect(identifier.system?.value?.url.absoluteString == FHIRExchangeIdentifiers.healthKitNativeRecord.rawValue)
     }
 
-    /// The workout row publishes two measurements and the converter emits the session under the
-    /// first, so a deleted workout must retract that exact output rather than pass as unexported.
+    /// A workout exports its session alone, under the first of the row's two measurements, so a deleted
+    /// workout must retract that exact output rather than pass as unexported.
     @Test
-    func deletedWorkoutRetractsItsSessionObservation() throws {
+    func deletedWorkoutRetractsItsSessionObservation() async throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
         let record = try Self.record(sourceType: HKWorkoutType.workoutType().identifier)
         let expected = try Self.expected(
-            Output(role: "workout", discriminator: "session", resourceType: .observation, targetRole: .primaryOutput),
+            Output(role: "workout", discriminator: "single", resourceType: .observation, targetRole: "primary-output"),
             of: record,
             in: store,
             subject: subject
         )
 
-        #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == [expected])
+        await #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == [expected])
     }
 
     /// Clinical records and CDA documents are platform-exclusive rows carrying no measurement, yet
@@ -188,33 +190,33 @@ struct HealthKitRetractionTests {
         "HKClinicalTypeIdentifierVitalSignRecord",
         "HKDocumentTypeIdentifierCDA"
     ])
-    func deletedClinicalDocumentRetractsItsSourceArtifact(sourceType: String) throws {
+    func deletedClinicalDocumentRetractsItsSourceArtifact(sourceType: String) async throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
         let record = try Self.record(sourceType: sourceType)
         let expected = try Self.expected(
-            Output(role: "clinical-record", discriminator: "single", resourceType: .documentReference, targetRole: .sourceArtifact),
+            Output(role: "clinical-record", discriminator: "single", resourceType: .documentReference, targetRole: "source-artifact"),
             of: record,
             in: store,
             subject: subject
         )
 
-        #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == [expected])
+        await #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == [expected])
     }
 
     /// An ECG that carried a period average published it as its own output, which the waveform's
     /// retraction alone would orphan.
     @Test
-    func deletedElectrocardiogramAlsoRetractsItsAverageHeartRate() throws {
+    func deletedElectrocardiogramAlsoRetractsItsAverageHeartRate() async throws {
         let store = FHIRExchangeStateStore()
         let subject = try Self.subject
         let record = try Self.record(sourceType: HKObjectType.electrocardiogramType().identifier)
         let expected = try [
-            Output(role: "electrocardiogram", discriminator: "single", resourceType: .observation, targetRole: .primaryOutput),
-            Output(role: "average-heart-rate", discriminator: "single", resourceType: .observation, targetRole: .childOutput)
+            Output(role: "electrocardiogram", discriminator: "single", resourceType: .observation, targetRole: "primary-output"),
+            Output(role: "average-heart-rate", discriminator: "single", resourceType: .observation, targetRole: "child-output")
         ].map { try Self.expected($0, of: record, in: store, subject: subject) }
 
-        #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == expected)
+        await #expect(try Self.targets(in: Self.retraction(of: record, in: store, subject: subject)) == expected)
     }
 
     /// A record class Grove never exports has nothing to retract, so no event is spent on it.
@@ -225,22 +227,25 @@ struct HealthKitRetractionTests {
         "HKQuantityTypeIdentifierBloodPressureSystolic",
         "HKCharacteristicTypeIdentifierBloodType"
     ])
-    func unexportedSourceTypesMintNoRetraction(sourceType: String) throws {
+    func unexportedSourceTypesMintNoRetraction(sourceType: String) async throws {
         let store = FHIRExchangeStateStore()
-        let retraction = try store.healthKitRetraction(
+        let ledger = FHIRExchangeLedger.forTesting()
+        let retraction = try await store.retraction(
             of: try Self.record(sourceType: sourceType),
             subject: try Self.subject,
+            ledger: ledger,
             recordedAt: Self.recordedAt
         )
 
         #expect(retraction == nil)
-        #expect(try !store.hasPersistedStateForTesting)
+        #expect(try ledger.entriesForTesting().isEmpty)
     }
 
     /// The end-to-end agreement the two halves of one record's lifecycle owe each other.
     @Test
-    func retractionNamesTheOutputTheConverterActuallyMinted() throws {
+    func retractionNamesTheOutputTheConverterActuallyMinted() async throws {
         let store = FHIRExchangeStateStore()
+        let ledger = FHIRExchangeLedger.forTesting()
         let subject = try Self.subject
         let sample = HKQuantitySample(
             type: HKQuantityType(.stepCount),
@@ -248,15 +253,15 @@ struct HealthKitRetractionTests {
             start: Self.detectedAt - 3600,
             end: Self.detectedAt - 3540
         )
-        let conversion = try HealthKitConverter().convert(
-            sample,
-            context: try store.healthKitConversion(
-                for: sample,
-                subject: subject,
-                conversionInstant: Self.detectedAt - 3000
-            ).context
-        )
-        let graph = try Self.retraction(
+        var conversions: [ExchangeGraph] = []
+        _ = try await store.healthKitExporter(subject: subject, ledger: ledger).export([sample], at: Self.detectedAt - 3000) { export in
+            if let graph = export.graph {
+                conversions.append(graph)
+            }
+        }
+        let conversion = try #require(conversions.first)
+        let mintedOutput = try mintedSourceOutput(of: conversion, in: store)
+        let graph = try await Self.retraction(
             of: HealthKitDeletedRecord(
                 sourceTypeIdentifier: sample.sampleType.identifier,
                 nativeRecordID: sample.uuid,
@@ -264,11 +269,12 @@ struct HealthKitRetractionTests {
                 detectedAt: Self.detectedAt
             ),
             in: store,
+            ledger: ledger,
             subject: subject
         )
 
-        #expect(try Self.targets(in: graph).map(\.identifier) == [conversion.primary.identifiers.primaryOutput.identifier.value])
-        #expect(graph.bundle.id == conversion.primary.bundle.id)
+        #expect(try Self.targets(in: graph).map(\.identifier) == [mintedOutput])
+        #expect(graph.bundle.id == conversion.bundle.id)
     }
 
     /// HealthKit states no deletion time. Preserve its bounds without claiming an exact instant,
@@ -279,10 +285,10 @@ struct HealthKitRetractionTests {
         (Self.detectedAt, Self.detectedAt),
         (Self.detectedAt + 3600, nil)
     ] as [(Date?, Date?)])
-    func retractionPreservesDeletionBounds(deletedAfter: Date?, expectedStart: Date?) throws {
+    func retractionPreservesDeletionBounds(deletedAfter: Date?, expectedStart: Date?) async throws {
         let store = FHIRExchangeStateStore()
         let record = try Self.record(deletedAfter: deletedAfter)
-        let graph = try Self.retraction(of: record, in: store, subject: try Self.subject)
+        let graph = try await Self.retraction(of: record, in: store, subject: try Self.subject)
         let provenance = try Self.provenance(in: graph)
         guard case .period(let occurred)? = provenance.occurred else {
             Issue.record("A detected deletion carries the known bounds on its occurrence")
@@ -294,17 +300,50 @@ struct HealthKitRetractionTests {
         #expect(try provenance.recorded.value?.asNSDate() == Self.recordedAt)
         #expect(graph.bundle.id?.value?.string == record.nativeRecordID.uuidString)
     }
+}
 
+
+extension HealthKitRetractionTests {
     @Test
-    func reassemblingRetractionPreservesEventAndTiming() throws {
+    func reassemblingRetractionPreservesEventAndTiming() async throws {
         let store = FHIRExchangeStateStore()
+        let ledger = FHIRExchangeLedger.forTesting()
         let subject = try Self.subject
         let record = try Self.record(deletedAfter: Self.detectedAt - 3600)
-        let first = try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: Self.recordedAt))
-        let retry = try #require(try store.healthKitRetraction(of: record, subject: subject, recordedAt: Self.recordedAt + 3600))
+        let first = try await #require(
+            try store.retraction(of: record, subject: subject, ledger: ledger, recordedAt: Self.recordedAt)
+        )
+        let retry = try await #require(
+            try store.retraction(of: record, subject: subject, ledger: ledger, recordedAt: Self.recordedAt + 3600)
+        )
 
-        #expect(retry.eventKey == first.eventKey)
-        #expect(retry.graph.bundle == first.graph.bundle)
-        #expect(try Self.provenance(in: retry.graph).recorded.value?.asNSDate() == Self.recordedAt)
+        #expect(retry.event == first.event)
+        #expect(retry.bundle == first.bundle)
+        #expect(try Self.provenance(in: retry).recorded.value?.asNSDate() == Self.recordedAt)
     }
+}
+
+
+extension FHIRExchangeStateStore {
+    /// The retraction of one deleted record, as the drain retracts a chunk of one; its reservation is left unreleased.
+    fileprivate func retraction(
+        of record: HealthKitDeletedRecord,
+        subject: FHIRExchangeSubject,
+        ledger: FHIRExchangeLedger,
+        recordedAt: Date
+    ) async throws -> ExchangeGraph? {
+        try await healthKitExporter(subject: subject, ledger: ledger).healthKitRetractions(of: [record], recordedAt: recordedAt).graphs[0]
+    }
+}
+
+
+/// The source-output identifier the conversion minted for its primary Observation.
+private func mintedSourceOutput(of graph: ExchangeGraph, in store: FHIRExchangeStateStore) throws -> String {
+    let sourceOutputSystem = try store.identityScope().systems.sourceOutput.rawValue
+    return try #require(graph.bundle.entry?.lazy.compactMap { entry -> String? in
+        guard case .observation(let observation)? = entry.resource else {
+            return nil
+        }
+        return observation.identifier?.first { $0.system?.value?.url.absoluteString == sourceOutputSystem }?.value?.value?.string
+    }.first)
 }
