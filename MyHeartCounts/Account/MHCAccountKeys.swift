@@ -50,6 +50,20 @@ extension AccountDetails {
     )
     var dateOfEnrollment: Date?
     
+    /// The date the upload of the user's historical (i.e., pre-enrollment) HealthKit data concluded.
+    ///
+    /// Written once, after every batch of the historical export was processed without failures and every resulting file
+    /// has reached the Firebase Storage. Does not cover `HKClinicalRecord`s, which take the live upload path.
+    @AccountKey(
+        id: "historicalHealthUploadCompletedDate",
+        name: "Historical Health Upload Completed",
+        category: .other,
+        options: .mutable,
+        as: Date.self,
+        initial: .empty(.distantPast)
+    )
+    var historicalHealthUploadCompletedDate: Date?
+    
     // NOTE: this is, for the time being, stored using GroveLocalStorage.
 //    /// The date the current study actication, i.e. when the user logged in to the app and started/resumed their study participation.
 //    @AccountKey(
@@ -160,7 +174,7 @@ extension AccountDetails {
 
 @KeyEntry(
     \.studyVariant, \.hasWithdrawnFromStudy,
-    \.dateOfEnrollment, \.lastSignedConsentVersion, \.lastSignedConsentDate, \.didOptInToTrial,
+    \.dateOfEnrollment, \.historicalHealthUploadCompletedDate, \.lastSignedConsentVersion, \.lastSignedConsentDate, \.didOptInToTrial,
     \.fcmToken, \.enableDebugMode, \.timeZone, \.language, \.preferredMeasurementSystem, \.lastActiveDate,
     \.mostRecentOnboardingStep, \.preferredWorkoutTypes, \.preferredNudgeNotificationTime, \.postTrialNudgesOptIn
 )

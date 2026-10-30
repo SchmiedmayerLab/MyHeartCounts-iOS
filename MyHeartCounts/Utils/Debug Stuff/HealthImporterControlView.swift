@@ -23,6 +23,8 @@ import SwiftUI
 struct HealthImporterControlView: View {
     @Environment(HistoricalHealthSamplesExportManager.self)
     private var exportManager
+    @Environment(Account.self)
+    private var account: Account?
     
     @State private var viewState: ViewState = .idle
     
@@ -34,10 +36,33 @@ struct HealthImporterControlView: View {
             if let session = exportManager.session {
                 section(for: session)
             }
+            if let account {
+                completionSection(for: account)
+            }
         }
         .navigationTitle("Bulk Export Manager" as String)
         .navigationBarTitleDisplayMode(.inline)
         .viewStateAlert(state: $viewState)
+    }
+    
+    @ViewBuilder
+    private func completionSection(for account: Account) -> some View {
+        Section {
+            LabeledContent("Upload Concluded" as String) {
+                if let date = account.details?.historicalHealthUploadCompletedDate {
+                    Text(date, format: .dateTime)
+                } else {
+                    Text("no" as String)
+                }
+            }
+            AsyncButton("Clear Upload Concluded Flag" as String, state: $viewState) {
+                var removed = AccountDetails()
+                removed.historicalHealthUploadCompletedDate = account.details?.historicalHealthUploadCompletedDate
+                try await account.accountService.updateAccountDetails(
+                    AccountModifications(modifiedDetails: AccountDetails(), removedAccountDetails: removed)
+                )
+            }
+        }
     }
     
     @ViewBuilder

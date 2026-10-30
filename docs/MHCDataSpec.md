@@ -59,6 +59,7 @@ SPDX-License-Identifier: MIT
 | `language` | `String` | Last-seen device/app language |
 | `preferredMeasurementSystem` | `String` | Last-seen preferred measurement system (e.g., `metric`, `ussystem`, or `uksystem`) |
 | `mostRecentOnboardingStep` | `String` | Identifier of the most recent onboarding step reached by the user |
+| `historicalHealthUploadCompletedDate` | `Date` | Timestamp of when the upload of the user's historical (pre-enrollment) HealthKit data concluded, i.e. every batch of the bulk export was processed without failures and every resulting file reached Firebase Storage. Absent while the upload is still in progress; written once (the first device to conclude wins). Does not cover `HKClinicalRecord`s, which take the live upload path |
 
 
 
@@ -127,6 +128,7 @@ SPDX-License-Identifier: MIT
   - The underlying `BulkHealthExporter` manages the historical data collection
   - The collection and upload of historical data is not expected to complete in a single launch, and is specifically implemented in a way that allows it to run (slowly) in the background and process and upload the historical data batch-by-batch over the course of multiple app sessions
   - The API explicitly supports the app being killed while the data ingestion is running; the next launch will simply continue where the previous one left off
+  - Once the session has completed without failed batches and every staged file has been uploaded, the app writes the `historicalHealthUploadCompletedDate` account key (see above); the check runs at the end of every session run, i.e. only on launches during which the export was started (device charging, not in low power mode)
 
 
 
