@@ -1233,8 +1233,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git";
 			requirement = {
-				kind = revision;
-				revision = e853d1d8b975e1eff3dd85729bb0b277ee032d38;
+				kind = exactVersion;
+				version = 0.3.0;
 			};
 		};
 		8076696C2D772C07001B980B /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
@@ -1297,8 +1297,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SchmiedmayerLab/Grove.git";
 			requirement = {
-				kind = revision;
-				revision = ad79a8fb7f4ee448904e9aefb869e747dcdc7480;
+				kind = exactVersion;
+				version = "0.3.0-beta.9";
 			};
 			traits = (
 				Textual,
