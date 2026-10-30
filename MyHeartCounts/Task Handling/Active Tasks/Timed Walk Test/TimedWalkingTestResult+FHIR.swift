@@ -174,10 +174,20 @@ extension Observation {
 
     fileprivate func quantityValue(_ loinc: LOINC, in expectedUnit: HKUnit) -> Double? {
         guard case .quantity(let quantity) = component(loinc)?.value,
-              quantity.system == UCUM.system,
-              let code = quantity.code?.value?.string,
-              let unit = HealthKitCatalog.unit(forUCUMCode: code),
               let value = quantity.value?.value?.decimal.doubleValue else {
+            return nil
+        }
+        let unit: HKUnit
+        if quantity.system == UCUM.system,
+           let code = quantity.code?.value?.string,
+           let catalogUnit = HealthKitCatalog.unit(forUCUMCode: code) {
+            unit = catalogUnit
+        } else if quantity.system == LOINC.system,
+                  quantity.code == loinc.code,
+                  quantity.unit?.value?.string == expectedUnit.unitString {
+            // Historical results repeated the component's LOINC code in the quantity.
+            unit = expectedUnit
+        } else {
             return nil
         }
         let healthKitQuantity = HKQuantity(unit: unit, doubleValue: value)

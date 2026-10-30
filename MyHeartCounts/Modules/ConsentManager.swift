@@ -116,11 +116,9 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
         guard let fileRef = studyBundle.studyDefinition.metadata.consentFileRef,
               let consentText = studyBundle.consentText(
                 for: fileRef,
-                // Note that we need to pass the study variant region as the languageRegion here,
-                // as the GroveLocalization APIs currently will prioritise that over the locale's region.
-                in: Locale(languageCode: studyManager.preferredLocale.language.languageCode, languageRegion: studyVariant.region),
+                in: studyVariant.consentLocale(preferred: studyManager.preferredLocale),
                 using: .requirePerfectMatch,
-                fallbackLocale: .init(language: .init(languageCode: .english), region: studyVariant.region)
+                fallbackLocale: nil
               ) else {
             throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Failed to load consent document")
         }

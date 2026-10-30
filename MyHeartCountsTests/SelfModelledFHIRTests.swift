@@ -101,6 +101,32 @@ struct SelfModelledQuantityFHIRTests {
         #expect(sample.sampleType == .custom(.bloodLipids))
     }
 
+    @Test
+    func readerPreservesLegacyLDLValues() throws {
+        let observation = try bloodLipidsObservation(
+            system: LOINC.system,
+            code: "18262-6",
+            display: "mg/dL",
+            codingSystem: MHCCodingSystem.supersededSystem
+        )
+        let sample = try #require(QuantitySample(observation))
+        #expect(sample.id.uuidString == observation.id?.value?.string)
+        #expect(sample.sampleType == .custom(.bloodLipids))
+        #expect(sample.value(as: sample.sampleType.canonicalUnit) == 50)
+        #expect(sample.startDate == Date(timeIntervalSince1970: 1_788_000_000))
+        #expect(sample.endDate == sample.startDate)
+        #expect(QuantitySample(observation, sampleTypeHint: .custom(.nicotineExposure)) == nil)
+    }
+
+    @Test(arguments: [("18262-6", "mmol/L"), ("2093-3", "mg/dL")])
+    func readerRejectsOtherLegacyQuantities(code: String, unit: String) throws {
+        #expect(QuantitySample(try bloodLipidsObservation(
+            system: LOINC.system,
+            code: code,
+            display: unit
+        )) == nil)
+    }
+
     private func bloodLipidsObservation(
         system: FHIRPrimitive<FHIRURI>?,
         code: String?,
@@ -109,6 +135,7 @@ struct SelfModelledQuantityFHIRTests {
     ) throws -> Observation {
         var observation = Observation(
             code: CodeableConcept(coding: [
+                Coding(code: "18262-6".asFHIRStringPrimitive(), system: LOINC.system),
                 Coding(
                     code: CustomQuantitySampleType.bloodLipids.id.asFHIRStringPrimitive(),
                     system: codingSystem
@@ -162,6 +189,36 @@ struct TimedWalkingTestFHIRTests {
 
         let decoded = try #require(TimedWalkingTestResult(observation))
         #expect(decoded == result)
+    }
+
+    @Test
+    func readerPreservesHistoricalTimedWalkResults() throws {
+        let result = testResult()
+        var observation = try result.fhirObservation(issuedDate: nil, extensions: [])
+        for (code, unit) in [
+            (LOINC.exerciseDuration, "min"),
+            (.pedometerNumStepsInUnspecifiedTime, "count"),
+            (.pedometerWalkingDistanceInUnspecifiedTime, "m"),
+            (.sixMinuteWalkTest, "m")
+        ] {
+            try replaceQuantity(in: &observation, for: code) { quantity in
+                quantity.system = LOINC.system
+                quantity.code = code.code
+                quantity.unit = unit.asFHIRStringPrimitive()
+            }
+        }
+        #expect(try #require(TimedWalkingTestResult(observation)) == result)
+
+        var wrongCode = observation
+        try replaceQuantity(in: &wrongCode, for: .exerciseDuration) { quantity in
+            quantity.code = LOINC.pedometerWalkingDistanceInUnspecifiedTime.code
+        }
+        #expect(TimedWalkingTestResult(wrongCode) == nil)
+
+        try replaceQuantity(in: &observation, for: .exerciseDuration) { quantity in
+            quantity.unit = "s".asFHIRStringPrimitive()
+        }
+        #expect(TimedWalkingTestResult(observation) == nil)
     }
 
     @Test
