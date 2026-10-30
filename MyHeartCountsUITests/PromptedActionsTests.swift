@@ -11,7 +11,7 @@ import XCTest
 import XCTestExtensions
 
 
-final class PromptedActionsTests: MHCTestCase, Sendable {
+final class PromptedActionsTests: MHCTestCase, @unchecked Sendable {
     // Tests that dismissing a prompted action makes it disappear from the home tab
     // (but that it still shows up via the Account Sheet)
     func testPromptedActionDismissal() throws {

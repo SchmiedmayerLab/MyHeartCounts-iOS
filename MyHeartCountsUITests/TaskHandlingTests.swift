@@ -10,7 +10,7 @@ import XCTest
 import XCTHealthKit
 
 
-final class TaskHandlingTests: MHCTestCase, Sendable {
+final class TaskHandlingTests: MHCTestCase, @unchecked Sendable {
     func testECG() throws {
         try launchAppAndEnrollIntoStudy()
         goToTab(.upcoming)

@@ -37,7 +37,7 @@ struct CheckForUpdateButton<Label: View>: View {
         self.label = label()
     }
     
-    private static func url(for environment: AppStore.Environment) -> URL {
+    nonisolated private static func url(for environment: AppStore.Environment) -> URL {
         switch environment {
         case .sandbox:
             "https://beta.itunes.apple.com/v1/app/\(MyHeartCounts.appId)"

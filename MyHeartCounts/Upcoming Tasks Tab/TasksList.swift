@@ -220,6 +220,13 @@ extension TasksList {
         context: Task.Context.StudyContext,
         shouldComplete: Bool
     ) {
+        let completeEvent = {
+            do {
+                try event.complete()
+            } catch {
+                logger.error("Event completion failed: \(error)")
+            }
+        }
         switch action {
         case .presentInformationalStudyComponent(let component):
             guard let enrollment = studyManager.enrollment(withId: context.enrollmentId),
@@ -233,12 +240,12 @@ extension TasksList {
                 logger.error("Error fetching & loading & procesing Article")
                 return
             }
-            _Concurrency.Task {
+            Swift::Task {
                 guard await performTask(.article(article)) else {
                     return
                 }
                 if shouldComplete {
-                    try event.complete()
+                    completeEvent()
                 }
             }
         case .answerQuestionnaire(let component):
@@ -255,32 +262,32 @@ extension TasksList {
                 logger.error("Unable to prepare Questionnaire for administration: \(error)")
                 return
             }
-            _Concurrency.Task {
+            Swift::Task {
                 guard await performTask(.answerQuestionnaire(questionnaire)) else {
                     return
                 }
                 if shouldComplete {
-                    try event.complete()
+                    completeEvent()
                 }
             }
         case .promptTimedWalkingTest(let component):
-            _Concurrency.Task {
+            Swift::Task {
                 guard await performTask(.timedWalkTest(component.test)) else {
                     return
                 }
                 if shouldComplete {
-                    try event.complete()
+                    completeEvent()
                 }
             }
         case .performCustomActiveTask(let component):
             switch component.activeTask {
             case .ecg:
-                _Concurrency.Task {
+                Swift::Task {
                     guard await performTask(.ecg) else {
                         return
                     }
                     if shouldComplete {
-                        try event.complete()
+                        completeEvent()
                     }
                 }
             default:

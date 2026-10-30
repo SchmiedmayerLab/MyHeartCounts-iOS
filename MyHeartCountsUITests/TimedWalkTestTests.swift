@@ -12,7 +12,7 @@ import MyHeartCountsShared
 import XCTest
 
 
-final class TimedWalkTestTests: MHCTestCase {
+final class TimedWalkTestTests: MHCTestCase, @unchecked Sendable {
     private enum WalkRunTestKind: String {
         case sixMWT = "Six-Minute Walk Test"
         case twelveMRT = "12-Minute Run Test"

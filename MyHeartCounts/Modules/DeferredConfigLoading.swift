@@ -519,7 +519,7 @@ private final class LoadFirebaseTracking: Module {
             waiter.resume()
         }
         Task {
-            try await studyLoader.update()
+            try? await studyLoader.update()
         }
     }
 }

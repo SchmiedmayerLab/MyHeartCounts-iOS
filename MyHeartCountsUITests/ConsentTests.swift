@@ -16,7 +16,7 @@ import XCTestExtensions
 import XCTHealthKit
 
 
-final class ConsentTests: MHCTestCase, Sendable {
+final class ConsentTests: MHCTestCase, @unchecked Sendable {
     private func onDiskConsentVersion(for locale: Locale) throws -> Version {
         let studyBundle = try StudyBundle(bundleUrl: try XCTUnwrap(studyBundleUrl))
         let consentFileRef = try XCTUnwrap(studyBundle.studyDefinition.metadata.consentFileRef)

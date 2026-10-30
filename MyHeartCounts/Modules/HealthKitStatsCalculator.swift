@@ -650,7 +650,7 @@ extension HealthKitStatsCalculator {
                     do {
                         try await imp(month: month)
                     } catch {
-                        self.logger.error("Continuous stats processing failed: \(error)")
+                        self.logger.error("Continuous stats processing failed for \(input.sampleType) @ \(month.monthString): \(error)")
                     }
                 }
             }
@@ -696,7 +696,7 @@ extension HealthKitStatsCalculator {
                     do {
                         try await imp(month: month)
                     } catch {
-                        self.logger.error("\(error)")
+                        self.logger.error("[\(#function)] \(month.monthString): \(error)")
                     }
                 }
             }
@@ -762,7 +762,7 @@ extension HealthKitStatsCalculator {
                     do {
                         try await imp(month: month)
                     } catch {
-                        self.logger.error("\(error)")
+                        self.logger.error("[\(#function)] \(month.monthString): \(error)")
                     }
                 }
             }
@@ -819,7 +819,7 @@ extension HealthKitStatsCalculator {
                     do {
                         try await imp(month: month)
                     } catch {
-                        self.logger.error("\(error)")
+                        self.logger.error("[\(#function)] \(month.monthString): \(error)")
                     }
                 }
             }
@@ -865,7 +865,7 @@ extension HealthKitStatsCalculator {
                     do {
                         try await imp(month: month)
                     } catch {
-                        self.logger.error("\(error)")
+                        self.logger.error("[\(#function)] \(month.monthString): \(error)")
                     }
                 }
             }

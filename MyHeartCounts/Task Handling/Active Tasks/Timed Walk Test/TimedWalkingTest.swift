@@ -125,7 +125,11 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
         if let inProgressTest = try? localStorage.load(.inProgressTimedWalkTest) {
             try? localStorage.delete(.inProgressTimedWalkTest)
             Task {
-                try await recover(inProgressTest)
+                do {
+                    try await recover(inProgressTest)
+                } catch {
+                    logger.error("Failed to recover in-progress test: \(error)")
+                }
             }
         }
         lifecycle.onChange(of: \.scenePhase, initial: true) { _, scenePhase in
@@ -323,7 +327,7 @@ extension TimedWalkingTest {
                     staleDate: .now.addingTimeInterval(30)
                 ))
                 Task {
-                    try await Task.sleep(for: .seconds(30))
+                    try? await Task.sleep(for: .seconds(30))
                     await liveActivity.end(nil, dismissalPolicy: .immediate)
                 }
             }
@@ -351,9 +355,9 @@ extension TimedWalkingTest {
             parameters: []
         )
         let player = try engine.makePlayer(with: pattern)
-        _Concurrency.Task {
-            try await engine.start()
-            try player.start(atTime: 0)
+        Swift::Task {
+            try? await engine.start()
+            try? player.start(atTime: 0)
         }
     }
 }

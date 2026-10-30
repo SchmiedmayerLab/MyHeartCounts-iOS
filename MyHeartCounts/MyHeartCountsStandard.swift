@@ -77,7 +77,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     
     @MainActor
     func configure() {
-        _Concurrency.Task {
+        Swift::Task {
             await handleIsLoggedOut()
             await handleStudyBundleUpdates()
         }
@@ -136,7 +136,11 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
                 // this only is relevant if the user wasn't logged in and enrolled when the app was launched.
                 // all subsequent launches will go only through the `associateWithAccount()` call below, and will work correctly
                 // bc both the account and the enrollment will exist in these cases.
-                try await achievementsManager?.associateWithAccount()
+                do {
+                    try await achievementsManager?.associateWithAccount()
+                } catch {
+                    logger.error("Failed to set up achievementsManager: \(error)")
+                }
             }
             await Self._updateCurrentEnrollmentInfo(studyManager)
         } catch StudyManager.StudyEnrollmentError.alreadyEnrolledInNewerStudyRevision {
@@ -229,7 +233,7 @@ extension MyHeartCountsStandard {
         }
         defer {
             // we still want this to happen if the study bundle loading below failed
-            _Concurrency.Task {
+            Swift::Task {
                 await Self._updateCurrentEnrollmentInfo(studyManager)
             }
         }
@@ -306,7 +310,7 @@ extension MyHeartCountsStandard {
         LocalPreferencesStore.standard[.rejectedHomeTabPromptedActions] = nil
         LocalPreferencesStore.standard[.studyActivationDate] = nil
         let studyManager = await studyManager
-        _ = await _Concurrency.Task { @MainActor in
+        _ = await Swift::Task { @MainActor in
             guard let studyManager else {
                 return
             }
@@ -330,13 +334,13 @@ extension MyHeartCountsStandard {
         // Schedule a firestore persistence cleanup for the nect launch.
         // Ideally we'd have this run immediately, but it only works directly after firebase was loaded.
         LocalPreferencesStore.standard[.shouldClearFirestoreCacheOnNextLaunch] = true
-        _Concurrency.Task {
+        Swift::Task {
             // it seems that the fact that the account sheet typically is still presented while logging out causes issues with us setting the
             // `onboardingFlowComplete` UserDefaults key being set to true (likely bc the other sheet still being presented prevents SwiftUI from presenting the
             // onboarding sheet, thereby causing it to set the UserDefaults key (which, via a Binding, is used as the onboarding sheet's `isPresented` value)
             // back to false.
             // We try to work around this by waiting a bit, to give the account sheet a chance to dismiss itself.
-            try await _Concurrency.Task.sleep(for: .seconds(2))
+            try? await Swift::Task.sleep(for: .seconds(2))
             // NOTE: the guard is evaluated *after* the sleep, deliberately. A logout triggered at launch (from a
             // keychain-restored Firebase session) resolves `isInSetup == false`, because SetupTestEnvironment
             // hasn't entered `setUp()` yet -- it is still behind `Grove.loadFirebase` + its 1s sleep. Snapshotting

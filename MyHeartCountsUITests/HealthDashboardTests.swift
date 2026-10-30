@@ -15,7 +15,7 @@ import XCTGroveQuestionnaire
 import XCTHealthKit
 
 
-class HealthDashboardTests: MHCTestCase, Sendable {
+class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
     func testHealthDashboardDataEntryBMIDirect() throws {
         let value = Int.random(in: 20...50)
         try launchAppAndEnrollIntoStudy()

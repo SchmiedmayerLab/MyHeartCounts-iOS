@@ -60,6 +60,9 @@ final class WorkoutManager: NSObject, Module, EnvironmentAccessible, HKWorkoutSe
     }
     
     
+    /// Starts a workout for the specified test config, and schedules a ``stopWorkout()`` call.
+    ///
+    /// This function returns after starting the workout and does not wait for it to have completed.
     func startWorkout(for test: TimedWalkingTestConfiguration, timeRange: Range<Date>) async throws {
         guard workoutSession == nil else {
             throw WorkoutSessionError.alreadyAWorkoutOngoing
@@ -93,7 +96,7 @@ final class WorkoutManager: NSObject, Module, EnvironmentAccessible, HKWorkoutSe
         try await builder.beginCollection(at: .now)
         
         Task {
-            try await Task.sleep(for: .seconds(timeRange.upperBound.timeIntervalSince(timeRange.lowerBound)))
+            try? await Task.sleep(for: .seconds(timeRange.upperBound.timeIntervalSince(timeRange.lowerBound)))
             try? await stopWorkout()
         }
     }

@@ -134,7 +134,7 @@ extension HealthKit {
                 }
             }
             Task {
-                try await Task.sleep(for: timeout)
+                try? await Task.sleep(for: timeout)
                 if await didResolve.resolve() {
                     continuation.resume(throwing: CancellationError())
                 }

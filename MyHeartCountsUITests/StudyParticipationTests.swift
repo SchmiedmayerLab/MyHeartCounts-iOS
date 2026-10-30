@@ -14,7 +14,7 @@ import XCTGroveNotifications
 import XCTHealthKit
 
 
-final class StudyParticipationTests: MHCTestCase, Sendable {
+final class StudyParticipationTests: MHCTestCase, @unchecked Sendable {
     func testStudyEnrollment() throws {
         let credentials: SetupTestEnvironmentConfig.Credentials = .random()
         try launchAppAndEnrollIntoStudy(

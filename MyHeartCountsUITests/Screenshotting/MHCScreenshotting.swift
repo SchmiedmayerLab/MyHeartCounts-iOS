@@ -14,7 +14,7 @@ import XCTGroveQuestionnaire
 import XCTHealthKit
 
 
-final class MHCScreenshotting: MHCTestCase, Sendable {
+final class MHCScreenshotting: MHCTestCase, @unchecked Sendable {
     private var screenshotsDir: URL! // swiftlint:disable:this implicitly_unwrapped_optional
     
     private var screenshotIdx = 0
