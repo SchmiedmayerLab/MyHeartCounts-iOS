@@ -79,7 +79,8 @@ struct HealthUploadStagingDeletionOrderTests {
         let retry = try #require(try staging.claimNextSampleDrainChunk(before: .distantFuture, limit: 1))
 
         #expect(retry.rows.map(\.fhirJson) == first.rows.map(\.fhirJson))
-        #expect(retry.rows.allSatisfy(\.uploadClaimed))
+        let allClaimed = retry.rows.allSatisfy(\.uploadClaimed)
+        #expect(allClaimed)
         #expect(try staging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 1)
         try staging.remove(first)
         #expect(
@@ -130,7 +131,9 @@ struct HealthUploadStagingDeletionOrderTests {
         _ = try await HealthUploadStagingUploader.drainPendingSamples(
             from: reopened, before: .distantFuture, maximumChunks: nil
         ) { url in
-            #expect(try Data(contentsOf: url) == originalPayload.withLock { $0 })
+            let payload = try Data(contentsOf: url)
+            let expectedPayload = originalPayload.withLock { $0 }
+            #expect(payload == expectedPayload)
         }
         try await Self.drainRetraction(reopened)
         try observer.close()
