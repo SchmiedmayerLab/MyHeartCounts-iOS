@@ -56,7 +56,7 @@ private struct ConsentRenewalExplainer: View {
                 """)
             Spacer()
         } footer: {
-            OnboardingActionsView("Continue") {
+            PageActions("Continue") {
                 path.nextStep()
             }
         }

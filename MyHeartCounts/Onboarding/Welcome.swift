@@ -21,7 +21,7 @@ struct Welcome: View {
         OnboardingPage(title: "My Heart Counts", description: "WELCOME_SUBTITLE") {
             onboardingInformationView
         } footer: {
-            OnboardingActionsView("Continue") {
+            PageActions("Continue") {
                 onboardingPath.nextStep()
             }
         }

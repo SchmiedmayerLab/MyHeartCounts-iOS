@@ -139,12 +139,11 @@ struct OnboardingNavigator { // swiftlint:disable:this type_body_length
             // we need to sign up instead of logging in
             alert.buttons["OK"].tap()
             
-            app.buttons["Signup"].tap()
-            sleep(for: .seconds(0.5))
-            XCTAssertFalse(app.collectionViews.firstMatch.buttons["Signup"].isEnabled) // this ia a different button from the one we just tapped.
+            XCTAssert(app.createAccountLink.waitForExistence(timeout: 2))
+            app.createAccountLink.tap()
             try app.fillSignupForm(email: credentials.username, password: credentials.password, name: name)
-            XCTAssert(app.collectionViews.firstMatch.buttons["Signup"].isEnabled)
-            app.collectionViews.firstMatch.buttons["Signup"].tap()
+            XCTAssert(app.signUpButton.waitForExistence(timeout: 2))
+            app.signUpButton.tap()
         } else {
             if let firstName = name.givenName, let lastName = name.familyName {
                 XCTAssert(app.staticTexts["\(firstName) \(lastName)"].waitForExistence(timeout: 2))
@@ -246,13 +245,13 @@ struct OnboardingNavigator { // swiftlint:disable:this type_body_length
             expectedDirection: .down
         )
         app.swipeUp()
-        XCTAssertFalse(app.buttons["I Consent"].isEnabled)
+        XCTAssertEqual(app.buttons["I Consent"].value as? String, "Incomplete")
         app.scrollViews["ConsentForm:sig"].swipeRight()
         if let firstName = expectedName?.givenName, let lastName = expectedName?.familyName {
             XCTAssert(app.staticTexts["Name: \(firstName) \(lastName)"].waitForExistence(timeout: 1))
         }
         sleep(for: .seconds(0.25))
-        XCTAssert(app.buttons["I Consent"].isEnabled)
+        XCTAssertEqual(app.buttons["I Consent"].value as? String, "Ready")
         app.buttons["I Consent"].tap()
         sleep(for: .seconds(0.5))
     }

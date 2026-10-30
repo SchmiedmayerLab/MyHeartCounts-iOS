@@ -171,7 +171,7 @@ jobs:
             --only auth,firestore,functions,storage \
             '../.github/scripts/run-ui-test-shard.sh'
       - name: Upload test result
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: MHC-App-UITests-${{ matrix.shard }}.xcresult
@@ -179,24 +179,62 @@ jobs:
           if-no-files-found: warn
           overwrite: true
           retention-days: 7
-      - name: Upload failure diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: diagnostics-ui-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}.xcresult
-          path: ${{ runner.temp }}/MHC-App-UITests-${{ matrix.shard }}-${{ github.run_attempt }}.xcresult
-          if-no-files-found: warn
-          retention-days: 7
 
   mhc_app_ui_tests:
     name: App UI Tests / Test using xcodebuild or run fastlane
     if: always()
     needs: mhc_app_ui_test_run
-    runs-on: ubuntu-latest
+    runs-on: [macOS, self-hosted]
     permissions:
       contents: read
     steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.UI_TEST_XCODE_VERSION }}
+      - name: Use selected Xcode for this job
+        run: echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Prepare result directories
+        run: |
+          results_dir="$(mktemp -d "$RUNNER_TEMP/mhc-ui-results.XXXXXX")"
+          echo "UI_TEST_RESULTS_PATH=$results_dir/shards" >> "$GITHUB_ENV"
+          echo "UI_TEST_MERGED_RESULTS_PATH=$results_dir/merged" >> "$GITHUB_ENV"
+      - name: Download UI test results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: MHC-App-UITests-*.xcresult
+          path: ${{ env.UI_TEST_RESULTS_PATH }}
+          merge-multiple: false
+      - name: Combine UI test results
+        shell: bash
+        run: |
+          shopt -s nullglob
+          results=("$UI_TEST_RESULTS_PATH"/*.xcresult)
+          # download-artifact extracts a single matching artifact directly into the download path.
+          if [[ -f "$UI_TEST_RESULTS_PATH/Info.plist" ]]; then
+            results=("$UI_TEST_RESULTS_PATH")
+          fi
+          mkdir -p "$UI_TEST_MERGED_RESULTS_PATH"
+          output="$UI_TEST_MERGED_RESULTS_PATH/UITests-all.xcresult"
+          case ${#results[@]} in
+            0)
+              echo "::error::No UI test result bundles were uploaded."
+              exit 1
+              ;;
+            1) cp -R "${results[0]}" "$output" ;;
+            *) xcrun xcresulttool merge --output-path "$output" "${results[@]}" ;;
+          esac
+      - name: Upload combined UI test result
+        uses: actions/upload-artifact@v7
+        with:
+          # Keep the combined bundle outside the MHC-* coverage glob to avoid duplicate coverage.
+          name: UITests-all.xcresult
+          # Preserve the .xcresult directory so the extracted artifact opens directly in Xcode.
+          path: ${{ env.UI_TEST_MERGED_RESULTS_PATH }}/
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
       - name: Check UI test shards
+        if: always()
         env:
           SHARD_RESULT: ${{ needs.mhc_app_ui_test_run.result }}
         run: test "$SHARD_RESULT" = "success"

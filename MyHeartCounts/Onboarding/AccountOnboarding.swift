@@ -40,7 +40,7 @@ struct AccountOnboarding: View {
                 AccountSetupHeader()
             } continue: {
                 // action if the user already is logged in
-                OnboardingActionsView("Next") {
+                PageActions("Next") {
                     try await advance()
                 }
             }
@@ -130,7 +130,7 @@ private struct ReactivatePreviouslyWithdrawnAccount: View {
         ) {
             EmptyView()
         } footer: {
-            OnboardingActionsView(
+            PageActions(
                 primaryTitle: "Reactivate Account",
                 primaryAction: {
                     _ = try await Functions.functions()
