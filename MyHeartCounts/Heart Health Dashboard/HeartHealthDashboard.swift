@@ -9,16 +9,16 @@
 // swiftlint:disable file_types_order
 
 import Foundation
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitUI
+import GroveQuestionnaireLegacy
+import GroveStudy
+import GroveViews
 import MHCStudyDefinition
 import struct ModelsR4.Questionnaire
 import MyHeartCountsShared
 import SFSafeSymbols
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitUI
-import SpeziQuestionnaireLegacy
-import SpeziStudy
-import SpeziViews
 import SwiftUI
 
 

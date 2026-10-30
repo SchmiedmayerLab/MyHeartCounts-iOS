@@ -9,16 +9,16 @@
 import Dispatch
 import Foundation
 import GRDB
+import Grove
+import GroveFoundation
+import GroveHealthKit
 import HealthKit
 import struct ModelsR4.FHIRPrimitive
 import struct ModelsR4.Instant
 import MyHeartCountsShared
-import Spezi
-import SpeziFoundation
-import SpeziHealthKit
 
 @Observable
-final class HealthUploadStaging: Spezi::Module, EnvironmentAccessible, @unchecked Sendable {
+final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecked Sendable {
     private enum DBError: Error {
         /// Thrown if some database operation fails because there is no database (because creation failed).
         case noDatabase

@@ -7,8 +7,8 @@
 //
 
 import Foundation
-import SpeziHealthKit
-import SpeziHealthKitUI
+import GroveHealthKit
+import GroveHealthKitUI
 
 
 extension StatsStore {

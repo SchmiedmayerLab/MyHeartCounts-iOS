@@ -9,11 +9,11 @@
 // swiftlint:disable file_types_order
 
 import Foundation
+import GroveAccount
+import GroveConsent
+import GroveOnboarding
+import GroveViews
 import SFSafeSymbols
-import SpeziAccount
-import SpeziConsent
-import SpeziOnboarding
-import SpeziViews
 import SwiftUI
 
 

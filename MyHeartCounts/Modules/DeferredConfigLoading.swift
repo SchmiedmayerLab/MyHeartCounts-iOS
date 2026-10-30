@@ -13,21 +13,21 @@ import class FirebaseFirestore.FirestoreSettings
 import class FirebaseFirestore.MemoryCacheSettings
 import class FirebaseFirestore.PersistentCacheSettings
 import Foundation
+@_spi(APISupport) // we need to access `GroveAppDelegate.grove`
+import Grove
+import GroveAccount
+import GroveFirebaseAccount
+import GroveFirebaseAccountStorage
+import GroveFirebaseConfiguration
+import GroveFirebaseStorage
+import GroveFirestore
+import GroveFoundation
+import GroveLocalization
+import GroveSensorKit
+import GroveStudy
 import MyHeartCountsShared
 import Observation
 import OSLog
-@_spi(APISupport) // we need to access `SpeziAppDelegate.spezi`
-import Spezi
-import SpeziAccount
-import SpeziFirebaseAccount
-import SpeziFirebaseAccountStorage
-import SpeziFirebaseConfiguration
-import SpeziFirebaseStorage
-import SpeziFirestore
-import SpeziFoundation
-import SpeziLocalization
-import SpeziSensorKit
-import SpeziStudy
 import SwiftUI
 import Synchronization
 import UniformTypeIdentifiers
@@ -90,7 +90,7 @@ enum DeferredConfigLoading {
         /// `--firebaseConfig region=US`
         /// `--firebaseConfig plist=GoogleService-Info_UK.plist`
         /// `--firebaseConfig plist=/Users/lukas/Desktop/MHC.plist`
-        /// `--firebaseConfig plist=https://mhc.spezi.stanford.edu/config.plist`
+        /// `--firebaseConfig plist=https://mhc.stanford.edu/config.plist`
         init(decodingLaunchOption context: LaunchOptionDecodingContext) throws {
             try context.assertNumRawArgs(.equal(1))
             let components = context.rawArgs[0].split(separator: "=")
@@ -216,7 +216,7 @@ enum DeferredConfigLoading {
         ConsentManager()
     }
     
-    /// Constructs an Array of Spezi Modules for loading Firebase and the other related modules, configured based on the specified selector.
+    /// Constructs an Array of Grove Modules for loading Firebase and the other related modules, configured based on the specified selector.
     ///
     /// Returns nil if there was an issue resolving the selector.
     @MainActor
@@ -358,8 +358,8 @@ extension DeferredConfigLoading {
             return
         }
         activeConfiguration.studyVariant = variant
-        SpeziAppDelegate.spezi?.module(StudyManager.self)?.preferredLocale = variant.preferredLocale
-        SpeziAppDelegate.spezi?.module(NewsManager.self)?.invalidate()
+        GroveAppDelegate.grove?.module(StudyManager.self)?.preferredLocale = variant.preferredLocale
+        GroveAppDelegate.grove?.module(NewsManager.self)?.invalidate()
     }
 
     /// Saves both selections before enrollment can persist study data.
@@ -383,7 +383,7 @@ extension DeferredConfigLoading {
 }
 
 
-extension Spezi {
+extension Grove {
     fileprivate enum LoadState {
         case loaded
         case notLoaded(waiters: [CheckedContinuation<Void, Never>])
@@ -402,14 +402,14 @@ extension Spezi {
     
     @MainActor // IDEA maybe rename this? (here and elsewhere (it's not just firebase any more))
     static func loadFirebase(for region: Locale.Region, studyVariant: StudyVariant = .stanford) {
-        guard let spezi = SpeziAppDelegate.spezi else {
-            fatalError("Spezi not loaded")
+        guard let grove = GroveAppDelegate.grove else {
+            fatalError("Grove not loaded")
         }
         guard !didLoadFirebase else {
             DeferredConfigLoading.logger.error("Did already load firebase, now asked to do it again, for a potentially different config. Will skip.")
             return
         }
-        spezi.loadFirebase(for: region, studyVariant: studyVariant)
+        grove.loadFirebase(for: region, studyVariant: studyVariant)
     }
     
     @MainActor
@@ -473,7 +473,7 @@ private final class LoadFirebaseTracking: Module {
     private var studyLoader
     
     func configure() {
-        let waiters: [CheckedContinuation<Void, Never>] = Spezi.loadState.withLock { state in
+        let waiters: [CheckedContinuation<Void, Never>] = Grove.loadState.withLock { state in
             switch exchange(&state, with: .loaded) {
             case .loaded: []
             case .notLoaded(let waiters): waiters

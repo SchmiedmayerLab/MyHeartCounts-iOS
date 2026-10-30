@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import SpeziHealthKitUI
+import GroveHealthKitUI
 
 
 extension StatsStore.Processor {

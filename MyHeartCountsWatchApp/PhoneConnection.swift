@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import Grove
+import GroveStudyDefinition
 import MyHeartCountsShared
-import Spezi
-import SpeziStudyDefinition
 import WatchConnectivity
 
 

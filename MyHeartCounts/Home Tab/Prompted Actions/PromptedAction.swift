@@ -9,11 +9,11 @@
 // swiftlint:disable type_contents_order
 
 import Foundation
+@_spi(APISupport)
+import Grove
+import GroveFoundation
 import MyHeartCountsShared
 import SFSafeSymbols
-@_spi(APISupport)
-import Spezi
-import SpeziFoundation
 import SwiftUI
 
 
@@ -39,8 +39,8 @@ final class PromptedAction: nonisolated Identifiable, Sendable {
         /// - Note: This is not necessarily equivalent to the ``enrollmentDate``.
         ///     For example, if the user deletes the app, re-installs it, and logs back in to their old account, the enrollment date would remain the same, but the activation date would get reset to when they completed the onboarding again as part of the reinstall.
         let studyActivationDate: Date
-        /// Spezi
-        let spezi: Spezi
+        /// Grove
+        let grove: Grove
         
         var daysSinceActivation: Int {
             Calendar.current.offsetInDays(from: studyActivationDate, to: .now)
@@ -59,7 +59,7 @@ final class PromptedAction: nonisolated Identifiable, Sendable {
     }
     
     enum Action: Sendable {
-        case closure(@Sendable @MainActor (Spezi) async throws -> Void)
+        case closure(@Sendable @MainActor (Grove) async throws -> Void)
         /// - Important: The sheet is responsible for dismissing itself!
         case sheet(@Sendable @MainActor () -> AnyView)
     }
@@ -83,7 +83,7 @@ final class PromptedAction: nonisolated Identifiable, Sendable {
         id: ID,
         state: @escaping CurrentState,
         content: Content,
-        handler: @escaping @Sendable @MainActor (Spezi) async throws -> Void
+        handler: @escaping @Sendable @MainActor (Grove) async throws -> Void
     ) {
         self.init(id: id, currentState: state, content: content, action: .closure(handler))
     }

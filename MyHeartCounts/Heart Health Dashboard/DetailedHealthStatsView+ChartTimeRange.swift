@@ -7,8 +7,8 @@
 //
 
 import Foundation
-import SpeziFoundation
-import SpeziHealthKit
+import GroveFoundation
+import GroveHealthKit
 
 
 extension DetailedHealthStatsView {

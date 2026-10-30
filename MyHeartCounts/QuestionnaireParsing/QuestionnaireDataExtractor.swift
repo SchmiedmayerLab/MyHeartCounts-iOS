@@ -10,8 +10,8 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveHealthKit
 import ModelsR4
-import SpeziHealthKit
 
 
 struct QuestionnaireDataExtractor {

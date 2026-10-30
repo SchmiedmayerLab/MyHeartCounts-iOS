@@ -10,7 +10,7 @@
 
 public import ActivityKit
 public import Foundation
-public import SpeziStudyDefinition
+public import GroveStudyDefinition
 
 
 public struct TimedWalkTestLiveActivityAttributes: ActivityAttributes {

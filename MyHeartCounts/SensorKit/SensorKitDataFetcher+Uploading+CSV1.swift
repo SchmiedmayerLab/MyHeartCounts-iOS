@@ -8,10 +8,10 @@
 
 import Algorithms
 import Foundation
+import GroveFoundation
+import GroveSensorKit
 import ModelsR4
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziSensorKit
 
 
 /// A SensorKit sample that can be appended to a CSV file containing a collection of samples of this type.

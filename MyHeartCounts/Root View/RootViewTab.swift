@@ -9,8 +9,8 @@
 // swiftlint:disable file_types_order
 
 import Foundation
+import GroveAccount
 import SFSafeSymbols
-import SpeziAccount
 import SwiftUI
 
 

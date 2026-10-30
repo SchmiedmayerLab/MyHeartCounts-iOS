@@ -8,20 +8,18 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitFHIR
 import HealthKit
 import ModelsR4
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitFHIR
 
 
 extension QuantitySample: HealthObservation {
     enum FHIRObservationConversionError: Error {
         case notSupported
     }
-    
-    private static let speziSystem = "https://spezi.stanford.edu".asFHIRURIPrimitive()! // swiftlint:disable:this force_unwrapping
     
     var sampleTypeIdentifier: String {
         self.sampleType.id
@@ -63,7 +61,7 @@ extension QuantitySample: HealthObservation {
                 Coding(
                     code: sampleType.id.asFHIRStringPrimitive(),
                     display: sampleType.displayTitle.asFHIRStringPrimitive(),
-                    system: Self.speziSystem
+                    system: MHCCodingSystem.system
                 )
             ])
             observation.value = .quantity(Quantity(
@@ -77,11 +75,11 @@ extension QuantitySample: HealthObservation {
             observation.append(coding: Coding(
                 code: code,
                 display: sampleType.displayTitle.asFHIRStringPrimitive(),
-                system: Self.speziSystem
+                system: MHCCodingSystem.system
             ))
             observation.value = .quantity(Quantity(
                 code: code,
-                system: Self.speziSystem,
+                system: MHCCodingSystem.system,
                 unit: self.sampleType.canonicalUnit.unitString.asFHIRStringPrimitive(),
                 value: self.value(as: self.sampleType.canonicalUnit).asFHIRDecimalPrimitive()
             ))
@@ -158,11 +156,13 @@ extension QuantitySample {
             sampleType = sampleTypeHint
         } else if let healthKitCoding = coding.first(where: { $0.system == "http://developer.apple.com/documentation/healthkit" }) {
             guard let sampleTypeIdentifier = healthKitCoding.code?.value?.string,
-                  let healthKitSampleType = SpeziHealthKit.SampleType<HKQuantitySample>(.init(rawValue: sampleTypeIdentifier)) else {
+                  let healthKitSampleType = GroveHealthKit.SampleType<HKQuantitySample>(.init(rawValue: sampleTypeIdentifier)) else {
                 return nil
             }
             sampleType = .healthKit(healthKitSampleType)
-        } else if let mhcCustomTypeCoding = coding.first(where: { $0.system == "https://spezi.stanford.edu" }),
+        } else if let mhcCustomTypeCoding = coding.first(where: { coding in
+            MHCCodingSystem.allSystems.contains { $0 == coding.system }
+        }),
                   let identifier = mhcCustomTypeCoding.code?.value?.string,
                   let mhcSampleType = CustomQuantitySampleType(identifier: identifier) {
             sampleType = .custom(mhcSampleType)

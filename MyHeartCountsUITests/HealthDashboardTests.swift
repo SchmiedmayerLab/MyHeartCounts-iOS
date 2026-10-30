@@ -6,9 +6,9 @@
 // SPDX-License-Identifier: MIT
 //
 
-import MyHeartCountsShared
 @_spi(TestingSupport)
-import SpeziHealthKit
+import GroveHealthKit
+import MyHeartCountsShared
 import XCTest
 import XCTestExtensions
 import XCTHealthKit

@@ -7,8 +7,8 @@
 //
 
 import Foundation
+import GroveViews
 import SFSafeSymbols
-import SpeziViews
 import SwiftUI
 
 

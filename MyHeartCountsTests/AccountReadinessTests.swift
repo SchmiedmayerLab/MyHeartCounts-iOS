@@ -6,10 +6,10 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Grove
+import GroveAccount
+import GroveTesting
 @testable import MyHeartCounts
-import Spezi
-import SpeziAccount
-import SpeziTesting
 import Testing
 
 

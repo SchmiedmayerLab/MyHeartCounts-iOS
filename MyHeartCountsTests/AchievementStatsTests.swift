@@ -7,10 +7,10 @@
 //
 
 import Foundation
+import GroveHealthKitUI
 import HealthKit
 @testable import MyHeartCounts
 import SFSafeSymbols
-import SpeziHealthKitUI
 import Testing
 
 

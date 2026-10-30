@@ -8,10 +8,10 @@
 
 import FirebaseFirestore
 import Foundation
+import GroveHealthKit
+import GroveHealthKitUI
 @testable import MyHeartCounts
 import MyHeartCountsShared
-import SpeziHealthKit
-import SpeziHealthKitUI
 import Testing
 
 

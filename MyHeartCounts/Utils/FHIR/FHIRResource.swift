@@ -7,12 +7,12 @@
 //
 
 import Foundation
+import GroveFHIR
+import GroveHealthKit
+import GroveHealthKitFHIR
 import HealthKit
 import ModelsDSTU2
 import ModelsR4
-import SpeziFHIR
-import SpeziHealthKit
-import SpeziHealthKitFHIR
 
 
 enum FHIRResource {
@@ -115,7 +115,7 @@ extension FHIRResource: Codable {
 // MARK: Utils
 
 extension FHIRResource {
-    init(_ other: SpeziFHIR.FHIRResource) {
+    init(_ other: GroveFHIR.FHIRResource) {
         switch other.versionedResource {
         case .dstu2(let resource):
             self = .dstu2(resource)
@@ -126,7 +126,7 @@ extension FHIRResource {
 }
 
 
-extension SpeziFHIR.FHIRResource {
+extension GroveFHIR.FHIRResource {
     // periphery:ignore - API
     init(_ other: FHIRResource) {
         switch other {
@@ -141,6 +141,6 @@ extension SpeziFHIR.FHIRResource {
 
 extension FHIRResource {
     init(_ record: HKClinicalRecord, using healthKit: HealthKit) async throws {
-        try await self.init(SpeziFHIR.FHIRResource.initialize(basedOn: record, using: healthKit, loadHealthKitAttachments: true))
+        try await self.init(GroveFHIR.FHIRResource.initialize(basedOn: record, using: healthKit, loadHealthKitAttachments: true))
     }
 }

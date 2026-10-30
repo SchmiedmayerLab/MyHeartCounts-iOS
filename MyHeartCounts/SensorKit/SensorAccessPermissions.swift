@@ -8,8 +8,8 @@
 
 // swiftlint:disable file_types_order
 
+import GroveSensorKit
 import SensorKit
-import SpeziSensorKit
 import SwiftUI
 
 

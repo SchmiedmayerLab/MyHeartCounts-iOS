@@ -8,7 +8,7 @@
 
 import FirebaseFunctions
 import Foundation
-import Spezi
+import Grove
 
 
 final class FirebaseFunctions: Module {

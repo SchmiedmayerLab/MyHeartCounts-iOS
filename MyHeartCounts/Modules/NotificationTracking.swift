@@ -10,9 +10,9 @@
 
 @preconcurrency import FirebaseFirestore
 import Foundation
+import Grove
+import GroveFirestore
 import OSLog
-import Spezi
-import SpeziFirestore
 import UserNotifications
 
 

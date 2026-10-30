@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import SpeziLocalization
+import GroveLocalization
 import UniformTypeIdentifiers
 import XCTest
 import XCTHealthKit
@@ -22,7 +22,7 @@ final class MHCScreenshotting: MHCTestCase, Sendable {
         try await super.setUp()
         /// The URL of the `MyHeartCounts-iOS` repository.
         ///
-        /// The full value of `#filePath` is e.g. `/Users/lukas/Developer/Spezi/MyHeartCounts-iOS/MyHeartCountsUITests/Screenshotting/MHCScreenshotting.swift`;
+        /// The full value of `#filePath` is e.g. `/Users/lukas/Developer/Grove/MyHeartCounts-iOS/MyHeartCountsUITests/Screenshotting/MHCScreenshotting.swift`;
         /// we then need to remove the last 3 path components to get the root of the codebase.
         screenshotsDir = URL(filePath: #filePath)
             .deletingLastPathComponent()

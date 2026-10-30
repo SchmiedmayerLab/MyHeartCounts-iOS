@@ -9,12 +9,12 @@
 // swiftlint:disable file_types_order
 
 import Foundation
+import GroveFoundation
+import GroveSensorKit
+import GroveStudy
+import GroveViews
 import SensorKit
 import SFSafeSymbols
-import SpeziFoundation
-import SpeziSensorKit
-import SpeziStudy
-import SpeziViews
 import SwiftUI
 
 

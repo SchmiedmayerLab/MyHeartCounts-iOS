@@ -8,10 +8,10 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveHealthKitFHIR
+import GroveSensorKit
 import ModelsR4
 import SensorKit
-import SpeziHealthKitFHIR
-import SpeziSensorKit
 
 
 extension SRDeviceUsageReport.SafeRepresentation: HealthObservation {

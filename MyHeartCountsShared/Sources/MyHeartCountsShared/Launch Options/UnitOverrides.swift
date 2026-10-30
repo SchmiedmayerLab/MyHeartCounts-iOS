@@ -9,7 +9,7 @@
 #if !os(Linux)
 
 import Foundation
-import SpeziFoundation
+import GroveFoundation
 
 
 /// Common interface & operations for launch options that allow specifying a unit that should be used for something.

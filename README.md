@@ -15,7 +15,7 @@ SPDX-License-Identifier: MIT
 [![REUSE status](https://api.reuse.software/badge/github.com/SchmiedmayerLab/MyHeartCounts-iOS)](https://api.reuse.software/info/github.com/SchmiedmayerLab/MyHeartCounts-iOS)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
 
-[My Heart Counts (MHC) application](https://myheartcounts.stanford.edu) is a [Spezi](https://github.com/StanfordSpezi)-based large-scale cardiovascular study application, developed at Stanford University.
+[My Heart Counts (MHC) application](https://myheartcounts.stanford.edu) is a [Grove](https://github.com/SchmiedmayerLab/Grove)-based large-scale cardiovascular study application, developed at Stanford University.
 
 Key features include:
 - Schedule-based, user-actionable tasks and content, such as surveys, active tasks, or informative articles
@@ -67,9 +67,9 @@ Key features include:
 </table>
 
 
-## Stanford Spezi
+## Grove
 
-This repository contains the My Heart Counts (MHC) iOS application, which is implemented using the [Spezi](https://github.com/StanfordSpezi/Spezi) ecosystem and builds on top of the [Stanford Spezi Template Application](https://github.com/StanfordSpezi/SpeziTemplateApplication).
+This repository contains the My Heart Counts (MHC) iOS application, which is implemented using the [Grove](https://github.com/SchmiedmayerLab/Grove) ecosystem and builds on top of the [Stanford Spezi Template Application](https://github.com/StanfordSpezi/SpeziTemplateApplication).
 
 > [!NOTE]  
 > Do you want to learn more about the Stanford Spezi Template Application and how to use, extend, and modify this application? Check out the [Stanford Spezi Template Application documentation](https://stanfordspezi.github.io/SpeziTemplateApplication).
@@ -85,7 +85,7 @@ In order to run and develop the My Heart Counts app locally, you'll need the fol
 ### The Study Definition
 1. Go to the definitions submodule: `cd MyHeartCounts-StudyDefinitions`
 2. Run `swift run MHCStudyDefinitionExporterCLI export ..` to generate a study bundle
-    - This will place a `mhcStudyDefinition.spezistudybundle.aar` file in the root of the MyHeartCounts-iOS repo
+    - This will place a `mhcStudyBundle.studybundle.tar.zst` file in the root of the MyHeartCounts-iOS repo
     - you can have it saved elsewhere by replacing the `..` with the path of the folder where you want the study definition to be placed
 
 ### The Firebase Environment
@@ -107,12 +107,12 @@ In order to run and develop the My Heart Counts app locally, you'll need the fol
         - Specify the absolute path of the `.aar` file generated above
         - Note: if you're running the app on a physical device, specifying the file location on the Mac won't work, since the iPhone can't access that. Instead, you can do one of the following:
             - Bundle the study definition into the app:
-                - Drag the `.aar` file into the app's Resources folder in Xcode
+                - Drag the `.tar.zst` file into the app's Resources folder in Xcode
                 - Adjust the code in the `StudyBundleLoader` type to simply always load from that in-bundle URL
             - Host the study definition using the Firebase storage emulator:
                 - Open the Storage emulator (likely at http://localhost:4000/storage)
-                - Upload the `mhcStudyBundle.spezistudybundle.aar` file to the `/public` folder
-                - Configure the `--studyBundle` argument to point to `http://HOSTNAME.local:9199/v0/b/myheart-counts-development.appspot.com/o/public%2FmhcStudyBundle.spezistudybundle.aar?alt=media`
+                - Upload the `mhcStudyBundle.studybundle.tar.zst` file to the `/public` folder
+                - Configure the `--studyBundle` argument to point to `http://HOSTNAME.local:9199/v0/b/myheart-counts-development.appspot.com/o/public%2FmhcStudyBundle.studybundle.tar.zst?alt=media`
                     - Note that you'll need to replace `HOSTNAME` with your Mac's local-network name (you can find this in Settings.app → General → Sharing → Local hostname)
     - `--disableAutomaticBulkHealthExport`
         - (this option will disable the historical health data collection, improving performance when running the app on a real device)

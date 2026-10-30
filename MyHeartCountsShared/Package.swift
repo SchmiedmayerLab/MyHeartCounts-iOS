@@ -11,7 +11,7 @@ import PackageDescription
 
 
 var packageDeps: [Package.Dependency] = [
-    .package(url: "https://github.com/SchmiedmayerLab/Spezi.git", .upToNextMinor(from: "0.2.1")),
+    .package(url: "https://github.com/SchmiedmayerLab/Grove.git", .upToNextMinor(from: "0.3.0-beta.6")),
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.93.0"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0")
 ]
@@ -45,13 +45,13 @@ let package = Package(
             name: "MyHeartCountsShared",
             dependencies: { () -> [Target.Dependency] in
                 var deps: [Target.Dependency] = [
-                    .product(name: "SpeziFoundation", package: "Spezi"),
+                    .product(name: "GroveFoundation", package: "Grove"),
                     .product(name: "NIOCore", package: "swift-nio"),
                     .product(name: "NIOFoundationCompat", package: "swift-nio")
                 ]
                 #if !os(Linux)
                 deps += [
-                    .product(name: "SpeziStudyDefinition", package: "Spezi"),
+                    .product(name: "GroveStudyDefinition", package: "Grove"),
                     .product(name: "SFSafeSymbols", package: "SFSafeSymbols")
                 ]
                 #endif

@@ -11,7 +11,7 @@
 
 import CoreMotion
 import Foundation
-import SpeziStudyDefinition
+import GroveStudyDefinition
 
 
 struct TimedWalkingTestResult: Hashable, Codable, Sendable {

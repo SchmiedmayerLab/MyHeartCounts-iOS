@@ -8,11 +8,11 @@
 
 import FirebaseFirestore
 import Foundation
+import Grove
+import GroveAccount
+import GroveFoundation
 import MyHeartCountsShared
 import Observation
-import Spezi
-import SpeziAccount
-import SpeziFoundation
 
 
 /// Account-bound access to stats from modules, background tasks, and SwiftUI.
@@ -72,7 +72,7 @@ final class StatsStore: Module, EnvironmentAccessible {
         suppliedContext = nil
     }
 
-    /// Explicit dependencies for isolated clients and tests, without requiring a SwiftUI or Spezi environment.
+    /// Explicit dependencies for isolated clients and tests, without requiring a SwiftUI or Grove environment.
     init(firestore: Firestore, accountID: @escaping @MainActor () -> String?) {
         suppliedContext = { (firestore, accountID()) }
     }

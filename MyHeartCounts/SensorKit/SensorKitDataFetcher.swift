@@ -7,11 +7,11 @@
 //
 
 import Algorithms
+import Grove
+import GroveFoundation
+import GroveSensorKit
 import MyHeartCountsShared
 import OSLog
-import Spezi
-import SpeziFoundation
-import SpeziSensorKit
 import UIKit
 
 

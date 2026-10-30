@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import GroveHealthKitBulkExport
+import GroveSensorKit
 import MyHeartCountsShared
-import SpeziHealthKitBulkExport
-import SpeziSensorKit
 import SwiftUI
 
 

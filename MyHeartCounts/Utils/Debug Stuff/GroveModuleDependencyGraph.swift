@@ -10,23 +10,23 @@
 // swiftlint:disable all
 
 import Foundation
-@_spi(APISupport) // we need to access `Spezi.modules`
-import Spezi
+@_spi(APISupport) // we need to access `Grove.modules`
+import Grove
 
 
-/// A snapshot of the dependency relationships between the `Module`s loaded into a `Spezi` instance.
+/// A snapshot of the dependency relationships between the `Module`s loaded into a `Grove` instance.
 ///
-/// Spezi doesn't publicly expose its modules' `@Dependency` declarations, so this type extracts them via reflection.
-/// It is therefore tied to the internal property-wrapper storage layout of the currently-pinned Spezi version
-/// (verified against SchmiedmayerLab/Spezi 0.1.4, rev `66208556`) and intended purely as a debugging aid;
-/// if Spezi's internals change, edges will be missing and reported via ``warnings``.
+/// Grove doesn't publicly expose its modules' `@Dependency` declarations, so this type extracts them via reflection.
+/// It is therefore tied to the internal property-wrapper storage layout of the currently-pinned Grove version
+/// (verified against SchmiedmayerLab/Grove 0.3.0-beta.6, rev `fb13cf97`) and intended purely as a debugging aid;
+/// if Grove's internals change, edges will be missing and reported via ``warnings``.
 ///
-/// - Warning: Spezi itself crashes (stack overflow in `DependencyManager.buildTypeOrder()`) at the end of any
+/// - Warning: Grove itself crashes (stack overflow in `DependencyManager.buildTypeOrder()`) at the end of any
 ///     `loadModules` pass whose injected module graph contains a cycle — i.e. before control ever returns to the app.
 ///     ``cycles`` can therefore only ever surface a cycle that isn't fully injected yet
-///     (e.g. an un-injected optional back-edge that a later `Spezi/loadModule(_:ownership:)` call would complete).
+///     (e.g. an un-injected optional back-edge that a later `Grove/loadModule(_:ownership:)` call would complete).
 @MainActor
-struct SpeziModuleDependencyGraph {
+struct GroveModuleDependencyGraph {
     /// How a module declared its dependency on another module.
     enum EdgeKind: String {
         /// A non-optional `@Dependency` declaration.
@@ -58,17 +58,17 @@ struct SpeziModuleDependencyGraph {
         let isInjected: Bool
     }
 
-    /// The modules loaded into the `Spezi` instance.
+    /// The modules loaded into the `Grove` instance.
     private(set) var nodes: [Node] = []
     /// All `@Dependency` edges declared by ``nodes``, including un-injected ones.
     private(set) var edges: [Edge] = []
     /// Diagnostic messages for `@Dependency` property wrappers whose contents couldn't be understood,
-    /// e.g. because the Spezi version in use has a different internal layout.
+    /// e.g. because the Grove version in use has a different internal layout.
     private(set) var warnings: [String] = []
 
-    /// Creates a snapshot of the dependency graph of all modules currently loaded into the `Spezi` instance.
-    init(_ spezi: Spezi) {
-        self.init(modules: spezi.modules)
+    /// Creates a snapshot of the dependency graph of all modules currently loaded into the `Grove` instance.
+    init(_ grove: Grove) {
+        self.init(modules: grove.modules)
     }
 
     /// Creates a snapshot of the dependency graph of the specified modules.
@@ -109,10 +109,10 @@ struct SpeziModuleDependencyGraph {
 
 // MARK: Cycle Detection
 
-extension SpeziModuleDependencyGraph {
+extension GroveModuleDependencyGraph {
     /// All dependency cycles, as strongly connected components of more than one module, plus self-loops.
     ///
-    /// Only edges with an injected module are considered; see the type-level warning about cycles Spezi crashes on itself.
+    /// Only edges with an injected module are considered; see the type-level warning about cycles Grove crashes on itself.
     var cycles: [[String]] {
         stronglyConnectedComponents().filter { component in
             component.count > 1 || edges.contains { $0.source == component[0] && $0.target == component[0] && $0.isInjected }
@@ -177,7 +177,7 @@ extension SpeziModuleDependencyGraph {
 
 // MARK: Exports
 
-extension SpeziModuleDependencyGraph {
+extension GroveModuleDependencyGraph {
     /// A Graphviz DOT representation of the dependency graph.
     ///
     /// Required dependencies are drawn as solid edges, optional ones dashed, `load` ones with a label;
@@ -191,7 +191,7 @@ extension SpeziModuleDependencyGraph {
             }
         }
         var lines = [
-            "digraph SpeziModuleDependencies {",
+            "digraph GroveModuleDependencies {",
             "    rankdir=LR",
             "    node [shape=box, fontname=\"Helvetica\"]"
         ]
@@ -268,14 +268,14 @@ extension SpeziModuleDependencyGraph {
 
 // MARK: Reflection-based Edge Extraction
 
-extension SpeziModuleDependencyGraph {
+extension GroveModuleDependencyGraph {
     private struct ExtractedDeclaration {
         let declaredTypeName: String
         let kind: EdgeKind
         let injectedModule: (any Module)?
     }
 
-    /// Extracts all `@Dependency` declarations of a module, by mirroring into Spezi's
+    /// Extracts all `@Dependency` declarations of a module, by mirroring into Grove's
     /// `_DependencyPropertyWrapper` → `DependencyCollection` → `DependencyContext<M>` storage.
     private static func dependencyDeclarations(of module: any Module, warnings: inout [String]) -> [ExtractedDeclaration] {
         var declarations: [ExtractedDeclaration] = []
@@ -285,11 +285,11 @@ extension SpeziModuleDependencyGraph {
             }
             let property = "\(type(of: module)).\(child.label ?? "?")"
             guard let collection = Mirror(reflecting: child.value).descendant("dependencies") else {
-                warnings.append("\(property): no 'dependencies' collection; did Spezi's internal layout change?")
+                warnings.append("\(property): no 'dependencies' collection; did Grove's internal layout change?")
                 continue
             }
             guard let entries = Mirror(reflecting: collection).descendant("entries") else {
-                warnings.append("\(property): no 'entries' in DependencyCollection; did Spezi's internal layout change?")
+                warnings.append("\(property): no 'entries' in DependencyCollection; did Grove's internal layout change?")
                 continue
             }
             for entry in Mirror(reflecting: entries).children.map(\.value) {
@@ -303,7 +303,7 @@ extension SpeziModuleDependencyGraph {
         return declarations
     }
 
-    /// Decodes a single Spezi `DependencyContext<M>` instance.
+    /// Decodes a single Grove `DependencyContext<M>` instance.
     private static func extractDeclaration(from entry: Any) -> ExtractedDeclaration? {
         // "DependencyContext<SomeModule>" → "SomeModule"
         let entryTypeName = "\(type(of: entry))"
@@ -321,7 +321,7 @@ extension SpeziModuleDependencyGraph {
         return ExtractedDeclaration(declaredTypeName: declaredTypeName, kind: kind, injectedModule: injected)
     }
 
-    /// Resolves Spezi's `DynamicReference<M>` enum (`.element(M)` / `.weakElement(WeaklyStoredElement)`) to the referenced module.
+    /// Resolves Grove's `DynamicReference<M>` enum (`.element(M)` / `.weakElement(WeaklyStoredElement)`) to the referenced module.
     private static func moduleFromDynamicReference(_ reference: Any) -> (any Module)? {
         guard let payload = Mirror(reflecting: reference).children.first?.value else {
             return nil
@@ -350,9 +350,9 @@ extension SpeziModuleDependencyGraph {
 }
 
 
-extension Spezi {
+extension Grove {
     /// Computes a snapshot of the dependency graph between all currently loaded modules.
-    @MainActor var moduleDependencyGraph: SpeziModuleDependencyGraph {
-        SpeziModuleDependencyGraph(self)
+    @MainActor var moduleDependencyGraph: GroveModuleDependencyGraph {
+        GroveModuleDependencyGraph(self)
     }
 }

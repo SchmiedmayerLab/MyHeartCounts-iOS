@@ -9,9 +9,9 @@
 // periphery:ignore:all
 
 import Foundation
+import GroveFoundation
+import GroveLocalization
 @testable import MyHeartCounts
-import SpeziFoundation
-import SpeziLocalization
 import Testing
 
 

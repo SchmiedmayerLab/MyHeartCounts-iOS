@@ -8,11 +8,11 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveFoundation
+import GroveSensorKit
 import ModelsR4
 import MyHeartCountsShared
 import SensorKit
-import SpeziFoundation
-import SpeziSensorKit
 
 
 extension SRWristTemperatureSession: CSVConvertibleSensorSample {

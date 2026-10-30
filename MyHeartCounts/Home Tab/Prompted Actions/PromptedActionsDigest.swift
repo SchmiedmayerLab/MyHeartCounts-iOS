@@ -8,9 +8,9 @@
 
 // swiftlint:disable file_types_order attributes
 
+import GroveViews
 import MyHeartCountsShared
 import SFSafeSymbols
-import SpeziViews
 import SwiftUI
 
 
@@ -388,7 +388,7 @@ private struct PromptedActionRow: View {
                 defer {
                     activeAction = nil
                 }
-                try await action(standard.spezi)
+                try await action(standard.grove)
             case .sheet:
                 presentedAction = action
             }

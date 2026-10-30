@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import GroveFoundation
 import MyHeartCountsShared
 import SFSafeSymbols
-import SpeziFoundation
 
 
 extension WorkoutPreferenceSetting {

@@ -30,7 +30,7 @@ extension InterDeviceUserInfoKey {
     
     /// `UInt8` value specifying which type of workout the watch should track.
     ///
-    /// The value here corresponds to a `SpeziStudyDefinition/TimedWalkingTestConfiguration/Kind` raw value.
+    /// The value here corresponds to a `GroveStudyDefinition/TimedWalkingTestConfiguration/Kind` raw value.
     public static let watchWorkoutActivityKind = Self(rawValue: "edu.stanford.MyHeartCounts.watchWorkoutActivityKind")
     
     /// `TimeInterval` value specifying the duration of the to-be-tracked workout, in seconds.

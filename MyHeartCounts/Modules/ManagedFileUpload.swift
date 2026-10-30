@@ -10,10 +10,10 @@
 
 @preconcurrency import FirebaseStorage
 import Foundation
+import Grove
+import GroveAccount
+import GroveFoundation
 import OSLog
-import Spezi
-import SpeziAccount
-import SpeziFoundation
 import SwiftData
 import enum SwiftUI.ScenePhase
 import Synchronization
@@ -26,8 +26,8 @@ import Synchronization
 /// Uploads are persistent: if an upload cannot be completed during the current launch of the app
 /// (e.g.: missing network connection, no logged-in user, app getting terminated), it will be retried on subsequent launches.
 ///
-/// - Note: this is intentionally a plain ``Spezi/Module`` rather than a `ServiceModule`: a `ServiceModule`'s `run()` is
-///     only ever reached via `.task(spezi.run)` in Spezi's view modifier, which the app applies inside its `WindowGroup`.
+/// - Note: this is intentionally a plain ``Grove/Module`` rather than a `ServiceModule`: a `ServiceModule`'s `run()` is
+///     only ever reached via `.task(spezi.run)` in Grove's view modifier, which the app applies inside its `WindowGroup`.
 ///     A launch that connects no scene — a `BGTask` wake, or HealthKit background delivery — would therefore never start it,
 ///     i.e. exactly the situations this module exists to serve. `configure()` runs on every launch, so the drain starts there.
 ///
@@ -38,7 +38,7 @@ import Synchronization
 /// background task happens to wake the app.
 @Observable
 @MainActor
-final class ManagedFileUpload: Spezi::Module, EnvironmentAccessible, Sendable {
+final class ManagedFileUpload: Grove::Module, EnvironmentAccessible, Sendable {
     /// Uploads a staged file on the module's behalf.
     ///
     /// `filename` is the name the file must be given remotely — always exactly the `lastPathComponent` the caller

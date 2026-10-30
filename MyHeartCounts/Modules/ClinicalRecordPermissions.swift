@@ -7,10 +7,10 @@
 //
 
 import Foundation
-import Spezi
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziStudy
+import Grove
+import GroveFoundation
+import GroveHealthKit
+import GroveStudy
 
 
 @Observable

@@ -10,8 +10,8 @@
 
 #if canImport(HealthKit)
 
+private import GroveFoundation
 public import class HealthKit.HKUnit
-private import SpeziFoundation
 
 
 public protocol _HKUnitCodableExtensionProtocol: Codable { // swiftlint:disable:this type_name

@@ -11,15 +11,15 @@
 import Algorithms
 import FirebaseFirestore
 import Foundation
+import Grove
+import GroveAccount
+import GroveFirestore
+import GroveFoundation
+import GroveHealthKit
+import GroveHealthKitUI
+import GroveStudy
 import MyHeartCountsShared
 import OSLog
-import Spezi
-import SpeziAccount
-import SpeziFirestore
-import SpeziFoundation
-import SpeziHealthKit
-import SpeziHealthKitUI
-import SpeziStudy
 import SwiftUI
 import UIKit
 

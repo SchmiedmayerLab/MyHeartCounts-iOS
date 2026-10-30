@@ -7,11 +7,11 @@
 //
 
 import Foundation
+import GroveFoundation
+import GroveHealthKitFHIR
 import HealthKit
 import ModelsR4
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziHealthKitFHIR
 
 
 extension HKUnit {

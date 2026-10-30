@@ -7,11 +7,11 @@
 //
 
 import Foundation
+import GroveAccount
+import GroveOnboarding
+import GroveViews
 import OSLog
 import SFSafeSymbols
-import SpeziAccount
-import SpeziOnboarding
-import SpeziViews
 import SwiftUI
 
 

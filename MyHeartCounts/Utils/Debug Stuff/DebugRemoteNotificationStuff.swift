@@ -8,9 +8,9 @@
 
 import FirebaseFirestore
 import Foundation
-import SpeziAccount
-import SpeziFirestore
-import SpeziViews
+import GroveAccount
+import GroveFirestore
+import GroveViews
 import SwiftUI
 
 

@@ -8,9 +8,9 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveHealthKitFHIR
+import GroveSensorKit
 import ModelsR4
-import SpeziHealthKitFHIR
-import SpeziSensorKit
 
 
 extension SensorKitECGSession: HealthObservation {

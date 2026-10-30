@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import SpeziViews
+import GroveViews
 import SwiftUI
 
 

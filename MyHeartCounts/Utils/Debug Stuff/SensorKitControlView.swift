@@ -7,10 +7,10 @@
 //
 
 import Foundation
-import SpeziFoundation
+import GroveFoundation
 @_spi(Internal)
-import SpeziSensorKit
-import SpeziViews
+import GroveSensorKit
+import GroveViews
 import SwiftUI
 
 

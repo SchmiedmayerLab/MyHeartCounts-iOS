@@ -29,7 +29,7 @@ import ModelsR4
 ///
 /// - Important: This is **not** the same as `FHIRExtensionURL.sourceRevision`. `sourceRevision` identifies the origin of the
 ///     underlying *sample* (e.g. the Apple Watch which recorded a heart rate sample, or the health system which supplied a
-///     clinical record), and for HealthKit samples is written by SpeziHealthKitFHIR. This extension always identifies the
+///     clinical record), and for HealthKit samples is written by GroveHealthKitFHIR. This extension always identifies the
 ///     My Heart Counts build which performed the conversion into FHIR.
 enum MHCAppRevision {
     /// A single child of the `FHIRExtensionURL.mhcAppRevision` extension.

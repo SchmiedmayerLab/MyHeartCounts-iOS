@@ -9,10 +9,10 @@
 // swiftlint:disable attributes file_types_order file_length
 
 import Foundation
+import GroveFoundation
+import GroveStudy
+import GroveViews
 import SFSafeSymbols
-import SpeziFoundation
-import SpeziStudy
-import SpeziViews
 import SwiftUI
 import UIKit
 

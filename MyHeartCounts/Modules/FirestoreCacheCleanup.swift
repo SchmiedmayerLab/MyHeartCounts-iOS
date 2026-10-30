@@ -8,9 +8,9 @@
 
 import Dispatch
 import FirebaseFirestore
+import Grove
+import GroveFoundation
 import OSLog
-import Spezi
-import SpeziFoundation
 import Synchronization
 
 

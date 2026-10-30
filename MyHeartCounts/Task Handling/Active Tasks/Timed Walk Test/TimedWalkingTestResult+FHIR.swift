@@ -9,11 +9,11 @@
 import CoreMotion
 import FHIRModelsExtensions
 import Foundation
+import GroveFoundation
+import GroveHealthKitFHIR
+import GroveStudyDefinition
 import ModelsR4
 import MyHeartCountsShared
-import SpeziFoundation
-import SpeziHealthKitFHIR
-import SpeziStudyDefinition
 
 
 extension TimedWalkingTestResult {

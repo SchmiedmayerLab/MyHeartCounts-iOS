@@ -7,10 +7,10 @@
 //
 
 import Foundation
+import Grove
+import GroveFoundation
+import GroveTesting
 @testable import MyHeartCounts
-import Spezi
-import SpeziFoundation
-import SpeziTesting
 import Synchronization
 import Testing
 

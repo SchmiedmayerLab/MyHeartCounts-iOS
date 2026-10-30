@@ -8,12 +8,12 @@
 
 import FHIRModelsExtensions
 import Foundation
+import GroveHealthKit
+import GroveHealthKitFHIR
 import HealthKit
 import ModelsDSTU2
 import ModelsR4
 import MyHeartCountsShared
-import SpeziHealthKit
-import SpeziHealthKitFHIR
 
 
 protocol HealthObservation: Sendable { // might want to rename this (@lukas); the resulting ResourceProxy is not necessarily an Observation...)

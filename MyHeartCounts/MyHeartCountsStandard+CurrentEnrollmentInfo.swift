@@ -6,8 +6,9 @@
 // SPDX-License-Identifier: MIT
 //
 
-import SpeziFoundation
-import SpeziStudy
+import Foundation
+import GroveStudy
+import Synchronization
 
 
 extension MyHeartCountsStandard {
@@ -16,27 +17,21 @@ extension MyHeartCountsStandard {
         let studyRevision: UInt
     }
     
-    private static let lock = RWLock()
-    nonisolated(unsafe) private static var _currentEnrollmentInfo: CurrentEnrollmentInfo?
+    private static let _currentEnrollmentInfo = Mutex<CurrentEnrollmentInfo?>(nil)
     
     static var currentEnrollmentInfo: CurrentEnrollmentInfo? {
-        lock.withReadLock {
-            _currentEnrollmentInfo
-        }
+        _currentEnrollmentInfo.withLock { $0 }
     }
     
     
     @MainActor
     static func _updateCurrentEnrollmentInfo(_ studyManager: StudyManager) { // swiftlint:disable:this identifier_name
-        lock.withWriteLock {
-            guard let enrollment = studyManager.studyEnrollments.first else {
-                _currentEnrollmentInfo = nil
-                return
-            }
-            _currentEnrollmentInfo = .init(
+        let enrollmentInfo = studyManager.studyEnrollments.first.map { enrollment in
+            CurrentEnrollmentInfo(
                 studyId: enrollment.studyId.uuidString,
                 studyRevision: enrollment.studyRevision
             )
         }
+        _currentEnrollmentInfo.withLock { $0 = enrollmentInfo }
     }
 }

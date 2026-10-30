@@ -7,10 +7,10 @@
 //
 
 import Foundation
+import GroveHealthKit
+import GroveHealthKitUI
 import HealthKit
 import MyHeartCountsShared
-import SpeziHealthKit
-import SpeziHealthKitUI
 
 
 extension StatsStore {

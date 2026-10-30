@@ -7,9 +7,9 @@
 //
 
 import Foundation
+import GroveFoundation
+import GroveSensorKit
 import ModelsR4
-import SpeziFoundation
-import SpeziSensorKit
 
 
 /// A SensorKit sample that can be turned into a CSV file representing this singular sample.
