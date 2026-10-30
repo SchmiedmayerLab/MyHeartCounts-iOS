@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Algorithms
 import Foundation
 import GroveFoundation
 import GroveHealthKit
@@ -13,13 +14,16 @@ import GroveHealthKitBulkExport
 import GroveHealthKitFHIR
 
 
-/// Exports each bulk batch in as few exporter calls as ``HealthKitFHIRExporter/voltageBudget`` allows, stages its
-/// upload file, and holds the batch's reservations until the bulk session has durably recorded the batch as processed.
+/// Exports each bulk batch in bounded parts, stages their upload files, and holds all reservations until the bulk
+/// session has durably recorded the entire batch as processed.
 ///
 /// Everything it reaches beyond the samples is injected, so tests run ``process(_:of:)`` and ``didPersist(_:)``
 /// themselves, without a signed-in account, Firebase or the app's ledger.
 struct HealthKitSamplesFHIRUploader: BatchProcessor {
     typealias Output = HealthKitFHIRReservationReceipt
+
+    /// Bounds the graphs and their encoded JSON held together, even for a month-long historical batch.
+    private static let samplesPerFile = 1000
 
     /// The store an ECG's waveform and symptoms are fetched from.
     private let healthKit: HealthKit
@@ -53,28 +57,33 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         let exporter = exporter
         do {
             let exporter = try await exporter(accountDataGeneration)
-            let samples = samples
-            // The logged outcome covers the staging too: a batch counts as exported once its upload file is staged.
-            let export = try await HealthKitExportLog.record(.historical, samples: HealthKitExportLog.counts(samples), exporter: exporter) {
-                var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
-                let export = try await exporter.exportBatch(
-                    samples,
-                    at: .now,
-                    recordProvider: .healthKit(healthKit)
-                ) { entry in
-                    entries.append(entry)
-                }
-                guard !entries.isEmpty else {
+            // Stable boundaries preserve filenames and bytes when HealthKit redelivers samples in a different order.
+            let samples = samples.sorted { $0.uuid.uuidString < $1.uuid.uuidString }
+            var receipts: [HealthKitFHIRReservationReceipt] = []
+            for part in samples.chunks(ofCount: Self.samplesPerFile) {
+                // The logged outcome covers staging too; only one part's graphs and JSON are retained at a time.
+                let export = try await HealthKitExportLog.record(.historical, samples: HealthKitExportLog.counts(part), exporter: exporter) {
+                    var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
+                    let export = try await exporter.exportBatch(
+                        part,
+                        at: .now,
+                        recordProvider: .healthKit(healthKit)
+                    ) { entry in
+                        entries.append(entry)
+                    }
+                    guard !entries.isEmpty else {
+                        return export
+                    }
+                    let url = try HealthUploadBatch.write(entries, typePrefix: sampleType.id)
+                    defer {
+                        try? FileManager.default.removeItem(at: url)
+                    }
+                    try await stage(url, accountDataGeneration)
                     return export
                 }
-                let url = try HealthUploadBatch.write(entries, typePrefix: sampleType.id)
-                defer {
-                    try? FileManager.default.removeItem(at: url)
-                }
-                try await stage(url, accountDataGeneration)
-                return export
+                receipts.append(export.receipt)
             }
-            return export.receipt
+            return HealthKitFHIRReservationReceipt(merging: receipts)
         } catch {
             logger.warning("Failed exporting \(numSamples) \(sampleType.id) samples: \(String(describing: error))")
             throw error

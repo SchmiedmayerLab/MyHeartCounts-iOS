@@ -16,8 +16,8 @@ import HealthKit
 import Testing
 
 
-/// The bulk export stages each batch through one exporter call and holds the batch's events until the bulk session
-/// has durably recorded the batch as processed.
+/// The bulk export stages bounded files and holds the batch's events until the bulk session has durably recorded
+/// the whole batch as processed.
 @Suite
 struct HealthKitSamplesFHIRUploaderTests {
     private struct StagingFailure: Error {}
@@ -94,6 +94,38 @@ struct HealthKitSamplesFHIRUploaderTests {
         #expect(try ledger.producerEntry().next == "4", "every delivery reused the first one's events")
         await uploader.didPersist(first)
         await uploader.didPersist(redelivery)
+        #expect(try ledger.reservationCount == 0)
+    }
+
+    /// A failure after one part was staged keeps every reservation; reordered retries recreate the same files.
+    @Test
+    func largeBatchStagesBoundedFilesAndRetriesWithoutReleasingEarlierParts() async throws {
+        let samples = (0..<1001).map(LedgerHarness.steps)
+        let attempted = StagedUploadFiles()
+        let harness = harness
+        let failing = HealthKitSamplesFHIRUploader(healthKit: HealthKit()) { _ in
+            try harness.exporter()
+        } stage: { file, _ in
+            try attempted.stage(file)
+            if attempted.all.count == 2 {
+                throw StagingFailure()
+            }
+        }
+        await #expect(throws: StagingFailure.self) {
+            _ = try await failing.process(samples, of: .stepCount)
+        }
+        let counts = try attempted.all.map { data in
+            try #require(JSONSerialization.jsonObject(with: data) as? [Any]).count
+        }
+        #expect(counts == [1000, 1])
+        #expect(try ledger.reservationCount == 1001)
+
+        let files = StagedUploadFiles()
+        let uploader = bulkUploader(files: files)
+        let receipt = try await uploader.process(Array(samples.reversed()), of: .stepCount)
+        #expect(files.all == attempted.all)
+        #expect(try ledger.reservationCount == 1001)
+        await uploader.didPersist(receipt)
         #expect(try ledger.reservationCount == 0)
     }
 }
