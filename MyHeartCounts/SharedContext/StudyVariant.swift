@@ -7,15 +7,21 @@
 //
 
 import Foundation
+import GroveAccount
 import GroveLocalization
 import GroveStudy
+import MHCStudyDefinition
 
 
-/// The study protocol and regional resources, independent of the Firebase deployment hosting them.
-enum StudyVariant: String, Codable, Sendable {
-    case stanford
-    case imperial
+extension AccountDetails {
+    /// Accounts enrolled before the variant field existed belong to the original Stanford study.
+    var existingStudyVariant: StudyVariant? {
+        studyVariant ?? (dateOfEnrollment != nil ? .stanford : nil)
+    }
+}
 
+
+extension StudyVariant {
     var region: Locale.Region {
         switch self {
         case .stanford: .unitedStates

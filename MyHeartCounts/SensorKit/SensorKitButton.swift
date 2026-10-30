@@ -13,6 +13,7 @@ import GroveFoundation
 import GroveSensorKit
 import GroveStudy
 import GroveViews
+import MHCStudyDefinition
 import SensorKit
 import SFSafeSymbols
 import SwiftUI

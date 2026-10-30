@@ -14,6 +14,7 @@ import GroveLicense
 import GroveSensorKit
 import GroveStudy
 import GroveViews
+import MHCStudyDefinition
 import MyHeartCountsShared
 import SFSafeSymbols
 import SwiftUI
@@ -304,6 +305,8 @@ extension AccountSheet {
                         Section {
                             LabeledContent("Project ID" as String, value: FirebaseApp.app()?.options.projectID ?? "n/a")
                             LabeledContent("Account ID" as String, value: account.details?.accountId ?? "n/a")
+                            LabeledContent("Study Variant" as String, value: DeferredConfigLoading.activeStudyVariant?.rawValue ?? "n/a")
+                            LabeledContent("Study Backend" as String, value: DeferredConfigLoading.activeFirebaseConfig?.description ?? "n/a")
                         }
                         Section {
                             LabeledContent("Study Revision (enrolled)" as String, value: enrollments.first?.studyRevision.description ?? "n/a")

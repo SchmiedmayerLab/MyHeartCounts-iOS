@@ -14,6 +14,7 @@ import GroveFirebaseAccount
 import GroveFoundation
 import GroveOnboarding
 import GroveViews
+import MHCStudyDefinition
 import MyHeartCountsShared
 import SFSafeSymbols
 import SwiftUI

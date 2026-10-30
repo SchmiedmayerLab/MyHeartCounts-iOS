@@ -13,6 +13,7 @@ import GroveAccount
 import GroveHealthKit
 import GroveHealthKitUI
 import GroveViews
+import MHCStudyDefinition
 import MyHeartCountsShared
 import SFSafeSymbols
 import SwiftUI

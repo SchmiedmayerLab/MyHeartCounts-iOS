@@ -12,6 +12,7 @@ import Foundation
 import Grove
 import GroveFoundation
 import GroveStudyDefinition
+import MHCStudyDefinition
 import MHCStudyDefinitionExporter
 import MyHeartCountsShared
 import OSLog
@@ -136,7 +137,7 @@ final class StudyBundleLoader: Module, Sendable {
         returnCachedBundleOnError: Bool = true
     ) async throws(LoadError) -> StudyBundle {
         let source = Source(
-            selector: LaunchOptions.launchOptions[.studyBundleSelector],
+            selector: LaunchOptions.launchOptions[.studyBundleSelector].withVariant(DeferredConfigLoading.activeStudyVariant),
             firebaseConfig: FeatureFlags.overrideFirebaseConfig ?? DeferredConfigLoading.activeFirebaseConfig
         )
         if self.source != source {
@@ -177,26 +178,27 @@ final class StudyBundleLoader: Module, Sendable {
     }
     
     
-    private func _update(
+    private func _update( // swiftlint:disable:this cyclomatic_complexity
         using selector: StudyBundleSelector,
         firebaseConfig: DeferredConfigLoading.FirebaseConfigSelector? = nil
     ) async throws(LoadError) -> StudyBundle {
         let studyBundleArchiveUrl: URL
         switch selector {
-        case .firebase:
+        case .firebase(let variant):
             if let firebaseConfig,
                let options = try? DeferredConfigLoading.firebaseOptions(for: firebaseConfig),
                let bucket = options.storageBucket {
-                studyBundleArchiveUrl = Self.url(ofFile: "mhcStudyBundle.\(StudyBundle.archiveFileExtension)", inBucket: bucket)
+                let filename = "\(variant.defaultFilenameForExport).\(StudyBundle.archiveFileExtension)"
+                studyBundleArchiveUrl = Self.url(ofFile: filename, inBucket: bucket)
             } else {
                 logger.error("No active Firebase config.")
                 throw .noActiveFirebaseConfig
             }
         case .atUrl(let url):
             studyBundleArchiveUrl = url
-        case .bundledWithApp:
+        case .bundledWithApp(let variant):
             do {
-                studyBundleArchiveUrl = try export(to: .temporaryDirectory, as: .zstd)
+                studyBundleArchiveUrl = try export(variant, to: .temporaryDirectory, as: .zstd)
             } catch {
                 throw .unableToCreateLocalBundle(error)
             }
@@ -205,15 +207,23 @@ final class StudyBundleLoader: Module, Sendable {
         do {
             downloadUrl = try await download(studyBundleArchiveUrl)
         } catch {
-            guard selector == .firebase else {
+            switch selector {
+            case .firebase(let variant):
+                return try await fallBackToBundledStudyBundle(after: .unableToFetchFromServer(error), using: variant)
+            case .bundledWithApp, .atUrl:
                 throw LoadError.unableToFetchFromServer(error)
             }
-            return try await fallBackToBundledStudyBundle(after: .unableToFetchFromServer(error))
         }
         do {
             return try await openDownloadedStudyBundle(at: downloadUrl)
-        } catch LoadError.unableToDecode(let underlyingDecodeError) where selector == .firebase {
-            return try await fallBackToBundledStudyBundle(after: .unableToDecode(underlyingDecodeError))
+        } catch LoadError.unableToDecode(let underlyingDecodeError) {
+            switch selector {
+            case .firebase(let variant):
+                return try await fallBackToBundledStudyBundle(after: .unableToDecode(underlyingDecodeError), using: variant)
+            case .bundledWithApp, .atUrl:
+                // rethrow the error
+                throw LoadError.unableToDecode(underlyingDecodeError)
+            }
         }
     }
 
@@ -221,10 +231,10 @@ final class StudyBundleLoader: Module, Sendable {
     /// Loads the study bundle shipped with the app, after the firebase-hosted one could not be fetched or decoded.
     ///
     /// - parameter error: the error that made us fall back; re-thrown if the local bundle can't be created either.
-    private func fallBackToBundledStudyBundle(after error: LoadError) async throws(LoadError) -> StudyBundle {
+    private func fallBackToBundledStudyBundle(after error: LoadError, using variant: StudyVariant) async throws(LoadError) -> StudyBundle {
         logger.error("Unable to load the firebase-hosted study bundle. falling back to the one bundled with the app. (error: \(error))")
         do {
-            return try await _update(using: .bundledWithApp)
+            return try await _update(using: .bundledWithApp(variant))
         } catch LoadError.unableToCreateLocalBundle {
             // if the local bundle creation fails, we don't expose that error (since the local bundle thing here was an implicit fallback),
             // and insead re-propagate the original error.
@@ -331,5 +341,17 @@ final class StudyBundleLoader: Module, Sendable {
 extension StudyBundleLoader {
     private static func url(ofFile filename: String, inBucket bucketName: String) -> URL {
         "https://firebasestorage.googleapis.com/v0/b/\(bucketName)/o/public%2F\(filename)?alt=media"
+    }
+}
+
+
+extension StudyBundleSelector {
+    fileprivate var isFirebase: Bool {
+        switch self {
+        case .firebase:
+            true
+        case .bundledWithApp, .atUrl:
+            false
+        }
     }
 }

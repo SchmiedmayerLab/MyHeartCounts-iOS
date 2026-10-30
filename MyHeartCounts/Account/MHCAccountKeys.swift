@@ -13,6 +13,7 @@ import Foundation
 import GroveAccount
 import GroveFoundation
 import GroveLocalStorage
+import MHCStudyDefinition
 import SwiftUI
 
 

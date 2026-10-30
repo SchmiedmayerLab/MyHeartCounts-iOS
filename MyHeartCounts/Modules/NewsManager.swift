@@ -12,6 +12,7 @@ import Grove
 import GroveFoundation
 import GroveLocalization
 import GroveStudy
+import MHCStudyDefinition
 import OSLog
 import func QuartzCore.CACurrentMediaTime
 import UniformTypeIdentifiers

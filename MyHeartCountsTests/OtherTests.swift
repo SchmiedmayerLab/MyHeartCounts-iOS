@@ -8,6 +8,7 @@
 
 import Foundation
 import GroveStudyDefinition
+import MHCStudyDefinition
 import MHCStudyDefinitionExporter
 import ModelsR4
 @testable import MyHeartCounts
@@ -27,7 +28,7 @@ final class OtherTests {
     
     init() throws {
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
-        let studyBundleUrl = try export(to: tmpDir, as: .package)
+        let studyBundleUrl = try export(.stanford, to: tmpDir, as: .package)
         studyBundle = try StudyBundle(bundleUrl: studyBundleUrl)
     }
     

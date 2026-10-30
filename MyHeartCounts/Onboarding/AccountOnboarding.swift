@@ -61,8 +61,11 @@ struct AccountOnboarding: View {
         guard let details = account.details else {
             return
         }
-        MyHeartCountsStandard.synchronizeStudyVariant(for: account)
-        if details.studyVariant == nil, let studyVariant = DeferredConfigLoading.activeStudyVariant {
+        try MyHeartCountsStandard.synchronizeStudyVariant(for: account)
+        guard let studyVariant = DeferredConfigLoading.activeStudyVariant else {
+            throw DeferredConfigLoading.StudyVariantError.missingConfiguration
+        }
+        if details.studyVariant == nil {
             var updates = AccountDetails()
             updates.studyVariant = studyVariant
             try await account.accountService.updateAccountDetails(AccountModifications(modifiedDetails: updates))
