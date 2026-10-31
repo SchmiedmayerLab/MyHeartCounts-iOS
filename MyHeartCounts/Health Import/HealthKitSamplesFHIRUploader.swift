@@ -56,6 +56,8 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
             let samples = samples
             // The logged outcome covers the staging too: a batch counts as exported once its upload file is staged.
             let export = try await HealthKitExportLog.record(.historical, samples: HealthKitExportLog.counts(samples), exporter: exporter) {
+                // Potential memory hotspot: this buffers all FHIR entries for a time window before encoding.
+                // If memory pressure becomes an issue, investigate streaming encoding/compression while keeping large upload files.
                 var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
                 let export = try await exporter.exportBatch(
                     samples,
