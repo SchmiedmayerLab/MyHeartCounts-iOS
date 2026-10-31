@@ -155,11 +155,10 @@ jobs:
       injected_secret_file_path: 'MyHeartCounts/Supporting Files/GoogleService-Info.plist'
       setup_signing: true
       command: >-
-        fastlane deploy environment:"${{ needs.determineenvironment.outputs.environment }}"
-        variant:"${{ inputs.variant || 'stanford' }}"
-        versionname:"${{ needs.vars.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
-        ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
-        strip_sensorkit_entitlement:false
+        deploy/deploy.sh --environment "${{ needs.determineenvironment.outputs.environment }}"
+        --variant "${{ inputs.variant || 'stanford' }}"
+        --version "${{ needs.vars.outputs.version }}" --release-notes "${{ inputs.releasenotes }}"
+        ${{ inputs.buildnumber && format('--build-number "{0}"', inputs.buildnumber) || '' }}
     secrets:
       APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}

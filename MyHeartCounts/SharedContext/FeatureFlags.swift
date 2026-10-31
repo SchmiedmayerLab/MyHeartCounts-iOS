@@ -37,7 +37,7 @@ enum FeatureFlags {
     /// Locks the onboarding to a single study variant: the region selection is fixed to the variant's region, which then is eligible for enrollment.
     /// These builds also use the study bundle they were built with, instead of the one published to the backend.
     ///
-    /// Set via the `MHCForcedStudyVariant` Info.plist key, which `fastlane deploy variant:imperial` adds for the Imperial TestFlight builds.
+    /// Set via the `MHCForcedStudyVariant` Info.plist key, which `deploy/deploy.sh --variant imperial` adds for the Imperial TestFlight builds.
     static var forcedStudyVariant: StudyVariant? {
         (Bundle.main.object(forInfoDictionaryKey: "MHCForcedStudyVariant") as? String).flatMap(StudyVariant.init(rawValue:))
     }

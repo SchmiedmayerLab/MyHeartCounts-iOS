@@ -32,9 +32,9 @@ The StudyBundle, consisting of a StudyDefinition and resources referenced by the
 
 ## Build / Test / Lint
 - MHC iOS app:
-    - building the app: `fastlane build`
+    - building the app: `xcrun xcodebuild build -project MyHeartCounts.xcodeproj -scheme MyHeartCounts -destination generic/platform=iOS -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO`
     - running a specific UI test: `xcrun xcodebuild test -project MyHeartCounts.xcodeproj -scheme MyHeartCounts -testPlan "MyHeartCounts UI Tests" -only-testing:MyHeartCountsUITests/<TestClass>/<testMethod> -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -skipPackagePluginValidation -skipMacroValidation`
-        - (the two skip flags are required for non-interactive xcodebuild runs; all fastlane lanes and CI pass them as well)
+        - (the two skip flags are required for non-interactive xcodebuild runs; the deployment script and CI pass them as well)
 - MyHeartCountsShared SPM package:
     - in the `MyHeartCountsShared/` folder: `swift build` / `swift test`
     - note: a plain host-macOS `swift build` may fail in the SFSafeSymbols dependency on newer toolchains; in that case build/test via the `MyHeartCountsShared-Package` xcodebuild scheme with an iOS Simulator destination (as CI does)

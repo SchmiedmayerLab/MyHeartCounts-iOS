@@ -3,8 +3,8 @@ version = 1
 [[annotations]]
 path = [
     "AGENTS.md",
-    "fastlane/metadata/**",
-    "fastlane/screenshots/**",
+    "deploy/metadata/**",
+    "deploy/screenshots/**",
     "assets/**",
     "MyHeartCounts.xcodeproj/**",
     "MyHeartCounts/Resources/Assets.xcassets/**",
