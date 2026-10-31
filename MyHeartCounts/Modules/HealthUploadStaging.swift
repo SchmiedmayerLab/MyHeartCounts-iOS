@@ -286,6 +286,17 @@ extension HealthUploadStaging {
         try dbQueue.write { db in
             try FHIRExchangeDestination.validateWrites(for: accountDataGeneration)
             for sample in pendingSamples {
+                var sample = sample
+                // Anchor redelivery must not make a row eligible for elision after a drain claimed it.
+                sample.uploadClaimed = try Bool.fetchOne(
+                    db,
+                    PendingSampleRecord
+                        .select(PendingSampleRecord.Columns.uploadClaimed)
+                        .filter(
+                            PendingSampleRecord.Columns.sampleType == sample.sampleType
+                                && PendingSampleRecord.Columns.sampleId == sample.sampleId
+                        )
+                ) ?? false
                 try sample.insert(db)
             }
         }
@@ -314,10 +325,13 @@ extension HealthUploadStaging {
             let keys = deletionsByKey.keys.map(\.databaseKey)
             let matchingKeys = try PendingSampleRecord
                 .filter(keys: keys)
+                .filter(PendingSampleRecord.Columns.uploadClaimed == false)
                 .select(PendingSampleRecord.Columns.sampleType, PendingSampleRecord.Columns.sampleId)
                 .asRequest(of: PendingRecordKey.self)
                 .fetchSet(db)
-            let numElidedUploads = try PendingSampleRecord.filter(keys: keys).deleteAll(db)
+            let numElidedUploads = try PendingSampleRecord
+                .filter(keys: matchingKeys.map(\.databaseKey))
+                .deleteAll(db)
             if !matchingKeys.isEmpty {
                 try PendingDeletionRecord
                     .filter(keys: matchingKeys.map(\.databaseKey))
@@ -355,6 +369,7 @@ extension HealthUploadStaging {
                 .exists()
             let counts = try PendingSampleRecord
                 .aliased(sampleAlias)
+                .filter(sampleAlias[SampleCol.uploadClaimed] == false)
                 .filter(hasMatchingDeletion)
                 .select(
                     sampleAlias[SampleCol.sampleType],
@@ -424,6 +439,7 @@ extension HealthUploadStaging {
     }
 
     /// Fetches a bounded, single-sample-type chunk older than `cutoff`.
+    /// Deletions wait until any matching addition has been durably staged and removed.
     func fetchNextDrainChunk<R: _PendingEntityRecord>(
         of _: R.Type,
         before cutoff: Date,
@@ -434,22 +450,28 @@ extension HealthUploadStaging {
         }
         precondition(limit > 0)
         return try dbQueue.read { db in
-            guard let sampleType = try String.fetchOne(
-                db,
-                R
-                    .select(R.sampleTypeColumn)
-                    .filter(R.timestampColumn < cutoff)
-                    .order(R.timestampColumn, R.sampleTypeColumn)
-                    .limit(1)
-            ) else {
+            try Self.fetchNextDrainChunk(of: R.self, before: cutoff, limit: limit, in: db)
+        }
+    }
+
+    /// Claims a chunk in the same transaction that reads it, before any asynchronous file staging.
+    /// Claims survive cancellation and process death: retries keep both the addition and any later deletion.
+    func claimNextSampleDrainChunk(before cutoff: Date, limit: Int) throws -> DrainChunk<PendingSampleRecord>? {
+        guard let dbQueue else {
+            throw DBError.noDatabase
+        }
+        precondition(limit > 0)
+        return try dbQueue.write { db in
+            guard let chunk = try Self.fetchNextDrainChunk(of: PendingSampleRecord.self, before: cutoff, limit: limit, in: db) else {
                 return nil
             }
-            let rows = try R
-                .filter(R.sampleTypeColumn == sampleType && R.timestampColumn < cutoff)
-                .order(R.timestampColumn)
-                .limit(limit)
-                .fetchAll(db)
-            return DrainChunk(sampleType: sampleType, rows: rows)
+            try PendingSampleRecord.filter(keys: chunk.rows.map(\.id))
+                .updateAll(db, PendingSampleRecord.Columns.uploadClaimed.set(to: true))
+            return DrainChunk(sampleType: chunk.sampleType, rows: chunk.rows.map { row in
+                var row = row
+                row.uploadClaimed = true
+                return row
+            })
         }
     }
 

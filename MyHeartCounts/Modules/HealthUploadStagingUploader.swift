@@ -266,12 +266,13 @@ final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, S
         let healthUploadStaging = await healthUploadStaging
         let managedFileUpload = await managedFileUpload
         let maximumChunksPerTable = allowance == .limited ? 1 : nil
-        let didDrainSamples = try await drainPendingSamples(
+        let didDrainSamples = try await Self.drainPendingSamples(
             from: healthUploadStaging,
-            to: managedFileUpload,
             before: processingCutoff,
             maximumChunks: maximumChunksPerTable
-        )
+        ) { url in
+            try await managedFileUpload.stage(url, category: .liveHealthUpload)
+        }
         guard didDrainSamples else {
             return
         }
@@ -345,11 +346,11 @@ extension HealthUploadStagingUploader {
     }
 
     @concurrent
-    private func drainPendingSamples(
+    static func drainPendingSamples(
         from healthUploadStaging: HealthUploadStaging,
-        to managedFileUpload: ManagedFileUpload,
         before processingCutoff: Date,
-        maximumChunks: Int?
+        maximumChunks: Int?,
+        stage: @Sendable (URL) async throws -> Void
     ) async throws -> Bool {
         var drainedChunks = 0
         while maximumChunks.map({ drainedChunks < $0 }) ?? true {
@@ -360,8 +361,7 @@ extension HealthUploadStagingUploader {
             guard let chunkSize = Self.drainChunkSize else {
                 return false
             }
-            guard let chunk = try healthUploadStaging.fetchNextDrainChunk(
-                of: HealthUploadStaging.PendingSampleRecord.self,
+            guard let chunk = try healthUploadStaging.claimNextSampleDrainChunk(
                 before: processingCutoff,
                 limit: chunkSize
             ) else {
@@ -387,7 +387,7 @@ extension HealthUploadStagingUploader {
                 try? FileManager.default.removeItem(at: url)
             }
             try Task.checkCancellation()
-            try await managedFileUpload.stage(url, category: .liveHealthUpload)
+            try await stage(url)
             try healthUploadStaging.remove(chunk)
             drainedChunks += 1
         }
