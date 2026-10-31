@@ -70,10 +70,18 @@ struct HealthKitExportOptionsTests {
         #expect(author.version?.contains { $0.value.value?.string == "1" } == true)
     }
 
-    @Test
-    func sampleAnotherSourceWroteStatesNoAuthor() async throws {
-        let sample = try Self.sample(writtenBy: "org.example.other-app", name: "Other App")
-
-        await #expect(try Self.author(in: Self.graph(of: sample)) == nil)
+    @Test(arguments: ["org.example.other-app", "com.apple.health"])
+    func unclassifiedSourceKeepsItsBundleIdentifierWithoutItsName(bundleIdentifier: String) async throws {
+        let sample = try Self.sample(writtenBy: bundleIdentifier, name: "Personal Device Name")
+        let graph = try await Self.graph(of: sample)
+        #expect(try Self.author(in: graph) == nil)
+        let provenance = try #require(graph.bundle.entry?.compactMap { $0.resource?.get(if: Provenance.self) }.first)
+        let revision = try #require(provenance.entity?.first?.extension?.first { entry in
+            entry.url.value?.url.absoluteString == "https://grovealliance.org/fhir/healthkit/StructureDefinition/healthkit-source-revision"
+        })
+        #expect(revision.extension?.map { $0.url.value?.url.absoluteString } == [
+            "sourceBundleIdentifier", "version", "productType", "operatingSystemVersion"
+        ])
+        #expect(revision.extension?.first?.value == .string(FHIRPrimitive(FHIRString(bundleIdentifier))))
     }
 }
