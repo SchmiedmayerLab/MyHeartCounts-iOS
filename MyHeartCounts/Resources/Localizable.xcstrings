@@ -14087,6 +14087,144 @@
           }
         }
       }
+    },
+    "WELCOME_AREA1_DESCRIPTION_IMPERIAL" : {
+      "comment" : "Imperial study version of WELCOME_AREA1_DESCRIPTION",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your involvement helps Imperial College London researchers understand how personalized digital coaching can improve physical activity and your overall health today and in the future."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your involvement helps Imperial College London researchers understand how personalised digital coaching can improve physical activity and your overall health today and in the future."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu participación ayuda a los investigadores del Imperial College London a comprender cómo el entrenamiento digital personalizado puede mejorar la actividad física y tu salud general hoy y en el futuro."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_1_PRIMARY_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_1_PRIMARY_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’re invited to join an Imperial College London research study that tracks physical activity through your smartphone to improve heart health knowledge. You’ll complete brief health surveys and perform simple fitness assessments like the 6-minute walk test using your phone."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’re invited to join an Imperial College London research study that tracks physical activity through your smartphone to improve heart health knowledge. You’ll complete brief health surveys and perform simple fitness assessments like the 6-minute walk test using your phone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le invitamos a unirse a un estudio de investigación del Imperial College London que registra la actividad física a través de su teléfono inteligente para mejorar el conocimiento sobre la salud del corazón. Completará breves encuestas de salud y realizará evaluaciones de condición física sencillas, como la prueba de caminata de 6 minutos, usando su teléfono."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_1_LEARN_MORE_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_1_LEARN_MORE_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This research study is conducted by researchers at Imperial College London to understand how physical activity relates to cardiovascular health. The app will guide you through various assessments including the 6-minute walk test. Your participation is flexible meaning you can engage with the study as much or as little as you choose. The smartphone-based approach allows us to collect data in your natural environment rather than requiring visits to a clinical facility."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This research study is conducted by researchers at Imperial College London to understand how physical activity relates to cardiovascular health. The app will guide you through various assessments including the 6-minute walk test. Your participation is flexible meaning you can engage with the study as much or as little as you choose. The smartphone-based approach allows us to collect data in your natural environment rather than requiring visits to a clinical facility."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este estudio de investigación es llevado a cabo por investigadores del Imperial College London para entender cómo la actividad física se relaciona con la salud cardiovascular. La aplicación lo guiará a través de varias evaluaciones, incluida la prueba de caminata de 6 minutos. Su participación es flexible, lo que significa que puede participar en el estudio tanto como desee. El enfoque basado en teléfonos inteligentes nos permite recopilar datos en su entorno natural en lugar de requerir visitas a una instalación clínica."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_3_PRIMARY_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_3_PRIMARY_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We will collect data from the Health app on your iPhone which will be protected through encryption. Your personal information is stored separately from health data, and you control what sensor and health data you share with us.\n\nBy agreeing to this consent, your data will be combined with data from other participants for analysis by Imperial College London researchers and its research partners."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We will collect data from the Health app on your iPhone which will be protected through encryption. Your personal information is stored separately from health data, and you control what sensor and health data you share with us.\n\nBy agreeing to this consent, your data will be combined with data from other participants for analysis by Imperial College London researchers and its research partners."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recopilaremos datos de la Health app en su iPhone, los cuales estarán protegidos mediante cifrado. Su información personal se almacena por separado de los datos de salud, y usted controla qué datos de sensores y salud comparte con nosotros.\n\nAl aceptar este consentimiento, sus datos se combinarán con datos de otros participantes para ser analizados por los investigadores del Imperial College London y sus socios de investigación."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_3_LEARN_MORE_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_3_LEARN_MORE_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The study collects data through your phone's sensors, including accelerometer data for movement and heart rate if available through connected devices. All data transmission uses encryption technology to protect your information. We separate your identifying information from your health data in our secure databases. You'll have options within the app to control what information is shared. We follow strict protocols approved by a UK Research Ethics Committee to maintain your privacy."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The study collects data through your phone's sensors, including accelerometer data for movement and heart rate if available through connected devices. All data transmission uses encryption technology to protect your information. We separate your identifying information from your health data in our secure databases. You'll have options within the app to control what information is shared. We follow strict protocols approved by a UK Research Ethics Committee to maintain your privacy."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El estudio recopila datos a través de los sensores de su teléfono, incluidos datos del acelerómetro para medir el movimiento y la frecuencia cardíaca, cuando esta se encuentre disponible mediante dispositivos conectados. Toda la transmisión de datos utiliza tecnología de cifrado para proteger su información. Su información identificable se mantiene separada de sus datos de salud en nuestras bases de datos seguras. La aplicación le ofrecerá opciones para controlar qué información se comparte. Seguimos protocolos estrictos aprobados por un Comité de Ética de la Investigación del Reino Unido para proteger su privacidad."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_4_LEARN_MORE_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_4_LEARN_MORE_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Physical risks are minimal but could include temporary muscle soreness or strain from fitness activities. There's also a small risk related to data privacy despite our security measures. Benefits include access to your own activity data and the knowledge that you're contributing to research that may help improve heart health recommendations. Your participation is entirely voluntary, and you can stop participating at any time without penalty by contacting the research team. This research has been reviewed by a UK Research Ethics Committee to ensure participant protection."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Physical risks are minimal but could include temporary muscle soreness or strain from fitness activities. There's also a small risk related to data privacy despite our security measures. Benefits include access to your own activity data and the knowledge that you're contributing to research that may help improve heart health recommendations. Your participation is entirely voluntary, and you can stop participating at any time without penalty by contacting the research team. This research has been reviewed by a UK Research Ethics Committee to ensure participant protection."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los riesgos físicos son mínimos, pero podrían incluir dolor o tensión muscular temporal debido a actividades físicas. También hay un pequeño riesgo relacionado con la privacidad de los datos a pesar de nuestras medidas de seguridad. Los beneficios incluyen el acceso a sus propios datos de actividad y el conocimiento de que está contribuyendo a una investigación que puede ayudar a mejorar las recomendaciones de salud del corazón. Su participación es completamente voluntaria, y puede dejar de participar en cualquier momento sin penalización contactando al equipo de investigación. Esta investigación ha sido revisada por un Comité de Ética de la Investigación del Reino Unido para garantizar la protección de los participantes."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

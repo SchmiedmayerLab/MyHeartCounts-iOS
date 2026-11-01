@@ -9,6 +9,7 @@
 import Grove
 import GroveOnboarding
 import GroveViews
+import MHCStudyDefinition
 import SFSafeSymbols
 import SwiftUI
 
@@ -31,7 +32,7 @@ struct Welcome: View {
         Grid(horizontalSpacing: 16, verticalSpacing: 16) {
             OnboardingIconGridRow(
                 icon: .appBadge,
-                text: "WELCOME_AREA1_DESCRIPTION"
+                text: StudyVariant.current.localized(stanford: "WELCOME_AREA1_DESCRIPTION", imperial: "WELCOME_AREA1_DESCRIPTION_IMPERIAL")
             )
             OnboardingIconGridRow(
                 icon: .wandAndSparklesInverse,
