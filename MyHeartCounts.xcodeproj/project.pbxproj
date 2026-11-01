@@ -1233,8 +1233,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git";
 			requirement = {
-				kind = exactVersion;
-				version = 0.3.0;
+				kind = revision;
+				revision = 52d67dac95d37269f66389cefd34981a02b156a7;
 			};
 		};
 		8076696C2D772C07001B980B /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {

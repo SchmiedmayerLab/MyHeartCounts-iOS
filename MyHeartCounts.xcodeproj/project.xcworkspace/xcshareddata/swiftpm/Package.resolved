@@ -141,8 +141,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git",
       "state" : {
-        "revision" : "8a862f94fb68332e2654b783cbc3dbc262e071a3",
-        "version" : "0.3.0"
+        "revision" : "52d67dac95d37269f66389cefd34981a02b156a7"
       }
     },
     {
