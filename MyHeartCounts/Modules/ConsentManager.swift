@@ -127,6 +127,21 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
             initialName: account?.details?.name
         )
     }
+    
+    /// The Participant Information Sheet that participants read before signing the consent, if the current study bundle has one.
+    func loadParticipantInformation() -> MarkdownDocument? {
+        guard let studyBundle = try? studyBundleLoader.studyBundle?.get(),
+              let studyVariant = DeferredConfigLoading.activeStudyVariant,
+              let text = studyBundle.consentText(
+                for: ParticipantInformationSheet.fileRef,
+                in: studyVariant.consentLocale(preferred: studyManager.preferredLocale),
+                using: .requirePerfectMatch,
+                fallbackLocale: nil
+              ) else {
+            return nil
+        }
+        return try? MarkdownDocument(processing: text)
+    }
 }
 
 

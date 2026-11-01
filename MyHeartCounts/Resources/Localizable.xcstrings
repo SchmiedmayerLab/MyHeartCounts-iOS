@@ -14071,6 +14071,22 @@
           }
         }
       }
+    },
+    "Participant Information Sheet" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Participant Information Sheet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoja de información para participantes"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
