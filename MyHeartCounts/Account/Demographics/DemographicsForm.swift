@@ -17,6 +17,7 @@ import MHCStudyDefinition
 import MyHeartCountsShared
 import SFSafeSymbols
 import SwiftUI
+import UIKit
 
 
 // MARK: DemographicsForm
@@ -105,9 +106,22 @@ private struct Impl<Footer: View>: View {
         }
         .accessibilityIdentifier("DemographicsForm")
         .viewStateAlert(state: $viewState)
+        // the NHS and CHI number fields use the number pad, which has no return key to dismiss it.
+        .scrollDismissesKeyboard(.interactively)
         .toolbar {
             if ProcessInfo.isBeingUITested {
                 testingSupportToolbarItem
+            }
+            ToolbarItem(placement: .keyboard) {
+                HStack {
+                    Spacer()
+                    Button {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    } label: {
+                        Image(systemSymbol: .keyboardChevronCompactDown)
+                            .accessibilityLabel("Hide Keyboard")
+                    }
+                }
             }
         }
     }

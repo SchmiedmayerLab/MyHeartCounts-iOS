@@ -14055,6 +14055,22 @@
           }
         }
       }
+    },
+    "Hide Keyboard" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Keyboard"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocultar teclado"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
