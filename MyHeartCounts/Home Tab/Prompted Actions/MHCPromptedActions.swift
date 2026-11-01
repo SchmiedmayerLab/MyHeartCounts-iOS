@@ -58,6 +58,13 @@ extension PromptedAction {
     private static let enableClinicalRecords = PromptedAction(
         id: .clinicalRecords,
         state: { context in
+            switch StudyVariant.current {
+            case .stanford:
+                break
+            case .imperial:
+                // the Imperial study obtains health records through NHS data linkage instead
+                return .unavailable
+            }
             guard context.daysSinceActivation <= 21 else {
                 return .unavailable
             }
