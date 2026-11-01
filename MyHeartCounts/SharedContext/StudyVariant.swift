@@ -22,6 +22,11 @@ extension AccountDetails {
 
 
 extension StudyVariant {
+    /// The study variant whose texts the app presents: the active variant, else the build's forced variant, else Stanford.
+    @MainActor static var current: StudyVariant {
+        DeferredConfigLoading.activeStudyVariant ?? FeatureFlags.forcedStudyVariant ?? .stanford
+    }
+
     var region: Locale.Region {
         switch self {
         case .stanford: .unitedStates
@@ -38,6 +43,17 @@ extension StudyVariant {
         switch self {
         case .stanford: "/public/news/"
         case .imperial: "/public/news-UK/"
+        }
+    }
+
+    /// Selects the variant-specific version of a localized text.
+    ///
+    /// Study variant is a localization axis separate from language: variant-dependent texts use one string catalog key per variant,
+    /// each localized into all app languages as usual. Every variant is spelled out, so that adding one makes the compiler flag each call site.
+    func localized(stanford: LocalizedStringResource, imperial: LocalizedStringResource) -> LocalizedStringResource {
+        switch self {
+        case .stanford: stanford
+        case .imperial: imperial
         }
     }
 

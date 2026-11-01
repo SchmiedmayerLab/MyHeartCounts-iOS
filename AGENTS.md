@@ -113,9 +113,14 @@ The StudyBundle, consisting of a StudyDefinition and resources referenced by the
     - if an entry in the localizations catalogue uses a key that is not human-readable (e.g., `ONBOARDING_TITLE`), it must have explicit translations for all languages (including english)
     - if an entry uses a key that is human-readable english, the English (US) and English(UK) translations may be omitted
     - all entries containing text that is different in US vs UK english must have dedicated translations for both languages
+- Localization (study variant):
+    - text can depend on two independent axes: the language (en-US, en-GB, es) and the study variant (Stanford, Imperial)
+    - the language never implies the variant: a UK participant may use en-US, and a US participant may use en-GB; `en-GB` translations only adapt spelling and wording to British English
+    - app-level: a text that differs between variants uses one string catalog key per variant, selected via `StudyVariant.localized(stanford:imperial:)` (usually on `StudyVariant.current`); each of these keys is localized into all languages as usual
+    - study-level: a StudyBundle resource that differs between variants exists once per variant, e.g. `Consent~stanford+en-US.md` and `Consent~imperial+en-GB.md`; all versions of a resource either specify a variant or none
 - Localization (study-level):
     - within a StudyBundle, localization is handled by providing multiple versions of each localized resource, and then dynamically selecting the best match
-    - for files, this means that a localized `PHQ9.json` questionnaire would actually exist as several files: `PHQ9+en-US.json`, `PHQ9+es-US.json`, etc (these two locales are what the StudyBundle currently ships; there are no `+en-GB` resources)
+    - for files, this means that a localized `PHQ9.json` questionnaire would actually exist as several files: `PHQ9+en-US.json`, `PHQ9+es-US.json`, etc (most resources ship these two locales; Imperial-variant resources ship `+en-GB`)
 - Localization (Other)
     - The app is deployed to users in different regions of the world. No sssumptions should be made wrt region, and all user-visible elements should use appropriate iOS APIs that produce locale-aware output, e.g., when formatting numbers.
     - This also extends to units: the app should never assume that the user wants metric or US or imperial units; instead it should use appropriate locale-based units.
