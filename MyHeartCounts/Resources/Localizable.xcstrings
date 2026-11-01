@@ -1740,22 +1740,6 @@
         }
       }
     },
-    "College/University Graduate Degree" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "College/University Graduate Degree"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Posgrado universitario (maestría/doctorado)"
-          }
-        }
-      }
-    },
     "Colorado" : {
       "localizations" : {
         "en-GB" : {
@@ -5346,22 +5330,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Massachusetts"
-          }
-        }
-      }
-    },
-    "Master" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Master"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Maestría"
           }
         }
       }
@@ -10536,38 +10504,6 @@
         }
       }
     },
-    "Vocational Training" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vocational Training"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Formación profesional"
-          }
-        }
-      }
-    },
-    "Vocational training / apprenticeship / diploma" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vocational training / apprenticeship / diploma"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Formación profesional / aprendizaje / diploma"
-          }
-        }
-      }
-    },
     "w" : {
       "localizations" : {
         "es" : {
@@ -13269,6 +13205,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Su corazón ha latido unas %1$@ veces desde que se inscribió, aproximadamente el %2$@ de una vida promedio."
+          }
+        }
+      }
+    },
+    "High school / A levels / GCSE" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "High school / A levels / GCSE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Educación secundaria / A levels / GCSE"
+          }
+        }
+      }
+    },
+    "Undergraduate" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undergraduate"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grado universitario"
+          }
+        }
+      }
+    },
+    "Postgraduate Master's" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Postgraduate Master's"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máster (posgrado)"
+          }
+        }
+      }
+    },
+    "Postgraduate Doctorate" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Postgraduate Doctorate"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doctorado (posgrado)"
           }
         }
       }
