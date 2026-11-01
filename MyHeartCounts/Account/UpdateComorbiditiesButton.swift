@@ -35,7 +35,7 @@ struct UpdateComorbiditiesButton: View {
         .sheet(isPresented: $showSheet) {
             @Bindable var data = demographicsData
             NavigationStack {
-                ComorbiditiesPicker(selection: $data[\.comorbidities].withDefault(Comorbidities()))
+                ComorbiditiesPicker(studyVariant: .current, selection: $data[\.comorbidities].withDefault(Comorbidities()))
                     .navigationBarTitleDisplayMode(.inline)
                     .interactiveDismissDisabled()
                     .toolbar {

@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import MHCStudyDefinition
 import SFSafeSymbols
 import SwiftUI
 
@@ -19,6 +20,7 @@ struct ComorbiditiesPicker: View {
     
     @Binding private var comorbidities: Comorbidities
     @State private var highlightedOption: Comorbidity?
+    private let studyVariant: StudyVariant
     
     var body: some View {
         Form {
@@ -44,13 +46,14 @@ struct ComorbiditiesPicker: View {
                 }
             }
         }
-        .navigationTitle("Select Comorbidities")
+        .navigationTitle(Text(studyVariant.localized(stanford: "Select Comorbidities", imperial: "Select Health Conditions")))
         .sheet(item: $highlightedOption) { option in
-            Sheet(option: option, selection: $comorbidities[option])
+            Sheet(option: option, studyVariant: studyVariant, selection: $comorbidities[option])
         }
     }
     
-    init(selection: Binding<Comorbidities>) {
+    init(studyVariant: StudyVariant, selection: Binding<Comorbidities>) {
+        self.studyVariant = studyVariant
         _comorbidities = selection
     }
     
@@ -98,6 +101,7 @@ extension ComorbiditiesPicker {
         private var locale
         
         let option: Comorbidity
+        let studyVariant: StudyVariant
         @Binding var selection: Comorbidities.Status
         
         var body: some View {
@@ -110,7 +114,7 @@ extension ComorbiditiesPicker {
                             }
                         } label: {
                             HStack {
-                                Text("I have this comorbidity")
+                                Text(studyVariant.localized(stanford: "I have this comorbidity", imperial: "I have this health condition"))
                                 Spacer()
                                 // No need to have a condition here, this sheet is only presented if the user has selected yes.
                                 Image(systemSymbol: .checkmark)
@@ -118,7 +122,7 @@ extension ComorbiditiesPicker {
                                     .accessibilityLabel("Selection Checkmark")
                             }
                         }
-                        Button("I don't have this comorbidity") {
+                        Button(studyVariant.localized(stanford: "I don't have this comorbidity", imperial: "I don't have this health condition")) {
                             selection = .notSelected
                             dismiss()
                         }

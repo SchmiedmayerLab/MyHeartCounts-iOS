@@ -13688,6 +13688,293 @@
           }
         }
       }
+    },
+    "Health Conditions" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health Conditions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Problemas de salud"
+          }
+        }
+      }
+    },
+    "Select Health Conditions" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Health Conditions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seleccionar problemas de salud"
+          }
+        }
+      }
+    },
+    "I have this health condition" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I have this health condition"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tengo este problema de salud"
+          }
+        }
+      }
+    },
+    "I don't have this health condition" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I don't have this health condition"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No tengo este problema de salud"
+          }
+        }
+      }
+    },
+    "Physical Activity Habits" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Physical Activity Habits"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hábitos de actividad física"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_A_TITLE" : {
+      "comment" : "Short title of stage-of-change option A, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usually active"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usually active"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normalmente activo/a"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_B_TITLE" : {
+      "comment" : "Short title of stage-of-change option B, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active as part of my routine"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active as part of my routine"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activo/a como parte de mi rutina"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_C_TITLE" : {
+      "comment" : "Short title of stage-of-change option C, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not active and not considering it"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not active and not considering it"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No activo/a y sin planes de serlo"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_D_TITLE" : {
+      "comment" : "Short title of stage-of-change option D, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thinking about starting"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thinking about starting"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pensando en empezar"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_E_TITLE" : {
+      "comment" : "Short title of stage-of-change option E, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planning to start soon"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planning to start soon"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planeando empezar pronto"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_F_TITLE" : {
+      "comment" : "Short title of stage-of-change option F, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started in the last 6 months"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started in the last 6 months"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empecé en los últimos 6 meses"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_G_TITLE" : {
+      "comment" : "Short title of stage-of-change option G, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started over 6 months ago"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started over 6 months ago"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empecé hace más de 6 meses"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_H_TITLE" : {
+      "comment" : "Short title of stage-of-change option H, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active most weeks"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active most weeks"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activo/a la mayoría de las semanas"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_I_TITLE" : {
+      "comment" : "Short title of stage-of-change option I, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active for several years"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active for several years"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activo/a desde hace varios años"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -172,7 +172,7 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
     Section {
         LeafComponent(\.comorbidities, isRequired: didOptInToTrial) { binding, _ in
             NavigationLink {
-                ComorbiditiesPicker(selection: binding.withDefault(Comorbidities()))
+                ComorbiditiesPicker(studyVariant: studyVariant, selection: binding.withDefault(Comorbidities()))
                     .onAppear {
                         if binding.wrappedValue == nil {
                             // If the value initially is nil, we set it to an empty selection when the picker is presented
@@ -183,10 +183,11 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                         }
                     }
             } label: {
+                let title = studyVariant.localized(stanford: "Comorbidities", imperial: "Health Conditions")
                 if let comorbidities = binding.wrappedValue {
-                    NavigationLinkLabel("Comorbidities", isEmpty: false, value: "\(comorbidities.count) selected")
+                    NavigationLinkLabel(title, isEmpty: false, value: "\(comorbidities.count) selected")
                 } else {
-                    NavigationLinkLabel("Comorbidities", isEmpty: true, value: "Not Set")
+                    NavigationLinkLabel(title, isEmpty: true, value: "Not Set")
                 }
             }
         }
@@ -265,12 +266,12 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
     Section {
         LeafComponent(\.stageOfChange, isRequired: didOptInToTrial) { binding, completionState in
             NavigationLink {
-                StageOfChangePicker(selection: binding)
+                StageOfChangePicker(studyVariant: studyVariant, selection: binding)
             } label: {
                 NavigationLinkLabel(
-                    "Stage of Change",
+                    studyVariant.localized(stanford: "Stage of Change", imperial: "Physical Activity Habits"),
                     completionState: completionState,
-                    value: completionState.isIncomplete ? "No Selection" : "\(binding.withDefault(.notSet).id.uppercased())"
+                    value: completionState.isIncomplete ? "No Selection" : binding.withDefault(.notSet).label(for: studyVariant)
                 )
             }
         }
