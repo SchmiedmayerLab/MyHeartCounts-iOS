@@ -9,6 +9,7 @@
 import FirebaseCore
 import FirebaseFunctions
 import GroveAccount
+import GroveConsent
 import GroveHealthKitBulkExport
 import GroveLicense
 import GroveSensorKit
@@ -26,6 +27,7 @@ struct AccountSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openSettingsApp) private var openSettingsApp
     @Environment(Account.self) private var account
+    @Environment(ConsentManager.self) private var consentManager: ConsentManager?
     @Environment(HistoricalHealthSamplesExportManager.self) private var historicalDataExportMgr
     @Environment(ManagedFileUpload.self) private var managedFileUpload
     @Environment(SensorKitDataFetcher.self) private var sensorKitDataFetcher
@@ -34,6 +36,7 @@ struct AccountSheet: View {
     
     @State private var isInSetup = false
     @State private var isPresentingFeedbackSheet = false
+    @State private var withdrawalSigning: WithdrawalSigningRequest?
     
     @AccountFeatureFlagQuery(.isDebugModeEnabled)
     private var debugModeEnabled
@@ -45,18 +48,7 @@ struct AccountSheet: View {
         NavigationStack {
             ZStack {
                 if account.signedIn && !isInSetup {
-                    AccountOverview(
-                        close: .showCloseButton,
-                        deletion: showsWithdrawalBelowLogout
-                            ? .belowLogout(.custom(labels: .withdrawFromStudy) {
-                                try await withdrawFromStudy()
-                            })
-                            : .inEditMode(.custom(labels: .withdrawFromStudy) {
-                                try await withdrawFromStudy()
-                            })
-                    ) {
-                        accountSheetExtraContent
-                    }
+                    accountOverview
                 } else {
                     AccountSetup { _ in
                         if dismissAfterSignIn {
@@ -75,8 +67,32 @@ struct AccountSheet: View {
                     FeedbackForm()
                 }
             }
+            .sheet(item: $withdrawalSigning) { request in
+                WithdrawalForm(document: request.document) {
+                    request.finish(didSign: true)
+                }
+                .onDisappear {
+                    // dismissing the form without signing it cancels the withdrawal
+                    request.finish(didSign: false)
+                }
+            }
         }
         .accessibilityIdentifier("MHC:AccountSheet")
+    }
+    
+    private var accountOverview: some View {
+        AccountOverview(
+            close: .showCloseButton,
+            deletion: showsWithdrawalBelowLogout
+                ? .belowLogout(.custom(labels: .withdrawFromStudy) {
+                    try await withdrawFromStudy()
+                })
+                : .inEditMode(.custom(labels: .withdrawFromStudy) {
+                    try await withdrawFromStudy()
+                })
+        ) {
+            accountSheetExtraContent
+        }
     }
     
     @ViewBuilder private var accountSheetExtraContent: some View {
@@ -232,10 +248,40 @@ struct AccountSheet: View {
     }
     
     private func withdrawFromStudy() async throws {
+        if let withdrawalForm = consentManager?.loadWithdrawalForm() {
+            // the study requires a signed record of the withdrawal, which is kept with the participant's consent forms.
+            let didSign = await withCheckedContinuation { continuation in
+                withdrawalSigning = WithdrawalSigningRequest(document: withdrawalForm, continuation: continuation)
+            }
+            guard didSign else {
+                throw CancellationError()
+            }
+        }
         _ = try await Functions.functions()
             .httpsCallable("markAccountForStudyWithdrawal")
             .call([:])
         try await account.accountService.logout()
+    }
+}
+
+
+extension AccountSheet {
+    /// A pending request for the participant to sign the study's withdrawal form, which the withdrawal waits for.
+    @MainActor
+    private final class WithdrawalSigningRequest: Identifiable {
+        let document: ConsentDocument
+        private var continuation: CheckedContinuation<Bool, Never>?
+        
+        init(document: ConsentDocument, continuation: CheckedContinuation<Bool, Never>) {
+            self.document = document
+            self.continuation = continuation
+        }
+        
+        /// Resumes the waiting withdrawal; calls after the first one have no effect.
+        func finish(didSign: Bool) {
+            continuation?.resume(returning: didSign)
+            continuation = nil
+        }
     }
 }
 

@@ -130,17 +130,30 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
     
     /// The Participant Information Sheet that participants read before signing the consent, if the current study bundle has one.
     func loadParticipantInformation() -> MarkdownDocument? {
+        loadTextNextToConsent(ParticipantInformationSheet.fileRef).flatMap { text in
+            try? MarkdownDocument(processing: text)
+        }
+    }
+    
+    /// The form in which participants sign their withdrawal from the study, if the current study bundle has one.
+    func loadWithdrawalForm() -> ConsentDocument? {
+        loadTextNextToConsent(WithdrawalForm.fileRef).flatMap { text in
+            try? ConsentDocument(markdown: text, initialName: account?.details?.name)
+        }
+    }
+    
+    /// Loads a document that the current study bundle stores next to its consent, in the consent's locale.
+    private func loadTextNextToConsent(_ fileRef: StudyBundle.FileReference) -> String? {
         guard let studyBundle = try? studyBundleLoader.studyBundle?.get(),
-              let studyVariant = DeferredConfigLoading.activeStudyVariant,
-              let text = studyBundle.consentText(
-                for: ParticipantInformationSheet.fileRef,
-                in: studyVariant.consentLocale(preferred: studyManager.preferredLocale),
-                using: .requirePerfectMatch,
-                fallbackLocale: nil
-              ) else {
+              let studyVariant = DeferredConfigLoading.activeStudyVariant else {
             return nil
         }
-        return try? MarkdownDocument(processing: text)
+        return studyBundle.consentText(
+            for: fileRef,
+            in: studyVariant.consentLocale(preferred: studyManager.preferredLocale),
+            using: .requirePerfectMatch,
+            fallbackLocale: nil
+        )
     }
 }
 

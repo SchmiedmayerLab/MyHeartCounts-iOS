@@ -83,7 +83,7 @@ struct Consent: View {
 
 
 extension Locale {
-    fileprivate var preferredPaperSize: ConsentDocument.ExportConfiguration.PaperSize {
+    var preferredPaperSize: ConsentDocument.ExportConfiguration.PaperSize {
         switch self.region {
         case .unitedStates: .usLetter
         default: .dinA4
