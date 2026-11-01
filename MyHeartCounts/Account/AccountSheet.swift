@@ -47,9 +47,13 @@ struct AccountSheet: View {
                 if account.signedIn && !isInSetup {
                     AccountOverview(
                         close: .showCloseButton,
-                        deletion: .inEditMode(.custom(labels: .withdrawFromStudy) {
-                            try await withdrawFromStudy()
-                        })
+                        deletion: showsWithdrawalBelowLogout
+                            ? .belowLogout(.custom(labels: .withdrawFromStudy) {
+                                try await withdrawFromStudy()
+                            })
+                            : .inEditMode(.custom(labels: .withdrawFromStudy) {
+                                try await withdrawFromStudy()
+                            })
                     ) {
                         accountSheetExtraContent
                     }
@@ -120,6 +124,14 @@ struct AccountSheet: View {
                         .foregroundStyle(.textLabel)
                 }
             }
+        }
+    }
+    
+    /// Imperial participants found "Withdraw from Study" hard to discover behind "Edit", so their account sheet lists it below "Log Out".
+    private var showsWithdrawalBelowLogout: Bool {
+        switch StudyVariant.current {
+        case .stanford: false
+        case .imperial: true
         }
     }
     
