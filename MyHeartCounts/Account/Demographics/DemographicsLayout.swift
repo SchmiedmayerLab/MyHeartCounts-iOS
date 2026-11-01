@@ -252,16 +252,33 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
         }
     }
     if studyVariant == .imperial {
+        // Scotland issues CHI numbers instead of NHS numbers.
         LeafComponent(\.nhsNumber, isRequired: false) { binding, _ in
             let binding = binding.withDefault(NHSNumber(unchecked: ""))
-            SwiftUI.Section {
-                NHSNumberTextField(value: binding)
-            } header: {
-                Text("NHS Number")
-            } footer: {
-                Link2("Find your NHS Number", "https://www.nhs.uk/nhs-services/online-services/find-nhs-number/")
-                    .font(.footnote)
-                    .tint(.blue)
+            ShownForScotland(false) {
+                SwiftUI.Section {
+                    HealthServiceNumberTextField(value: binding)
+                } header: {
+                    Text("NHS Number")
+                } footer: {
+                    Link2("Find your NHS Number", "https://www.nhs.uk/nhs-services/online-services/find-nhs-number/")
+                        .font(.footnote)
+                        .tint(.blue)
+                }
+            }
+        }
+        LeafComponent(\.chiNumber, isRequired: false) { binding, _ in
+            let binding = binding.withDefault(CHINumber(unchecked: ""))
+            ShownForScotland(true) {
+                SwiftUI.Section {
+                    HealthServiceNumberTextField(value: binding)
+                } header: {
+                    Text("CHI Number")
+                } footer: {
+                    Link2("Find your CHI Number", "https://mycare.scot")
+                        .font(.footnote)
+                        .tint(.blue)
+                }
             }
         }
     }
@@ -342,6 +359,30 @@ private struct NavigationLinkLabel: View {
         self.title = title
         self.value = value
         self.valueForegroundColor = completionState.suggestedForegroundColor
+    }
+}
+
+
+/// Shows its content only if whether the selected UK region lies in Scotland matches `isScotland`.
+private struct ShownForScotland<Content: View>: View {
+    @Environment(DemographicsData.self) private var data
+    
+    private let isScotland: Bool
+    private let content: Content
+    
+    var body: some View {
+        let selectionIsScotland = switch data[\.ukRegion] {
+        case .some(.scotland): true
+        default: false
+        }
+        if selectionIsScotland == isScotland {
+            content
+        }
+    }
+    
+    init(_ isScotland: Bool, @ViewBuilder content: () -> Content) {
+        self.isScotland = isScotland
+        self.content = content()
     }
 }
 

@@ -316,6 +316,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
                         .manual(\.educationUK),
                         .manual(\.comorbidities),
                         .manual(\.nhsNumber),
+                        .manual(\.chiNumber),
                         .manual(\.referralSource),
                         // env tracking
                         .manual(\.mostRecentOnboardingStep),

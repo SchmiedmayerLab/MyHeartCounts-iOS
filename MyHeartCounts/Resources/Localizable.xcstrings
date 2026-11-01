@@ -14007,6 +14007,54 @@
           }
         }
       }
+    },
+    "CHI Number" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CHI Number"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Número CHI"
+          }
+        }
+      }
+    },
+    "Not a valid CHI number" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not a valid CHI number"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es un número CHI válido"
+          }
+        }
+      }
+    },
+    "Find your CHI Number" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find your CHI Number"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busca tu número CHI"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

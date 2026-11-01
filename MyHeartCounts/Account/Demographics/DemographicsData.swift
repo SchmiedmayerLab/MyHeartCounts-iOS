@@ -108,6 +108,9 @@ final class DemographicsData {
     var nhsNumber = Field<NHSNumber>() {
         didSet { onChange() }
     }
+    var chiNumber = Field<CHINumber>() {
+        didSet { onChange() }
+    }
     var futureStudiesOptIn = Field<Bool>() {
         didSet { onChange() }
     }
@@ -160,6 +163,7 @@ final class DemographicsData {
         self[\.usHouseholdIncome] = details.householdIncomeUS
         self[\.ukHouseholdIncome] = details.householdIncomeUK
         self[\.nhsNumber] = details.nhsNumber
+        self[\.chiNumber] = details.chiNumber
         self[\.futureStudiesOptIn] = details.futureStudies
         self[\.stageOfChange] = details.stageOfChange
         self[\.referralSource] = details.referralSource
@@ -261,6 +265,7 @@ final class DemographicsData {
         write(\.usHouseholdIncome, to: \.householdIncomeUS)
         write(\.ukHouseholdIncome, to: \.householdIncomeUK)
         write(\.nhsNumber, to: \.nhsNumber)
+        write(\.chiNumber, to: \.chiNumber)
         write(\.futureStudiesOptIn, to: \.futureStudies)
         write(\.stageOfChange, to: \.stageOfChange)
         write(\.referralSource, to: \.referralSource)
