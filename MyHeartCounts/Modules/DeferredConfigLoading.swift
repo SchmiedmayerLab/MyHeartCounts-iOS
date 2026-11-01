@@ -308,6 +308,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
                         .manual(\.heightInCM),
                         .manual(\.weightInKG),
                         .manual(\.raceEthnicity),
+                        .manual(\.ethnicityUK),
                         .manual(\.latinoStatus),
                         .manual(\.biologicalSexAtBirth),
                         .manual(\.bloodType),

@@ -243,16 +243,17 @@ extension Impl {
                 data[\.sexAtBirth] = .male
                 data[\.height] = HKQuantity(unit: .meterUnit(with: .centi), doubleValue: 186)
                 data[\.weight] = HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: 67)
-                data[\.raceEthnicity] = .white
                 data[\.bloodType] = .aPositive
                 data[\.comorbidities] = .init()
                 switch studyVariant {
                 case .stanford:
+                    data[\.raceEthnicity] = .white
                     data[\.latinoStatus] = LatinoStatusOption.options[0]
                     data[\.usRegion] = .dc
                     data[\.usEducationLevel] = EducationStatusUS.options[0]
                     data[\.usHouseholdIncome] = HouseholdIncomeUS.options[0]
                 case .imperial:
+                    data[\.ukEthnicity] = EthnicityUK.options[0]
                     data[\.ukRegion] = .england(.init(name: "London"))
                     data[\.ukEducationLevel] = EducationStatusUK.options[0]
                     data[\.ukHouseholdIncome] = HouseholdIncomeUK.options[0]

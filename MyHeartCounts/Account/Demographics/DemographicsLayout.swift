@@ -137,23 +137,32 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
         BodyMeasurementRow(descriptor: .weight)
     }
     Section {
-        LeafComponent(\.raceEthnicity) { binding, completionState in
-            let binding = binding.withDefault([])
-            NavigationLink {
-                RaceEthnicityPicker(selection: binding)
-            } label: {
-                HStack {
-                    Text("Race / Ethnicity")
-                    Spacer()
-                    Text(binding.wrappedValue.localizedDisplayTitle)
-                        .foregroundStyle(completionState.suggestedForegroundColor)
+        switch studyVariant {
+        case .stanford:
+            LeafComponent(\.raceEthnicity) { binding, completionState in
+                let binding = binding.withDefault([])
+                NavigationLink {
+                    RaceEthnicityPicker(selection: binding)
+                } label: {
+                    HStack {
+                        Text("Race / Ethnicity")
+                        Spacer()
+                        Text(binding.wrappedValue.localizedDisplayTitle)
+                            .foregroundStyle(completionState.suggestedForegroundColor)
+                    }
                 }
             }
-        }
-        if studyVariant == .stanford {
             LeafComponent(\.latinoStatus) { binding, completionState in
                 makeSimpleValuePickerRow(
                     "Are you Hispanic/Latino?",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
+            }
+        case .imperial:
+            LeafComponent(\.ukEthnicity) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Ethnicity",
                     binding: binding.withDefault(.notSet),
                     completionState: completionState
                 )

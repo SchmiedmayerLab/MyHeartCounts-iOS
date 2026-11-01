@@ -72,6 +72,9 @@ final class DemographicsData {
     var raceEthnicity = Field<RaceEthnicity>(isEmpty: { $0.isEmpty }) {
         didSet { onChange() }
     }
+    var ukEthnicity = Field<EthnicityUK>(isEmpty: { $0 == .notSet }) {
+        didSet { onChange() }
+    }
     var latinoStatus = Field<LatinoStatusOption>(isEmpty: { $0 == .notSet }) {
         didSet { onChange() }
     }
@@ -142,6 +145,7 @@ final class DemographicsData {
         self[\.height] = details.heightInCM.map { HKQuantity(unit: .meterUnit(with: .centi), doubleValue: $0) }
         self[\.weight] = details.weightInKG.map { HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: $0) }
         self[\.raceEthnicity] = details.raceEthnicity
+        self[\.ukEthnicity] = details.ethnicityUK
         self[\.latinoStatus] = details.latinoStatus
         self[\.bloodType] = details.bloodType
         self[\.comorbidities] = details.comorbidities
@@ -241,6 +245,7 @@ final class DemographicsData {
             $0.doubleValue(for: .gramUnit(with: .kilo))
         }
         write(\.raceEthnicity, to: \.raceEthnicity)
+        write(\.ukEthnicity, to: \.ethnicityUK)
         write(\.latinoStatus, to: \.latinoStatus)
         write(\.bloodType, to: \.bloodType)
         write(\.comorbidities, to: \.comorbidities)
