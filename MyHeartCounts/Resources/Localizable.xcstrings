@@ -13975,6 +13975,38 @@
           }
         }
       }
+    },
+    "Postcode" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Postcode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código postal"
+          }
+        }
+      }
+    },
+    "Not a valid UK postcode" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not a valid UK postcode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es un código postal del Reino Unido válido"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

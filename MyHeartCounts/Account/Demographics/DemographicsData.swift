@@ -90,6 +90,9 @@ final class DemographicsData {
     var ukRegion = Field<UKRegion>() {
         didSet { onChange() }
     }
+    var ukPostcode = Field<String>(isEmpty: { $0.isEmpty }) {
+        didSet { onChange() }
+    }
     var usEducationLevel = Field<EducationStatusUS>() {
         didSet { onChange() }
     }
@@ -151,6 +154,7 @@ final class DemographicsData {
         self[\.comorbidities] = details.comorbidities
         self[\.usRegion] = details.usRegion
         self[\.ukRegion] = details.ukRegion
+        self[\.ukPostcode] = details.ukPostcode
         self[\.usEducationLevel] = details.educationUS
         self[\.ukEducationLevel] = details.educationUK
         self[\.usHouseholdIncome] = details.householdIncomeUS
@@ -251,6 +255,7 @@ final class DemographicsData {
         write(\.comorbidities, to: \.comorbidities)
         write(\.usRegion, to: \.usRegion)
         write(\.ukRegion, to: \.ukRegion)
+        write(self[\.ukPostcode].flatMap { $0.isEmpty ? nil : $0 }, to: \.ukPostcode)
         write(\.usEducationLevel, to: \.educationUS)
         write(\.ukEducationLevel, to: \.educationUK)
         write(\.usHouseholdIncome, to: \.householdIncomeUS)
