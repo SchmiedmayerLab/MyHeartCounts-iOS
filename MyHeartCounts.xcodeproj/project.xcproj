@@ -1,0 +1,832 @@
+{
+  "default-configuration": "Release",
+  "configurations": [
+    "Debug",
+    "Release",
+  ],
+  "localizations": {
+    "development": "en",
+    "supported": [
+      "Base",
+      "en-GB",
+      "es",
+    ],
+  },
+  "packages": [
+    {
+      "kind": "remote",
+      "repository": "https://github.com/firebase/firebase-ios-sdk.git",
+      "version": {
+        "up-to-next-major-version": "12.12.1",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/SimplyDanny/SwiftLintPlugins.git",
+      "version": {
+        "up-to-next-major-version": "0.65.0",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/SFSafeSymbols/SFSafeSymbols",
+      "version": {
+        "up-to-next-major-version": "7.0.0",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/apple/swift-algorithms.git",
+      "version": {
+        "up-to-next-major-version": "1.2.1",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/apple/swift-collections.git",
+      "version": {
+        "up-to-next-major-version": "1.1.4",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/gonzalezreal/swift-markdown-ui.git",
+      "version": {
+        "up-to-next-major-version": "2.4.1",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/FelixHerrmann/swift-package-list.git",
+      "version": {
+        "up-to-next-major-version": "4.8.0",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/SchmiedmayerLab/ResearchKit.git",
+      "version": {
+        "up-to-next-major-version": "3.1.5",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/apple/swift-nio.git",
+      "version": {
+        "up-to-next-major-version": "2.87.0",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/SchmiedmayerLab/FHIRModels.git",
+      "version": {
+        "up-to-next-minor-version": "0.9.0",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git",
+      "version": {
+        "version": "0.3.0",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/apple/swift-async-algorithms.git",
+      "version": {
+        "up-to-next-major-version": "1.1.3",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/groue/GRDB.swift.git",
+      "version": {
+        "up-to-next-major-version": "7.10.0",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/SchmiedmayerLab/Grove.git",
+      "version": {
+        "version": "0.3.0-beta.9",
+      },
+      "traits": [
+        "Textual",
+        "default",
+      ],
+    },
+  ],
+  "files": [
+    { "path": "README.md" },
+    { "path": "CONTRIBUTORS.md" },
+    { "path": "MyHeartCountsShared" },
+    {
+      "kind": "folder",
+      "path": "MyHeartCounts",
+      "target-membership": [
+        "MyHeartCounts",
+      ],
+      "membership-exceptions": [
+        {
+          "target": "MyHeartCounts",
+          "exclusions": [
+            "Supporting Files/Info.plist",
+          ],
+        },
+      ],
+    }, {
+      "kind": "folder",
+      "path": "MyHeartCountsTests",
+      "target-membership": [
+        "MyHeartCountsTests",
+      ],
+      "membership-exceptions": [
+        {
+          "target": "MyHeartCountsTests",
+          "exclusions": [
+            "MyHeartCounts Unit Tests.xctestplan",
+          ],
+        },
+      ],
+    }, {
+      "kind": "folder",
+      "path": "MyHeartCountsUITests",
+      "target-membership": [
+        "MyHeartCountsUITests",
+      ],
+      "membership-exceptions": [
+        {
+          "target": "MyHeartCountsUITests",
+          "exclusions": [
+            "MyHeartCounts Screenshots.xctestplan",
+            "MyHeartCounts UI Tests.xctestplan",
+          ],
+        },
+      ],
+    }, {
+      "kind": "folder",
+      "path": "MyHeartCountsWatchApp",
+      "target-membership": [
+        "MyHeartCountsWatchApp",
+      ],
+      "membership-exceptions": [
+        {
+          "target": "MyHeartCountsWatchApp",
+          "exclusions": [
+            "Supporting Files/Info.plist",
+          ],
+        },
+      ],
+    }, {
+      "kind": "group",
+      "name": "Products",
+      "children": [
+        { "path": "<PRODUCTS>/MyHeartCounts.app", "id": "653A254D283387FE005D4D48", "type": "wrapper.application", "index": false },
+        { "path": "<PRODUCTS>/MyHeartCountsTests.xctest", "id": "653A255D28338800005D4D48", "type": "wrapper.cfbundle", "index": false },
+        { "path": "<PRODUCTS>/MyHeartCountsUITests.xctest", "id": "653A256728338800005D4D48", "type": "wrapper.cfbundle", "index": false },
+        { "path": "<PRODUCTS>/MyHeartCountsWatchApp.app", "id": "8054D9842DE54F8800458CD9", "type": "wrapper.application", "index": false, "target-membership": [ { "build-phase": "MyHeartCounts/copy/Embed Watch Content", "header-preservation": "remove-on-copy" } ] },
+      ],
+    }, {
+      "kind": "group",
+      "name": "Frameworks",
+      "children": [
+        { "path": "<SDK>/System/Library/Frameworks/SensorKit.framework", "target-membership": [ { "build-phase": "MyHeartCounts/frameworks", "is-weak": true } ] },
+        { "path": "<SDK>/System/Library/Frameworks/ActivityKit.framework" },
+        { "path": "<SDK>/System/Library/Frameworks/WidgetKit.framework" },
+        { "path": "<SDK>/System/Library/Frameworks/SwiftUI.framework" },
+      ],
+    },
+  ],
+  "targets": [
+    {
+      "name": "MyHeartCounts",
+      "id": "653A254C283387FE005D4D48",
+      "product": "Products/MyHeartCounts.app",
+      "product-type": "application",
+      "last-swift-migration": "26.0",
+      "dependencies": [
+        { "kind": "package", "package": "swift-package-list", "product-name": "SwiftPackageListPlugin", "product-type": "build-tool-plugin" },
+        { "kind": "package", "package": "SwiftLintPlugins", "product-name": "SwiftLintBuildToolPlugin", "product-type": "build-tool-plugin" },
+        "MyHeartCountsWatchApp",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+        {
+          "kind": "copy",
+          "name": "Embed Watch Content",
+          "bundle-base-path": "build-products-directory",
+          "relative-path": "$(CONTENTS_FOLDER_PATH)/Watch",
+        }, {
+          "kind": "copy",
+          "name": "Embed Frameworks",
+          "bundle-base-path": "frameworks-directory",
+        }, {
+          "kind": "copy",
+          "name": "Embed Foundation Extensions",
+          "bundle-base-path": "plugins-directory",
+        },
+      ],
+      "package-product-members": [
+        {
+          "product-name": "GroveConsent",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveFirebaseAccount",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveFirebaseAccountStorage",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveFirebaseConfiguration",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveFirebaseStorage",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveFirestore",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKitBulkExport",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKitBulkExport",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKitUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKitUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKitUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKitUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveHealthKitUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveLocalization",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveOnboarding",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveOnboarding",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveOnboarding",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveOnboarding",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveOnboarding",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveOnboarding",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveOnboarding",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveScheduler",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveScheduler",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveSchedulerUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveSensorKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudy",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudyDefinition",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudyDefinition",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudyDefinition",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudyDefinition",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudyDefinition",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "GroveStudyDefinition",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "MyHeartCountsShared",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "FHIRModels",
+          "product-name": "ModelsDSTU2",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "FHIRModels",
+          "product-name": "ModelsR4",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "GRDB.swift",
+          "product-name": "GRDB",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "Grove",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveAccount",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveFHIR",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveFHIRContract",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveFirebaseAccount",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveFirebaseAccountStorage",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveFirebaseConfiguration",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveFirebaseStorage",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveFirestore",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveFoundation",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveHealthKitFHIR",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveKeychainStorage",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveLicense",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveLocalStorage",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveNotifications",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveQuestionnaire",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveQuestionnaireFHIR",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveQuestionnaireUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveSensorKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveSensorKitFHIR",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveTesting",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveValidation",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "GroveViews",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "XCTGroveNotificationsUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "MyHeartCounts-StudyDefinitions",
+          "product-name": "MHCStudyDefinition",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "MyHeartCounts-StudyDefinitions",
+          "product-name": "MHCStudyDefinitionExporter",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "ResearchKit",
+          "product-name": "ResearchKitSwiftUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "SFSafeSymbols",
+          "product-name": "SFSafeSymbols",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "firebase-ios-sdk",
+          "product-name": "FirebaseAuth",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "firebase-ios-sdk",
+          "product-name": "FirebaseFirestore",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "firebase-ios-sdk",
+          "product-name": "FirebaseFunctions",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "firebase-ios-sdk",
+          "product-name": "FirebaseMessaging",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "firebase-ios-sdk",
+          "product-name": "FirebaseStorage",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-algorithms",
+          "product-name": "Algorithms",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-async-algorithms",
+          "product-name": "AsyncAlgorithms",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-collections",
+          "product-name": "BitCollections",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-collections",
+          "product-name": "Collections",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-collections",
+          "product-name": "DequeModule",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-collections",
+          "product-name": "HashTreeCollections",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-collections",
+          "product-name": "HeapModule",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-markdown-ui",
+          "product-name": "MarkdownUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-nio",
+          "product-name": "NIOCore",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-nio",
+          "product-name": "NIOFoundationCompat",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-package-list",
+          "product-name": "SwiftPackageList",
+          "build-phase": { "build-phase": "frameworks" },
+        },
+      ],
+      "build-settings": {
+        "ASSETCATALOG_COMPILER_APPICON_NAME": "My Heart Counts",
+        "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
+        "CLANG_ENABLE_MODULES": "YES",
+        "CODE_SIGN_ENTITLEMENTS": "MyHeartCounts/Supporting Files/MyHeartCounts.entitlements",
+        "CODE_SIGN_IDENTITY[config=Debug]": "Apple Development",
+        "CODE_SIGN_IDENTITY[config=Release]": "Apple Distribution",
+        "CODE_SIGN_IDENTITY[config=Release][sdk=iphoneos*]": "iPhone Distribution",
+        "CODE_SIGN_STYLE[config=Debug]": "Automatic",
+        "CODE_SIGN_STYLE[config=Release]": "Manual",
+        "CURRENT_PROJECT_VERSION": "1",
+        "DEVELOPMENT_ASSET_PATHS": "",
+        "DEVELOPMENT_TEAM[config=Release][sdk=iphoneos*]": "CQRZ4E7K9U",
+        "ENABLE_PREVIEWS": "YES",
+        "GCC_OPTIMIZATION_LEVEL[config=Release]": "fast",
+        "GENERATE_INFOPLIST_FILE": "NO",
+        "INFOPLIST_FILE": "MyHeartCounts/Supporting Files/Info.plist",
+        "LD_RUNPATH_SEARCH_PATHS": [
+          "$(inherited)",
+          "@executable_path/Frameworks",
+        ],
+        "MARKETING_VERSION": "4.0.0",
+        "OTHER_SWIFT_FLAGS": "$(inherited)",
+        "PRODUCT_BUNDLE_IDENTIFIER": "edu.stanford.MyHeartCounts",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "PROVISIONING_PROFILE_SPECIFIER[config=Debug]": "",
+        "PROVISIONING_PROFILE_SPECIFIER[config=Release]": "My Heart Counts",
+        "PROVISIONING_PROFILE_SPECIFIER[config=Release][sdk=iphoneos*]": "My Heart Counts",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "SUPPORTS_MACCATALYST": "NO",
+        "SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD": "NO",
+        "SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD": "NO",
+        "SWIFT_ELicenseRef-MyHeartCounts_LOC_STRINGS": "YES",
+        "SWIFT_EMIT_LOC_STRINGS": "YES",
+        "SWIFT_OPTIMIZATION_LEVEL[config=Debug]": "-Onone",
+        "SWIFT_VERSION": "6.0",
+        "TARGETED_DEVICE_FAMILY": "1",
+      },
+    }, {
+      "name": "MyHeartCountsWatchApp",
+      "id": "8054D9832DE54F8800458CD9",
+      "product": "Products/MyHeartCountsWatchApp.app",
+      "product-type": "application",
+      "dependencies": [
+        { "kind": "package", "package": "SwiftLintPlugins", "product-name": "SwiftLintBuildToolPlugin", "product-type": "build-tool-plugin" },
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+        {
+          "kind": "copy",
+          "name": "Embed Frameworks",
+          "bundle-base-path": "frameworks-directory",
+        },
+      ],
+      "package-product-members": [
+        {
+          "product-name": "GroveHealthKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "MyHeartCountsShared",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-collections",
+          "product-name": "Collections",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-collections",
+          "product-name": "OrderedCollections",
+          "build-phase": { "build-phase": "frameworks" },
+        },
+      ],
+      "build-settings": {
+        "ASSETCATALOG_COMPILER_APPICON_NAME": "My Heart Counts",
+        "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
+        "CLANG_CXX_LANGUAGE_STANDARD": "gnu++20",
+        "CODE_SIGN_ENTITLEMENTS": "MyHeartCountsWatchApp/Supporting Files/MyHeartCountsWatchApp.entitlements",
+        "CODE_SIGN_IDENTITY[config=Debug]": "Apple Development",
+        "CODE_SIGN_IDENTITY[config=Release]": "Apple Distribution",
+        "CODE_SIGN_IDENTITY[config=Release][sdk=watchos*]": "iPhone Distribution",
+        "CODE_SIGN_STYLE[config=Debug]": "Automatic",
+        "CODE_SIGN_STYLE[config=Release]": "Manual",
+        "CURRENT_PROJECT_VERSION": "1",
+        "DEVELOPMENT_TEAM[config=Release][sdk=watchos*]": "CQRZ4E7K9U",
+        "ENABLE_PREVIEWS": "YES",
+        "GCC_C_LANGUAGE_STANDARD": "gnu17",
+        "GENERATE_INFOPLIST_FILE": "NO",
+        "INFOPLIST_FILE": "MyHeartCountsWatchApp/Supporting Files/Info.plist",
+        "LD_RUNPATH_SEARCH_PATHS": [
+          "$(inherited)",
+          "@executable_path/Frameworks",
+        ],
+        "MARKETING_VERSION": "1.0",
+        "PRODUCT_BUNDLE_IDENTIFIER": "edu.stanford.MyHeartCounts.watchkitapp",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "PROVISIONING_PROFILE_SPECIFIER[config=Debug]": "",
+        "PROVISIONING_PROFILE_SPECIFIER[config=Release]": "My Heart Counts - Watch",
+        "PROVISIONING_PROFILE_SPECIFIER[config=Release][sdk=watchos*]": "My Heart Counts - Watch",
+        "SDKROOT": "watchos",
+        "SKIP_INSTALL": "YES",
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug]": "DEBUG $(inherited)",
+        "SWIFT_EMIT_LOC_STRINGS": "YES",
+        "TARGETED_DEVICE_FAMILY": "4",
+      },
+    }, {
+      "name": "MyHeartCountsTests",
+      "id": "653A255C28338800005D4D48",
+      "product": "Products/MyHeartCountsTests.xctest",
+      "product-type": "bundle.unit-test",
+      "test-host-target": "MyHeartCounts",
+      "dependencies": [
+        { "kind": "package", "package": "SwiftLintPlugins", "product-name": "SwiftLintBuildToolPlugin", "product-type": "build-tool-plugin" },
+        "MyHeartCounts",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "BUNDLE_LOADER": "$(TEST_HOST)",
+        "CODE_SIGN_STYLE": "Automatic",
+        "CURRENT_PROJECT_VERSION": "1",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "MARKETING_VERSION": "1.0",
+        "PRODUCT_BUNDLE_IDENTIFIER": "edu.stanford.MyHeartCounts.tests",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "SUPPORTS_MACCATALYST": "NO",
+        "SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD": "NO",
+        "SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD": "NO",
+        "SWIFT_ELicenseRef-MyHeartCounts_LOC_STRINGS[config=Release]": "NO",
+        "SWIFT_ELicenseRef-MyHeartCountsn_LOC_STRINGS[config=Debug]": "NO",
+        "TARGETED_DEVICE_FAMILY": "1",
+        "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/MyHeartCounts.app/MyHeartCounts",
+      },
+    }, {
+      "name": "MyHeartCountsUITests",
+      "id": "653A256628338800005D4D48",
+      "product": "Products/MyHeartCountsUITests.xctest",
+      "product-type": "bundle.ui-testing",
+      "test-host-target": "MyHeartCounts",
+      "dependencies": [
+        { "kind": "package", "package": "SwiftLintPlugins", "product-name": "SwiftLintBuildToolPlugin", "product-type": "build-tool-plugin" },
+        "MyHeartCounts",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "package-product-members": [
+        {
+          "product-name": "MyHeartCountsShared",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "XCTGroveAccount",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "XCTGroveNotifications",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "XCTGroveQuestionnaire",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "XCTHealthKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "Grove",
+          "product-name": "XCTestExtensions",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "MyHeartCounts-StudyDefinitions",
+          "product-name": "MHCStudyDefinitionExporter",
+          "build-phase": { "build-phase": "frameworks" },
+        },
+      ],
+      "build-settings": {
+        "CODE_SIGN_STYLE": "Automatic",
+        "CURRENT_PROJECT_VERSION": "1",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "MARKETING_VERSION": "1.0",
+        "PRODUCT_BUNDLE_IDENTIFIER": "edu.stanford.MyHeartCounts.uitests",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "SUPPORTS_MACCATALYST": "NO",
+        "SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD": "NO",
+        "SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD": "NO",
+        "SWIFT_ELicenseRef-MyHeartCounts_LOC_STRINGS": "NO",
+        "TARGETED_DEVICE_FAMILY": "1",
+        "TEST_TARGET_NAME": "MyHeartCounts",
+      },
+    },
+  ],
+  "build-settings": {
+    "ALWAYS_SEARCH_USER_PATHS": "NO",
+    "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": "YES",
+    "CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED": "YES",
+    "CLANG_ANALYZER_NONNULL": "YES",
+    "CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION": "YES_AGGRESSIVE",
+    "CLANG_CXX_LANGUAGE_STANDARD": "gnu++17",
+    "CLANG_ENABLE_MODULES": "YES",
+    "CLANG_ENABLE_OBJC_ARC": "YES",
+    "CLANG_ENABLE_OBJC_WEAK": "YES",
+    "CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING": "YES",
+    "CLANG_WARN_BOOL_CONVERSION": "YES",
+    "CLANG_WARN_COMMA": "YES",
+    "CLANG_WARN_CONSTANT_CONVERSION": "YES",
+    "CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS": "YES",
+    "CLANG_WARN_DIRECT_OBJC_ISA_USAGE": "YES_ERROR",
+    "CLANG_WARN_DOCUMENTATION_COMMENTS": "YES",
+    "CLANG_WARN_EMPTY_BODY": "YES",
+    "CLANG_WARN_ENUM_CONVERSION": "YES",
+    "CLANG_WARN_INFINITE_RECURSION": "YES",
+    "CLANG_WARN_INT_CONVERSION": "YES",
+    "CLANG_WARN_NON_LITERAL_NULL_CONVERSION": "YES",
+    "CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF": "YES",
+    "CLANG_WARN_OBJC_LITERAL_CONVERSION": "YES",
+    "CLANG_WARN_OBJC_ROOT_CLASS": "YES_ERROR",
+    "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER": "YES",
+    "CLANG_WARN_RANGE_LOOP_ANALYSIS": "YES",
+    "CLANG_WARN_STRICT_PROTOTYPES": "YES",
+    "CLANG_WARN_SUSPICIOUS_MOVE": "YES",
+    "CLANG_WARN_UNGUARDED_AVAILABILITY": "YES_AGGRESSIVE",
+    "CLANG_WARN_UNREACHABLE_CODE": "YES",
+    "CLANG_WARN__DUPLICATE_METHOD_MATCH": "YES",
+    "COPY_PHASE_STRIP": "NO",
+    "DEBUG_INFORMATION_FORMAT[config=Debug]": "dwarf",
+    "DEBUG_INFORMATION_FORMAT[config=Release]": "dwarf-with-dsym",
+    "DEVELOPMENT_TEAM": "CQRZ4E7K9U",
+    "ENABLE_NS_ASSERTIONS[config=Release]": "NO",
+    "ENABLE_STRICT_OBJC_MSGSEND": "YES",
+    "ENABLE_TESTABILITY[config=Debug]": "YES",
+    "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
+    "EXCLUDED_ARCHS": "armv7k",
+    "GCC_C_LANGUAGE_STANDARD": "gnu11",
+    "GCC_DYNAMIC_NO_PIC[config=Debug]": "NO",
+    "GCC_NO_COMMON_BLOCKS": "YES",
+    "GCC_OPTIMIZATION_LEVEL[config=Debug]": "0",
+    "GCC_PREPROCESSOR_DEFINITIONS[config=Debug]": [
+      "DEBUG=1",
+      "$(inherited)",
+    ],
+    "GCC_WARN_64_TO_32_BIT_CONVERSION": "YES",
+    "GCC_WARN_ABOUT_RETURN_TYPE": "YES_ERROR",
+    "GCC_WARN_UNDECLARED_SELECTOR": "YES",
+    "GCC_WARN_UNINITIALIZED_AUTOS": "YES_AGGRESSIVE",
+    "GCC_WARN_UNUSED_FUNCTION": "YES",
+    "GCC_WARN_UNUSED_VARIABLE": "YES",
+    "IPHONEOS_DEPLOYMENT_TARGET": "18.0",
+    "LOCALIZATION_PREFERS_STRING_CATALOGS": "YES",
+    "MTL_ENABLE_DEBUG_INFO[config=Debug]": "INCLUDE_SOURCE",
+    "MTL_ENABLE_DEBUG_INFO[config=Release]": "NO",
+    "MTL_FAST_MATH": "YES",
+    "ONLY_ACTIVE_ARCH[config=Debug]": "YES",
+    "SDKROOT": "iphoneos",
+    "STRING_CATALOG_GENERATE_SYMBOLS": "YES",
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug]": "DEBUG",
+    "SWIFT_COMPILATION_MODE[config=Release]": "wholemodule",
+    "SWIFT_EMIT_LOC_STRINGS": "YES",
+    "SWIFT_ENABLE_OPAQUE_TYPE_ERASURE": "YES",
+    "SWIFT_OPTIMIZATION_LEVEL[config=Debug]": "-Onone",
+    "SWIFT_OPTIMIZATION_LEVEL[config=Release]": "-O",
+    "SWIFT_STRICT_CONCURRENCY": "complete",
+    "SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY": "YES",
+    "SWIFT_UPCOMING_FEATURE_INFER_ISOLATED_CONFORMANCES": "YES",
+    "SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY": "YES",
+    "SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT": "YES",
+    "SWIFT_VERSION": "6.0",
+    "VALIDATE_PRODUCT[config=Release]": "YES",
+    "WATCHOS_DEPLOYMENT_TARGET": "11.0",
+  },
+  "last-upgrade": "26.4",
+  "last-swift-update": "26.0",
+}

@@ -29,7 +29,7 @@ final class MHCScreenshotting: MHCTestCase, @unchecked Sendable {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appending(path: "fastlane/screenshots", directoryHint: .isDirectory)
+            .appending(path: "deploy/screenshots", directoryHint: .isDirectory)
     }
     
     func recordScreenshot(_ name: String? = nil) throws {
