@@ -290,7 +290,7 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                 NavigationLinkLabel(
                     studyVariant.localized(stanford: "Stage of Change", imperial: "Physical Activity Habits"),
                     completionState: completionState,
-                    value: completionState.isIncomplete ? "No Selection" : binding.withDefault(.notSet).label(for: studyVariant)
+                    value: completionState.isIncomplete ? "No Selection" : binding.withDefault(.notSet).wrappedValue.label(for: studyVariant)
                 )
             }
         }
