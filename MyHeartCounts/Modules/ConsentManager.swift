@@ -135,6 +135,13 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
         }
     }
     
+    /// The study's privacy notice, if the current study bundle has one.
+    func loadPrivacyNotice() -> MarkdownDocument? {
+        loadTextNextToConsent(PrivacyNotice.fileRef).flatMap { text in
+            try? MarkdownDocument(processing: text)
+        }
+    }
+    
     /// The form in which participants sign their withdrawal from the study, if the current study bundle has one.
     func loadWithdrawalForm() -> ConsentDocument? {
         loadTextNextToConsent(WithdrawalForm.fileRef).flatMap { text in

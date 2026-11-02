@@ -17,7 +17,7 @@ struct NotEligibleView: View {
             title: "INELIGIBLE_TITLE",
             description: "INELIGIBLE_SUBTITLE"
         ) {
-            Link2(MyHeartCounts.website(.homepage)) {
+            Link2(MyHeartCounts.website()) {
                 HStack {
                     Text("INELIGIBLE_LEARN_MORE")
                     Spacer()

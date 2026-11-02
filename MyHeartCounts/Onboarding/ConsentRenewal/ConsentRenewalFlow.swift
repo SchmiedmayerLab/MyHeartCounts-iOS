@@ -29,7 +29,7 @@ struct ConsentRenewalFlow: View {
         ManagedNavigationStack {
             ConsentRenewalExplainer()
             if let participantInformation = consentManager.loadParticipantInformation() {
-                ParticipantInformationSheet(document: participantInformation)
+                ParticipantInformationSheet(document: participantInformation, privacyNotice: consentManager.loadPrivacyNotice())
             }
             Consent(document: document) {
                 dismiss()

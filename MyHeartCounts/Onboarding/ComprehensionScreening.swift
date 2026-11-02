@@ -54,7 +54,11 @@ struct ComprehensionScreening: View {
             }
             if let participantInformation = consentManager.loadParticipantInformation() {
                 path.append {
-                    ParticipantInformationSheet(document: participantInformation, continueAction: showConsent)
+                    ParticipantInformationSheet(
+                        document: participantInformation,
+                        privacyNotice: consentManager.loadPrivacyNotice(),
+                        continueAction: showConsent
+                    )
                         .onboardingStep(.participantInformation)
                         .injectingGrove()
                 }

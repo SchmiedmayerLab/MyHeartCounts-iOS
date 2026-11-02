@@ -47,7 +47,7 @@ struct AccountOnboarding: View {
             // NOTE: ideally we'd have this be semantically part of the AccountSetup (pushed all the way to the bottom),
             // but since that is a ScrollView er have no easy way to achieve this, so we put it here instead, for the time being.
             Spacer()
-            Link2("Privacy Policy", MyHeartCounts.website(.privacyPolicy))
+            PrivacyPolicyLink("Privacy Policy")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

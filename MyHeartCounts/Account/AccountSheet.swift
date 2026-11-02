@@ -119,7 +119,7 @@ struct AccountSheet: View {
         }
         Section {
             AboutRow()
-            Link2(MyHeartCounts.website(.privacyPolicy)) {
+            PrivacyPolicyLink {
                 Label("Privacy Policy", systemSymbol: .lockShield)
                     .foregroundStyle(.textLabel)
             }
@@ -199,7 +199,7 @@ struct AccountSheet: View {
     
     @ViewBuilder
     private func studyParticipationSection(_ enrollment: StudyEnrollment) -> some View {
-        Link2(MyHeartCounts.website(.homepage)) {
+        Link2(MyHeartCounts.website()) {
             HStack {
                 makeEnrolledStudyRow(for: enrollment)
                 Spacer()
