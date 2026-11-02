@@ -45,7 +45,7 @@ struct ComprehensionScreening: View {
             }
             return isTrue(\.seekHelpIfNotFeelingWell) && isTrue(\.studyParticipationIsVoluntary) && isTrue(\.canStopParticipatingAtAnyTime)
         } continue: { _, path in
-            let showConsent = { [consentDoc] in
+            let showConsent: @MainActor () -> Void = { [consentDoc] in
                 path.append {
                     Consent(document: consentDoc)
                         .onboardingStep(.consent)
