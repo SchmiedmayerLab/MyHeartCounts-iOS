@@ -13321,166 +13321,6 @@
         }
       }
     },
-    "English, Welsh, Scottish, Northern Irish or British" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "English, Welsh, Scottish, Northern Irish or British"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inglés, galés, escocés, norirlandés o británico"
-          }
-        }
-      }
-    },
-    "Irish" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Irish"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Irlandés"
-          }
-        }
-      }
-    },
-    "Gypsy or Irish Traveller" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gypsy or Irish Traveller"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gitano o nómada irlandés (Irish Traveller)"
-          }
-        }
-      }
-    },
-    "Roma" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Roma"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Romaní"
-          }
-        }
-      }
-    },
-    "Any other White background" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Any other White background"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cualquier otro origen blanco"
-          }
-        }
-      }
-    },
-    "Mixed or Multiple ethnic groups" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mixed or Multiple ethnic groups"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grupos étnicos mixtos o múltiples"
-          }
-        }
-      }
-    },
-    "White and Black Caribbean" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "White and Black Caribbean"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Blanco y negro caribeño"
-          }
-        }
-      }
-    },
-    "White and Black African" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "White and Black African"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Blanco y negro africano"
-          }
-        }
-      }
-    },
-    "White and Asian" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "White and Asian"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Blanco y asiático"
-          }
-        }
-      }
-    },
-    "Any other Mixed or Multiple ethnic background" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Any other Mixed or Multiple ethnic background"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cualquier otro origen mixto o múltiple"
-          }
-        }
-      }
-    },
     "Asian or Asian British" : {
       "localizations" : {
         "en-GB" : {
@@ -13497,150 +13337,6 @@
         }
       }
     },
-    "Indian" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indian"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indio"
-          }
-        }
-      }
-    },
-    "Pakistani" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pakistani"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pakistaní"
-          }
-        }
-      }
-    },
-    "Bangladeshi" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bangladeshi"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bangladesí"
-          }
-        }
-      }
-    },
-    "Chinese" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chinese"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chino"
-          }
-        }
-      }
-    },
-    "Any other Asian background" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Any other Asian background"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cualquier otro origen asiático"
-          }
-        }
-      }
-    },
-    "Black, Black British, Caribbean or African" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Black, Black British, Caribbean or African"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Negro, británico negro, caribeño o africano"
-          }
-        }
-      }
-    },
-    "Caribbean" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Caribbean"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Caribeño"
-          }
-        }
-      }
-    },
-    "African" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "African"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Africano"
-          }
-        }
-      }
-    },
-    "Any other Black, Black British or Caribbean background" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Any other Black, Black British or Caribbean background"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cualquier otro origen negro, británico negro o caribeño"
-          }
-        }
-      }
-    },
     "Other ethnic group" : {
       "localizations" : {
         "en-GB" : {
@@ -13653,38 +13349,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Otro grupo étnico"
-          }
-        }
-      }
-    },
-    "Arab" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Arab"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Árabe"
-          }
-        }
-      }
-    },
-    "Any other ethnic group" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Any other ethnic group"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cualquier otro grupo étnico"
           }
         }
       }
@@ -14222,6 +13886,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Los riesgos físicos son mínimos, pero podrían incluir dolor o tensión muscular temporal debido a actividades físicas. También hay un pequeño riesgo relacionado con la privacidad de los datos a pesar de nuestras medidas de seguridad. Los beneficios incluyen el acceso a sus propios datos de actividad y el conocimiento de que está contribuyendo a una investigación que puede ayudar a mejorar las recomendaciones de salud del corazón. Su participación es completamente voluntaria, y puede dejar de participar en cualquier momento sin penalización contactando al equipo de investigación. Esta investigación ha sido revisada por un Comité de Ética de la Investigación del Reino Unido para garantizar la protección de los participantes."
+          }
+        }
+      }
+    },
+    "Mixed or multiple ethnic groups" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mixed or multiple ethnic groups"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupos étnicos mixtos o múltiples"
+          }
+        }
+      }
+    },
+    "Black, African, Caribbean or Black British" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Black, African, Caribbean or Black British"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Negro, africano, caribeño o británico negro"
           }
         }
       }
