@@ -28,7 +28,7 @@ struct ParticipantInformationSheet: View {
     private let continueAction: (@MainActor () -> Void)?
     
     var body: some View {
-        OnboardingPage(symbol: .docText, title: "Participant Information Sheet", description: nil) {
+        OnboardingPage(symbol: .textDocument, title: "Participant Information Sheet", description: nil) {
             MarkdownView(document: document)
         } footer: {
             PageActions("Continue") {
