@@ -20,7 +20,7 @@ extension LocalPreferenceKeys {
 extension MHCBackgroundTasks {
     /// The log of background task ``Event``s, stored as one JSON object per line.
     ///
-    /// Once the log file outgrows its size limit it replaces `events.previous.jsonl` beside it.
+    /// Once the file outgrows its size limit, its oldest events get dropped, leaving half of the limit.
     final class EventLog: Sendable {
         static let shared = EventLog(
             directory: .applicationSupportDirectory.appending(path: "BackgroundTasks", directoryHint: .isDirectory)
@@ -49,14 +49,12 @@ extension MHCBackgroundTasks {
         }
 
         private let fileURL: URL
-        private let previousFileURL: URL
         private let maximumFileSize: UInt64
         /// Serializes the accesses of tasks that run concurrently.
         private let file = Mutex(())
 
-        init(directory: URL, maximumFileSize: UInt64 = 1 << 20) {
+        init(directory: URL, maximumFileSize: UInt64 = 2 << 20) {
             fileURL = directory.appending(path: "events.jsonl")
-            previousFileURL = directory.appending(path: "events.previous.jsonl")
             self.maximumFileSize = maximumFileSize
         }
 
@@ -80,8 +78,9 @@ extension MHCBackgroundTasks {
                 let size = try handle.seekToEnd()
                 try handle.write(contentsOf: data)
                 if size + UInt64(data.count) > maximumFileSize {
-                    try? fileManager.removeItem(at: previousFileURL)
-                    try fileManager.moveItem(at: fileURL, to: previousFileURL)
+                    let newest = try Data(contentsOf: fileURL).suffix(Int(maximumFileSize / 2))
+                    // the cut most likely falls within a line
+                    try newest.drop { $0 != 0x0A }.dropFirst().write(to: fileURL, options: .atomic)
                 }
             }
         }
@@ -89,9 +88,7 @@ extension MHCBackgroundTasks {
         /// The raw log, oldest event first.
         func contents() -> Data {
             file.withLock { _ in
-                var contents = (try? Data(contentsOf: previousFileURL)) ?? Data()
-                contents.append((try? Data(contentsOf: fileURL)) ?? Data())
-                return contents
+                (try? Data(contentsOf: fileURL)) ?? Data()
             }
         }
 

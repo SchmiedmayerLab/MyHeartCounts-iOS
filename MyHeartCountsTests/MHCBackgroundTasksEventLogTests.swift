@@ -29,16 +29,24 @@ struct MHCBackgroundTasksEventLogTests {
     }
     
     @Test
-    func rotationKeepsThePreviousFile() throws {
-        // one line fits, the second one triggers the rotation
-        let log = MHCBackgroundTasks.EventLog(directory: directory, maximumFileSize: 100)
-        let events = (0..<4).map { makeEvent(at: TimeInterval($0)) }
-        try log.append([events[0]])
-        try log.append([events[1]])
-        try log.append([events[2]])
-        #expect(log.events() == Array(events[0...2]))
-        try log.append([events[3]])
-        #expect(log.events() == Array(events[2...3]))
+    func exceedingTheLimitDropsTheOldestEvents() throws {
+        // four lines fit into the limit, and two lines into the half of it that gets kept
+        let log = MHCBackgroundTasks.EventLog(directory: directory, maximumFileSize: 300)
+        let events = (0..<5).map { makeEvent(at: TimeInterval($0)) }
+        for event in events.dropLast() {
+            try log.append([event])
+        }
+        #expect(log.events() == Array(events[0...3]))
+        try log.append([events[4]])
+        #expect(log.events() == Array(events[3...4]))
+    }
+    
+    @Test
+    func oversizedAppendGetsTrimmedRightAway() throws {
+        let log = MHCBackgroundTasks.EventLog(directory: directory, maximumFileSize: 300)
+        let events = (0..<5).map { makeEvent(at: TimeInterval($0)) }
+        try log.append(events)
+        #expect(log.events() == Array(events[3...4]))
     }
     
     @Test
