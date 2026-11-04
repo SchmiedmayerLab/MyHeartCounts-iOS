@@ -14,8 +14,6 @@ import SwiftUI
 
 
 extension LocalPreferenceKeys {
-    static let backgroundTaskEvents = LocalPreferenceKey<[MHCBackgroundTasks.Event]>("backgroundTaskEvents", default: [])
-    
     static let backgroundTaskNotifications = LocalPreferenceKey<Bool>("backgroundTaskNotifications", default: false)
 }
 
@@ -48,9 +46,7 @@ extension MHCBackgroundTasks {
         @LocalPreference(.backgroundTaskNotifications)
         private var enableNotifications
         
-        @LocalPreference(.backgroundTaskEvents)
-        private var events
-        
+        @State private var events: [MHCBackgroundTasks.Event] = []
         @State private var pendingRequests: [BGTaskRequest] = []
         @State private var viewState: ViewState = .idle
         @State private var exportedEvents: ShareSheetInput?
@@ -96,10 +92,10 @@ extension MHCBackgroundTasks {
             .viewStateAlert(state: $viewState)
             .shareSheet(item: $exportedEvents)
             .onAppear {
-                reloadScheduledTasks()
+                reload()
             }
             .refreshable {
-                reloadScheduledTasks()
+                reload()
             }
         }
         
@@ -137,19 +133,13 @@ extension MHCBackgroundTasks {
         }
         
         private func exportEvents() throws -> URL {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-            // `.iso8601` would drop the fractional seconds, which the durations of short tasks depend on.
-            encoder.dateEncodingStrategy = .custom { date, dateEncoder in
-                var container = dateEncoder.singleValueContainer()
-                try container.encode(date.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
-            }
-            let url = URL.temporaryDirectory.appending(component: "BackgroundTasksLog.json")
-            try encoder.encode(events.sorted(using: KeyPathComparator(\.date))).write(to: url, options: .atomic)
+            let url = URL.temporaryDirectory.appending(component: "BackgroundTasksLog.jsonl")
+            try MHCBackgroundTasks.EventLog.shared.contents().write(to: url, options: .atomic)
             return url
         }
         
-        private func reloadScheduledTasks() {
+        private func reload() {
+            events = MHCBackgroundTasks.EventLog.shared.events()
             Task { @MainActor in
                 pendingRequests = await BGTaskScheduler.shared.pendingTaskRequests()
             }

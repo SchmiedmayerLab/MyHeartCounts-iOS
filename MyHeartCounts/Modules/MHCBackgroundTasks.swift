@@ -57,6 +57,11 @@ final class MHCBackgroundTasks: Module, EnvironmentAccessible, @unchecked Sendab
     }
 
     func configure() {
+        do {
+            try EventLog.shared.importLegacyEvents()
+        } catch {
+            logger.error("Failed importing legacy background task events: \(error)")
+        }
         lifecycle.onChange(of: \.scenePhase) { _, newValue in
             if newValue == .background {
                 let taskIds = self.registeredTasks.withLock { Array($0.keys) }
@@ -338,9 +343,12 @@ extension MHCBackgroundTasks {
     }
     
     private func track(_ kind: Event.Kind, for taskId: TaskIdentifier) async {
-        let prefs = LocalPreferencesStore.standard
-        prefs[.backgroundTaskEvents].append(.init(date: .now, taskId: taskId, kind: kind))
-        if prefs[.backgroundTaskNotifications] {
+        do {
+            try EventLog.shared.append([.init(date: .now, taskId: taskId, kind: kind)])
+        } catch {
+            logger.error("Failed logging background task event: \(error)")
+        }
+        if LocalPreferencesStore.standard[.backgroundTaskNotifications] {
             let event: String = switch kind {
             case .start:
                 "start"
