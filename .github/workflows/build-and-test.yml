@@ -18,8 +18,7 @@ on:
   workflow_call:
 
 concurrency:
-  # Every push gets its own group, so that a new commit on main doesn't cancel the previous commit's coverage upload.
-  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
