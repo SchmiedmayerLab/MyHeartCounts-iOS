@@ -243,7 +243,7 @@ platform :ios do
       elsif environment == "development"
         "Development"
       else
-        "External Testers"
+        "External Testers (Stanford)"
       end
       upload_to_testflight(
         app_identifier: appidentifier,
