@@ -22,9 +22,9 @@ destination="$3"
 
 jq -e '
     .shards as $shards
-    | ($shards | length) == 4
-    and ($shards | map(.name) | unique | length) == 4
-    and ($shards | map(.shard) | unique | length) == 4
+    | ($shards | length) == 6
+    and ($shards | map(.name) | unique | length) == 6
+    and ($shards | map(.shard) | unique | length) == 6
     and all(
         $shards[];
         (.name | type == "string" and length > 0)
@@ -91,4 +91,4 @@ if [[ "$validation_failed" == true ]]; then
     exit 1
 fi
 
-echo "Validated $(wc -l < "$normalized_tests" | tr -d ' ') enabled UI tests across four shards."
+echo "Validated $(wc -l < "$normalized_tests" | tr -d ' ') enabled UI tests across six shards."
