@@ -18,6 +18,8 @@ struct Welcome: View {
     @Environment(ManagedNavigationStack.Path.self)
     private var onboardingPath
     
+    private let studyVariant = DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford)
+    
     var body: some View {
         OnboardingPage(title: "My Heart Counts", description: "WELCOME_SUBTITLE") {
             onboardingInformationView
@@ -32,7 +34,7 @@ struct Welcome: View {
         Grid(horizontalSpacing: 16, verticalSpacing: 16) {
             OnboardingIconGridRow(
                 icon: .appBadge,
-                text: StudyVariant.current.localized(stanford: "WELCOME_AREA1_DESCRIPTION", imperial: "WELCOME_AREA1_DESCRIPTION_IMPERIAL")
+                text: studyVariant.localized(stanford: "WELCOME_AREA1_DESCRIPTION", imperial: "WELCOME_AREA1_DESCRIPTION_IMPERIAL")
             )
             OnboardingIconGridRow(
                 icon: .wandAndSparklesInverse,

@@ -18,7 +18,7 @@ extension MyHeartCounts {
     /// - parameter variant: Defaults to the active study variant, or Stanford before a variant has been selected.
     @MainActor
     static func website(for variant: StudyVariant? = nil) -> URL {
-        switch variant ?? DeferredConfigLoading.activeStudyVariant ?? .stanford {
+        switch variant ?? DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford) {
         case .imperial:
             "https://www.imperial.ac.uk/nhli/research/my-heart-counts/"
         case .stanford:

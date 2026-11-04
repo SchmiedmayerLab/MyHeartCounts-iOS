@@ -145,7 +145,7 @@ struct AccountSheet: View {
     
     /// Imperial participants found "Withdraw from Study" hard to discover behind "Edit", so their account sheet lists it below "Log Out".
     private var showsWithdrawalBelowLogout: Bool {
-        switch StudyVariant.current {
+        switch DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford) {
         case .stanford: false
         case .imperial: true
         }
@@ -352,7 +352,7 @@ extension AccountSheet {
             }
             .accessibilityElement()
             .accessibilityIdentifier("MHC:AboutRow")
-            .sheet(isPresented: $showExtendedInfo) {
+            .sheet(isPresented: $showExtendedInfo) { // swiftlint:disable:this closure_body_length
                 NavigationStack {
                     Form {
                         Section {
@@ -363,7 +363,10 @@ extension AccountSheet {
                         Section {
                             LabeledContent("Project ID" as String, value: FirebaseApp.app()?.options.projectID ?? "n/a")
                             LabeledContent("Account ID" as String, value: account.details?.accountId ?? "n/a")
-                            LabeledContent("Study Variant" as String, value: DeferredConfigLoading.activeStudyVariant?.rawValue ?? "n/a")
+                            LabeledContent(
+                                "Study Variant" as String,
+                                value: DeferredConfigLoading.currentStudyVariant.effective()?.rawValue ?? "n/a"
+                            )
                             LabeledContent("Study Backend" as String, value: DeferredConfigLoading.activeFirebaseConfig?.description ?? "n/a")
                         }
                         Section {

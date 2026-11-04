@@ -14,6 +14,7 @@ import class GroveConsent.ConsentDocument
 import GroveFoundation
 import GroveOnboarding
 import GroveViews
+import MHCStudyDefinition
 import SFSafeSymbols
 import SwiftUI
 
@@ -53,8 +54,9 @@ struct AccountOnboarding: View {
         }
         .navigationTitle(Text(verbatim: ""))
         .toolbar(.visible)
+        .checkingStudyVariantConsistency()
     }
-    
+
     private func advance() async throws {
         await account.waitForAccountDetailsReady()
         try Task.checkCancellation()
@@ -62,7 +64,7 @@ struct AccountOnboarding: View {
             return
         }
         try MyHeartCountsStandard.synchronizeStudyVariant(for: account)
-        guard let studyVariant = DeferredConfigLoading.activeStudyVariant else {
+        guard let studyVariant = DeferredConfigLoading.currentStudyVariant.effective() else {
             throw DeferredConfigLoading.StudyVariantError.missingConfiguration
         }
         if details.studyVariant == nil {
@@ -74,21 +76,21 @@ struct AccountOnboarding: View {
         if details.hasWithdrawnFromStudy == true {
             path.append {
                 ReactivatePreviouslyWithdrawnAccount {
-                    advance(consentDocToSign: consentDoc)
+                    advance(studyVariant: studyVariant, consentDocToSign: consentDoc)
                 }
                 .injectingGrove()
                 .navigationBarBackButtonHidden()
             }
         } else {
-            advance(consentDocToSign: consentDoc)
+            advance(studyVariant: studyVariant, consentDocToSign: consentDoc)
         }
     }
     
-    private func advance(consentDocToSign: ConsentDocument?) {
+    private func advance(studyVariant: StudyVariant, consentDocToSign: ConsentDocument?) {
         if let consentDocToSign {
             self.consentDoc = consentDocToSign
             path.append {
-                ConsentDisclaimers(consentDoc: consentDocToSign)
+                ConsentDisclaimers(studyVariant: studyVariant, consentDoc: consentDocToSign)
                     // we hide the back button here, to prevent the user from returning to the "re-activate account" page
                     // (in case that's presented), since that yes/no decision should only be made once.
                     .navigationBarBackButtonHidden()

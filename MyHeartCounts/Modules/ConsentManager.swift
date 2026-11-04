@@ -110,7 +110,7 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
     }
     
     func loadConsentDoc(from studyBundle: StudyBundle) throws -> ConsentDocument {
-        guard let studyVariant = DeferredConfigLoading.activeStudyVariant else {
+        guard let studyVariant = DeferredConfigLoading.currentStudyVariant.effective() else {
             throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Unable to determine study variant")
         }
         guard let fileRef = studyBundle.studyDefinition.metadata.consentFileRef,
@@ -152,7 +152,7 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
     /// Loads a document that the current study bundle stores next to its consent, in the consent's locale.
     private func loadTextNextToConsent(_ fileRef: StudyBundle.FileReference) -> String? {
         guard let studyBundle = try? studyBundleLoader.studyBundle?.get(),
-              let studyVariant = DeferredConfigLoading.activeStudyVariant else {
+              let studyVariant = DeferredConfigLoading.currentStudyVariant.effective() else {
             return nil
         }
         return studyBundle.consentText(

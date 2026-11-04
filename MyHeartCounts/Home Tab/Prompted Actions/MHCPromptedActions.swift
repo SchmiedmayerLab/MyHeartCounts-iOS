@@ -58,10 +58,10 @@ extension PromptedAction {
     private static let enableClinicalRecords = PromptedAction(
         id: .clinicalRecords,
         state: { context in
-            switch StudyVariant.current {
+            switch DeferredConfigLoading.currentStudyVariant.effective() {
             case .stanford:
                 break
-            case .imperial:
+            case .imperial, nil:
                 // the Imperial study obtains health records through NHS data linkage instead
                 return .unavailable
             }
@@ -143,7 +143,7 @@ extension PromptedAction {
             let data = DemographicsData()
             data.populate(from: account)
             let layout = demographicsLayout(
-                studyVariant: DeferredConfigLoading.activeStudyVariant ?? .stanford,
+                studyVariant: DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford),
                 didOptInToTrial: details.didOptInToTrial == true
             )
             switch layout.completionState(in: data) {

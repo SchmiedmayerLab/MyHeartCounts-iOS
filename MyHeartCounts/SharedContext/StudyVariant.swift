@@ -13,20 +13,7 @@ import GroveStudy
 import MHCStudyDefinition
 
 
-extension AccountDetails {
-    /// Accounts enrolled before the variant field existed belong to the original Stanford study.
-    var existingStudyVariant: StudyVariant? {
-        studyVariant ?? (dateOfEnrollment != nil ? .stanford : nil)
-    }
-}
-
-
 extension StudyVariant {
-    /// The study variant whose texts the app presents: the active variant, else the build's forced variant, else Stanford.
-    @MainActor static var current: StudyVariant {
-        DeferredConfigLoading.activeStudyVariant ?? FeatureFlags.forcedStudyVariant ?? .stanford
-    }
-
     var region: Locale.Region {
         switch self {
         case .stanford: .unitedStates

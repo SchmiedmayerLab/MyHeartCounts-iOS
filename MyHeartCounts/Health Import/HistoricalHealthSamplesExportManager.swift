@@ -282,17 +282,13 @@ final class HistoricalHealthSamplesExportManager: Module, EnvironmentAccessible,
 
 extension HistoricalHealthSamplesExportManager {
     private var includeClinicalRecordsInExport: Bool {
-        switch StudyVariant.current {
+        switch DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford) {
         case .stanford:
-            break
+            HKHealthStore().supportsHealthRecords()
         case .imperial:
             // the Imperial study obtains health records through NHS data linkage instead
-            return false
+            false
         }
-        guard HKHealthStore().supportsHealthRecords() else {
-            return false
-        }
-        return true
     }
 }
 

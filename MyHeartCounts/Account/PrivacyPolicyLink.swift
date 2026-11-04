@@ -46,7 +46,7 @@ struct PrivacyNotice: View {
 /// Opens the privacy notice in the study bundle if it has one, and otherwise the privacy policy on the study's website, if there is one.
 struct PrivacyPolicyLink<Label: View>: View {
     @MainActor private static var websiteURL: URL? {
-        switch StudyVariant.current {
+        switch DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford) {
         case .stanford:
             "https://myheartcounts.stanford.edu/privacy"
         case .imperial:

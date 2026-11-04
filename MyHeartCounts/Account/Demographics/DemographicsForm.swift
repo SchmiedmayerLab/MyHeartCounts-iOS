@@ -83,7 +83,7 @@ private struct Impl<Footer: View>: View {
     @State private var trialOptInOverride: Bool?
     
     private var studyVariant: StudyVariant {
-        studyVariantOverride ?? DeferredConfigLoading.activeStudyVariant ?? .stanford
+        studyVariantOverride ?? DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford)
     }
     
     var body: some View {

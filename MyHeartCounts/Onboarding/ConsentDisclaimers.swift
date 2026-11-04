@@ -84,8 +84,7 @@ struct ConsentDisclaimers: View {
 
 
 extension ConsentDisclaimers {
-    init(consentDoc: ConsentDocument) {
-        let variant = StudyVariant.current
+    init(studyVariant variant: StudyVariant, consentDoc: ConsentDocument) {
         let steps: [DisclaimerConfig] = [
             .init(
                 icon: .textPageBadgeMagnifyingglass,
