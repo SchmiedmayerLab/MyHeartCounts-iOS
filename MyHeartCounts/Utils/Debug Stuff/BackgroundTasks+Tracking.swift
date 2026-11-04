@@ -9,6 +9,7 @@
 import BackgroundTasks
 import Foundation
 import GroveFoundation
+import GroveViews
 import SwiftUI
 
 
@@ -51,12 +52,12 @@ extension MHCBackgroundTasks {
         private var events
         
         @State private var pendingRequests: [BGTaskRequest] = []
+        @State private var viewState: ViewState = .idle
+        @State private var exportedEvents: ShareSheetInput?
         
         var body: some View {
             Form {
-                Section {
-                    Toggle("Enable Notifications" as String, isOn: $enableNotifications)
-                }
+                controlsSection
                 Section("Pending Tasks" as String) {
                     ForEach(pendingRequests, id: \.self) { request in
                         VStack(alignment: .leading) {
@@ -92,11 +93,24 @@ extension MHCBackgroundTasks {
             }
             .navigationTitle("Background Tasks" as String)
             .navigationBarTitleDisplayMode(.inline)
+            .viewStateAlert(state: $viewState)
+            .shareSheet(item: $exportedEvents)
             .onAppear {
                 reloadScheduledTasks()
             }
             .refreshable {
                 reloadScheduledTasks()
+            }
+        }
+        
+        private var controlsSection: some View {
+            Section {
+                AsyncButton(state: $viewState) {
+                    exportedEvents = try ShareSheetInput(exportEvents())
+                } label: {
+                    Label("Export Event Log" as String, systemImage: "square.and.arrow.up")
+                }
+                Toggle("Enable Notifications" as String, isOn: $enableNotifications)
             }
         }
         
@@ -120,6 +134,19 @@ extension MHCBackgroundTasks {
                 }
             }
             return processed.sorted(using: KeyPathComparator(\.start, order: .reverse))
+        }
+        
+        private func exportEvents() throws -> URL {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+            // `.iso8601` would drop the fractional seconds, which the durations of short tasks depend on.
+            encoder.dateEncodingStrategy = .custom { date, dateEncoder in
+                var container = dateEncoder.singleValueContainer()
+                try container.encode(date.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+            }
+            let url = URL.temporaryDirectory.appending(component: "BackgroundTasksLog.json")
+            try encoder.encode(events.sorted(using: KeyPathComparator(\.date))).write(to: url, options: .atomic)
+            return url
         }
         
         private func reloadScheduledTasks() {
