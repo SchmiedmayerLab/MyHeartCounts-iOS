@@ -8,7 +8,7 @@
 
 coverage:
   status:
-    # Never let overall coverage slip; the project is at 70.76% today.
+    # Never let overall coverage slip; the project is at 70.79% today.
     project:
       default:
         target: auto

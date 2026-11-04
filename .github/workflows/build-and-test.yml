@@ -9,6 +9,10 @@
 name: Build and Test
 
 on:
+  # Codecov compares a PR against its base commit, and silently falls back to an older commit if that base has no report.
+  push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
   workflow_call:
