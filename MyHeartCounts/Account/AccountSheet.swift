@@ -77,12 +77,7 @@ struct AccountSheet: View {
         }
         .accessibilityIdentifier("MHC:AccountSheet")
         .viewStateAlert(state: $viewState)
-        .accountActionAlert(.logOut, currentAction: $activeAccountAction, viewState: $viewState, dismiss: dismiss) {
-            try await account.accountService.logout()
-        }
-        .accountActionAlert(.withdraw, currentAction: $activeAccountAction, viewState: $viewState, dismiss: dismiss) {
-            try await withdrawFromStudy()
-        }
+        .accountActionAlert(currentAction: $activeAccountAction, perform: performAccountAction)
     }
     
     @ViewBuilder private var accountSheetExtraContent: some View {
@@ -132,6 +127,7 @@ struct AccountSheet: View {
             }
         }
         AccountMgmtSection(currentAction: $activeAccountAction)
+            .disabled(viewState == .processing)
     }
     
     private var isProcessingHealthData: Bool {
@@ -235,6 +231,28 @@ struct AccountSheet: View {
             .httpsCallable("markAccountForStudyWithdrawal")
             .call([:])
         try await account.accountService.logout()
+    }
+    
+    /// Runs in its own `Task`, because the action needs to outlive the alert that triggered it:
+    /// the alert dismisses itself as soon as its button is tapped.
+    private func performAccountAction(_ action: AccountAction) {
+        viewState = .processing
+        Task {
+            do {
+                switch action {
+                case .logOut:
+                    try await account.accountService.logout()
+                case .withdraw:
+                    try await withdrawFromStudy()
+                }
+                viewState = .idle
+                dismiss()
+            } catch is CancellationError {
+                viewState = .idle
+            } catch {
+                viewState = .error(AnyLocalizedError(error: error, defaultErrorDescription: action.defaultErrorDescription))
+            }
+        }
     }
 }
 
@@ -488,47 +506,20 @@ extension AccountOverviewOperationLabels {
 
 
 extension View {
-    // Each action gets its own `isPresented:` alert, rather than all of them sharing one `item:` alert:
-    // the AsyncButton runs its action in a `.task`, and an `item:` alert removes the button as soon as tapping it
-    // dismisses the alert, which cancels that task before the action has run.
-    @ViewBuilder
     fileprivate func accountActionAlert(
-        _ action: AccountSheet.AccountAction,
         currentAction: Binding<AccountSheet.AccountAction?>,
-        viewState: Binding<ViewState>,
-        dismiss: DismissAction,
-        operation: @MainActor @escaping () async throws -> Void
+        perform: @MainActor @escaping (_ action: AccountSheet.AccountAction) -> Void
     ) -> some View {
-        let isPresented = Binding<Bool> {
-            currentAction.wrappedValue == action
-        } set: { newValue in
-            if !newValue {
-                currentAction.wrappedValue = nil
-            }
-        }
-        self.alert(Text(action.title), isPresented: isPresented) {
-            // Note how the below AsyncButton (in the HStack) uses the same `destructiveViewState`.
-            // Due to SwiftUI behavior, the alert will be dismissed immediately. We use the AsyncButton here still
-            // to manage our async task and setting the ViewState.
-            AsyncButton(role: .destructive, state: viewState) {
-                do {
-                    try await operation()
-                } catch {
-                    if error is CancellationError {
-                        return
-                    }
-                    throw error
-                }
-                dismiss()
+        self.alert(currentAction.wrappedValue?.title ?? "", item: currentAction) { action in
+            Button(role: .destructive) {
+                perform(action)
             } label: {
                 Text(action.shortTitle)
             }
-            .environment(\.defaultErrorDescription, action.defaultErrorDescription)
-            
             Button(role: .cancel, action: {}) {
                 Text("Cancel")
             }
-        } message: {
+        } message: { action in
             Text(action.confirmationMessage)
         }
     }
