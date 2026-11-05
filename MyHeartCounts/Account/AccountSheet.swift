@@ -77,19 +77,12 @@ struct AccountSheet: View {
         }
         .accessibilityIdentifier("MHC:AccountSheet")
         .viewStateAlert(state: $viewState)
-        .accountActionAlert(
-            currentAction: $activeAccountAction,
-            viewState: $viewState,
-            dismiss: dismiss,
-            operation: { action in
-                switch action {
-                case .logOut:
-                    try await account.accountService.logout()
-                case .withdraw:
-                    try await withdrawFromStudy()
-                }
-            }
-        )
+        .accountActionAlert(.logOut, currentAction: $activeAccountAction, viewState: $viewState, dismiss: dismiss) {
+            try await account.accountService.logout()
+        }
+        .accountActionAlert(.withdraw, currentAction: $activeAccountAction, viewState: $viewState, dismiss: dismiss) {
+            try await withdrawFromStudy()
+        }
     }
     
     @ViewBuilder private var accountSheetExtraContent: some View {
@@ -472,6 +465,15 @@ extension AccountSheet.AccountAction {
             "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose."
         }
     }
+    
+    var defaultErrorDescription: LocalizedStringResource {
+        switch self {
+        case .logOut:
+            "Failed to log out"
+        case .withdraw:
+            "Failed to withdraw from study"
+        }
+    }
 }
 
 
@@ -486,20 +488,31 @@ extension AccountOverviewOperationLabels {
 
 
 extension View {
+    // Each action gets its own `isPresented:` alert, rather than all of them sharing one `item:` alert:
+    // the AsyncButton runs its action in a `.task`, and an `item:` alert removes the button as soon as tapping it
+    // dismisses the alert, which cancels that task before the action has run.
     @ViewBuilder
     fileprivate func accountActionAlert(
+        _ action: AccountSheet.AccountAction,
         currentAction: Binding<AccountSheet.AccountAction?>,
         viewState: Binding<ViewState>,
         dismiss: DismissAction,
-        operation: @MainActor @escaping (_ action: AccountSheet.AccountAction) async throws -> Void
+        operation: @MainActor @escaping () async throws -> Void
     ) -> some View {
-        self.alert(currentAction.wrappedValue?.title ?? "", item: currentAction) { action in
+        let isPresented = Binding<Bool> {
+            currentAction.wrappedValue == action
+        } set: { newValue in
+            if !newValue {
+                currentAction.wrappedValue = nil
+            }
+        }
+        self.alert(Text(action.title), isPresented: isPresented) {
             // Note how the below AsyncButton (in the HStack) uses the same `destructiveViewState`.
             // Due to SwiftUI behavior, the alert will be dismissed immediately. We use the AsyncButton here still
             // to manage our async task and setting the ViewState.
             AsyncButton(role: .destructive, state: viewState) {
                 do {
-                    try await operation(action)
+                    try await operation()
                 } catch {
                     if error is CancellationError {
                         return
@@ -510,21 +523,12 @@ extension View {
             } label: {
                 Text(action.shortTitle)
             }
-            .environment(\.defaultErrorDescription, { () -> LocalizedStringResource? in
-                switch currentAction.wrappedValue {
-                case .logOut:
-                    "Failed to log out"
-                case .withdraw:
-                    "Failed to withdraw from study"
-                case nil:
-                    nil
-                }
-            }())
+            .environment(\.defaultErrorDescription, action.defaultErrorDescription)
             
             Button(role: .cancel, action: {}) {
                 Text("Cancel")
             }
-        } message: { action in
+        } message: {
             Text(action.confirmationMessage)
         }
     }
