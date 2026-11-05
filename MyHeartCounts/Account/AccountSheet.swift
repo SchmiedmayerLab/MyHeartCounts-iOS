@@ -77,19 +77,7 @@ struct AccountSheet: View {
         }
         .accessibilityIdentifier("MHC:AccountSheet")
         .viewStateAlert(state: $viewState)
-        .accountActionAlert(
-            currentAction: $activeAccountAction,
-            viewState: $viewState,
-            dismiss: dismiss,
-            operation: { action in
-                switch action {
-                case .logOut:
-                    try await account.accountService.logout()
-                case .withdraw:
-                    try await withdrawFromStudy()
-                }
-            }
-        )
+        .accountActionAlert(currentAction: $activeAccountAction, perform: performAccountAction)
     }
     
     @ViewBuilder private var accountSheetExtraContent: some View {
@@ -139,6 +127,7 @@ struct AccountSheet: View {
             }
         }
         AccountMgmtSection(currentAction: $activeAccountAction)
+            .disabled(viewState == .processing)
     }
     
     private var isProcessingHealthData: Bool {
@@ -242,6 +231,28 @@ struct AccountSheet: View {
             .httpsCallable("markAccountForStudyWithdrawal")
             .call([:])
         try await account.accountService.logout()
+    }
+    
+    /// Runs in its own `Task`, because the action needs to outlive the alert that triggered it:
+    /// the alert dismisses itself as soon as its button is tapped.
+    private func performAccountAction(_ action: AccountAction) {
+        viewState = .processing
+        Task {
+            do {
+                switch action {
+                case .logOut:
+                    try await account.accountService.logout()
+                case .withdraw:
+                    try await withdrawFromStudy()
+                }
+                viewState = .idle
+                dismiss()
+            } catch is CancellationError {
+                viewState = .idle
+            } catch {
+                viewState = .error(AnyLocalizedError(error: error, defaultErrorDescription: action.defaultErrorDescription))
+            }
+        }
     }
 }
 
@@ -472,6 +483,15 @@ extension AccountSheet.AccountAction {
             "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose."
         }
     }
+    
+    var defaultErrorDescription: LocalizedStringResource {
+        switch self {
+        case .logOut:
+            "Failed to log out"
+        case .withdraw:
+            "Failed to withdraw from study"
+        }
+    }
 }
 
 
@@ -486,41 +506,16 @@ extension AccountOverviewOperationLabels {
 
 
 extension View {
-    @ViewBuilder
     fileprivate func accountActionAlert(
         currentAction: Binding<AccountSheet.AccountAction?>,
-        viewState: Binding<ViewState>,
-        dismiss: DismissAction,
-        operation: @MainActor @escaping (_ action: AccountSheet.AccountAction) async throws -> Void
+        perform: @MainActor @escaping (_ action: AccountSheet.AccountAction) -> Void
     ) -> some View {
         self.alert(currentAction.wrappedValue?.title ?? "", item: currentAction) { action in
-            // Note how the below AsyncButton (in the HStack) uses the same `destructiveViewState`.
-            // Due to SwiftUI behavior, the alert will be dismissed immediately. We use the AsyncButton here still
-            // to manage our async task and setting the ViewState.
-            AsyncButton(role: .destructive, state: viewState) {
-                do {
-                    try await operation(action)
-                } catch {
-                    if error is CancellationError {
-                        return
-                    }
-                    throw error
-                }
-                dismiss()
+            Button(role: .destructive) {
+                perform(action)
             } label: {
                 Text(action.shortTitle)
             }
-            .environment(\.defaultErrorDescription, { () -> LocalizedStringResource? in
-                switch currentAction.wrappedValue {
-                case .logOut:
-                    "Failed to log out"
-                case .withdraw:
-                    "Failed to withdraw from study"
-                case nil:
-                    nil
-                }
-            }())
-            
             Button(role: .cancel, action: {}) {
                 Text("Cancel")
             }
