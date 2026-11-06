@@ -63,10 +63,10 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @MainActor
     static func synchronizeStudyVariant(for account: Account) throws {
         // Read the current details; a queued account event can contain an older snapshot.
-        guard let details = account.details, !details.isIncomplete, let variant = details.existingStudyVariant else {
+        guard let details = account.details, !details.isIncomplete, let variant = details.studyVariant else {
             return
         }
-        try DeferredConfigLoading.setActiveStudyVariant(variant)
+        try DeferredConfigLoading.setCurrentStudyVariant(variant)
     }
 
     /// The encrypted, installation-scoped identity and SensorKit retry state.

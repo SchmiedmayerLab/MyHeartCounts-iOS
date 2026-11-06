@@ -14,6 +14,7 @@ import GroveFoundation
 import GroveHealthKit
 import GroveHealthKitBulkExport
 import GroveStudy
+import MHCStudyDefinition
 import MyHeartCountsShared
 import OSLog
 import UIKit
@@ -255,10 +256,14 @@ final class HistoricalHealthSamplesExportManager: Module, EnvironmentAccessible,
             throw .noStudy
         case .enabled(let startDate):
             do {
+                // The bulk exporter does not ask for permission to read the samples, so it's safe to always pass in everything.
+                var sampleTypes = study.allCollectedHealthData(includingOptionalSampleTypes: true)
+                if !includeClinicalRecordsInExport {
+                    sampleTypes = sampleTypes.filter(isNotKindOf: SampleType<HKClinicalRecord>.self)
+                }
                 return try await bulkExporter.session(
                     withId: .mhcHistoricalDataExport,
-                    // The bulk exporter does not ask for permission to read the samples, so it's safe to always pass in everything.
-                    for: study.allCollectedHealthData(includingOptionalSampleTypes: true),
+                    for: sampleTypes,
                     startDate: startDate,
                     using: await HealthKitSamplesFHIRUploader(standard: standard)
                 )
@@ -271,6 +276,19 @@ final class HistoricalHealthSamplesExportManager: Module, EnvironmentAccessible,
     isolated deinit {
         stopWaitingForSuitablePower()
         completionTask?.cancel()
+    }
+}
+
+
+extension HistoricalHealthSamplesExportManager {
+    private var includeClinicalRecordsInExport: Bool {
+        switch DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford) {
+        case .stanford:
+            HKHealthStore().supportsHealthRecords()
+        case .imperial:
+            // the Imperial study obtains health records through NHS data linkage instead
+            false
+        }
     }
 }
 

@@ -127,7 +127,7 @@ struct SaveBMISampleView: View {
         case .feet: .foot()
         }
         weightUnit = switch LaunchOptions.launchOptions[.weightInputUnitOverride] {
-        case .none: weightSampleType.displayUnit
+        case .none: MHCQuantitySampleType.healthKit(weightSampleType).displayUnit
         case .kg: .gramUnit(with: .kilo)
         case .lbs: .pound()
         }

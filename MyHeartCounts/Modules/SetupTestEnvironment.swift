@@ -116,8 +116,8 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
             desc = "\(#function) will reset existing data"
             try await resetExistingData()
         }
-        if let variant = FeatureFlags.studyVariantOverride {
-            try DeferredConfigLoading.setActiveStudyVariant(variant)
+        if let variant = FeatureFlags.forcedStudyVariant {
+            try DeferredConfigLoading.setCurrentStudyVariant(variant)
         }
         switch config.loginAndEnroll {
         case .skip:
@@ -215,7 +215,7 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
             details.password = credentials.password
             details.name = PersonNameComponents(givenName: "Leland", familyName: "Stanford")
             details.genderIdentity = .male
-            details.studyVariant = DeferredConfigLoading.activeStudyVariant
+            details.studyVariant = DeferredConfigLoading.currentStudyVariant.effective()
             do {
                 try await accountService.signUp(with: details)
             } catch {
@@ -228,7 +228,7 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
         }
         await account.waitForAccountDetailsReady()
         try MyHeartCountsStandard.synchronizeStudyVariant(for: account)
-        guard let studyVariant = DeferredConfigLoading.activeStudyVariant else {
+        guard let studyVariant = DeferredConfigLoading.currentStudyVariant.effective() else {
             throw DeferredConfigLoading.StudyVariantError.missingConfiguration
         }
         if account.details?.studyVariant == nil {

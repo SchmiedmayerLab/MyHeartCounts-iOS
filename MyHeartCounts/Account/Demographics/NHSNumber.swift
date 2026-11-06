@@ -11,7 +11,15 @@ import GroveValidation
 
 
 /// A 10-digit NHS number
-struct NHSNumber: Codable, Hashable, Sendable {
+struct NHSNumber: HealthServiceNumber {
+    static let title: LocalizedStringResource = "NHS Number"
+    static let validationRule = ValidationRule(
+        rule: { input in
+            NHSNumber.validate(input)
+        },
+        message: "Not a valid NHS number"
+    )
+    
     let stringValue: String
     
     init(unchecked stringValue: String) {
@@ -67,14 +75,4 @@ extension NHSNumber {
             false
         }
     }
-}
-
-
-extension ValidationRule {
-    static let nhsNumber = ValidationRule(
-        rule: { input in
-            NHSNumber.validate(input)
-        },
-        message: "Not a valid NHS number"
-    )
 }

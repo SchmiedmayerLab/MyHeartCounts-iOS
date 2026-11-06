@@ -53,32 +53,27 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
     /// The independent backend and study selections used together for this process. Variant changes also update observing views.
     @Observable
     @MainActor
-    final class StudyConfiguration {
+    final class StudyConfiguration { // intentionally a class.
         let firebaseConfig: FirebaseConfigSelector
         private(set) var studyVariant: StudyVariant
-
+        
         init(firebaseConfig: FirebaseConfigSelector, studyVariant: StudyVariant) {
             self.firebaseConfig = firebaseConfig
             self.studyVariant = studyVariant
         }
-
+        
         func selectStudyVariant(_ variant: StudyVariant, enrolledVariant: StudyVariant?) throws {
             if let enrolledVariant, enrolledVariant != variant {
                 throw StudyVariantError.mismatch(expected: enrolledVariant, actual: variant)
             }
             studyVariant = variant
         }
-
+        
         func persist(in prefs: LocalPreferencesStore) throws {
             try selectStudyVariant(studyVariant, enrolledVariant: prefs[.enrolledStudyVariant])
             prefs[.enrolledStudyVariant] = studyVariant
             prefs[.enrolledFirebaseConfig] = firebaseConfig
         }
-    }
-
-    enum StudyVariantError: Error, Equatable {
-        case missingConfiguration
-        case mismatch(expected: StudyVariant, actual: StudyVariant)
     }
 
     /// Includes temporary onboarding selections; persisted only when study enrollment starts.
@@ -88,8 +83,16 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
         activeConfiguration?.firebaseConfig
     }
 
-    @MainActor static var activeStudyVariant: StudyVariant? {
-        activeConfiguration?.studyVariant
+    
+    @MainActor static var currentStudyVariant: CurrentStudyVariant {
+        if let activeConfiguration {
+            .active(activeConfiguration.studyVariant)
+        } else if let forced = FeatureFlags.forcedStudyVariant {
+            // we dont have an activeConfig yet, but we do have a forced variant pending
+            .pending(forced)
+        } else {
+            .unknown
+        }
     }
     
     enum LoadingError: Error {
@@ -255,7 +258,8 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
         studyVariant: StudyVariant = .stanford
     ) -> [any Module] {
         let configSelector = FeatureFlags.overrideFirebaseConfig ?? configSelector
-        let studyVariant = LocalPreferencesStore.standard[.enrolledStudyVariant] ?? FeatureFlags.studyVariantOverride ?? studyVariant
+        // An existing enrollment wins, even over a forced variant. See `checkingStudyVariantConsistency()` for how we surface that disagreement.
+        let studyVariant = LocalPreferencesStore.standard[.enrolledStudyVariant] ?? FeatureFlags.forcedStudyVariant ?? studyVariant
         let configuration = StudyConfiguration(firebaseConfig: configSelector, studyVariant: studyVariant)
         let preferredLocale = studyVariant.preferredLocale
         guard !FeatureFlags.disableFirebase else {
@@ -308,6 +312,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
                         .manual(\.heightInCM),
                         .manual(\.weightInKG),
                         .manual(\.raceEthnicity),
+                        .manual(\.ethnicityUK),
                         .manual(\.latinoStatus),
                         .manual(\.biologicalSexAtBirth),
                         .manual(\.bloodType),
@@ -315,6 +320,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
                         .manual(\.educationUK),
                         .manual(\.comorbidities),
                         .manual(\.nhsNumber),
+                        .manual(\.chiNumber),
                         .manual(\.referralSource),
                         // env tracking
                         .manual(\.mostRecentOnboardingStep),
@@ -383,22 +389,54 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
 
 
 extension DeferredConfigLoading {
+    enum CurrentStudyVariant: Hashable, Sendable {
+        case active(StudyVariant)
+        case pending(StudyVariant)
+        case unknown
+        
+        func effective() -> StudyVariant? {
+            switch self {
+            case .active(let variant), .pending(let variant):
+                variant
+            case .unknown:
+                nil
+            }
+        }
+        
+        func effective(fallback: @autoclosure () -> StudyVariant) -> StudyVariant {
+            effective() ?? fallback()
+        }
+    }
+    
+    
+    enum StudyVariantError: Error, Equatable {
+        case missingConfiguration
+        case mismatch(expected: StudyVariant, actual: StudyVariant)
+    }
+    
+    
     /// Resolves the variant before enrollment; an existing enrollment cannot change variants.
     @MainActor
-    static func setActiveStudyVariant(_ variant: StudyVariant) throws {
+    static func setCurrentStudyVariant(_ newVariant: StudyVariant) throws {
         guard let activeConfiguration else {
             throw StudyVariantError.missingConfiguration
         }
-        if let override = FeatureFlags.studyVariantOverride, override != variant {
-            throw StudyVariantError.mismatch(expected: override, actual: variant)
+        if let override = FeatureFlags.forcedStudyVariant, override != newVariant {
+            // caller is trying to set the study variant to something that isn't the forced override
+            throw StudyVariantError.mismatch(expected: override, actual: newVariant)
         }
         let previousVariant = activeConfiguration.studyVariant
-        try activeConfiguration.selectStudyVariant(variant, enrolledVariant: LocalPreferencesStore.standard[.enrolledStudyVariant])
-        guard previousVariant != variant else {
+        try activeConfiguration.selectStudyVariant(
+            newVariant,
+            enrolledVariant: LocalPreferencesStore.standard[.enrolledStudyVariant]
+        )
+        guard previousVariant != newVariant else {
             return
         }
-        GroveAppDelegate.grove?.module(StudyManager.self)?.preferredLocale = variant.preferredLocale
-        GroveAppDelegate.grove?.module(NewsManager.self)?.invalidate()
+        if let grove = GroveAppDelegate.grove {
+            grove.module(StudyManager.self)?.preferredLocale = newVariant.preferredLocale
+            grove.module(NewsManager.self)?.invalidate()
+        }
     }
 
     /// Saves both selections before enrollment can persist study data.
