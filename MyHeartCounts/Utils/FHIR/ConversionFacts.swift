@@ -12,8 +12,8 @@ import UIKit
 
 
 /// The application, host, and study facts every record a producer converts states.
-struct ConversionFacts: Equatable, Sendable {
-    struct Study: Equatable, Sendable {
+struct ConversionFacts: Codable, Equatable, Sendable {
+    struct Study: Codable, Equatable, Sendable {
         let id: String
         let revision: UInt
     }

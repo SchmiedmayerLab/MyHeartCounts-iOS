@@ -466,6 +466,37 @@ extension ManagedFileUploadTests {
         #expect(regularFiles(in: uploader.stagingDirectory).isEmpty)
     }
 
+    /// A historical upload has not drained while an `unreadable_` object of one of its batches is still queued.
+    @Test
+    func historicalUploadDrainsOnlyOnceItsUnreadableObjectsAreUploaded() async throws {
+        let root = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: root)
+        }
+        let probe = UploadProbe()
+        var configuration = makeConfiguration(root: root, accountId: "account-a")
+        configuration.uploadOperation = { _, category, accountId, filename, _ in
+            try await probe.upload(categoryId: category.id, filename: filename, accountId: accountId)
+        }
+        let uploader = ManagedFileUpload(categories: [.historicalHealthUpload, .unreadableHealthUpload], configuration: configuration)
+        resolveDependencies(of: uploader)
+        try await uploader.stage(try makeSourceFile(index: 0, in: root), category: .unreadableHealthUpload)
+        await probe.waitUntilStarted(1)
+
+        let drained = Mutex(false)
+        let waiter = Swift::Task { @MainActor in
+            try await uploader.waitUntilHistoricalUploadDrained()
+            drained.withLock { $0 = true }
+        }
+        try await Swift::Task.sleep(for: .milliseconds(50))
+        #expect(!drained.withLock { $0 })
+
+        await probe.releaseUploads()
+        try await waiter.value
+        #expect(try !uploader.hasPendingUploads(for: .unreadableHealthUpload))
+        #expect(regularFiles(in: uploader.stagingDirectory).isEmpty)
+    }
+
     /// A failed attempt keeps the category pending until its retry succeeds.
     @Test
     func waitUntilDrainedOutlastsRetries() async throws {

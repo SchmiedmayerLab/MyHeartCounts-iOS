@@ -112,7 +112,7 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     
     func configure() {
         Task(priority: .utility) {
-            try? self.elidePendingUploadsWherePossible()
+            try? self.elidePendingUploadsAtLaunch()
         }
     }
 }
@@ -175,6 +175,10 @@ extension HealthUploadStaging {
         ingestionTimestamp: Date,
         writeContext: DatabaseWriteContext
     ) async throws where Observations.Element: HealthObservation {
+        // Refused before the exporter is built, which reads the identity secret and the app facts.
+        guard !(Observations.Element.self is any SelfModelledHealthObservation.Type) else {
+            throw MyHeartCountsStandard.HealthObservationUploadError.unsupportedStrategy
+        }
         var pendingSamples: [PendingSampleRecord] = []
         pendingSamples.reserveCapacity(Self.databaseWriteChunkSize)
         let current = try await stagingExporter(accountDataGeneration: writeContext.accountDataGeneration)

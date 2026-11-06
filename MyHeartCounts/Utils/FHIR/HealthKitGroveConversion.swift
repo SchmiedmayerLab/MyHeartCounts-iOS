@@ -13,11 +13,12 @@ import HealthKit
 
 
 extension FHIRExchangeStateStore {
-    /// The exporter of one batch: the signed-in participant, this installation's facts as they stand now, and MHC's
-    /// identity scope.
+    /// The exporter of `subject`, the signed-in participant: this installation's facts as they stand when it is built, and
+    /// MHC's identity scope.
     ///
-    /// Only HealthKit samples need one. Building it reads the keychain identity secret once, and the app facts and
-    /// enrollment.
+    /// Only HealthKit samples need one, and the app keeps one per account and enrollment, which
+    /// ``MyHeartCountsStandard/refreshHealthKitExporter()`` builds, never one per batch. Building it reads the keychain
+    /// identity secret once, and the app facts and enrollment.
     func healthKitExporter(subject: FHIRExchangeSubject) async throws -> HealthKitFHIRExporter {
         try healthKitExporter(subject: subject, facts: try await .current())
     }

@@ -84,6 +84,12 @@ final class FHIRExchangeStateStore: Sendable {
             /// The conversion instant the batch's records state, as first published; `nil` in a batch persisted by a
             /// build that did not keep it, until its next delivery persists one.
             let conversionInstant: Date?
+            /// The facts the batch's records state, as first published; `nil` in a batch persisted by a build that did not
+            /// keep them, until its next delivery persists them.
+            let conversionFacts: ConversionFacts?
+            /// The devices the batch's records state, as first delivered; `nil` in a batch persisted by a build that did not
+            /// keep them, until its next delivery persists them.
+            let devices: SensorBatchDevices?
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -145,14 +151,6 @@ final class FHIRExchangeStateStore: Sendable {
         let evidence: Data
         /// What else a retry must reproduce, digested under a key of its own beside `evidence`.
         var supplementalEvidence: Data?
-    }
-
-    /// What every record of one SensorKit batch states on every delivery of the batch.
-    struct SensorBatchFacts: Equatable, Sendable {
-        /// The zone the batch states its bounds in.
-        let timeZone: TimeZone
-        /// The instant the batch's records were converted at, which `Provenance.recorded` states.
-        let conversionInstant: Date
     }
 
     /// The state as `LocalStorage` stores it: encoded, so tests exercise the same decoding.
@@ -416,27 +414,49 @@ final class FHIRExchangeStateStore: Sendable {
 
 
 extension FHIRExchangeStateStore {
-    /// What a SensorKit batch states on every delivery: `currentTimeZone` and `conversionInstant` when the batch is first
-    /// seen, persisted with its retry state, so every redelivery of the batch repeats every record version.
+    /// What every record of one SensorKit batch states on every delivery of the batch.
+    struct SensorBatchFacts: Equatable, Sendable {
+        /// The zone the batch states its bounds in.
+        let timeZone: TimeZone
+        /// The instant the batch's records were converted at, which `Provenance.recorded` states.
+        let conversionInstant: Date
+        /// The application, host and study facts the batch's records state, which enter their record versions.
+        let conversionFacts: ConversionFacts
+        /// The devices the batch's records name, which enter their record versions.
+        let devices: SensorBatchDevices
+    }
+
+    /// What a SensorKit batch states on every delivery: `currentTimeZone`, `conversionInstant`, `conversionFacts` and `devices`
+    /// when the batch is first seen, persisted with its retry state, so every redelivery of the batch repeats every record
+    /// version, also across an app or OS update, a renamed or updated device, or a new study revision.
     ///
     /// - throws: ``FHIRExchangeStateError/invalidPersistedTimeZone(_:)`` when the persisted zone no longer resolves;
     ///     the batch can then never be redelivered as it was first published.
     func sensorBatchFacts(
         _ batchKey: String,
         currentTimeZone: TimeZone = .current,
-        conversionInstant: Date
+        conversionInstant: Date,
+        conversionFacts: ConversionFacts,
+        devices: SensorBatchDevices
     ) throws -> SensorBatchFacts {
         let batch = try withState { state in
             let persisted = state.sensorBatches[batchKey]
             let identifier = persisted?.timeZoneIdentifier ?? currentTimeZone.identifier
             let instant = persisted?.conversionInstant ?? conversionInstant
-            state.sensorBatches[batchKey] = State.SensorBatch(timeZoneIdentifier: identifier, conversionInstant: instant)
-            return (identifier: identifier, instant: instant)
+            let facts = persisted?.conversionFacts ?? conversionFacts
+            let devices = persisted?.devices ?? devices
+            state.sensorBatches[batchKey] = State.SensorBatch(
+                timeZoneIdentifier: identifier,
+                conversionInstant: instant,
+                conversionFacts: facts,
+                devices: devices
+            )
+            return (identifier: identifier, instant: instant, facts: facts, devices: devices)
         }
         guard let timeZone = TimeZone(identifier: batch.identifier) else {
             throw FHIRExchangeStateError.invalidPersistedTimeZone(batch.identifier)
         }
-        return SensorBatchFacts(timeZone: timeZone, conversionInstant: batch.instant)
+        return SensorBatchFacts(timeZone: timeZone, conversionInstant: batch.instant, conversionFacts: batch.facts, devices: batch.devices)
     }
 
     /// Removes the retry-only state of every batch of one SensorKit source.

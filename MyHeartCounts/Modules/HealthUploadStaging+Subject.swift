@@ -59,6 +59,18 @@ extension HealthUploadStaging {
         }
         return current.exporter
     }
+
+    /// The launch-time pass of ``elidePendingUploadsWherePossible(dryRun:)``, which `configure()` starts.
+    ///
+    /// A test elides when it means to: this pass, at no set instant, would take the rows it staged, or the database lock.
+    func elidePendingUploadsAtLaunch() throws {
+        #if DEBUG
+        guard testing == nil else {
+            return
+        }
+        #endif
+        try elidePendingUploadsWherePossible()
+    }
 }
 
 

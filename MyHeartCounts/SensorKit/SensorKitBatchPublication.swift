@@ -51,6 +51,8 @@ struct SensorKitBatchPublication: Sendable {
 
     /// The conversion instant of a batch first seen here; ``batchFacts(currentTimeZone:)`` gives the one its records state.
     private let conversionInstant: Date
+    /// The conversion facts of a batch first seen here; ``batchFacts(currentTimeZone:)`` gives those its records state.
+    private let currentFacts: @Sendable () async throws -> ConversionFacts
     private let acquisitionBatch: SensorKit.AcquisitionBatchCoordinate
     private let deviceProductType: String
     private let subject: FHIRExchangeSubject
@@ -63,7 +65,8 @@ struct SensorKitBatchPublication: Sendable {
         destination: FHIRExchangeDestination,
         stateStore: FHIRExchangeStateStore,
         uploader: SensorKitBatchUploader,
-        conversionInstant: Date = .now
+        conversionInstant: Date = .now,
+        currentFacts: @escaping @Sendable () async throws -> ConversionFacts = { try await .current() }
     ) throws {
         guard let sourceToken = SensorKitCatalog.current.entry(for: sensor)?.sourceToken else {
             throw SensorKitRecordError.sourceTypeNotAdmitted(sensor.id)
@@ -73,6 +76,7 @@ struct SensorKitBatchPublication: Sendable {
         self.info = batchInfo
         self.uploader = uploader
         self.conversionInstant = conversionInstant
+        self.currentFacts = currentFacts
         self.acquisitionBatch = batchInfo.acquisitionBatch
         self.deviceProductType = batchInfo.device.productType
         self.subject = subject
@@ -129,19 +133,25 @@ struct SensorKitBatchPublication: Sendable {
         )
     }
 
-    /// What the batch's records state on every delivery: `currentTimeZone` and this publication's conversion instant when
-    /// the batch is first published, and the same facts on every redelivery, as they are persisted with the batch's retry
-    /// state, so a redelivery repeats every record version.
-    func batchFacts(currentTimeZone: TimeZone = .current) throws -> FHIRExchangeStateStore.SensorBatchFacts {
+    /// What the batch's records state on every delivery: `currentTimeZone` and this publication's conversion instant, current
+    /// facts and devices when the batch is first published, and the same facts on every redelivery, as they are persisted with
+    /// the batch's retry state, so a redelivery repeats every record version.
+    func batchFacts(currentTimeZone: TimeZone = .current) async throws -> FHIRExchangeStateStore.SensorBatchFacts {
         try destination.validateCurrentAccount()
-        return try stateStore.sensorBatchFacts(batchKey, currentTimeZone: currentTimeZone, conversionInstant: conversionInstant)
+        return try stateStore.sensorBatchFacts(
+            batchKey,
+            currentTimeZone: currentTimeZone,
+            conversionInstant: conversionInstant,
+            conversionFacts: try await currentFacts(),
+            devices: SensorBatchDevices(info)
+        )
     }
 
-    /// The exporter of the batch's records, under the facts as they stand now.
+    /// The exporter of the batch's records, stating `facts`, which ``batchFacts(currentTimeZone:)`` gives.
     ///
-    /// Building it reads the identity secret and the app facts.
-    func exporter() async throws -> SensorKitFHIRExporter {
-        try await stateStore.sensorKitExporter(subject: subject)
+    /// Building it reads the identity secret.
+    func exporter(stating facts: ConversionFacts) throws -> SensorKitFHIRExporter {
+        try stateStore.sensorKitExporter(subject: subject, facts: facts)
     }
 
     /// Publishes the batch through `upload` and acknowledges its cursor through `acknowledge`, as one step.

@@ -208,25 +208,25 @@ extension MHCSensorSampleUploadStrategy {
         for sensor: Sensor<Sample>,
         publication: SensorKitBatchPublication
     ) async throws {
-        let file = URL.temporaryDirectory.appending(
-            path: HealthUploadBatch.filename(typePrefix: sensor.id, provenanceFullURLs: archived.provenanceFullURLs, fileExtension: "zip"),
-            directoryHint: .notDirectory
-        )
         defer {
-            // Staging moves the file; these only remove what staging did not take.
+            // Staging moves the file; this only removes what staging did not take.
             try? FileManager.default.removeItem(at: archived.finalizedArchive.url)
-            try? FileManager.default.removeItem(at: file)
         }
-        try? FileManager.default.removeItem(at: file)
-        try FileManager.default.moveItem(at: archived.finalizedArchive.url, to: file)
-        try publication.destination.validateCurrentAccount()
-        try await publication.uploader.stageFile(
-            at: file,
-            category: ManagedFileUpload.Category(sensor),
-            accountDataGeneration: publication.destination.accountDataGeneration,
-            // The batch info travels with the file, so that the batch can be inspected without downloading it.
-            metadata: [UploadBatchArchive.batchInfoMetadataKey: String(decoding: archived.finalizedArchive.batchInfo, as: UTF8.self)]
-        )
+        try await HealthUploadBatch.withTemporaryDirectory { directory in
+            let file = directory.appending(
+                path: HealthUploadBatch.filename(typePrefix: sensor.id, provenanceFullURLs: archived.provenanceFullURLs, fileExtension: "zip"),
+                directoryHint: .notDirectory
+            )
+            try FileManager.default.moveItem(at: archived.finalizedArchive.url, to: file)
+            try publication.destination.validateCurrentAccount()
+            try await publication.uploader.stageFile(
+                at: file,
+                category: ManagedFileUpload.Category(sensor),
+                accountDataGeneration: publication.destination.accountDataGeneration,
+                // The batch info travels with the file, so that the batch can be inspected without downloading it.
+                metadata: [UploadBatchArchive.batchInfoMetadataKey: String(decoding: archived.finalizedArchive.batchInfo, as: UTF8.self)]
+            )
+        }
     }
 
     /// Publishes the records prepared from one fetched batch through MHC's storage backend.
@@ -235,8 +235,8 @@ extension MHCSensorSampleUploadStrategy {
     /// the acknowledgement boundary. In order:
     /// 1. Each record's bytes are checked against those first seen at its acquisition coordinate, all in one
     ///    transaction of the retry state, so a batch whose content drifted fails before anything is exported.
-    /// 2. The records are exported in one call, stating the zone and the conversion instant the batch was first published
-    ///    with, and the devices that recorded it. A record Grove refuses is logged and skipped.
+    /// 2. The records are exported in one call, stating the zone, the conversion instant, the conversion facts and the devices
+    ///    the batch was first published with. A record Grove refuses is logged and skipped.
     /// 3. The batch is staged for upload as one ``UploadBatchArchive``: its one Bundle, verbatim, in `bundle.json`, and each
     ///    sidecar under `recordings/`, at the path relative to the archive's root its DocumentReference states. The Bundle
     ///    states the persisted conversion instant as its timestamp, and the archive is named by its Provenances, so a
@@ -270,14 +270,14 @@ extension MHCSensorSampleUploadStrategy {
         guard !records.isEmpty else {
             return
         }
-        let batchFacts = try publication.batchFacts()
+        let batchFacts = try await publication.batchFacts()
         // One outcome per record, in input order.
         var outcomes: [SensorKitFHIRExporter.Export.Outcome] = []
-        try await publication.exporter().export(
+        try await publication.exporter(stating: batchFacts.conversionFacts).export(
             records,
             sourceTimeZone: batchFacts.timeZone,
-            recordingDevice: RecordingDevice(publication.info.device),
-            sourceDevices: publication.info.sourceDevices.map { RecordingDevice($0) },
+            recordingDevice: batchFacts.devices.recordingDevice,
+            sourceDevices: batchFacts.devices.sourceDevices,
             at: batchFacts.conversionInstant
         ) { export in
             outcomes.append(export.outcome)

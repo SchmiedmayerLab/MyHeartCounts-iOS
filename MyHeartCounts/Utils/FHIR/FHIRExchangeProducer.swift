@@ -16,8 +16,9 @@ extension FHIRExchangeStateStore {
     /// The producer every exporter of `subject` converts through: MHC's identity scope under `secret`, and `facts` as
     /// every record states them.
     ///
-    /// Every exporter factory reads the identity secret once and passes it here and to its repository scope. Build one
-    /// per batch, so new records state the facts as they stand.
+    /// Every exporter factory reads the identity secret once and passes it here and to its repository scope. A producer
+    /// states `facts` for as long as it lives, so each exporter is built as often as its facts can change: HealthKit's when
+    /// the account or enrollment changes, SensorKit's per batch, and the questionnaire exporter per response.
     func exchangeProducer(
         subject: FHIRExchangeSubject,
         facts: ConversionFacts,
@@ -35,14 +36,9 @@ extension FHIRExchangeStateStore {
 
 
 extension FHIRExchangeStateStore {
-    /// The exporter of one SensorKit batch of `subject`, under the facts as they stand now.
+    /// The exporter of one SensorKit batch of `subject`, stating `facts`: those the batch was first published under.
     ///
-    /// Building it reads the keychain identity secret once, and the app facts and enrollment.
-    func sensorKitExporter(subject: FHIRExchangeSubject) async throws -> SensorKitFHIRExporter {
-        try sensorKitExporter(subject: subject, facts: try await .current())
-    }
-
-    /// ``sensorKitExporter(subject:)`` stating `facts` instead of the current ones.
+    /// Building it reads the keychain identity secret once.
     func sensorKitExporter(subject: FHIRExchangeSubject, facts: ConversionFacts) throws -> SensorKitFHIRExporter {
         let secret = try identitySecret()
         let repositoryScope = try Self.repositoryScope(.sensorKit, subject: subject, secret: secret)

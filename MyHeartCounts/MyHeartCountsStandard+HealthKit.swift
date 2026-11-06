@@ -141,8 +141,12 @@ extension MyHeartCountsStandard {
         let exporter: @Sendable (_ accountDataGeneration: Int) throws -> HealthKitFHIRExporter
         /// Durably stages one upload file of new observations for `accountDataGeneration`.
         let stageFile: @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
+        /// Durably stages one `unreadable_` object of new observations for `accountDataGeneration`.
+        let stageUnreadableFile: @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
         /// Where the uploads are logged.
         let logger: Logger
+        /// The instant an upload's observations are converted at.
+        var now: @Sendable () -> Date = { .now }
     }
 
     static let defaultHealthObservationFHIRExtensions: [any FHIRExtensionBuilderProtocol] = [
@@ -170,6 +174,9 @@ extension MyHeartCountsStandard {
             },
             stageFile: { file, accountDataGeneration in
                 try await managedFileUpload.stage(file, category: .liveHealthUpload, accountDataGeneration: accountDataGeneration)
+            },
+            stageUnreadableFile: { file, accountDataGeneration in
+                try await managedFileUpload.stage(file, category: .unreadableHealthUpload, accountDataGeneration: accountDataGeneration)
             },
             logger: logger
         )
@@ -273,7 +280,7 @@ extension MyHeartCountsStandard {
             }
             return
         }
-        let conversionInstant = Date.now
+        let conversionInstant = dependencies.now()
         let subject = try await dependencies.subject()
         let destination = try FHIRExchangeDestination.capture(
             accountID: subject.identity.value,
@@ -312,6 +319,10 @@ extension MyHeartCountsStandard {
                 try Swift::Task.checkCancellation()
                 try destination.validateCurrentAccount()
                 try await dependencies.stageFile(url, accountDataGeneration)
+            } stageUnreadable: { url in
+                try Swift::Task.checkCancellation()
+                try destination.validateCurrentAccount()
+                try await dependencies.stageUnreadableFile(url, accountDataGeneration)
             }
             await triggerDidUploadNotification()
         case .directFirestore:

@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import GroveFHIRContract
 @testable import GroveSensorKit
 import GroveSensorKitFHIR
 @testable import MyHeartCounts
@@ -15,8 +14,7 @@ import SensorKit
 import Testing
 
 
-/// Serialized: every test publishes the same session, whose batch file is staged under a name its identity derives.
-@Suite(.serialized)
+@Suite
 struct ECGFHIRExchangeTests {
     private struct Session {
         var startDate = SensorKitPublicationHarness.start
@@ -50,7 +48,7 @@ struct ECGFHIRExchangeTests {
     private static func upload(
         _ sessions: [SensorKitECGSession],
         publication: SensorKitBatchPublication
-    ) async throws -> ExchangeProducer.Receipt? {
+    ) async throws {
         try await UploadStrategyECG().upload(
             sessions,
             publication: publication,
@@ -66,7 +64,7 @@ struct ECGFHIRExchangeTests {
         let original = Session().value
         let failing = RecordedSensorKitUploads(failingStaging: true)
         await #expect(throws: RecordedSensorKitUploads.StageFailure.self) {
-            _ = try await Self.upload([original], publication: harness.publication(uploads: failing))
+            try await Self.upload([original], publication: harness.publication(uploads: failing))
         }
         let evidence = try SensorKitPreparedStructuredRecord(electrocardiogram: original).retryEvidence
         let sourceRecordID = try harness.publication(uploads: uploads).sourceRecordID(ordinal: 0, evidence: evidence)
@@ -84,15 +82,13 @@ struct ECGFHIRExchangeTests {
             #expect(try SensorKitPreparedStructuredRecord(electrocardiogram: drifted.value).retryEvidence == evidence, "\(property)")
             let redelivered = RecordedSensorKitUploads()
             await #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceRecordID.value), "\(property)") {
-                _ = try await Self.upload([drifted.value], publication: harness.publication(uploads: redelivered))
+                try await Self.upload([drifted.value], publication: harness.publication(uploads: redelivered))
             }
             #expect(redelivered.all.isEmpty, "\(property)")
         }
 
-        let receipt = try await Self.upload([original], publication: harness.publication(uploads: uploads))
+        try await Self.upload([original], publication: harness.publication(uploads: uploads))
         #expect(uploads.all == failing.all)
-        receipt?.release()
-        #expect(try harness.ledger.reservationCount == 0)
     }
 
     /// A batch pending from an earlier build, which recorded only Grove's evidence of the session, still matches its
@@ -106,8 +102,7 @@ struct ECGFHIRExchangeTests {
             evidence: try SensorKitPreparedStructuredRecord(electrocardiogram: session).retryEvidence
         )
 
-        let receipt = try await Self.upload([session], publication: publication)
+        try await Self.upload([session], publication: publication)
         #expect(try uploads.graphs.count == 1)
-        receipt?.release()
     }
 }

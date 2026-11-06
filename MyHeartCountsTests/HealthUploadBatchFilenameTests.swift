@@ -13,43 +13,40 @@ import Testing
 
 @Suite
 struct HealthUploadBatchFilenameTests {
-    @Test
-    func filenameIsStableAcrossInputOrderAndUsesABoundedDigest() throws {
-        let first = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
-        let second = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+    private static let first = "urn:uuid:00000000-0000-5000-8000-000000000001"
+    private static let second = "urn:uuid:00000000-0000-5000-8000-000000000002"
 
+    @Test
+    func filenameIsStableAcrossInputOrderAndUsesABoundedDigest() {
         let forward = HealthUploadBatch.filename(
             typePrefix: "HKQuantityTypeIdentifierStepCount",
-            identifiers: [first, second],
+            provenanceFullURLs: [Self.first, Self.second],
             fileExtension: "json.zstd"
         )
         let reverse = HealthUploadBatch.filename(
             typePrefix: "HKQuantityTypeIdentifierStepCount",
-            identifiers: [second, first],
+            provenanceFullURLs: [Self.second, Self.first],
             fileExtension: "json.zstd"
         )
 
         // The filename is the cross-version dedup key for staged uploads, so it is pinned exactly.
-        #expect(forward == "HKQuantityTypeIdentifierStepCount_7a70c782c5d30f61a8f57b90.json.zstd")
+        #expect(forward == "HKQuantityTypeIdentifierStepCount_45256bd0327cd1708ce2c81a.json.zstd")
         #expect(forward == reverse)
     }
 
     @Test
-    func filenameChangesWhenBatchMembershipChanges() throws {
-        let first = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
-        let second = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
-
-        let oneIdentifier = HealthUploadBatch.filename(
+    func filenameChangesWhenBatchMembershipChanges() {
+        let oneFullURL = HealthUploadBatch.filename(
             typePrefix: "type",
-            identifiers: [first],
+            provenanceFullURLs: [Self.first],
             fileExtension: "json.zstd"
         )
-        let twoIdentifiers = HealthUploadBatch.filename(
+        let twoFullURLs = HealthUploadBatch.filename(
             typePrefix: "type",
-            identifiers: [first, second],
+            provenanceFullURLs: [Self.first, Self.second],
             fileExtension: "json.zstd"
         )
 
-        #expect(oneIdentifier != twoIdentifiers)
+        #expect(oneFullURL != twoFullURLs)
     }
 }

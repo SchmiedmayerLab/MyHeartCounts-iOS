@@ -17,6 +17,8 @@ import HealthKit
 import ModelsR4
 @testable import MyHeartCounts
 import Testing
+
+
 @Suite
 struct FHIRExchangeStateTests {
     private static var subject: FHIRExchangeSubject {
@@ -28,8 +30,18 @@ struct FHIRExchangeStateTests {
         }
     }
 
-    private static func eventFacts(study: String? = "study-original") throws -> FHIRExchangeEventFacts {
-        FHIRExchangeEventFacts(
+    /// A participant's accounts in the US and the UK deployments, which one identity secret serves.
+    private static var accounts: (unitedStates: FHIRExchangeSubject, unitedKingdom: FHIRExchangeSubject) {
+        get throws {
+            func account(_ value: String) throws -> FHIRExchangeSubject {
+                try FHIRExchangeSubject(identity: BusinessIdentifier(system: FHIRExchangeIdentifiers.participant, value: value))
+            }
+            return (try account("us-account"), try account("uk-account"))
+        }
+    }
+
+    private static func facts(study: String? = "study-original") throws -> MyHeartCounts::ConversionFacts {
+        MyHeartCounts::ConversionFacts(
             application: try ApplicationDevice(
                 name: "My Heart Counts",
                 bundleIdentifier: "edu.stanford.MyHeartCounts",
@@ -37,7 +49,7 @@ struct FHIRExchangeStateTests {
                 build: "1"
             ),
             host: try HostDevice(operatingSystemVersion: "26.0"),
-            study: study.map { FHIRExchangeEventFacts.Study(id: $0, revision: 1) }
+            study: study.map { MyHeartCounts::ConversionFacts.Study(id: $0, revision: 1) }
         )
     }
 
@@ -63,17 +75,31 @@ struct FHIRExchangeStateTests {
             recordOrdinal: 0
         )
         let firstZone = try #require(TimeZone(identifier: "America/St_Johns"))
-        #expect(try store.sensorBatchTimeZone(batchKey, current: firstZone) == firstZone)
+        let firstInstant = Date(timeIntervalSince1970: 1_788_000_100)
+        let later = firstInstant.addingTimeInterval(60)
+        let firstFacts = FHIRExchangeStateStore.SensorBatchFacts(
+            timeZone: firstZone,
+            conversionInstant: firstInstant,
+            conversionFacts: try .testing(),
+            devices: .testing()
+        )
+        let laterFacts = FHIRExchangeStateStore.SensorBatchFacts(
+            timeZone: .gmt,
+            conversionInstant: later,
+            conversionFacts: try .testing(build: "101", operatingSystem: "27.0", studyRevision: 2),
+            devices: .testing(device: UpdatedSensorKitDevice(), sources: [.pinnedPeripheral()])
+        )
+        #expect(try store.sensorBatchFacts(batchKey, current: firstFacts) == firstFacts)
         try store.verifySensorRetryDigest(Data("first".utf8), batchKey: batchKey, sourceRecordID: sourceID)
         try store.verifySensorRetryDigest(Data("first".utf8), batchKey: batchKey, sourceRecordID: sourceID)
         #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceID.value)) {
             try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: batchKey, sourceRecordID: sourceID)
         }
-        #expect(try store.sensorBatchTimeZone(batchKey, current: .gmt) == firstZone)
+        #expect(try store.sensorBatchFacts(batchKey, current: laterFacts) == firstFacts)
 
         try store.completeSensorBatch(batchKey)
         try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: batchKey, sourceRecordID: sourceID)
-        #expect(try store.sensorBatchTimeZone(batchKey, current: .gmt) == .gmt)
+        #expect(try store.sensorBatchFacts(batchKey, current: laterFacts) == laterFacts)
     }
 
     @Test
@@ -121,24 +147,30 @@ struct FHIRExchangeStateTests {
     @Test
     func opaqueSystemsDeriveFromTheDeploymentRoot() throws {
         let store = FHIRExchangeStateStore()
-        let scope = try store.identityScope()
+        try store.useKnownIdentitySecret()
+        let subject = try Self.subject
+        let scope = try store.identityScope(subject: subject)
         let root = "https://myheartcounts.stanford.edu/fhir/NamingSystem"
+        // `s` and the first 8 characters of the known key's fingerprint for `subject`.
+        let keyID = "slH2i51Vw"
 
-        #expect(scope.keyID == "store")
+        #expect(scope.keyID == keyID)
         #expect(scope.epoch.rawValue == "1")
         let expected: [(IdentifierSystem, String)] = [
-            (scope.systems.sourceRecord, "\(root)/grove-source-record-v0/store/1"),
-            (scope.systems.sourceOutput, "\(root)/grove-source-output-v0/store/1"),
-            (scope.systems.writerRecord, "\(root)/grove-writer-record-v0/store/1"),
-            (scope.systems.providerRecord, "\(root)/grove-provider-record-v0/store/1"),
-            (scope.systems.providerOutput, "\(root)/grove-provider-output-v0/store/1"),
-            (scope.systems.sourceArtifact, "\(root)/grove-source-artifact-v0/store/1"),
-            (scope.systems.providerArtifact, "\(root)/grove-provider-artifact-v0/store/1"),
-            (scope.systems.sourceContext, "\(root)/grove-source-context-v0/store/1"),
-            (scope.systems.recordingDevice, "\(root)/grove-recording-device-v0/store/1"),
-            (scope.systems.deviceSnapshot, "\(root)/grove-device-snapshot-v0/store/1"),
-            (scope.systems.event, "\(root)/grove-event-v0"),
-            (scope.systems.entryNode, "\(root)/grove-entry-node-v0")
+            (scope.systems.sourceRecord, "\(root)/grove-source-record-v0/\(keyID)/1"),
+            (scope.systems.sourceOutput, "\(root)/grove-source-output-v0/\(keyID)/1"),
+            (scope.systems.writerRecord, "\(root)/grove-writer-record-v0/\(keyID)/1"),
+            (scope.systems.providerRecord, "\(root)/grove-provider-record-v0/\(keyID)/1"),
+            (scope.systems.providerOutput, "\(root)/grove-provider-output-v0/\(keyID)/1"),
+            (scope.systems.sourceArtifact, "\(root)/grove-source-artifact-v0/\(keyID)/1"),
+            (scope.systems.providerArtifact, "\(root)/grove-provider-artifact-v0/\(keyID)/1"),
+            (scope.systems.sourceContext, "\(root)/grove-source-context-v0/\(keyID)/1"),
+            (scope.systems.recordingDevice, "\(root)/grove-recording-device-v0/\(keyID)/1"),
+            (scope.systems.deviceSnapshot, "\(root)/grove-device-snapshot-v0/\(keyID)/1"),
+            (scope.systems.contextSnapshot, "\(root)/grove-context-snapshot-v0/\(keyID)/1"),
+            (scope.systems.recordVersion, "\(root)/grove-record-version-v0/\(keyID)/1"),
+            (scope.systems.recordRetraction, "\(root)/grove-record-retraction-v0/\(keyID)/1"),
+            (scope.systems.deviceLocalIdentifier, "\(root)/grove-device-local-identifier")
         ]
         for (system, literal) in expected {
             #expect(system.rawValue == literal)
@@ -148,26 +180,88 @@ struct FHIRExchangeStateTests {
         let record = try scope.sourceRecord(
             adapterID: "healthkit",
             sourceType: "HKQuantityTypeIdentifierStepCount",
-            repositoryScope: try store.repositoryScope(.healthKit, subject: try Self.subject),
+            repositoryScope: try store.repositoryScope(.healthKit, subject: subject),
             nativeRecordID: "9512fc92-b514-4bcc-a157-050c41dac51d"
         ).identifier.identifier
         #expect(record.system == scope.systems.sourceRecord)
-        #expect(record.value.hasPrefix("v0:store:1:"))
+        #expect(record.value.hasPrefix("v0:\(keyID):1:"))
+    }
+
+    /// H11: a participant's US and UK accounts share one secret, but a key id is per subject, so none links the two.
+    @Test
+    func oneSecretStatesADifferentKeyIDPerSubject() throws {
+        let store = FHIRExchangeStateStore()
+        try store.useKnownIdentitySecret()
+        let accounts = try Self.accounts
+
+        let unitedStates = try store.identityScope(subject: accounts.unitedStates)
+        let unitedKingdom = try store.identityScope(subject: accounts.unitedKingdom)
+
+        // Pinned independently of Grove: `s`, then 8 characters of the HMAC of the framed label and subject.
+        #expect(unitedStates.keyID == "smvlJazk5")
+        #expect(unitedKingdom.keyID == "sXNR5ILxc")
+        #expect(unitedStates.systems.sourceRecord != unitedKingdom.systems.sourceRecord)
+        #expect(unitedStates.systems.recordVersion != unitedKingdom.systems.recordVersion)
+
+        // The participant's other device, which shares the secret, states the same key id for the same account.
+        let otherDevice = FHIRExchangeStateStore(secretsSharedWith: store)
+        #expect(try otherDevice.identityScope(subject: accounts.unitedStates).keyID == unitedStates.keyID)
+    }
+
+    /// H11: a re-minted key never reuses the key id, and so the systems, of the key it replaces.
+    @Test
+    func aRemintedKeyStatesANewKeyID() throws {
+        let subject = try Self.subject
+        let lost = FHIRExchangeStateStore()
+        let reminted = FHIRExchangeStateStore()
+
+        let lostScope = try lost.identityScope(subject: subject)
+        let remintedScope = try reminted.identityScope(subject: subject)
+
+        #expect(remintedScope.keyID != lostScope.keyID)
+        #expect(remintedScope.epoch == lostScope.epoch)
+        #expect(remintedScope.systems.sourceRecord != lostScope.systems.sourceRecord)
+    }
+
+    /// H11: one sample converted for both accounts under one secret shares no keyed identifier between them, and neither
+    /// record states the other account's key id.
+    @Test
+    func oneSecretKeepsTheRecordsOfTwoSubjectsApart() async throws {
+        let harness = ExchangeHarness()
+        try harness.identity.useKnownIdentitySecret()
+        let accounts = try Self.accounts
+        let sample = ExchangeHarness.steps(0)
+
+        let unitedStates = try await #require(
+            try harness.exporter(subject: accounts.unitedStates).deliver([sample]).records[sample.uuid]
+        )
+        let unitedKingdom = try await #require(
+            try harness.exporter(subject: accounts.unitedKingdom).deliver([sample]).records[sample.uuid]
+        )
+
+        #expect(unitedStates.sourceRecord.system != unitedKingdom.sourceRecord.system)
+        #expect(unitedStates.sourceRecord.value != unitedKingdom.sourceRecord.value)
+        #expect(unitedStates.version != unitedKingdom.version)
+        let unitedStatesKeyID = try harness.identity.identityScope(subject: accounts.unitedStates).keyID
+        let unitedKingdomKeyID = try harness.identity.identityScope(subject: accounts.unitedKingdom).keyID
+        #expect(String(decoding: unitedStates.json, as: UTF8.self).contains(unitedStatesKeyID))
+        #expect(!String(decoding: unitedStates.json, as: UTF8.self).contains(unitedKingdomKeyID))
+        #expect(!String(decoding: unitedKingdom.json, as: UTF8.self).contains(unitedStatesKeyID))
     }
 
     /// A known enrollment travels with its exact protocol revision, and an unenrolled producer names none.
     @Test
-    func eventFactsStateTheEnrollmentWithItsProtocolRevision() throws {
+    func factsStateTheEnrollmentWithItsProtocolRevision() throws {
         let subject = try Self.subject
         let studyID = "7C1A5E0F-3B2D-4E6A-9F8B-0D1C2E3F4A5B"
 
-        let study = try #require(try Self.eventFacts(study: studyID).studies(for: subject).first)
+        let study = try #require(try Self.facts(study: studyID).studies(for: subject).first)
         let lowercased = "7c1a5e0f-3b2d-4e6a-9f8b-0d1c2e3f4a5b"
         #expect(study.study.value == lowercased)
         #expect(study.protocolURL.value?.url.absoluteString == "https://myheartcounts.stanford.edu/fhir/PlanDefinition/\(lowercased)")
         #expect(study.protocolVersion == "1")
         #expect(study.enrollment.value == "\(lowercased):participant-test")
-        #expect(try Self.eventFacts(study: nil).studies(for: subject).isEmpty)
+        #expect(try Self.facts(study: nil).studies(for: subject).isEmpty)
     }
 
     /// A later layout, and the pre-release layout 0, are refused rather than read.
@@ -195,7 +289,7 @@ struct FHIRExchangeStateTests {
         let newStore = oldStore.testingView(accountDataGeneration: 8)
         try newStore.reset()
         // The scope is store-bound and partitioned by the subject, so the same account keeps
-        // its repository across a ledger reset; a different account gets its own partition.
+        // its repository across a state reset; a different account gets its own partition.
         let newRepository = try newStore.repositoryScope(.healthKit, subject: subject)
         #expect(newRepository == oldRepository)
         #expect(newStore.encodedStateForTesting != nil)
@@ -214,29 +308,25 @@ struct FHIRExchangeStateTests {
 }
 
 
-// MARK: Batch Reservation
+// MARK: Record Versions
 
 extension FHIRExchangeStateTests {
-    /// A staged HealthKit delivery reserves every sample before converting any; a redelivery of one of them,
-    /// alone or later, reproduces the event the delivery minted until its anchor commits.
+    /// A record's version follows from its sample, instant, facts, key and subject, and from nothing about its delivery: a
+    /// redelivery of one sample of a batch, alone, repeats the version the batch staged for it.
     @Test
-    func healthKitBatchReservesEverySampleUpFront() async throws {
+    func healthKitRecordVersionsDoNotDependOnTheirBatch() async throws {
         let staging = try await HealthUploadStaging.resolvedForTesting()
-        let samples = (0..<3).map(LedgerHarness.steps)
-        let delivery = try await staging.add(samples)
-        let batch = try staging.drainStagedSamples().mapValues(stagedEvent)
+        let samples = (0..<3).map(ExchangeHarness.steps)
+        try await staging.add(samples, ingestionTimestamp: ExchangeHarness.start)
+        let batch = try staging.drainStagedSamples().mapValues(stagedRecordVersion)
 
         for sample in samples {
-            _ = try await staging.add([sample])
-            let single = try staging.drainStagedSamples().mapValues(stagedEvent)
+            try await staging.add([sample], ingestionTimestamp: ExchangeHarness.start)
+            let single = try staging.drainStagedSamples().mapValues(stagedRecordVersion)
             #expect(single == [sample.uuid: try #require(batch[sample.uuid])])
         }
-        // New sequences follow the order of the event keys, not of the input.
-        #expect(Set(batch.values.map(\.sequence.rawValue)) == ["1", "2", "3"])
-        let unreserved = LedgerHarness.steps(3)
-        _ = try await staging.add([unreserved])
-        #expect(try staging.drainStagedSamples().mapValues(stagedEvent)[unreserved.uuid]?.sequence.rawValue == "4")
-        try await delivery.commitAnchor()
+        // Every sample is a source record of its own, with a version of its own.
+        #expect(Set(batch.values).count == samples.count)
     }
 }
 
@@ -268,22 +358,35 @@ extension FHIRExchangeStateTests {
             )
         }
         let firstZone = try #require(TimeZone(identifier: "Asia/Kathmandu"))
+        let firstInstant = Date(timeIntervalSince1970: 1_788_000_100)
+        let firstFacts = FHIRExchangeStateStore.SensorBatchFacts(
+            timeZone: firstZone,
+            conversionInstant: firstInstant,
+            conversionFacts: try .testing(),
+            devices: .testing()
+        )
+        let laterFacts = FHIRExchangeStateStore.SensorBatchFacts(
+            timeZone: .gmt,
+            conversionInstant: firstInstant.addingTimeInterval(60),
+            conversionFacts: try .testing(build: "101"),
+            devices: .testing(device: UpdatedSensorKitDevice())
+        )
         let abandoned = record(of: "SRSensor.heartRate")
         // Shares the abandoned token as a string prefix, but is a different source.
         let unrelated = record(of: "SRSensor.heartRateSibling")
         for entry in [abandoned, unrelated] {
             try store.verifySensorRetryDigest(Data("first".utf8), batchKey: entry.batchKey, sourceRecordID: entry.sourceID)
-            _ = try store.sensorBatchTimeZone(entry.batchKey, current: firstZone)
+            _ = try store.sensorBatchFacts(entry.batchKey, current: firstFacts)
         }
 
         try store.abandonSensorBatches(subject: subject, sourceToken: "SRSensor.heartRate")
 
         try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: abandoned.batchKey, sourceRecordID: abandoned.sourceID)
-        #expect(try store.sensorBatchTimeZone(abandoned.batchKey, current: .gmt) == .gmt)
+        #expect(try store.sensorBatchFacts(abandoned.batchKey, current: laterFacts) == laterFacts)
         #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: unrelated.sourceID.value)) {
             try store.verifySensorRetryDigest(Data("changed".utf8), batchKey: unrelated.batchKey, sourceRecordID: unrelated.sourceID)
         }
-        #expect(try store.sensorBatchTimeZone(unrelated.batchKey, current: .gmt) == firstZone)
+        #expect(try store.sensorBatchFacts(unrelated.batchKey, current: laterFacts) == firstFacts)
     }
 }
 

@@ -7,11 +7,9 @@
 //
 
 import Foundation
-import Grove
 import GroveFHIRContract
 import GroveHealthKit
 import GroveHealthKitFHIR
-import GroveTesting
 import HealthKit
 @testable import MyHeartCounts
 import Testing
@@ -22,31 +20,9 @@ import Testing
 /// forever and blocks every newer sample of its type.
 @Suite
 struct HealthKitRefusalIsolationTests {
-    private actor FakeStandard: Standard, HealthKitConstraint {
-        func handleNewSamples<Sample>(
-            _ addedSamples: some Collection<Sample> & Sendable,
-            ofType sampleType: SampleType<Sample>
-        ) async throws -> HealthKitAnchorCommitAction? { nil }
-
-        func handleDeletedObjects<Sample>(
-            _ deletedObjects: some Collection<HKDeletedObject> & Sendable,
-            ofType sampleType: SampleType<Sample>,
-            deletedAfter: Date?
-        ) async throws -> HealthKitAnchorCommitAction? { nil }
-    }
-    
     private static let healthKit = HealthKit()
 
     private static let start = Date(timeIntervalSince1970: 1_788_000_000)
-
-    private static var subject: FHIRExchangeSubject {
-        get throws {
-            try FHIRExchangeSubject(identity: BusinessIdentifier(
-                system: FHIRExchangeIdentifiers.participant,
-                value: "test"
-            ))
-        }
-    }
 
     /// A bare systolic sample converts only inside the correlation that admits it.
     private static var refusedSample: HKQuantitySample {
@@ -61,7 +37,7 @@ struct HealthKitRefusalIsolationTests {
     @Test
     func refusalIsRecordedInsteadOfFailingTheRecord() async throws {
         let sample = Self.refusedSample
-        let exporter = try FHIRExchangeStateStore().healthKitExporter(subject: try Self.subject, ledger: .forTesting())
+        let exporter = try ExchangeHarness().exporter()
         var entries: [PreparedHealthObservationFHIRPayload.Entry] = []
         let export = try await exporter.exportBatch([sample], at: Self.start, recordProvider: .healthKit(Self.healthKit)) { entry in
             entries.append(entry)
@@ -76,47 +52,23 @@ struct HealthKitRefusalIsolationTests {
         )
     }
 
-    /// M6: a refusal holds its reservation like a graph does, until the delivery's anchor commits. Re-exporting the
-    /// refused sample before then reuses its sequence; after, it takes the next one.
+    /// A refused sample stages no row, on its delivery and on every redelivery, and neither delivery fails, so its anchor
+    /// commits and newer samples of its type follow.
     @Test
-    func refusalHoldsItsReservationUntilTheAnchorCommits() async throws {
+    func refusedSampleStagesNothingOnEveryDelivery() async throws {
         let sample = Self.refusedSample
-        let staging = HealthUploadStaging.forTesting(persistence: .inMemory, subject: try Self.subject)
-        await withDependencyResolution(standard: FakeStandard()) {
-            staging
-            HealthKit()
-        }
-        let ledger = try #require(staging.testing).ledger
+        let staging = try await HealthUploadStaging.resolvedForTesting()
 
-        let delivery = try await staging.add([sample])
-        let reserved = try ledger.producerEntry()
-        #expect(try ledger.entryKeys(prefixedBy: "event/").count == 1)
+        try await staging.add([sample])
+        #expect(try staging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 0)
 
-        let redelivery = try await staging.add([sample])
-        #expect(try ledger.producerEntry().next == reserved.next, "the redelivery reused the refused sample's reservation")
-        #expect(try ledger.entryKeys(prefixedBy: "event/").count == 1)
-
-        delivery.completeAfterSourceAcknowledgement()
-        #expect(try ledger.entryKeys(prefixedBy: "event/").count == 1, "the redelivery still holds the event")
-        redelivery.completeAfterSourceAcknowledgement()
-        #expect(try ledger.entryKeys(prefixedBy: "event/").isEmpty)
-
-        _ = try await staging.add([sample])
-        let next = try #require(UInt64(reserved.next)).advanced(by: 1)
-        #expect(try ledger.producerEntry().next == String(next), "the next export of the sample is a new event")
+        try await staging.add([sample])
         #expect(try staging.fetchCount(of: HealthUploadStaging.PendingSampleRecord.self) == 0)
     }
 
     @Test
     func oneRefusedSampleStillStagesTheRest() async throws {
-        let healthUploadStaging = HealthUploadStaging.forTesting(
-            persistence: .inMemory,
-            subject: try Self.subject
-        )
-        await withDependencyResolution(standard: FakeStandard()) {
-            healthUploadStaging
-            HealthKit()
-        }
+        let healthUploadStaging = try await HealthUploadStaging.resolvedForTesting()
         let steps = HKQuantitySample(
             type: .init(.stepCount),
             quantity: HKQuantity(unit: .count(), doubleValue: 52),
