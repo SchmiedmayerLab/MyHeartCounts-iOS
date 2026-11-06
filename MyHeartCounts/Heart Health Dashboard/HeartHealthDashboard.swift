@@ -126,6 +126,16 @@ struct HeartHealthDashboard: View {
             .padding(.vertical, 16)
             .background(.background)
             .clipShape(RoundedRectangle(cornerRadius: HealthDashboardConstants.gridComponentCornerRadius))
+            if $cvhScore.hasLimitedData {
+                HStack {
+                    Label("HHD_LIMITED_DATA_DISCLAIMER", systemSymbol: .infoCircle)
+                        .font(.caption)
+                        .multilineTextAlignment(.leading)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal)
+            }
             HStack {
                 Text("HEART_HEALTH_DASHBOARD_HEADER")
                     .font(.caption)

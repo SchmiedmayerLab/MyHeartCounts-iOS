@@ -4341,6 +4341,28 @@
         }
       }
     },
+    "HHD_LIMITED_DATA_DISCLAIMER" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter more data to get a more meaningful score."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter more data to get a more meaningful score."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce más datos para obtener una puntuación más significativa."
+          }
+        }
+      }
+    },
     "High Coronary Calcium Score" : {
       "localizations" : {
         "en-GB" : {

@@ -29,6 +29,11 @@ struct CVHScore: DynamicProperty {
         case stepCount
     }
     
+    /// The number of score components that need to have data, for the composite score to be computed.
+    private static let minNumComponentsForScore = 3
+    /// The number of score components that need to have data, for the composite score to be considered meaningful.
+    private static let minNumComponentsForMeaningfulScore = 5
+    
     var preferredExerciseMetric: PreferredExerciseMetric {
         switch (!statsExerciseTime.isEmpty, !statsStepCount.isEmpty) {
         case (true, _), (false, false):
@@ -97,6 +102,17 @@ struct CVHScore: DynamicProperty {
     
     /// the composite CVH score, in the range of `0...1`. `nil` if there aren't enough input values to compute a score
     var wrappedValue: Double? {
+        let scoreResults = availableComponentScores
+        return scoreResults.count < Self.minNumComponentsForScore ? nil : scoreResults.reduce(0, +) / Double(scoreResults.count)
+    }
+    
+    /// Whether too few score components have data for the composite score to be meaningful.
+    var hasLimitedData: Bool {
+        availableComponentScores.count < Self.minNumComponentsForMeaningfulScore
+    }
+    
+    /// The scores of those composite score components that have data, each in the range of `0...1`.
+    private var availableComponentScores: [Double] {
         let scores: [ScoreResult] = Array {
             dietScore
             switch preferredExerciseMetric {
@@ -112,8 +128,7 @@ struct CVHScore: DynamicProperty {
             bloodGlucoseScore
             bloodPressureScore
         }
-        let scoreResults = scores.compactMap { $0.score.map { $0.clamped(to: 0...1) } }
-        return scoreResults.count < 5 ? nil : scoreResults.reduce(0, +) / Double(scoreResults.count)
+        return scores.compactMap { $0.score.map { $0.clamped(to: 0...1) } }
     }
     
     var projectedValue: Self {
