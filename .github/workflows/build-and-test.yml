@@ -116,7 +116,7 @@ jobs:
       contents: read
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 6
       matrix: ${{ fromJSON(needs.mhc_app_ui_test_build.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7

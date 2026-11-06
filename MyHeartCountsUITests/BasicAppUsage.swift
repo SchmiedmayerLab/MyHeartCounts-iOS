@@ -62,8 +62,8 @@ final class BasicAppUsage: MHCTestCase, @unchecked Sendable {
         try launchAppAndEnrollIntoStudy()
         openAccountSheet()
         app.swipeUp()
-        app.buttons["Logout"].tap()
-        app.alerts["Are you sure you want to logout?"].buttons["Logout"].tap()
+        app.buttons["Log Out"].tap()
+        app.alerts["Log Out"].buttons["Log Out"].tap()
         XCTAssert(app.staticTexts["Welcome to the My Heart Counts\nCardiovascular Health Study"].waitForExistence(timeout: 20))
     }
     

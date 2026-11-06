@@ -16,3 +16,24 @@ path = [
 ]
 SPDX-FileCopyrightText = "2025 Stanford University and the project authors (see CONTRIBUTORS.md)"
 SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [
+    "MyHeartCounts/Resources/Assets.xcassets/Kittens/**/*.png",
+    "MyHeartCounts/Resources/Assets.xcassets/RedPandas/**/*.png",
+    "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-fluffy.imageset/penguin-fluffy.png",
+    "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-gentoo.imageset/penguin-gentoo.png",
+    "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-looking-up.imageset/penguin-looking-up.png",
+    "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-shy.imageset/penguin-shy.png"
+]
+SPDX-FileCopyrightText = "Wikimedia Commons contributors (see Critter.swift for the original files)"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = [
+    "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-chicks.imageset/penguin-chicks.png",
+    "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-family.imageset/penguin-family.png",
+    "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-waving.imageset/penguin-waving.png"
+]
+SPDX-FileCopyrightText = "United States Government, via Wikimedia Commons (see Critter.swift for the original files)"
+SPDX-License-Identifier = "LicenseRef-PublicDomain"
