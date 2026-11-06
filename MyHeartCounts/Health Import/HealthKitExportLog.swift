@@ -213,7 +213,6 @@ extension HealthKitExportLog {
     private struct Throughput: Encodable {
         struct Phases: Encodable {
             let plan: Double
-            let reserve: Double
             let assemble: Double
             let validate: Double
             let receive: Double
@@ -240,7 +239,6 @@ extension HealthKitExportLog {
             let phases = throughput.phases
             phasesMs = Phases(
                 plan: phases.plan.milliseconds,
-                reserve: phases.reserve.milliseconds,
                 assemble: phases.assemble.milliseconds,
                 validate: phases.validate.milliseconds,
                 receive: phases.receive.milliseconds

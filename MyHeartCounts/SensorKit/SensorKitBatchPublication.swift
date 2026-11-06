@@ -48,14 +48,13 @@ struct SensorKitBatchPublication: Sendable {
     let info: SensorKit.BatchInfo
     /// Where the batch's records go.
     let uploader: SensorKitBatchUploader
-    /// When the batch's new events are reserved; a redelivery before the batch is acknowledged restates the first.
-    let conversionInstant: Date
 
+    /// The conversion instant of a batch first seen here; ``batchFacts(currentTimeZone:)`` gives the one its records state.
+    private let conversionInstant: Date
     private let acquisitionBatch: SensorKit.AcquisitionBatchCoordinate
     private let deviceProductType: String
     private let subject: FHIRExchangeSubject
     private let stateStore: FHIRExchangeStateStore
-    private let ledger: FHIRExchangeLedger
 
     init(
         sensor: some AnySensor,
@@ -63,7 +62,6 @@ struct SensorKitBatchPublication: Sendable {
         subject: FHIRExchangeSubject,
         destination: FHIRExchangeDestination,
         stateStore: FHIRExchangeStateStore,
-        ledger: FHIRExchangeLedger,
         uploader: SensorKitBatchUploader,
         conversionInstant: Date = .now
     ) throws {
@@ -79,7 +77,6 @@ struct SensorKitBatchPublication: Sendable {
         self.deviceProductType = batchInfo.device.productType
         self.subject = subject
         self.stateStore = stateStore
-        self.ledger = ledger
         self.batchKey = stateStore.sensorKitBatchKey(
             subject: subject,
             acquisitionBatch: batchInfo.acquisitionBatch,
@@ -132,39 +129,35 @@ struct SensorKitBatchPublication: Sendable {
         )
     }
 
-    /// The zone the batch states its bounds in: `current` when the batch is first published, and the same zone on
-    /// every redelivery, as it is persisted with the batch's retry state.
-    func sourceTimeZone(current: TimeZone = .current) throws -> TimeZone {
+    /// What the batch's records state on every delivery: `currentTimeZone` and this publication's conversion instant when
+    /// the batch is first published, and the same facts on every redelivery, as they are persisted with the batch's retry
+    /// state, so a redelivery repeats every record version.
+    func batchFacts(currentTimeZone: TimeZone = .current) throws -> FHIRExchangeStateStore.SensorBatchFacts {
         try destination.validateCurrentAccount()
-        return try stateStore.sensorBatchTimeZone(batchKey, current: current)
+        return try stateStore.sensorBatchFacts(batchKey, currentTimeZone: currentTimeZone, conversionInstant: conversionInstant)
     }
 
     /// The exporter of the batch's records, under the facts as they stand now.
     ///
-    /// Building it reads the identity secret and the app facts; it opens no ledger.
-    func exporter() throws -> SensorKitFHIRExporter {
-        try stateStore.sensorKitExporter(subject: subject, ledger: ledger)
+    /// Building it reads the identity secret and the app facts.
+    func exporter() async throws -> SensorKitFHIRExporter {
+        try await stateStore.sensorKitExporter(subject: subject)
     }
 
     /// Publishes the batch through `upload` and acknowledges its cursor through `acknowledge`, as one step.
     ///
     /// In order:
     /// 1. `upload` publishes the batch's records. A failure leaves the batch pending.
-    /// 2. `acknowledge` makes the batch's cursor durable. Until it succeeds, the batch's events stay reserved and its
-    ///    retry state stays, so a redelivery restates the batch byte for byte and still fails closed on drift.
-    /// 3. The upload's receipt is released, so a later delivery of the same records is a new event.
-    /// 4. The batch's retry state is dropped. A failure is only logged: the cursor is already durable, and a transient
+    /// 2. `acknowledge` makes the batch's cursor durable. Until it succeeds, the batch's retry state stays, so a redelivery
+    ///    restates the batch byte for byte and still fails closed on drift.
+    /// 3. The batch's retry state is dropped. A failure is only logged: the cursor is already durable, and a transient
     ///    cleanup failure must not make the acknowledged batch look unpublished or trigger a false retry.
-    ///
-    /// A process that ends between 2 and 3 leaves the batch's reservations in the ledger until its next reset: their
-    /// keys are never fetched again, and Grove offers no call to forget them by key.
     func publishAndAcknowledge(
-        upload: () async throws -> ExchangeProducer.Receipt?,
+        upload: () async throws -> Void,
         acknowledge: () async throws -> Void
     ) async throws {
-        let receipt = try await upload()
+        try await upload()
         try await acknowledge()
-        receipt?.release()
         do {
             try stateStore.completeSensorBatch(batchKey)
         } catch {
@@ -191,7 +184,6 @@ extension MyHeartCountsStandard {
             subject: subject,
             destination: destination,
             stateStore: fhirExchangeStateStore(accountDataGeneration: accountDataGeneration),
-            ledger: fhirExchangeLedger,
             uploader: .fileUpload(managedFileUpload)
         )
     }
@@ -201,11 +193,6 @@ extension MyHeartCountsStandard {
     /// The abandoned range is fetched again under fresh acquisition coordinates, so none of those
     /// batches can ever be retried. The key of an abandoned batch is unknown at this point (Grove
     /// refuses to deliver it again), hence the state of all of the sensor's batches is dropped.
-    ///
-    /// The events an abandoned batch reserved in the exchange ledger stay there: they are keyed by source
-    /// records that are never fetched again, so they cost only storage until the ledger is next reset.
-    /// Reservations are never forgotten by age, as age alone does not tell an abandoned batch from one
-    /// still awaiting its redelivery.
     func abandonSensorKitBatches(for sensor: some AnySensor) async throws {
         guard let sourceToken = SensorKitCatalog.current.entry(for: sensor)?.sourceToken else {
             throw SensorKitRecordError.sourceTypeNotAdmitted(sensor.id)
@@ -219,7 +206,7 @@ extension MyHeartCountsStandard {
 
 
 /// Whether `error` means that a sensor's pending batch can never be acknowledged, because a retry no longer reproduces it:
-/// either SensorKit no longer returns the batch's exact delivery boundary, a record's bytes changed at its reserved coordinate,
+/// either SensorKit no longer returns the batch's exact delivery boundary, a record's bytes changed at its acquisition coordinate,
 /// or the zone the batch was first published in no longer resolves.
 private func cannotReplayPendingBatch(after error: any Error) -> Bool {
     if let error = error as? SensorKit.QueryAnchorAcknowledgementError {

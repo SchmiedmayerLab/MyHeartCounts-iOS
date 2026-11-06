@@ -53,8 +53,8 @@ enum PreparedHealthObservationFHIRPayload {
     /// One converted observation, as it is uploaded.
     struct Entry {
         enum Content {
-            /// A Grove exchange graph's validated bytes, `ExchangeGraph.json`, uploaded verbatim.
-            case graph(Data)
+            /// A Grove exchange record: staged as its validated bytes, `ExchangeRecord.json`, and uploaded packed into a Bundle.
+            case record(ExchangeRecord)
             /// A resource the app modelled itself, encoded when it is uploaded.
             case resource(AnyEncodable)
         }
@@ -63,14 +63,15 @@ enum PreparedHealthObservationFHIRPayload {
         let sourceID: UUID
         let sourceTypeIdentifier: String
 
-        /// The bytes this entry is uploaded as: a graph's own, or the resource in the upload encoding.
-        func json() throws -> Data {
-            switch content {
-            case .graph(let json):
-                json
-            case .resource(let resource):
-                try HealthUploadBatch.encoder.encode(resource)
+        /// The entry's exchange record.
+        ///
+        /// - throws: ``MyHeartCountsStandard/HealthObservationUploadError/unsupportedStrategy`` for a resource the app
+        ///     modelled itself, which neither staging nor a Bundle takes.
+        func exchangeRecord() throws -> ExchangeRecord {
+            guard case .record(let record) = content else {
+                throw MyHeartCountsStandard.HealthObservationUploadError.unsupportedStrategy
             }
+            return record
         }
     }
 
@@ -82,58 +83,15 @@ enum PreparedHealthObservationFHIRPayload {
 }
 
 
-/// Retry-only event reservations released only after Grove commits the corresponding source cursor.
-struct HealthKitFHIRReservationReceipt: Sendable {
-    private let receipts: [ExchangeProducer.Receipt]
-
-    var isEmpty: Bool {
-        receipts.isEmpty
-    }
-
-    var anchorCommitAction: HealthKitAnchorCommitAction? {
-        guard !receipts.isEmpty else {
-            return nil
-        }
-        return HealthKitAnchorCommitAction {
-            self.completeAfterSourceAcknowledgement()
-        }
-    }
-
-    init() {
-        self.receipts = []
-    }
-
-    init(_ receipts: some Sequence<ExchangeProducer.Receipt>) {
-        self.receipts = Array(receipts)
-    }
-
-    init(merging receipts: some Sequence<HealthKitFHIRReservationReceipt>) {
-        self.init(receipts.flatMap(\.receipts))
-    }
-
-    /// Cleanup is best-effort and idempotent: the source cursor is already durable at this point.
-    ///
-    /// Each Grove receipt releases at most once, also when copies of this value complete it again.
-    func completeAfterSourceAcknowledgement() {
-        for receipt in receipts {
-            receipt.release()
-        }
-    }
-}
-
-
 /// What one batch's HealthKit export left behind besides its entries.
 struct HealthKitBatchExport: Sendable {
-    /// Nothing exported, nothing reserved.
-    static let empty = Self(refusals: [], warnings: HealthKitFHIRExporter.WarningReport(), receipt: HealthKitFHIRReservationReceipt())
+    /// Nothing exported.
+    static let empty = Self(refusals: [], warnings: HealthKitFHIRExporter.WarningReport())
 
     /// The samples Grove refused; each costs only itself.
     let refusals: [PreparedHealthObservationFHIRPayload.Refusal]
-    /// The kinds of warning the batch's graphs raised, logged once for the batch rather than once per sample.
+    /// The kinds of warning the batch's records raised, logged once for the batch rather than once per sample.
     let warnings: HealthKitFHIRExporter.WarningReport
-    /// The batch's reservations, one Grove receipt per exporter call. Complete it once the batch's entries are
-    /// durably stored and its source cursor is committed.
-    let receipt: HealthKitFHIRReservationReceipt
 }
 
 
@@ -222,7 +180,7 @@ extension HealthKitFHIRExporter {
         /// The records as HealthKit holds them.
         ///
         /// Grove never queries HealthKit, so an ECG's waveform and correlated symptoms are fetched here; each
-        /// symptom becomes an event of its own. Every other sample is its own record.
+        /// symptom becomes a record of its own. Every other sample is its own record.
         case healthKit(HealthKit)
         /// Exists solely for testing purposes.
         case _custom( // swiftlint:disable:this identifier_name
@@ -264,16 +222,16 @@ extension HealthKitFHIRExporter {
     /// The on-device memory check confirms the value.
     static let voltageBudget = 8 * 15_360
 
-    /// Hands a graph's entry to `receive`, or returns the refusal; a refusal is logged without the sample's HealthKit
+    /// Hands a record's entry to `receive`, or returns the refusal; a refusal is logged without the sample's HealthKit
     /// UUID, which must not propagate into logs.
     private static func deliver(
         _ export: Export,
         to receive: (PreparedHealthObservationFHIRPayload.Entry) throws -> Void
     ) throws -> PreparedHealthObservationFHIRPayload.Refusal? {
         switch export.outcome {
-        case .graph(let graph):
+        case .record(let record):
             try receive(PreparedHealthObservationFHIRPayload.Entry(
-                content: .graph(graph.json),
+                content: .record(record),
                 sourceID: export.source.uuid,
                 sourceTypeIdentifier: export.source.typeIdentifier
             ))
@@ -286,15 +244,12 @@ extension HealthKitFHIRExporter {
     }
 
     /// Exports one batch of HealthKit samples in as few exporter calls as ``voltageBudget`` allows, calling
-    /// `receive` with each graph's entry as soon as it is produced.
+    /// `receive` with each record's entry as soon as it is produced.
     ///
-    /// Each call makes one ledger transaction for its reservations and adds one Grove receipt to the
-    /// returned receipt. A sample Grove refuses costs only itself: it is logged and reported in
-    /// ``HealthKitBatchExport/refusals``, and its reservation is held with the others. The graphs' warnings
-    /// are counted by kind across every call into ``HealthKitBatchExport/warnings`` and logged once, when the
-    /// batch has exported: a historical export raises the same few for almost every sample. When any call or
-    /// `receive` throws, the receipts of the earlier calls are dropped with the batch, so their holds lapse
-    /// and the redelivery after the retained cursor is an exact retry; its warnings are logged then.
+    /// A sample Grove refuses costs only itself: it is logged and reported in ``HealthKitBatchExport/refusals``. The
+    /// records' warnings are counted by kind across every call into ``HealthKitBatchExport/warnings`` and logged once,
+    /// when the batch has exported: a historical export raises the same few for almost every sample. When any call or
+    /// `receive` throws, the batch fails, and its warnings are logged by its redelivery.
     func exportBatch(
         _ samples: some Collection<some HKSample>,
         at instant: Date,
@@ -303,21 +258,19 @@ extension HealthKitFHIRExporter {
     ) async throws -> HealthKitBatchExport {
         var refusals: [PreparedHealthObservationFHIRPayload.Refusal] = []
         var warnings = WarningReport()
-        var receipts: [ExchangeProducer.Receipt] = []
         var pending: [Record] = []
         var pendingVoltageMeasurements = 0
         func flush() async throws {
             guard !pending.isEmpty else {
                 return
             }
-            receipts.append(try await export(records: pending, at: instant) { export in
-                // A throw drops this call's receipt, so its holds lapse.
+            try await export(records: pending, at: instant) { export in
                 try Swift::Task.checkCancellation()
                 warnings.add(export)
                 if let refusal = try Self.deliver(export, to: receive) {
                     refusals.append(refusal)
                 }
-            })
+            }
             pending.removeAll(keepingCapacity: true)
             pendingVoltageMeasurements = 0
         }
@@ -339,7 +292,7 @@ extension HealthKitFHIRExporter {
             // Cumulative for this exporter, which live ingestion and the historical upload share.
             logger.info("\(throughput.description)")
         }
-        return HealthKitBatchExport(refusals: refusals, warnings: warnings, receipt: HealthKitFHIRReservationReceipt(receipts))
+        return HealthKitBatchExport(refusals: refusals, warnings: warnings)
     }
 }
 

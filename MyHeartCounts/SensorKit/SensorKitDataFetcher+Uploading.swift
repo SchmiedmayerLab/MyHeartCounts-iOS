@@ -18,14 +18,13 @@ protocol MHCSensorSampleUploadStrategy<Sample>: Sendable {
     
     /// Publishes one fetched batch through `publication`, skipping the records Grove refuses.
     ///
-    /// - returns: The receipt of the batch's events, or `nil` when nothing was exported. Release it once the batch is
-    ///     acknowledged; until then, a redelivery of the batch restates the same events.
+    /// Until the batch is acknowledged, a redelivery of the batch restates the same record versions.
     func upload(
         _ samples: consuming some RandomAccessCollection<Sample.SafeRepresentation> & Sendable,
         publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
         activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws -> ExchangeProducer.Receipt?
+    ) async throws
 }
 
 

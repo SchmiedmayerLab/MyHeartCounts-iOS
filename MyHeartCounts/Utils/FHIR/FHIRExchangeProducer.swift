@@ -13,62 +13,61 @@ import GroveSensorKitFHIR
 
 
 extension FHIRExchangeStateStore {
-    /// The producer every exporter of `subject` reserves its exchange events through: MHC's identity scope under
-    /// `secret`, `facts` as each new event freezes them, and `ledger` fenced to this store's account generation.
+    /// The producer every exporter of `subject` converts through: MHC's identity scope under `secret`, and `facts` as
+    /// every record states them.
     ///
-    /// Every exporter factory reads the identity secret once and passes it here and to its repository scope. Building
-    /// the producer opens no ledger; build one per batch, so new events state the facts as they stand.
+    /// Every exporter factory reads the identity secret once and passes it here and to its repository scope. Build one
+    /// per batch, so new records state the facts as they stand.
     func exchangeProducer(
         subject: FHIRExchangeSubject,
-        ledger: FHIRExchangeLedger,
-        facts: FHIRExchangeEventFacts,
+        facts: ConversionFacts,
         secret: FHIRExchangeIdentitySecret
     ) throws -> ExchangeProducer {
         try ExchangeProducer(
-            identityScope: try Self.identityScope(of: secret),
+            identityScope: try Self.identityScope(of: secret, subject: subject),
             subject: .logical(subject.identity),
             application: try facts.application,
             host: try facts.host,
-            studies: try facts.studies(for: subject),
-            storage: ledger.storage(accountDataGeneration: accountDataGeneration)
+            studies: try facts.studies(for: subject)
         )
     }
 }
 
 
 extension FHIRExchangeStateStore {
-    /// The exporter of one SensorKit batch of `subject`, reserving new events under the facts as they stand now.
+    /// The exporter of one SensorKit batch of `subject`, under the facts as they stand now.
     ///
-    /// Building it reads the keychain identity secret once, and the app facts and enrollment; it opens no ledger.
-    func sensorKitExporter(subject: FHIRExchangeSubject, ledger: FHIRExchangeLedger) throws -> SensorKitFHIRExporter {
-        try sensorKitExporter(subject: subject, ledger: ledger, facts: .current())
+    /// Building it reads the keychain identity secret once, and the app facts and enrollment.
+    func sensorKitExporter(subject: FHIRExchangeSubject) async throws -> SensorKitFHIRExporter {
+        try sensorKitExporter(subject: subject, facts: try await .current())
     }
 
-    /// ``sensorKitExporter(subject:ledger:)`` reserving new events under `facts` instead of the current ones.
-    func sensorKitExporter(
-        subject: FHIRExchangeSubject,
-        ledger: FHIRExchangeLedger,
-        facts: FHIRExchangeEventFacts
-    ) throws -> SensorKitFHIRExporter {
+    /// ``sensorKitExporter(subject:)`` stating `facts` instead of the current ones.
+    func sensorKitExporter(subject: FHIRExchangeSubject, facts: ConversionFacts) throws -> SensorKitFHIRExporter {
         let secret = try identitySecret()
+        let repositoryScope = try Self.repositoryScope(.sensorKit, subject: subject, secret: secret)
         return try SensorKitFHIRExporter(
-            producer: try exchangeProducer(subject: subject, ledger: ledger, facts: facts, secret: secret),
-            repositoryScope: try Self.repositoryScope(.sensorKit, subject: subject, secret: secret),
+            producer: try exchangeProducer(subject: subject, facts: facts, secret: secret),
+            repositoryScope: repositoryScope,
             visitLocationIdentifierSystem: FHIRExchangeIdentifiers.visitLocation,
-            options: .myHeartCounts
+            options: .myHeartCounts(
+                nativeRecordSystem: try FHIRExchangeIdentifiers.sensorKitSourceRecord(
+                    scope: Self.sensorKitRecordScope(of: repositoryScope, secret: secret)
+                )
+            )
         )
     }
 }
 
 
 extension FHIRExchangeStateStore {
-    /// The exporter of `subject`'s questionnaire responses, reserving new events under the facts as they stand now.
+    /// The exporter of `subject`'s questionnaire responses, under the facts as they stand now.
     ///
-    /// Building it reads the keychain identity secret once, and the app facts and enrollment; it opens no ledger.
-    func questionnaireExporter(subject: FHIRExchangeSubject, ledger: FHIRExchangeLedger) throws -> QuestionnaireFHIRExporter {
+    /// Building it reads the keychain identity secret once, and the app facts and enrollment.
+    func questionnaireExporter(subject: FHIRExchangeSubject) async throws -> QuestionnaireFHIRExporter {
         let secret = try identitySecret()
         return QuestionnaireFHIRExporter(
-            producer: try exchangeProducer(subject: subject, ledger: ledger, facts: .current(), secret: secret),
+            producer: try exchangeProducer(subject: subject, facts: try await .current(), secret: secret),
             repositoryScope: try Self.repositoryScope(.questionnaire, subject: subject, secret: secret)
         )
     }
@@ -76,10 +75,14 @@ extension FHIRExchangeStateStore {
 
 
 extension SensorKitFHIRExporter.Options {
-    /// Discloses each record's SensorKit source-record identifier under MHC's own system on the record's primary output.
-    static let myHeartCounts: Self = {
+    /// Discloses each record's SensorKit source-record identifier under `nativeRecordSystem` on the record's primary output.
+    ///
+    /// The identifier hashes only the sensor, the product type and the record's coordinates, so two participants with the
+    /// same watch state equal values: the system must be the repository's own, as
+    /// ``FHIRExchangeIdentifiers/sensorKitSourceRecord(scope:)`` scopes it.
+    static func myHeartCounts(nativeRecordSystem: IdentifierSystem) -> Self {
         var options = Self()
-        options.nativeIdentifier = .authorized(system: FHIRExchangeIdentifiers.sensorKitSourceRecord)
+        options.nativeIdentifier = .authorized(system: nativeRecordSystem)
         return options
-    }()
+    }
 }

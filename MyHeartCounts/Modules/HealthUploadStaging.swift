@@ -10,6 +10,7 @@ import Dispatch
 import Foundation
 import GRDB
 import Grove
+import GroveFHIRContract
 import GroveFoundation
 import GroveHealthKit
 import GroveHealthKitFHIR
@@ -40,23 +41,13 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
         let accountDataGeneration: Int
     }
 
-    /// One drained chunk of deletions, ready for the upload staging the additions use.
-    struct RetractionBatch: Sendable {
-        /// The retraction graphs as one JSON array; `nil` when nothing in the chunk had anything to retract.
-        let payload: Data?
-        /// The deleted records `payload` retracts.
-        let identifiers: [UUID]
-        /// The chunk's reservations; complete it once the payload is staged and the chunk removed.
-        let receipt: HealthKitFHIRReservationReceipt
-    }
-
     static let databaseWriteChunkSize = 500
     
     // swiftlint:disable attributes
     @ObservationIgnored @Dependency(HealthKit.self) private var healthKit
     @ObservationIgnored @Dependency(LocalStorage.self) private var localStorage
     @ObservationIgnored @Dependency(FirebaseConfiguration.self) private var firebaseConfiguration
-    @ObservationIgnored @Dependency(FHIRExchangeLedger.self) private var fhirExchangeLedger
+    @ObservationIgnored @Dependency(HealthKitExporterHolder.self) var healthKitExporterHolder
     @ObservationIgnored private let dbQueue: DatabaseQueue?
     /// Whether, when inserting deletions, the `HealthUploadStaging` should automatically elide (i.e., identify and delete) any matching pending samples.
     @ObservationIgnored private let autoElideUploadsWhenInsertingDeletions: Bool
@@ -124,20 +115,6 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
             try? self.elidePendingUploadsWherePossible()
         }
     }
-
-    /// The exporter of one staged batch, fenced to `accountDataGeneration`: the app's one HealthKit exporter.
-    func healthKitExporter(accountDataGeneration: Int) throws -> HealthKitFHIRExporter {
-        #if DEBUG
-        if let testing {
-            return try testing.stateStore.healthKitExporter(
-                subject: testing.subject,
-                ledger: testing.ledger,
-                facts: try testing.facts ?? .current()
-            )
-        }
-        #endif
-        return try fhirExchangeLedger.healthKitExporter(forBatchOf: accountDataGeneration)
-    }
 }
 
 
@@ -159,15 +136,14 @@ extension HealthUploadStaging {
 // MARK: Insertion
 
 extension HealthUploadStaging {
-    @discardableResult
     func add(
         _ samples: consuming some Collection<some HealthObservation> & Sendable,
         commonSampleType: String? = nil,
         ingestionTimestamp: Date = .now,
         accountDataGeneration: Int? = nil
-    ) async throws -> HealthKitFHIRReservationReceipt {
+    ) async throws {
         guard !samples.isEmpty else {
-            return HealthKitFHIRReservationReceipt()
+            return
         }
         guard let dbQueue else {
             throw DBError.noDatabase
@@ -178,7 +154,7 @@ extension HealthUploadStaging {
         if let commonSampleType {
             assert(samples.allSatisfy { $0.sampleTypeIdentifier == commonSampleType })
         }
-        return try await _add(
+        try await _add(
             samples,
             ingestionTimestamp: ingestionTimestamp,
             writeContext: DatabaseWriteContext(
@@ -190,31 +166,37 @@ extension HealthUploadStaging {
     
     /// Converts the batch off the caller's actor and stages one row per entry, in writes of ``databaseWriteChunkSize``.
     ///
+    /// Every row stores its record's bytes, and the subject its exporter converted for.
+    ///
     /// - invariant: `samples` is not empty
     @concurrent
     private func _add<Observations: Collection & Sendable>(
         _ samples: consuming Observations,
         ingestionTimestamp: Date,
         writeContext: DatabaseWriteContext
-    ) async throws -> HealthKitFHIRReservationReceipt where Observations.Element: HealthObservation {
+    ) async throws where Observations.Element: HealthObservation {
         var pendingSamples: [PendingSampleRecord] = []
         pendingSamples.reserveCapacity(Self.databaseWriteChunkSize)
-        let export = try await Observations.Element.export(
+        let current = try await stagingExporter(accountDataGeneration: writeContext.accountDataGeneration)
+        _ = try await Observations.Element.export(
             consume samples,
             at: ingestionTimestamp,
             recordProvider: .healthKit(healthKit),
-            exporter: try self.healthKitExporter(accountDataGeneration: writeContext.accountDataGeneration)
+            exporter: current.exporter
         ) { entry in
             pendingSamples.append(PendingSampleRecord(
                 id: UUID(),
                 timestamp: ingestionTimestamp,
                 sampleType: entry.sourceTypeIdentifier,
                 sampleId: entry.sourceID,
-                fhirJson: try entry.json().compressed(using: Zstd.self)
+                fhirJson: try entry.exchangeRecord().json.compressed(using: Zstd.self),
+                subjectSystem: current.subject.identity.system.rawValue,
+                subjectValue: current.subject.identity.value
             ))
             if pendingSamples.count == Self.databaseWriteChunkSize {
                 try insert(
                     pendingSamples,
+                    subject: current.subject,
                     accountDataGeneration: writeContext.accountDataGeneration,
                     into: writeContext.dbQueue
                 )
@@ -223,10 +205,10 @@ extension HealthUploadStaging {
         }
         try insert(
             pendingSamples,
+            subject: current.subject,
             accountDataGeneration: writeContext.accountDataGeneration,
             into: writeContext.dbQueue
         )
-        return export.receipt
     }
     
     
@@ -243,6 +225,7 @@ extension HealthUploadStaging {
         }
         let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
         try FHIRExchangeDestination.validateWrites(for: accountDataGeneration)
+        let subject = try stagingSubject(accountDataGeneration: accountDataGeneration)
         let timestamp = Date()
         var pendingDeletions: [PendingDeletionRecord] = []
         pendingDeletions.reserveCapacity(Self.databaseWriteChunkSize)
@@ -252,11 +235,14 @@ extension HealthUploadStaging {
                 timestamp: timestamp,
                 sampleType: sampleType.id,
                 sampleId: deletion.uuid,
-                deletedAfter: deletedAfter
+                deletedAfter: deletedAfter,
+                subjectSystem: subject.identity.system.rawValue,
+                subjectValue: subject.identity.value
             ))
             if pendingDeletions.count == Self.databaseWriteChunkSize {
                 try insertDeletions(
                     pendingDeletions,
+                    subject: subject,
                     accountDataGeneration: accountDataGeneration,
                     into: dbQueue
                 )
@@ -265,18 +251,24 @@ extension HealthUploadStaging {
         }
         try insertDeletions(
             pendingDeletions,
+            subject: subject,
             accountDataGeneration: accountDataGeneration,
             into: dbQueue
         )
     }
     
     
-    /// Inserts pending sample upload records into the database.
+    /// Inserts pending sample upload records of `subject` into the database.
+    ///
+    /// A redelivery of a row a drain claimed for the same subject is skipped: the claimed row may already be in the upload
+    /// queue, and a replacement would survive the chunk's removal, which goes by row id, and leave as a second version.
+    /// HealthKit samples are immutable, so keeping the row loses nothing. Any other row of the same sample is replaced.
     ///
     /// - Note: This exists as a separate function, instead of being directly in the ``add(_:commonSampleType:ingestionTimestamp:accountDataGeneration:)`` function above,
     ///     to work around the compiler requiring us to call the async overload of `dbQueue.write` (because the `add` function is async).
     private func insert(
         _ pendingSamples: some Collection<PendingSampleRecord>,
+        subject: FHIRExchangeSubject,
         accountDataGeneration: Int,
         into dbQueue: DatabaseQueue
     ) throws {
@@ -286,25 +278,27 @@ extension HealthUploadStaging {
         try dbQueue.write { db in
             try FHIRExchangeDestination.validateWrites(for: accountDataGeneration)
             for sample in pendingSamples {
-                var sample = sample
-                // Anchor redelivery must not make a row eligible for elision after a drain claimed it.
-                sample.uploadClaimed = try Bool.fetchOne(
-                    db,
-                    PendingSampleRecord
-                        .select(PendingSampleRecord.Columns.uploadClaimed)
-                        .filter(
-                            PendingSampleRecord.Columns.sampleType == sample.sampleType
-                                && PendingSampleRecord.Columns.sampleId == sample.sampleId
-                        )
-                ) ?? false
-                try sample.insert(db)
+                let numClaimedRows = try PendingSampleRecord
+                    .filter(
+                        PendingSampleRecord.Columns.sampleType == sample.sampleType
+                            && PendingSampleRecord.Columns.sampleId == sample.sampleId
+                            && PendingSampleRecord.Columns.uploadClaimed == true
+                    )
+                    .filter(subject.ownsStoredRow)
+                    .fetchCount(db)
+                if numClaimedRows == 0 {
+                    try sample.insert(db)
+                }
             }
         }
     }
 
-    /// Inserts deletion records into the database, and removes any matching samples.
+    /// Inserts deletion records of `subject` into the database, and removes any matching samples of that subject.
+    ///
+    /// The row of another subject's sample is left to the drain, and the deletion is inserted.
     private func insertDeletions(
         _ deletions: some Collection<PendingDeletionRecord>,
+        subject: FHIRExchangeSubject,
         accountDataGeneration: Int,
         into dbQueue: DatabaseQueue
     ) throws {
@@ -326,6 +320,7 @@ extension HealthUploadStaging {
             let matchingKeys = try PendingSampleRecord
                 .filter(keys: keys)
                 .filter(PendingSampleRecord.Columns.uploadClaimed == false)
+                .filter(subject.ownsStoredRow)
                 .select(PendingSampleRecord.Columns.sampleType, PendingSampleRecord.Columns.sampleId)
                 .asRequest(of: PendingRecordKey.self)
                 .fetchSet(db)
@@ -335,6 +330,7 @@ extension HealthUploadStaging {
             if !matchingKeys.isEmpty {
                 try PendingDeletionRecord
                     .filter(keys: matchingKeys.map(\.databaseKey))
+                    .filter(subject.ownsStoredRow)
                     .deleteAll(db)
             }
             for (key, deletion) in deletionsByKey where !matchingKeys.contains(key) {
@@ -365,6 +361,7 @@ extension HealthUploadStaging {
                 .filter(
                     deletionAlias[DeletionCol.sampleType] == sampleAlias[SampleCol.sampleType]
                         && deletionAlias[DeletionCol.sampleId] == sampleAlias[SampleCol.sampleId]
+                        && Self.storedSubjectsMatch(sampleAlias, deletionAlias)
                 )
                 .exists()
             let counts = try PendingSampleRecord
@@ -431,6 +428,19 @@ extension HealthUploadStaging {
         }
     }
 }
+
+#if DEBUG
+extension HealthUploadStaging {
+    /// Runs `body` on the staging's own database, so a test can stage or read a row no insert path writes.
+    func writeForTesting<R>(_ body: (Database) throws -> R) throws -> R {
+        guard let dbQueue else {
+            throw DBError.noDatabase
+        }
+        return try dbQueue.write(body)
+    }
+}
+#endif
+
 
 extension HealthUploadStaging {
     struct DrainChunk<Value: _PendingEntityRecord>: Sendable {

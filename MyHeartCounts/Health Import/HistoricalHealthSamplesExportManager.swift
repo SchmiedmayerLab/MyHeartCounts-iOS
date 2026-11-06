@@ -353,4 +353,12 @@ extension ManagedFileUpload.Category {
         title: "HealthKit Deletions",
         firebasePath: "healthDeletions"
     )
+    /// Every staged row the drain can't turn into a valid Bundle, uploaded alone under an `unreadable_` file name.
+    ///
+    /// No valid Bundle uses this category or that prefix, so any consumer can tell such an object apart from a Bundle.
+    static let unreadableHealthUpload = Self(
+        id: "HealthKitUpload/unreadable",
+        title: "HealthKit Upload (Unreadable)",
+        firebasePath: "unreadableHealthSamples"
+    )
 }

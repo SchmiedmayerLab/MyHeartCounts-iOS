@@ -21,7 +21,7 @@ struct UploadStrategyWristTemperature: MHCSensorSampleUploadStrategy {
         publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
         activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws -> ExchangeProducer.Receipt? {
+    ) async throws {
         activity.updateMessage("Writing to CSV")
         var uploads: [SensorKitRecordUpload] = []
         for (recordOrdinal, sample) in samples.enumerated() {
@@ -49,6 +49,6 @@ struct UploadStrategyWristTemperature: MHCSensorSampleUploadStrategy {
                 )
             })
         }
-        return try await publish(uploads, for: sensor, publication: publication, activity: activity)
+        try await publish(uploads, for: sensor, publication: publication, activity: activity)
     }
 }
