@@ -23,16 +23,16 @@ import SwiftUI
 /// Displays and manages a `TabView`, with the different tabs in the app.
 struct RootView: View {
     // swiftlint:disable attributes
+    @Environment(MyHeartCountsDelegate.self) private var appDelegate
     @Environment(AppState.self) private var appState
     @Environment(Account.self) private var account: Account?
-    @Environment(SetupTestEnvironment.self) private var setupTestEnvironment
     @LocalPreference(.onboardingFlowComplete) private var didCompleteOnboarding
     // swiftlint:enable attributes
     
     var body: some View {
         ZStack {
-            switch setupTestEnvironment.state {
-            case .disabled, .done:
+            switch appDelegate.launchState {
+            case .ready:
                 if didCompleteOnboarding, account != nil, !appState.isLoggingOut {
                     TabView()
                         // we might simply want to make every `taskPerformingAnchor` also an `taskContinuationAnchor` at some point?
@@ -44,12 +44,12 @@ struct RootView: View {
                 } else if appState.isLoggingOut {
                     FullScreenProgressView(title: "Logging Out…")
                 }
-            case .pending, .settingUp:
+            case .settingUpTestEnvironment(let description):
                 FullScreenProgressView(
                     title: "Setting Up Test Environment" as String,
-                    subtitle: setupTestEnvironment.desc
+                    subtitle: description
                 )
-            case .failure(let error):
+            case .failed(let error):
                 ContentUnavailableView("Error", systemSymbol: .exclamationmarkOctagon, description: Text(error.localizedDescription))
             }
         }
