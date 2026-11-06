@@ -67,13 +67,15 @@ struct FHIRExchangeIdentityScopeTests {
         #expect(scope.system.rawValue == "https://myheartcounts.stanford.edu/fhir/identifiers/repository")
         #expect(scope.value == "healthkit:3f8a1d2e-4b5c-6d7e-8f90-a1b2c3d4e5f6:participant-1")
 
-        let identity = try store.identityScope().sourceRecord(
+        let identityScope = try store.identityScope(subject: try Self.subject)
+        #expect(identityScope.keyID == "s1QrjbQyQ")
+        let identity = try identityScope.sourceRecord(
             adapterID: "healthkit",
             sourceType: "HKQuantityTypeIdentifierStepCount",
             repositoryScope: scope,
             nativeRecordID: "9512fc92-b514-4bcc-a157-050c41dac51d"
         )
-        #expect(identity.identifier.identifier.value == "v0:store:1:3_vdE_qomxipxpR-C7cSNp4tlxgrHrMUx9A-hYVz0n0")
+        #expect(identity.identifier.identifier.value == "v0:s1QrjbQyQ:1:3_vdE_qomxipxpR-C7cSNp4tlxgrHrMUx9A-hYVz0n0")
     }
 
     @Test
@@ -86,26 +88,36 @@ struct FHIRExchangeIdentityScopeTests {
         let scopeTwo = try deviceTwo.repositoryScope(.healthKit, subject: subject)
         #expect(scopeOne == scopeTwo)
 
-        let recordOne = try deviceOne.identityScope().sourceRecord(
+        let identityScope = try deviceOne.identityScope(subject: subject)
+        let recordOne = try identityScope.sourceRecord(
             adapterID: "healthkit",
             sourceType: "HKQuantityTypeIdentifierStepCount",
             repositoryScope: scopeOne,
             nativeRecordID: "ABC"
         )
-        let recordTwo = try deviceTwo.identityScope().sourceRecord(
+        let recordTwo = try deviceTwo.identityScope(subject: subject).sourceRecord(
             adapterID: "healthkit",
             sourceType: "HKQuantityTypeIdentifierStepCount",
             repositoryScope: scopeTwo,
             nativeRecordID: "ABC"
         )
         #expect(recordOne.identifier == recordTwo.identifier)
-        #expect(recordOne.identifier.identifier.value.hasPrefix("v0:store:1:"))
+        #expect(recordOne.identifier.identifier.value.hasPrefix("v0:\(identityScope.keyID):1:"))
     }
 }
 
 
 @Suite
 struct QuestionnaireHealthKitProjectionTests {
+    private static var subject: FHIRExchangeSubject {
+        get throws {
+            FHIRExchangeSubject(identity: try BusinessIdentifier(
+                system: FHIRExchangeIdentifiers.participant,
+                value: "participant-1"
+            ))
+        }
+    }
+
     /// A minimal marked instrument: the panel's children are components by declaration, so a
     /// projection can never pair answers across groups — the structural guarantee the old
     /// extractor enforced by matching group occurrences.
@@ -210,20 +222,13 @@ struct QuestionnaireHealthKitProjectionTests {
     private static func samples(
         questionnaire: Questionnaire,
         response: QuestionnaireResponse,
-        store: FHIRExchangeStateStore = FHIRExchangeStateStore(),
-        ledger: FHIRExchangeLedger = .forTesting()
+        store: FHIRExchangeStateStore = FHIRExchangeStateStore()
     ) async throws -> ConversionBatch<HKSample, HealthKitSampleProjectionFailure>? {
         var response = response
         response.apply(writerContext: try .current(
             applicationIdentifierSystem: FHIRExchangeIdentifiers.application
         ))
-        let exporter = try store.questionnaireExporter(
-            subject: FHIRExchangeSubject(identity: try BusinessIdentifier(
-                system: FHIRExchangeIdentifiers.participant,
-                value: "participant-1"
-            )),
-            ledger: ledger
-        )
+        let exporter = try await store.questionnaireExporter(subject: try subject)
         return try await MyHeartCountsStandard.healthKitSamples(
             extractedFrom: response,
             answering: questionnaire,
@@ -236,10 +241,7 @@ struct QuestionnaireHealthKitProjectionTests {
     func bloodPressureBuildsOneCorrelationWithTwoComponents() async throws {
         let (questionnaire, response) = try Self.pair()
         let store = FHIRExchangeStateStore()
-        let ledger = FHIRExchangeLedger.forTesting()
-        let samples = try await #require(try Self.samples(questionnaire: questionnaire, response: response, store: store, ledger: ledger)).conversions
-        // The bundle is discarded, so the response's event is released at once.
-        #expect(try ledger.reservationCount == 0)
+        let samples = try await #require(try Self.samples(questionnaire: questionnaire, response: response, store: store)).conversions
         let correlation = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
         #expect(correlation.correlationType == HKCorrelationType(.bloodPressure))
         // Asserted per component type: an unordered value set cannot tell a swap from a match.
@@ -257,8 +259,9 @@ struct QuestionnaireHealthKitProjectionTests {
         // The sync identity is the minted source-output identity: deterministic, so the same
         // response re-projected through the same store replaces its earlier samples.
         let syncID = try #require(correlation.metadata?[HKMetadataKeySyncIdentifier] as? String)
-        #expect(syncID.hasPrefix("v0:store:1:"))
-        let again = try await #require(try Self.samples(questionnaire: questionnaire, response: response, store: store, ledger: ledger))
+        let keyID = try store.identityScope(subject: try Self.subject).keyID
+        #expect(syncID.hasPrefix("v0:\(keyID):1:"))
+        let again = try await #require(try Self.samples(questionnaire: questionnaire, response: response, store: store))
         let repeated = try #require(again.conversions.compactMap { $0 as? HKCorrelation }.first)
         #expect(repeated.metadata?[HKMetadataKeySyncIdentifier] as? String == syncID)
     }
@@ -273,7 +276,7 @@ struct QuestionnaireHealthKitProjectionTests {
         try store.useKnownIdentitySecret()
         let samples = try await #require(try Self.samples(questionnaire: questionnaire, response: response, store: store)).conversions
         let correlation = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
-        #expect(correlation.metadata?[HKMetadataKeySyncIdentifier] as? String == "v0:store:1:VAeqn87IPCdpRg3YcblP91tyUYyNnEwD4WggA2uNvrA")
+        #expect(correlation.metadata?[HKMetadataKeySyncIdentifier] as? String == "v0:s1QrjbQyQ:1:VAeqn87IPCdpRg3YcblP91tyUYyNnEwD4WggA2uNvrA")
     }
 
     @Test
@@ -300,9 +303,7 @@ struct QuestionnaireHealthKitProjectionTests {
         questionnaire.item?[0].extension = nil
         questionnaire.item?[1].extension = nil
         // A survey that measures nothing yields nothing before any identity is minted, so nothing
-        // reaches HealthKit and no exchange event is spent on it.
-        let ledger = FHIRExchangeLedger.forTesting()
-        await #expect(try Self.samples(questionnaire: questionnaire, response: response, ledger: ledger) == nil)
-        #expect(try ledger.entriesForTesting().isEmpty)
+        // reaches HealthKit.
+        await #expect(try Self.samples(questionnaire: questionnaire, response: response) == nil)
     }
 }

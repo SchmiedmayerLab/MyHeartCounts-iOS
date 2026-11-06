@@ -24,7 +24,7 @@ struct HealthKitExportOptionsTests {
     /// HealthKit vends an `HKSource` only for the running process, and an unsaved sample names no source, so
     /// the source is written into the sample's storage the way Grove's own stored-sample fixtures do.
     private static func sample(writtenBy bundleIdentifier: String, name: String) throws -> HKQuantitySample {
-        let sample = LedgerHarness.steps(0)
+        let sample = ExchangeHarness.steps(0)
         let source = try #require(class_createInstance(HKSource.self, 0) as? HKSource)
         source.setValue(name, forKey: "name")
         source.setValue(bundleIdentifier, forKey: "bundleIdentifier")
@@ -53,11 +53,8 @@ struct HealthKitExportOptionsTests {
     }
 
     private static func graph(of sample: HKSample) async throws -> ExchangeGraph {
-        var graph: ExchangeGraph?
-        _ = try await LedgerHarness(ledger: .forTesting()).exporter().export([sample]) { export in
-            graph = export.graph
-        }
-        return try #require(graph)
+        let record = try await #require(try ExchangeHarness().exporter().deliver([sample]).records[sample.uuid])
+        return try ExchangeGraph(validating: record.json, kind: .active)
     }
 
     @Test
@@ -70,8 +67,10 @@ struct HealthKitExportOptionsTests {
         #expect(author.version?.contains { $0.value.value?.string == "1" } == true)
     }
 
+    /// A source nobody classified states no author, and every source-revision fact HealthKit supplies travels beside it,
+    /// its name included.
     @Test(arguments: ["org.example.other-app", "com.apple.health"])
-    func unclassifiedSourceKeepsItsBundleIdentifierWithoutItsName(bundleIdentifier: String) async throws {
+    func unclassifiedSourceStatesItsRevisionInsteadOfAnAuthor(bundleIdentifier: String) async throws {
         let sample = try Self.sample(writtenBy: bundleIdentifier, name: "Personal Device Name")
         let graph = try await Self.graph(of: sample)
         #expect(try Self.author(in: graph) == nil)
@@ -80,8 +79,9 @@ struct HealthKitExportOptionsTests {
             entry.url.value?.url.absoluteString == "https://grovealliance.org/fhir/healthkit/StructureDefinition/healthkit-source-revision"
         })
         #expect(revision.extension?.map { $0.url.value?.url.absoluteString } == [
-            "sourceBundleIdentifier", "version", "productType", "operatingSystemVersion"
+            "sourceName", "sourceBundleIdentifier", "version", "productType", "operatingSystemVersion"
         ])
-        #expect(revision.extension?.first?.value == .string(FHIRPrimitive(FHIRString(bundleIdentifier))))
+        #expect(revision.extension?.first?.value == .string(FHIRPrimitive(FHIRString("Personal Device Name"))))
+        #expect(revision.extension?.dropFirst().first?.value == .string(FHIRPrimitive(FHIRString(bundleIdentifier))))
     }
 }

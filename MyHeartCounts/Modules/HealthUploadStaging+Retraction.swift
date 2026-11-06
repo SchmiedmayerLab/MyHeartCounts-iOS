@@ -7,27 +7,28 @@
 //
 
 import Foundation
-import GroveFHIRContract
 import GroveFoundation
+import GroveHealthKitFHIR
 
 
 extension HealthUploadStaging {
-    /// The retraction bundles for one drained chunk of deletions.
+    /// The outcome of retracting each of `rows` under `subject`, in row order, in one exporter call.
     ///
-    /// Deletions leave as Grove Mobile Retraction Bundles minted from the same identity scope as
-    /// the additions they retract, in one exporter call per chunk. Each graph's validated bytes are
-    /// spliced into the payload verbatim. A record whose type never produced an exported graph node
-    /// has nothing to retract and is dropped with its row.
+    /// Deletions leave as Grove Mobile Retraction Bundles minted from the same identity scope as the additions they
+    /// retract. A record whose type never produced an exported record has nothing to retract.
+    ///
+    /// - throws: ``FHIRExchangeDestinationError/accountChanged`` when `subject` is no longer the account the exporter was
+    ///     built for, a transient error that leaves the chunk for the next drain.
     func retractionBatch(
-        for rows: some Collection<PendingDeletionRecord>
-    ) async throws -> RetractionBatch {
+        for rows: some Collection<PendingDeletionRecord>,
+        subject: FHIRExchangeSubject
+    ) async throws -> [HealthKitFHIRExporter.Retraction.Outcome] {
         let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
         try FHIRExchangeDestination.validateWrites(for: accountDataGeneration)
-        let exporter = try healthKitExporter(accountDataGeneration: accountDataGeneration)
+        let exporter = try await retractionExporter(subject: subject, accountDataGeneration: accountDataGeneration)
         let recordedAt = Date.now
         try Swift::Task.checkCancellation()
-        // One ledger transaction reserves the whole chunk before any retraction uses its identity.
-        let retractions = try await exporter.healthKitRetractions(
+        return try await exporter.healthKitRetractions(
             of: rows.map { row in
                 HealthKitDeletedRecord(
                     sourceTypeIdentifier: row.sampleType,
@@ -37,23 +38,6 @@ extension HealthUploadStaging {
                 )
             },
             recordedAt: recordedAt
-        )
-        var graphs: [ExchangeGraph] = []
-        var identifiers: [UUID] = []
-        for (row, graph) in zip(rows, retractions.graphs) {
-            guard let graph else {
-                continue
-            }
-            graphs.append(graph)
-            identifiers.append(row.sampleId)
-        }
-        let payload = HealthUploadBatch.jsonArray(graphs) { graph in
-            graph.json
-        }
-        return RetractionBatch(
-            payload: graphs.isEmpty ? nil : payload,
-            identifiers: identifiers,
-            receipt: retractions.receipt
         )
     }
 }

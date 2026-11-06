@@ -20,6 +20,7 @@ import HealthKit
 import ModelsR4
 import MyHeartCountsShared
 import OSLog
+import UIKit
 
 
 extension MyHeartCountsStandard {
@@ -92,7 +93,8 @@ extension MyHeartCountsStandard {
     ) async throws {
         let submission = try await self.questionnaireSubmissionContext()
         let writerContext = try QuestionnaireWriterContext.current(
-            applicationIdentifierSystem: FHIRExchangeIdentifiers.application
+            applicationIdentifierSystem: FHIRExchangeIdentifiers.application,
+            hostOperatingSystemName: await MainActor.run { UIDevice.current.systemName }
         )
         let pair = try ResourceBuilder().pair(
             from: responses,
@@ -125,11 +127,10 @@ extension MyHeartCountsStandard {
 extension MyHeartCountsStandard {
     /// The HealthKit samples the measurements `response` extracts land as, through `exporter`.
     ///
-    /// Extraction has no retry to protect: the response is already durable and its exchange graph is discarded, so the
-    /// response's event is released at once, however extraction concludes.
+    /// The response is already durable and its exchange record is discarded: the samples come from the record.
     ///
     /// - returns: `nil` when the response measures nothing.
-    /// - throws: The `ObservationExtractionError` Grove refused the response with, or what the ledger threw.
+    /// - throws: The `ObservationExtractionError` Grove refused the response with.
     static func healthKitSamples( // private but testable
         extractedFrom response: ModelsR4.QuestionnaireResponse,
         answering questionnaire: ModelsR4.Questionnaire,
@@ -137,13 +138,12 @@ extension MyHeartCountsStandard {
         at instant: Date = .now
     ) async throws -> ConversionBatch<HKSample, HealthKitSampleProjectionFailure>? {
         var outcomes: [QuestionnaireFHIRExporter.Export.Outcome] = []
-        let receipt = try await exporter.export(CollectionOfOne(.init(questionnaire: questionnaire, response: response)), at: instant) { export in
+        try await exporter.export(CollectionOfOne(.init(questionnaire: questionnaire, response: response)), at: instant) { export in
             outcomes.append(export.outcome)
         }
-        receipt.release()
         switch outcomes.first {
-        case .graph(let graph):
-            return graph.healthKitSamples()
+        case .record(let record):
+            return record.healthKitSamples()
         case .refused(.noExtractableMeasurements), nil:
             return nil
         case .refused(let refusal):
@@ -157,9 +157,9 @@ extension MyHeartCountsStandard {
         in submission: QuestionnaireSubmissionContext
     ) async {
         // The instrument's own SDC markings drive extraction: the response is projected into
-        // the full Grove exchange bundle -- identities, devices, provenance -- and each of the
-        // bundle's Observations lands as the HealthKit sample it describes, synced under its
-        // minted source-output identity. The bundle itself is discarded for now; the server
+        // a full Grove exchange record -- identities, devices, provenance -- and each of the
+        // record's Observations lands as the HealthKit sample it describes, synced under its
+        // minted source-output identity. The record itself is discarded for now; the server
         // will own the exchange-side extraction.
         guard let canonical = response.questionnaireCanonicalIdentity,
               let studyManager,
@@ -170,9 +170,9 @@ extension MyHeartCountsStandard {
             // The submission's captured account, never the current one: an account switch between
             // the Firestore write and here must refuse, not re-target this response.
             try submission.destination.validateCurrentAccount()
-            let exporter = try fhirExchangeStateStore(
+            let exporter = try await fhirExchangeStateStore(
                 accountDataGeneration: submission.destination.accountDataGeneration
-            ).questionnaireExporter(subject: submission.subject, ledger: fhirExchangeLedger)
+            ).questionnaireExporter(subject: submission.subject)
             guard let samples = try await Self.healthKitSamples(extractedFrom: response, answering: questionnaire, through: exporter) else {
                 // A survey that measures nothing is the common case, not an error.
                 return

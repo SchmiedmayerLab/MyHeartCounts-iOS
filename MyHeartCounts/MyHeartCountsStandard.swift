@@ -46,7 +46,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
     @Dependency(Scheduler.self) var scheduler
     @Dependency(SensorKitDataFetcher.self) private var sensorKitFetcher
     @Dependency(HealthUploadStaging.self) var healthUploadStaging
-    @Dependency(FHIRExchangeLedger.self) var fhirExchangeLedger
+    @Dependency(HealthKitExporterHolder.self) var healthKitExporterHolder
     @Dependency(HealthUploadStagingUploader.self) private var healthUploadStagingUploader
     @Dependency(ClinicalRecordPermissions.self) private var clinicalRecordPermissions
     @Dependency(NotificationsManager.self) private var notificationsManager
@@ -69,18 +69,16 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         try DeferredConfigLoading.setActiveStudyVariant(variant)
     }
 
-    /// The encrypted, installation-scoped identity and SensorKit retry state.
-    ///
-    /// Every exchange event is reserved in ``fhirExchangeLedger`` instead.
     /// Builds the app's one HealthKit exporter for the signed-in account and its current enrollment, or clears it
     /// while no account is signed in; called when either changes, never per batch.
     func refreshHealthKitExporter() async {
         let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
-        var exporter: HealthKitFHIRExporter?
+        var current: HealthKitExporterHolder.Current?
         do {
             let subject = try await firebaseConfiguration.fhirExchangeSubject
-            exporter = try fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
-                .healthKitExporter(subject: subject, ledger: fhirExchangeLedger)
+            let exporter = try await fhirExchangeStateStore(accountDataGeneration: accountDataGeneration)
+                .healthKitExporter(subject: subject)
+            current = HealthKitExporterHolder.Current(exporter: exporter, subject: subject)
         } catch {
             logger.notice("No HealthKit exporter for the current account: \(error)")
         }
@@ -88,9 +86,10 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
         guard LocalPreferencesStore.standard[.accountDataGeneration] == accountDataGeneration else {
             return
         }
-        fhirExchangeLedger.setHealthKitExporter(exporter, accountDataGeneration: accountDataGeneration)
+        healthKitExporterHolder.set(current, accountDataGeneration: accountDataGeneration)
     }
 
+    /// The encrypted, installation-scoped identity and SensorKit retry state.
     func fhirExchangeStateStore(accountDataGeneration: Int) -> FHIRExchangeStateStore {
         FHIRExchangeStateStore(
             localStorage: localStorage,
@@ -229,7 +228,7 @@ actor MyHeartCountsStandard: Standard, EnvironmentAccessible, AccountNotifyConst
             logger.notice("account is being logged out")
             LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
             LocalPreferencesStore.standard[.accountDataGeneration] += 1
-            fhirExchangeLedger.setHealthKitExporter(nil, accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
+            healthKitExporterHolder.set(nil, accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
             async let updateFCMToken = try? notificationsManager.setFCMToken(nil)
             async let syncAchievements = try? achievementsManager?.syncNow()
             _ = await (updateFCMToken, syncAchievements)
@@ -300,7 +299,7 @@ extension MyHeartCountsStandard {
         // (flag first, then bump: a concurrent reader that snapshots the new generation must never see the flag still unset.)
         LocalPreferencesStore.standard[.pendingAccountDataCleanupRequired] = true
         LocalPreferencesStore.standard[.accountDataGeneration] += 1
-        await fhirExchangeLedger.setHealthKitExporter(nil, accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
+        await healthKitExporterHolder.set(nil, accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
         // Account deletion and forced sign-outs bypass the achievement teardown in willLogOut.
         await achievementsManager?.disassociateFromAccount()
         switch context {
@@ -415,7 +414,6 @@ extension MyHeartCountsStandard {
                     await self.clinicalRecordPermissions.resetTracking()
                 }
             ],
-            exchangeLedger: fhirExchangeLedger,
             preferences: .standard,
             logger: logger
         )
@@ -435,24 +433,18 @@ extension MyHeartCountsStandard {
         }
     }
 
-    /// Clears the previous account's local data: runs every step, each one even when an earlier one failed, then
-    /// resets `exchangeLedger` to the account generation the logout rotated to, and ends the pending cleanup only
-    /// when all of them succeeded.
+    /// Clears the previous account's local data: runs every step, each one even when an earlier one failed, and ends
+    /// the pending cleanup only when all of them succeeded.
     ///
-    /// The ledger reset is not live-fenced, as cleanup is pending while it runs and the preferences rotated the
-    /// generation first. While it fails, cleanup stays pending, so the ledger's live fence keeps refusing every
-    /// HealthKit export until a later cleanup succeeds.
+    /// While a step fails, cleanup stays pending, so the account fence keeps refusing every staged write until a later
+    /// cleanup succeeds.
     static func clearAccountData(
         _ steps: [AccountDataCleanupStep],
-        exchangeLedger: FHIRExchangeLedger,
         preferences: LocalPreferencesStore,
         logger: Logger
     ) async throws {
-        let ledgerReset = AccountDataCleanupStep("FHIR exchange ledger") {
-            try exchangeLedger.reset(toAccountDataGeneration: preferences[.accountDataGeneration])
-        }
         var allSucceeded = true
-        for step in steps + [ledgerReset] {
+        for step in steps {
             do {
                 try await step.run()
             } catch {

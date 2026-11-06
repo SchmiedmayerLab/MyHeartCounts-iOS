@@ -87,7 +87,6 @@ struct HealthKitExporterThroughputView: View {
             let phases = throughput.phases
             let total = phases.exporter + phases.receive
             phaseRow("Plan", phases.plan, of: total)
-            phaseRow("Reserve", phases.reserve, of: total)
             phaseRow("Assemble", phases.assemble, of: total)
             phaseRow("Validate", phases.validate, of: total)
             phaseRow("Receive (caller)", phases.receive, of: total)
@@ -118,9 +117,9 @@ struct HealthKitExporterThroughputView: View {
     }
 
     private func currentStatus() async -> Status {
-        let ledger = await standard.fhirExchangeLedger
+        let exporterHolder = await standard.healthKitExporterHolder
         let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
-        guard let exporter = try? ledger.healthKitExporter(forBatchOf: accountDataGeneration) else {
+        guard let exporter = try? exporterHolder.healthKitExporter(forBatchOf: accountDataGeneration) else {
             return .noExporter
         }
         guard let throughput = exporter.throughput else {

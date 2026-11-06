@@ -31,9 +31,9 @@ extension FHIRExchangeStateStore {
         }
     """.utf8)
 
-    /// The identity scope this store's secret keys, as every exporter factory derives it.
-    func identityScope() throws -> OpaqueIdentityScope {
-        try Self.identityScope(of: identitySecret())
+    /// The identity scope this store's secret keys for `subject`, as every exporter factory derives it.
+    func identityScope(subject: FHIRExchangeSubject) throws -> OpaqueIdentityScope {
+        try Self.identityScope(of: identitySecret(), subject: subject)
     }
 
     /// The repository one source's records live in, under this store's secret, as every exporter factory derives it.
@@ -52,6 +52,17 @@ extension FHIRExchangeStateStore {
         }
         let secret = try JSONDecoder().decode(FHIRExchangeIdentitySecret.self, from: Self.knownIdentitySecret)
         secrets.secret.withLock { $0 = secret }
+    }
+
+    /// What `batchKey`'s records state on a delivery while `current` holds the zone, instant and facts of the moment.
+    func sensorBatchFacts(_ batchKey: String, current: SensorBatchFacts) throws -> SensorBatchFacts {
+        try sensorBatchFacts(
+            batchKey,
+            currentTimeZone: current.timeZone,
+            conversionInstant: current.conversionInstant,
+            conversionFacts: current.conversionFacts,
+            devices: current.devices
+        )
     }
 
     /// Checks one record's retry evidence, as a batch of only that record is checked.
@@ -114,15 +125,24 @@ final class RecordedSensorKitUploads: Sendable {
         }
     }
 
-    /// The graphs the staged archives carry, in staging order and, within an archive, in record order.
+    /// The one Bundle of each staged archive, in staging order.
+    var bundles: [Data] {
+        get throws {
+            try archives.map { try $0.bundle() }
+        }
+    }
+
+    /// The records the staged Bundles carry, in staging order and, within a Bundle, in entry order.
+    var records: [ExchangeRecord] {
+        get throws {
+            try bundles.flatMap { try packedRecords(in: $0) }
+        }
+    }
+
+    /// Each of ``records`` as a one-record Bundle.
     var graphs: [Data] {
         get throws {
-            try archives.flatMap { archive in
-                let bundles = try JSONSerialization.jsonObject(with: try archive.bundles())
-                return try #require(bundles as? [Any]).map { bundle in
-                    try JSONSerialization.data(withJSONObject: bundle, options: [.sortedKeys, .withoutEscapingSlashes])
-                }
-            }
+            try records.map(\.json)
         }
     }
 
@@ -160,7 +180,7 @@ final class RecordedSensorKitUploads: Sendable {
 
 
 /// A source device whose description is fixed, so the source-record identifiers derived from its batches are known answers.
-final class PinnedSensorKitDevice: SRDevice, @unchecked Sendable {
+class PinnedSensorKitDevice: SRDevice, @unchecked Sendable {
     override var name: String {
         "Pinned iPhone"
     }
@@ -179,15 +199,56 @@ final class PinnedSensorKitDevice: SRDevice, @unchecked Sendable {
 }
 
 
-/// One SensorKit source's batch as production publishes it, from the pinned device, over an in-memory store and ledger
-/// of the current account generation.
+/// The pinned device after its owner renamed it and updated its OS: the same unit, so its batches keep their keys.
+final class UpdatedSensorKitDevice: PinnedSensorKitDevice, @unchecked Sendable {
+    override var name: String {
+        "Renamed iPhone"
+    }
+    override var systemVersion: String {
+        "27.0"
+    }
+}
+
+
+extension SensorKit.SourceDeviceInfo {
+    /// A peripheral stating every fact, each with a value of its own.
+    static func pinnedPeripheral(firmwareVersion: String = "5.1") -> Self {
+        Self(
+            localIdentifier: "peripheral-7",
+            manufacturer: "Example Audio",
+            model: "Ear One",
+            hardwareVersion: "2",
+            firmwareVersion: firmwareVersion
+        )
+    }
+}
+
+
+extension SensorBatchDevices {
+    /// The devices of a batch `device` recorded and `sources` supplied.
+    static func testing(device: SRDevice = PinnedSensorKitDevice(), sources: [SensorKit.SourceDeviceInfo] = []) -> Self {
+        Self(SensorKit.BatchInfo(
+            timeRange: SensorKitPublicationHarness.start..<SensorKitPublicationHarness.start,
+            device: SensorKit.DeviceInfo(device),
+            sourceDevices: sources,
+            acquisitionBatch: SensorKit.AcquisitionBatchCoordinate(
+                cursorTimestamp: SensorKitPublicationHarness.start,
+                resetGeneration: 2,
+                sequence: 1
+            )
+        ))
+    }
+}
+
+
+/// One SensorKit source's batch as production publishes it, from the pinned device, over an in-memory store of the
+/// current account generation.
 struct SensorKitPublicationHarness {
     static let start = Date(timeIntervalSince1970: 1_788_000_000.125)
 
     let sensor: any AnySensor
     let store: FHIRExchangeStateStore
-    let ledger: FHIRExchangeLedger
-    /// The acquisition sequence of the batch. Each suite takes its own, so no two suites stage a batch archive under one name.
+    /// The acquisition sequence of the batch, from which its records' identities derive.
     let sequence: UInt64
 
     var subject: FHIRExchangeSubject {
@@ -200,22 +261,36 @@ struct SensorKitPublicationHarness {
     }
 
     init(sensor: any AnySensor, sequence: UInt64, store: FHIRExchangeStateStore? = nil) {
-        let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
         self.sensor = sensor
-        self.store = store ?? FHIRExchangeStateStore(accountDataGeneration: accountDataGeneration)
-        self.ledger = .forTesting(accountDataGeneration: accountDataGeneration)
+        self.store = store ?? FHIRExchangeStateStore(accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
         self.sequence = sequence
     }
 
-    /// The batch's publication, writing to `uploads` and reserving new events at `instant`.
-    func publication(uploads: RecordedSensorKitUploads, at instant: Date = Self.start) throws -> SensorKitBatchPublication {
+    /// The batch's publication, writing to `uploads`.
+    ///
+    /// - Parameters:
+    ///   - instant: The conversion instant, if this is the batch's first delivery; a redelivery repeats the first one's.
+    ///   - streamPartition: The batch coordinate's partition, which a fresh anchor, such as a reinstall's, mints anew.
+    ///   - facts: The conversion facts, if this is the batch's first delivery; `nil` states the default test facts.
+    ///   - device: The device SensorKit states, if this is the batch's first delivery.
+    ///   - sourceDevices: The peripherals SensorKit states, if this is the batch's first delivery.
+    func publication(
+        uploads: RecordedSensorKitUploads,
+        at instant: Date = Self.start,
+        streamPartition: UInt64 = 0,
+        facts: MyHeartCounts::ConversionFacts? = nil,
+        device: SRDevice = PinnedSensorKitDevice(),
+        sourceDevices: [SensorKit.SourceDeviceInfo] = []
+    ) throws -> SensorKitBatchPublication {
         let subject = try subject
         return try SensorKitBatchPublication(
             sensor: sensor,
             batchInfo: SensorKit.BatchInfo(
                 timeRange: Self.start..<Self.start.addingTimeInterval(600),
-                device: SensorKit.DeviceInfo(PinnedSensorKitDevice()),
+                device: SensorKit.DeviceInfo(device),
+                sourceDevices: sourceDevices,
                 acquisitionBatch: SensorKit.AcquisitionBatchCoordinate(
+                    streamPartition: streamPartition,
                     cursorTimestamp: Self.start,
                     resetGeneration: 2,
                     sequence: sequence
@@ -227,9 +302,11 @@ struct SensorKitPublicationHarness {
                 accountID: subject.identity.value
             ),
             stateStore: store,
-            ledger: ledger,
             uploader: uploads.uploader,
-            conversionInstant: instant
+            conversionInstant: instant,
+            currentFacts: {
+                try facts ?? .testing()
+            }
         )
     }
 }

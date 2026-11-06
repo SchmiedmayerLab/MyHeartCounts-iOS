@@ -22,7 +22,7 @@ struct UploadStrategyECG: MHCSensorSampleUploadStrategy {
         publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
         activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws -> ExchangeProducer.Receipt? {
+    ) async throws {
         activity.updateMessage("Converting ECG session")
         var uploads: [SensorKitRecordUpload] = []
         for (recordOrdinal, session) in samples.enumerated() {
@@ -55,13 +55,13 @@ struct UploadStrategyECG: MHCSensorSampleUploadStrategy {
                 )
             })
         }
-        return try await publish(uploads, for: sensor, publication: publication, activity: activity)
+        try await publish(uploads, for: sensor, publication: publication, activity: activity)
     }
 }
 
 
 extension SensorKitECGSession {
-    /// The session properties an ECG's graph states that Grove's retry evidence of the session omits: its start, sampling
+    /// The session properties an ECG's record states that Grove's retry evidence of the session omits: its start, sampling
     /// frequency, lead and guidance, each as its exact bits.
     ///
     /// Grove's evidence covers the session's identifier, states and waveform, so without these a redelivery that changed

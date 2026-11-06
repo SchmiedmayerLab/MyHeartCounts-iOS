@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import GRDB
 import Grove
 import GroveFHIRContract
 import GroveFoundation
@@ -38,67 +37,7 @@ actor BatchExportTestStandard: Standard, HealthKitConstraint {
 }
 
 
-/// Counts the transactions a ledger's database commits or rolls back: each is one transaction of Grove's storage.
-final class LedgerTransactionCounter: TransactionObserver, Sendable {
-    private let count = Mutex(0)
-
-    var transactions: Int {
-        count.withLock { $0 }
-    }
-
-    func observes(eventsOfKind eventKind: DatabaseEventKind) -> Bool {
-        false
-    }
-
-    func databaseDidChange(with event: DatabaseEvent) {}
-
-    func databaseDidCommit(_ db: Database) {
-        count.withLock { $0 += 1 }
-    }
-
-    func databaseDidRollback(_ db: Database) {
-        count.withLock { $0 += 1 }
-    }
-}
-
-
-extension FHIRExchangeLedger {
-    /// The reservations the ledger holds, active and retraction ones alike.
-    var reservationCount: Int {
-        get throws {
-            try entryKeys(prefixedBy: "event/").count
-        }
-    }
-
-    /// A ledger in its own directory below `root`, bound to `binding` and fenced by the live preferences, as staging
-    /// and the app are.
-    static func liveFencedInDirectory(_ root: URL, binding: InMemoryDeviceBinding = InMemoryDeviceBinding()) -> FHIRExchangeLedger {
-        FHIRExchangeLedger(
-            location: .directory(root.appending(path: "FHIRExchangeLedger", directoryHint: .isDirectory)),
-            deviceBinding: binding,
-            fence: .live
-        )
-    }
-
-    /// Opens the ledger and counts every transaction it runs from now on.
-    func countingTransactions() throws -> LedgerTransactionCounter {
-        let counter = LedgerTransactionCounter()
-        try withDatabaseForTesting { db in
-            db.add(transactionObserver: counter, extent: .databaseLifetime)
-        }
-        return counter
-    }
-}
-
-
 extension HealthUploadStaging {
-    /// The ledger this staging reserves in.
-    var ledger: FHIRExchangeLedger {
-        get throws {
-            try #require(testing).ledger
-        }
-    }
-
     /// The identity this staging exports under.
     var stateStore: FHIRExchangeStateStore {
         get throws {
@@ -106,21 +45,18 @@ extension HealthUploadStaging {
         }
     }
 
-    /// Staging attributed to the ledger harness's participant, with its HealthKit dependency resolved, and, when
-    /// `ledger` is given, reserving in it.
+    /// Staging attributed to the harness's participant, with its HealthKit dependency resolved, stating the default test
+    /// facts, as ``ExchangeHarness`` does.
     static func resolvedForTesting(
         persistence: Persistence = .inMemory,
-        autoElideUploadsWhenInsertingDeletions: Bool = true,
-        ledger: FHIRExchangeLedger? = nil
+        autoElideUploadsWhenInsertingDeletions: Bool = true
     ) async throws -> HealthUploadStaging {
         let staging = HealthUploadStaging.forTesting(
             persistence: persistence,
             autoElideUploadsWhenInsertingDeletions: autoElideUploadsWhenInsertingDeletions,
-            subject: try LedgerHarness.subject
+            subject: try ExchangeHarness.subject
         )
-        if let ledger {
-            staging.testing?.ledger = ledger
-        }
+        staging.testing?.facts = try .testing()
         await withDependencyResolution(standard: BatchExportTestStandard()) {
             staging
             HealthKit()
@@ -144,23 +80,35 @@ extension HealthUploadStaging {
 
 /// The upload files a test staged, decompressed, in the order they were staged.
 final class StagedUploadFiles: Sendable {
-    private let files = Mutex<[Data]>([])
+    private let files = Mutex<[(name: String, json: Data)]>([])
 
     var all: [Data] {
-        files.withLock { $0 }
+        files.withLock { $0.map(\.json) }
+    }
+
+    /// The file names, as the upload's object names state them.
+    var names: [String] {
+        files.withLock { $0.map(\.name) }
+    }
+
+    /// The records of the staged Bundles of active records, in staging order and, within a Bundle, in entry order.
+    var records: [ExchangeRecord] {
+        get throws {
+            try all.flatMap { try packedRecords(in: $0) }
+        }
     }
 
     /// Stages `file` as the managed upload would: its bytes are kept, and the caller removes the file.
     func stage(_ file: URL) throws {
         let json = try Data(contentsOf: file).decompressed(using: Zstd.self)
-        files.withLock { $0.append(json) }
+        files.withLock { $0.append((file.lastPathComponent, json)) }
     }
 }
 
 
 extension MyHeartCountsStandard.HealthObservationUploadDependencies {
-    /// Uploads attributed to the ledger harness's participant: rows go to `staging`, and an upload file's HealthKit
-    /// samples are exported as staging exports them and staged into `files`; a live delivery is accepted as
+    /// Uploads attributed to the harness's participant: rows go to `staging`, and an upload file's HealthKit samples are
+    /// exported from staging's identity store, under its facts, and staged into `files`; a live delivery is accepted as
     /// `acceptsDelivery` decides.
     static func testing(
         staging: HealthUploadStaging,
@@ -181,32 +129,29 @@ extension MyHeartCountsStandard.HealthObservationUploadDependencies {
         Self(
             acceptsHealthKitDelivery: acceptsDelivery,
             subject: {
-                try LedgerHarness.subject
+                try ExchangeHarness.subject
             },
             staging: staging,
             healthKit: HealthKit(),
-            exporter: { accountDataGeneration in
-                try staging.healthKitExporter(accountDataGeneration: accountDataGeneration)
+            exporter: { _ in
+                // This closure cannot suspend, so it takes the `facts:` factory rather than staging's own async exporter.
+                let testing = try #require(staging.testing)
+                return try testing.stateStore.healthKitExporter(subject: testing.subject, facts: testing.facts ?? .testing())
             },
             stageFile: stageFile,
+            stageUnreadableFile: { file, _ in
+                Issue.record("Unexpected unreadable object \(file.lastPathComponent)")
+            },
             logger: Logger(subsystem: "edu.stanford.MyHeartCounts.tests", category: "HealthObservationUpload")
         )
     }
 }
 
 
-extension HealthKitFHIRReservationReceipt {
-    /// Runs the action Grove runs once the HealthKit anchor of the delivery is durable.
-    func commitAnchor() async throws {
-        let action = try #require(anchorCommitAction)
-        await action()
-    }
-}
-
-
-extension FHIRExchangeEventFacts {
+// Grove has a public `ConversionFacts` too, so outside MHC's own module the name needs its module selector.
+extension MyHeartCounts::ConversionFacts {
     /// MHC's facts for one build, OS version and study revision.
-    static func testing(build: String, operatingSystem: String, studyRevision: UInt) throws -> Self {
+    static func testing(build: String = "100", operatingSystem: String = "26.0", studyRevision: UInt = 1) throws -> Self {
         Self(
             application: try ApplicationDevice(
                 name: "My Heart Counts",
@@ -221,10 +166,9 @@ extension FHIRExchangeEventFacts {
 }
 
 
-/// The event identifier a staged graph states as its `Bundle.identifier`.
-func stagedEvent(_ json: Data) throws -> ExchangeEventIdentifier {
-    let bundle = try JSONDecoder().decode(ModelsR4.Bundle.self, from: json)
-    return try ExchangeEventIdentifier(BusinessIdentifier(try #require(bundle.identifier)))
+/// The record version a one-record Bundle states, such as a staged row's bytes.
+func stagedRecordVersion(_ json: Data) throws -> RecordVersion {
+    try ExchangeRecord(validating: json).version
 }
 
 
@@ -252,7 +196,7 @@ func splicedJSONArray(_ elements: [Data]) -> Data {
 
 /// A heart-rate sample per index, distinct from every other.
 func heartRateSample(_ index: Int) -> HKQuantitySample {
-    let start = LedgerHarness.start.addingTimeInterval(TimeInterval(index) * 60)
+    let start = ExchangeHarness.start.addingTimeInterval(TimeInterval(index) * 60)
     return HKQuantitySample(
         type: HKQuantityType(.heartRate),
         quantity: HKQuantity(unit: .count() / .minute(), doubleValue: Double(60 + index)),

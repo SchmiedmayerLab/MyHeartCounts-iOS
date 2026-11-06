@@ -21,9 +21,9 @@ where Sample.SafeRepresentation: SensorKitTabularSample {
         publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
         activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws -> ExchangeProducer.Receipt? {
+    ) async throws {
         guard let timeRange = samples.coveredTimeRange else {
-            return nil
+            return
         }
         activity.updateMessage("Writing to CSV")
         let recording = try SensorKitRecordRefusal.preparing(record: 0, of: sensor, in: publication) {
@@ -33,7 +33,7 @@ where Sample.SafeRepresentation: SensorKitTabularSample {
             )
         }
         guard let recording else {
-            return nil
+            return
         }
         let upload = SensorKitRecordUpload(
             ordinal: 0,
@@ -52,6 +52,6 @@ where Sample.SafeRepresentation: SensorKitTabularSample {
                 admission: .callerAuthorizedOpaquePayload
             )
         }
-        return try await publish([upload], for: sensor, publication: publication, activity: activity)
+        try await publish([upload], for: sensor, publication: publication, activity: activity)
     }
 }

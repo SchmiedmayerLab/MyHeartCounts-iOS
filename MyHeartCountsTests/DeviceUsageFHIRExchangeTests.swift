@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import CryptoKit
 import Foundation
 import GroveFHIRContract
 import GroveFoundation
@@ -20,8 +21,7 @@ import Testing
 @testable import MyHeartCounts
 
 
-/// Serialized: every test publishes the same records, whose batch files are staged under names their identities derive.
-@Suite(.serialized)
+@Suite
 struct DeviceUsageFHIRExchangeTests {
     private static let timestamp = Date(timeIntervalSince1970: 1_788_000_000.125)
 
@@ -48,12 +48,10 @@ struct DeviceUsageFHIRExchangeTests {
 
     private let accountDataGeneration = LocalPreferencesStore.standard[.accountDataGeneration]
     private let store: FHIRExchangeStateStore
-    private let ledger: FHIRExchangeLedger
     private let uploads = RecordedSensorKitUploads()
 
     init() {
         store = FHIRExchangeStateStore(accountDataGeneration: accountDataGeneration)
-        ledger = .forTesting(accountDataGeneration: accountDataGeneration)
     }
 
     static func report(
@@ -113,7 +111,7 @@ struct DeviceUsageFHIRExchangeTests {
     static func upload(
         _ reports: [SRDeviceUsageReport.SafeRepresentation],
         publication: SensorKitBatchPublication
-    ) async throws -> ExchangeProducer.Receipt? {
+    ) async throws {
         try await UploadStrategyStructured<SRDeviceUsageReport>().upload(
             reports,
             publication: publication,
@@ -122,13 +120,25 @@ struct DeviceUsageFHIRExchangeTests {
         )
     }
 
-    /// The remote path of the batch archive that publishes the records `sourceRecordIDs` name.
-    static func batchFilePath(of sourceRecordIDs: [SensorKitSourceRecordID]) -> String {
+    /// The remote path of the batch archive that publishes `records`.
+    static func batchFilePath(of records: [ExchangeRecord]) -> String {
         ManagedFileUpload.Category(Sensor.deviceUsage).remotePath(for: HealthUploadBatch.filename(
             typePrefix: Sensor.deviceUsage.id,
-            identifiers: sourceRecordIDs.map(\.uuid),
+            provenanceFullURLs: records.map(\.version.fullURL),
             fileExtension: "zip"
         ))
+    }
+
+    /// The path a record's JSON recording has in its archive: the lowercase hex SHA-256 of its bytes.
+    static func recordingPath(of payload: Data) -> String {
+        let digest = SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined()
+        return "recordings/\(digest).json"
+    }
+
+    /// The SensorKit source-record identifiers a graph discloses, under the repository's own native record system.
+    static func nativeRecordIDs(in json: Data) throws -> Set<String> {
+        let system = "\(FHIRExchangeIdentifiers.sensorKitSourceRecord.rawValue)/"
+        return Set(try statedIdentifiers(in: json).filter { $0.system.hasPrefix(system) }.map(\.value))
     }
 
     /// The publication production builds, so its account fence, ordinal-derived source ids, retry state and exporter
@@ -136,7 +146,8 @@ struct DeviceUsageFHIRExchangeTests {
     private func publication(
         accountDataGeneration: Int? = nil,
         uploads: RecordedSensorKitUploads? = nil,
-        at conversionInstant: Date = DeviceUsageFHIRExchangeTests.timestamp
+        at conversionInstant: Date = DeviceUsageFHIRExchangeTests.timestamp,
+        facts: MyHeartCounts::ConversionFacts? = nil
     ) throws -> SensorKitBatchPublication {
         let subject = try Self.subject
         return try SensorKitBatchPublication(
@@ -156,14 +167,16 @@ struct DeviceUsageFHIRExchangeTests {
                 accountID: subject.identity.value
             ),
             stateStore: store,
-            ledger: ledger,
             uploader: (uploads ?? self.uploads).uploader,
-            conversionInstant: conversionInstant
+            conversionInstant: conversionInstant,
+            currentFacts: {
+                try facts ?? .testing()
+            }
         )
     }
 
     @Test
-    func nestedDeviceUsageDriftCannotReuseReservedIdentity() throws {
+    func nestedDeviceUsageDriftCannotReuseAnIdentity() throws {
         let publication = try publication()
         let sourceRecordID = try publication.sourceRecordID(
             ordinal: 0,
@@ -180,14 +193,12 @@ struct DeviceUsageFHIRExchangeTests {
         }
     }
 
-    /// A refused record reserves nothing and stages nothing, and the batch it belongs to still completes.
+    /// A refused record stages nothing, and the batch it belongs to still completes.
     @Test
     func refusedRecordsDoNotFailTheirBatch() async throws {
-        let receipt = try await Self.upload([Self.refusedReport, Self.refusedReport], publication: publication())
+        try await Self.upload([Self.refusedReport, Self.refusedReport], publication: publication())
 
         #expect(uploads.all.isEmpty)
-        #expect(try ledger.reservationCount == 0)
-        receipt?.release()
     }
 
     @Test
@@ -195,7 +206,7 @@ struct DeviceUsageFHIRExchangeTests {
         let publication = try publication(accountDataGeneration: accountDataGeneration + 1)
 
         await #expect(throws: FHIRExchangeDestinationError.accountChanged) {
-            _ = try await Self.upload([Self.refusedReport], publication: publication)
+            try await Self.upload([Self.refusedReport], publication: publication)
         }
     }
 
@@ -205,11 +216,10 @@ struct DeviceUsageFHIRExchangeTests {
         let report = Self.report()
         let prepared = try SensorKitPreparedStructuredRecord(deviceUsage: report)
         let payload = try #require(prepared.nativePayload)
-        let sourceID = try publication.sourceRecordID(ordinal: 0, evidence: prepared.retryEvidence)
-        let recordingPath = "recordings/\(sourceID.value).json"
+        let recordingPath = Self.recordingPath(of: payload)
 
-        let receipt = try await Self.upload([report], publication: publication)
-        let bundle = try JSONDecoder().decode(ModelsR4.Bundle.self, from: try #require(try uploads.graphs.first))
+        try await Self.upload([report], publication: publication)
+        let bundle = try JSONDecoder().decode(ModelsR4.Bundle.self, from: try #require(try uploads.bundles.first))
         let documents = bundle.entry?.compactMap { $0.resource?.get(if: DocumentReference.self) } ?? []
         let document = try #require(documents.first)
         let content = try #require(document.content.first)
@@ -224,7 +234,6 @@ struct DeviceUsageFHIRExchangeTests {
         #expect(
             content.format?.code?.value?.string == RegisteredRecordingFormat.nativeRecording.rawValue
         )
-        receipt?.release()
     }
 }
 
@@ -232,20 +241,23 @@ struct DeviceUsageFHIRExchangeTests {
 // MARK: Publication
 
 extension DeviceUsageFHIRExchangeTests {
-    /// The batch is staged as one archive, named by the identities of its records, holding each record's graph and
-    /// recording, and the batch's info; the batch's events stay reserved until its receipt is released.
+    /// The batch is staged as one archive, named by the Provenances of its records, holding its one Bundle, each record's
+    /// recording, and the batch's info; each record's version is keyed under the store's key for the batch's subject.
     @Test
-    func publishedBatchStagesOneArchiveOfItsGraphsAndRecordings() async throws {
+    func publishedBatchStagesOneArchiveOfItsBundleAndRecordings() async throws {
         let publication = try publication()
         let report = Self.report()
         let prepared = try SensorKitPreparedStructuredRecord(deviceUsage: report)
+        let payload = try #require(prepared.nativePayload)
         let sourceRecordID = try publication.sourceRecordID(ordinal: 0, evidence: prepared.retryEvidence)
+        let recordingPath = Self.recordingPath(of: payload)
 
-        let receipt = try #require(try await Self.upload([report], publication: publication))
+        try await Self.upload([report], publication: publication)
 
-        #expect(uploads.all.map(\.path) == [Self.batchFilePath(of: [sourceRecordID])])
-        #expect(try uploads.entries.map(\.path) == ["recordings/\(sourceRecordID.value).json", "bundles.json", "batchinfo.json"])
-        #expect(try uploads.recordings["recordings/\(sourceRecordID.value).json"] == prepared.nativePayload)
+        let records = try uploads.records
+        #expect(uploads.all.map(\.path) == [Self.batchFilePath(of: records)])
+        #expect(try uploads.entries.map(\.path) == [recordingPath, "bundle.json", "batchinfo.json"])
+        #expect(try uploads.recordings[recordingPath] == payload)
         // The file's metadata carries the archive's batch info, byte for byte.
         let batchInfo = try #require(try uploads.entries.first { $0.path == "batchinfo.json" }).contents
         #expect(uploads.all.map(\.metadata) == [[UploadBatchArchive.batchInfoMetadataKey: String(decoding: batchInfo, as: UTF8.self)]])
@@ -257,43 +269,92 @@ extension DeviceUsageFHIRExchangeTests {
         #expect(info.startDate == Self.timestamp)
         // The report's own span, which its duration ends, rather than the fetched batch's.
         #expect(info.endDate == Self.timestamp.addingTimeInterval(600.25))
-        let graphs = try uploads.graphs
-        #expect(graphs.count == 1)
-        #expect(try stagedEvent(try #require(graphs.first)).sequence.rawValue == "1")
-        #expect(try ledger.reservationCount == 1)
-        receipt.release()
-        #expect(try ledger.reservationCount == 0)
+        #expect(info.device == publication.info.device.productType)
+        #expect(records.count == 1)
+        let record = try #require(records.first)
+        #expect(try Self.nativeRecordIDs(in: record.json) == [sourceRecordID.value])
+        try record.verifyVersion(in: store.identityScope(subject: Self.subject))
     }
 
-    /// Until its receipt is released, a redelivery of the batch, even from another publication at a later instant,
-    /// stages the same bytes under the same name; afterwards the batch is a new event.
+    /// Until its cursor is acknowledged, a redelivery of the batch, even from another publication at a later instant, restates
+    /// every record version, byte for byte and under the same name. Once it is acknowledged, its retry state is gone, so a
+    /// later delivery at its coordinates is a new version of each of its source records.
     @Test
     func redeliveryBeforeAcknowledgementRestatesTheBatch() async throws {
         let reports = [Self.report(), Self.report(textInputSessionIdentifier: "text-session-3")]
-        let first = try await Self.upload(reports, publication: publication())
-        let firstGraphs = try uploads.graphs
+        let laterInstant = Self.timestamp.addingTimeInterval(3_600)
+        let first = try publication()
+        try await Self.upload(reports, publication: first)
+        let firstRecords = try uploads.records
 
         let redelivered = RecordedSensorKitUploads()
-        let redelivery = try await Self.upload(
-            reports,
-            publication: publication(uploads: redelivered, at: Self.timestamp.addingTimeInterval(3_600))
-        )
+        try await Self.upload(reports, publication: publication(uploads: redelivered, at: laterInstant))
         #expect(uploads.all.count == 1)
-        #expect(firstGraphs.count == 2)
+        #expect(firstRecords.count == 2)
         #expect(redelivered.all == uploads.all)
-        #expect(try ledger.reservationCount == 2)
+        #expect(try redelivered.records.map(\.version) == firstRecords.map(\.version))
 
-        first?.release()
-        redelivery?.release()
-        #expect(try ledger.reservationCount == 0)
+        try store.completeSensorBatch(first.batchKey)
         let later = RecordedSensorKitUploads()
-        _ = try await Self.upload(reports, publication: publication(uploads: later))
-        #expect(later.all.map(\.path) == uploads.all.map(\.path))
-        let laterGraphs = try later.graphs
-        #expect(laterGraphs.count == firstGraphs.count)
-        for (json, firstJSON) in zip(laterGraphs, firstGraphs) {
-            #expect(try stagedEvent(json) != stagedEvent(firstJSON))
+        try await Self.upload(reports, publication: publication(uploads: later, at: laterInstant))
+        #expect(later.all.map(\.path) != uploads.all.map(\.path))
+        let laterRecords = try later.records
+        #expect(laterRecords.map(\.sourceRecord) == firstRecords.map(\.sourceRecord))
+        #expect(laterRecords.count == firstRecords.count)
+        for (record, firstRecord) in zip(laterRecords, firstRecords) {
+            #expect(record.version != firstRecord.version)
         }
+    }
+
+    /// A batch states the conversion instant it was first published at on every redelivery, whatever instant its own
+    /// publication was made at; the instant goes with the batch's retry state.
+    @Test
+    func batchStatesTheInstantItWasFirstPublishedAt() async throws {
+        let laterInstant = Self.timestamp.addingTimeInterval(3_600)
+        let first = try publication()
+        let redelivery = try publication(at: laterInstant)
+        #expect(try await first.batchFacts().conversionInstant == Self.timestamp)
+        #expect(try await redelivery.batchFacts().conversionInstant == Self.timestamp)
+
+        try store.completeSensorBatch(first.batchKey)
+        #expect(try await redelivery.batchFacts().conversionInstant == laterInstant)
+    }
+
+    /// Records with the same bytes at two coordinates are both published over one recording: its name follows from its
+    /// bytes, and an archive writes a name once.
+    @Test
+    func aRecordingNameIsWrittenOnce() async throws {
+        let report = Self.report()
+        let payload = try #require(try SensorKitPreparedStructuredRecord(deviceUsage: report).nativePayload)
+        let recordingPath = Self.recordingPath(of: payload)
+
+        try await Self.upload([report, report], publication: publication())
+
+        #expect(try uploads.entries.map(\.path) == [recordingPath, "bundle.json", "batchinfo.json"])
+        #expect(try uploads.recordings == [recordingPath: payload])
+        #expect(try uploads.archives.first?.info.numRecords == 2)
+        #expect(try Set(uploads.records.map(\.sourceRecord)).count == 2)
+        let bundle = try JSONDecoder().decode(ModelsR4.Bundle.self, from: try #require(try uploads.bundles.first))
+        let documents = bundle.entry?.compactMap { $0.resource?.get(if: DocumentReference.self) } ?? []
+        #expect(documents.compactMap { $0.content.first?.attachment.url?.value?.url.absoluteString } == [recordingPath, recordingPath])
+    }
+
+    /// A record discloses its SensorKit source-record identifier as its native identifier, and no name the batch travels
+    /// under carries it.
+    @Test
+    func namesCarryNoSourceRecordIdentifier() async throws {
+        let publication = try publication()
+        let report = Self.report()
+        let prepared = try SensorKitPreparedStructuredRecord(deviceUsage: report)
+        let sourceRecordID = try publication.sourceRecordID(ordinal: 0, evidence: prepared.retryEvidence)
+
+        try await Self.upload([report], publication: publication)
+
+        let names = try uploads.all.map(\.path) + uploads.entries.map(\.path)
+        #expect(names.count == 4)
+        #expect(!names.contains { $0.lowercased().contains(sourceRecordID.value.lowercased()) })
+        let bundle = try #require(try uploads.bundles.first)
+        #expect(try Self.nativeRecordIDs(in: bundle) == [sourceRecordID.value])
     }
 
     /// Publishing a batch rewrites its retry state as often for many records as for one, and an empty batch neither
@@ -302,8 +363,7 @@ extension DeviceUsageFHIRExchangeTests {
     func batchRewritesItsRetryStateIndependentlyOfItsSize() async throws {
         func transactions(publishing reports: [SRDeviceUsageReport.SafeRepresentation]) async throws -> Int {
             let before = store.storageTransactionCountForTesting
-            let receipt = try await Self.upload(reports, publication: publication(uploads: RecordedSensorKitUploads()))
-            receipt?.release()
+            try await Self.upload(reports, publication: publication(uploads: RecordedSensorKitUploads()))
             return store.storageTransactionCountForTesting - before
         }
         let reports = (0..<8).map { Self.report(textInputSessionIdentifier: "text-session-\($0 + 10)") }
@@ -315,37 +375,38 @@ extension DeviceUsageFHIRExchangeTests {
         #expect(store.storageTransactionCountForTesting == 2 * single)
     }
 
-    /// A record whose bytes changed at its coordinate fails the batch before anything is exported or written.
+    /// A record whose bytes changed at its coordinate fails the batch before anything is exported or written, and the
+    /// batch stays as it was first published.
     @Test
     func driftFailsTheBatchBeforeAnythingIsExported() async throws {
-        _ = try await Self.upload([Self.report()], publication: publication())
+        try await Self.upload([Self.report()], publication: publication())
         let writes = uploads.all
         let drifted = RecordedSensorKitUploads()
 
         await #expect(throws: FHIRExchangeStateError.self) {
-            _ = try await Self.upload(
+            try await Self.upload(
                 [Self.report(textInputSessionIdentifier: "changed-session")],
                 publication: publication(uploads: drifted)
             )
         }
         #expect(drifted.all.isEmpty)
         #expect(uploads.all == writes)
-        #expect(try ledger.reservationCount == 1)
+
+        let redelivered = RecordedSensorKitUploads()
+        try await Self.upload([Self.report()], publication: publication(uploads: redelivered))
+        #expect(redelivered.all == writes)
     }
 
-    /// A batch whose staging fails keeps its events reserved, so its redelivery stages the same bytes.
+    /// A batch whose staging fails keeps its retry state, so its redelivery, at a later instant, stages the same bytes.
     @Test
-    func failedStagingKeepsTheBatchsEventsForItsRedelivery() async throws {
+    func failedStagingKeepsTheBatchForItsRedelivery() async throws {
         let failing = RecordedSensorKitUploads(failingStaging: true)
         await #expect(throws: RecordedSensorKitUploads.StageFailure.self) {
-            _ = try await Self.upload([Self.report()], publication: publication(uploads: failing))
+            try await Self.upload([Self.report()], publication: publication(uploads: failing))
         }
-        #expect(try ledger.reservationCount == 1)
 
-        let receipt = try await Self.upload([Self.report()], publication: publication())
+        try await Self.upload([Self.report()], publication: publication(at: Self.timestamp.addingTimeInterval(3_600)))
         #expect(uploads.all == failing.all)
-        receipt?.release()
-        #expect(try ledger.reservationCount == 0)
     }
 
     /// Every redelivery states the zone the batch was first published in, whatever the current zone is.
@@ -353,16 +414,15 @@ extension DeviceUsageFHIRExchangeTests {
     func batchStatesTheZoneItWasFirstPublishedIn() async throws {
         let publication = try publication()
         let first = try #require(TimeZone(identifier: "Pacific/Kiritimati"))
-        #expect(try publication.sourceTimeZone(current: first) == first)
-        #expect(try publication.sourceTimeZone(current: .gmt) == first)
+        #expect(try await publication.batchFacts(currentTimeZone: first).timeZone == first)
+        #expect(try await publication.batchFacts(currentTimeZone: .gmt).timeZone == first)
 
-        let receipt = try await Self.upload([Self.report()], publication: publication)
+        try await Self.upload([Self.report()], publication: publication)
         let json = try #require(try uploads.graphs.first)
         #expect(String(decoding: json, as: UTF8.self).contains("+14:00"))
-        receipt?.release()
 
         try store.completeSensorBatch(publication.batchKey)
-        #expect(try publication.sourceTimeZone(current: .gmt) == .gmt)
+        #expect(try await publication.batchFacts(currentTimeZone: .gmt).timeZone == .gmt)
     }
 }
 
@@ -377,22 +437,20 @@ extension DeviceUsageFHIRExchangeTests {
         let publication = try publication()
         let first = Self.report()
         let third = Self.report(textInputSessionIdentifier: "text-session-9")
-        let receipt = try await Self.upload([first, Self.refusedReport, third], publication: publication)
+        try await Self.upload([first, Self.refusedReport, third], publication: publication)
 
         var sourceRecordIDs: [SensorKitSourceRecordID] = []
         var recordings: [String: Data] = [:]
         for (ordinal, report) in [(0, first), (2, third)] {
             let prepared = try SensorKitPreparedStructuredRecord(deviceUsage: report)
-            let sourceRecordID = try publication.sourceRecordID(ordinal: ordinal, evidence: prepared.retryEvidence)
-            sourceRecordIDs.append(sourceRecordID)
-            recordings["recordings/\(sourceRecordID.value).json"] = try #require(prepared.nativePayload)
+            sourceRecordIDs.append(try publication.sourceRecordID(ordinal: ordinal, evidence: prepared.retryEvidence))
+            let payload = try #require(prepared.nativePayload)
+            recordings[Self.recordingPath(of: payload)] = payload
         }
-        #expect(uploads.all.map(\.path) == [Self.batchFilePath(of: sourceRecordIDs)])
-        #expect(try uploads.graphs.count == 2)
+        let records = try uploads.records
+        #expect(uploads.all.map(\.path) == [Self.batchFilePath(of: records)])
+        #expect(try records.map { try Self.nativeRecordIDs(in: $0.json) } == sourceRecordIDs.map { [$0.value] })
         #expect(try uploads.recordings == recordings)
-        #expect(try ledger.reservationCount == 2)
-        receipt?.release()
-        #expect(try ledger.reservationCount == 0)
     }
 
     /// A record that never prepared is refused alone, so the batch still publishes its other records.
@@ -400,15 +458,15 @@ extension DeviceUsageFHIRExchangeTests {
     func recordThatNeverPreparedIsRefusedAlone() async throws {
         let publication = try publication()
         let report = Self.report()
-        let receipt = try await Self.upload([Self.unpreparableReport, report], publication: publication)
+        try await Self.upload([Self.unpreparableReport, report], publication: publication)
 
         let sourceRecordID = try publication.sourceRecordID(
             ordinal: 1,
             evidence: try SensorKitPreparedStructuredRecord(deviceUsage: report).retryEvidence
         )
-        #expect(uploads.all.map(\.path) == [Self.batchFilePath(of: [sourceRecordID])])
-        #expect(try uploads.graphs.count == 1)
-        receipt?.release()
+        let records = try uploads.records
+        #expect(uploads.all.map(\.path) == [Self.batchFilePath(of: records)])
+        #expect(try records.map { try Self.nativeRecordIDs(in: $0.json) } == [[sourceRecordID.value]])
     }
 
     /// A record that no longer prepares where an earlier attempt prepared it fails its batch as drift: skipping it
@@ -417,7 +475,7 @@ extension DeviceUsageFHIRExchangeTests {
     func recordThatNoLongerPreparesFailsItsBatch() async throws {
         let failing = RecordedSensorKitUploads(failingStaging: true)
         await #expect(throws: RecordedSensorKitUploads.StageFailure.self) {
-            _ = try await Self.upload([Self.report()], publication: publication(uploads: failing))
+            try await Self.upload([Self.report()], publication: publication(uploads: failing))
         }
         #expect(failing.all.count == 1)
 
@@ -428,9 +486,8 @@ extension DeviceUsageFHIRExchangeTests {
             evidence: try SensorKitPreparedStructuredRecord(deviceUsage: Self.report()).retryEvidence
         )
         await #expect(throws: FHIRExchangeStateError.retryContentChanged(sourceRecordID: sourceRecordID.value)) {
-            _ = try await Self.upload([Self.unpreparableReport], publication: redelivery)
+            try await Self.upload([Self.unpreparableReport], publication: redelivery)
         }
         #expect(redelivered.all.isEmpty)
-        #expect(try ledger.reservationCount == 1)
     }
 }

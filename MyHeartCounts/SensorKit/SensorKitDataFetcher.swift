@@ -237,8 +237,8 @@ final class SensorKitDataFetcher: ServiceModule, EnvironmentAccessible, @uncheck
     /// Publishes one fetched batch and advances its cursor as one indivisible step.
     ///
     /// The unstructured task deliberately does not inherit a background-task cancellation that may
-    /// arrive after the batch's file is staged but before its cursor is durable. The batch's events
-    /// are released only once its cursor is acknowledged: until then, a redelivery restates them.
+    /// arrive after the batch's file is staged but before its cursor is durable. The batch's retry
+    /// state goes only once its cursor is acknowledged: until then, a redelivery restates the batch.
     private func publishAndAcknowledge<Sample, Strategy: MHCSensorSampleUploadStrategy<Sample>>(
         _ batch: SensorKit.AnchoredBatch<Sample.SafeRepresentation>,
         uploadDefinition: MHCSensorUploadDefinition<Sample, Strategy>,
