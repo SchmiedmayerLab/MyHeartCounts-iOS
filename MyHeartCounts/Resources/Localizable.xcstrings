@@ -10,6 +10,206 @@
     "  0" : {
       "shouldTranslate" : false
     },
+    "%@ is shown on your dashboard, but doesn't count toward your overall score." : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is shown on your dashboard, but doesn't count towards your overall score."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ se muestra en tu panel, pero no cuenta para tu puntuación general."
+          }
+        }
+      }
+    },
+    "A questionnaire about your diet" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un cuestionario sobre tu alimentación"
+          }
+        }
+      }
+    },
+    "Based on %lld of %lld score components" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basada en %lld de %lld componentes de la puntuación"
+          }
+        }
+      }
+    },
+    "Collected automatically" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se recopila automáticamente"
+          }
+        }
+      }
+    },
+    "Complete Your Score" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completa tu puntuación"
+          }
+        }
+      }
+    },
+    "Components With Data" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Componentes con datos"
+          }
+        }
+      }
+    },
+    "Heart Health Score" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puntuación de salud cardiovascular"
+          }
+        }
+      }
+    },
+    "HHD_SCORE_SHEET_CALCULATION_EXPLAINER" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each score component is rated from 0 to 100, and higher is better. Your overall score is the average of the components that have data. Components without data are left out, not counted as 0."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each score component is rated from 0 to 100, and higher is better. Your overall score is the average of the components that have data. Components without data are left out, not counted as 0."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada componente de la puntuación se valora de 0 a 100, y cuanto más alto, mejor. Tu puntuación general es la media de los componentes que tienen datos. Los componentes sin datos se omiten, no se cuentan como 0."
+          }
+        }
+      }
+    },
+    "HHD_SCORE_SHEET_COMPLETE_FOOTER" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adding data makes your score more complete. Your score may go up or down as a result."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adding data makes your score more complete. Your score may go up or down as a result."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agregar datos hace que tu puntuación sea más completa. Como resultado, tu puntuación puede subir o bajar."
+          }
+        }
+      }
+    },
+    "How It's Calculated" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo se calcula"
+          }
+        }
+      }
+    },
+    "Needs a blood glucose reading" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requiere una medición de la glucosa en sangre"
+          }
+        }
+      }
+    },
+    "Needs a blood pressure reading" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requiere una medición de la presión arterial"
+          }
+        }
+      }
+    },
+    "Needs a lab result" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requiere un resultado de laboratorio"
+          }
+        }
+      }
+    },
+    "One question" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una pregunta"
+          }
+        }
+      }
+    },
+    "Shows how your score is calculated" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra cómo se calcula tu puntuación"
+          }
+        }
+      }
+    },
+    "Your height and weight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu altura y tu peso"
+          }
+        }
+      }
+    },
+    "Your overall score appears once at least %lld components have data." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu puntuación general aparece cuando al menos %lld componentes tienen datos."
+          }
+        }
+      }
+    },
     "—" : {
       "shouldTranslate" : false
     },
@@ -4337,6 +4537,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Algunas métricas, como el sueño o los minutos de ejercicio, solo están disponibles si tiene un Apple Watch conectado a este iPhone."
+          }
+        }
+      }
+    },
+    "HHD_LIMITED_DATA_DISCLAIMER" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More data needed"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More data needed"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se necesitan más datos"
           }
         }
       }

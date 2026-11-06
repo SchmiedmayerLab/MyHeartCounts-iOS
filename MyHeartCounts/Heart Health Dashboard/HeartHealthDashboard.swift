@@ -35,6 +35,7 @@ struct HeartHealthDashboard: View {
     @CVHScore private var cvhScore
     
     @State private var scoreResultToExplain: MetricDescriptor?
+    @State private var isPresentingScoreSheet = false
     @State private var isPresentingPastTimedWalkTestResults = false
     
     var body: some View {
@@ -49,6 +50,15 @@ struct HeartHealthDashboard: View {
                             DismissButton()
                         }
                     }
+            }
+        }
+        .sheet(isPresented: $isPresentingScoreSheet) {
+            NavigationStack {
+                HeartHealthScoreSheet(
+                    score: cvhScore,
+                    components: $cvhScore.components,
+                    unscoredTileTitle: $cvhScore.mentalHealthScore.sampleType.displayTitle
+                )
             }
         }
         .adaptiveSheet(isPresented: $isPresentingPastTimedWalkTestResults) {
@@ -91,41 +101,8 @@ struct HeartHealthDashboard: View {
     
     
     @ViewBuilder private var topSection: some View {
-        let valueAvailabe = !(cvhScore?.isNaN ?? true)
-        VStack { // swiftlint:disable:this closure_body_length
-            HStack {
-                Spacer()
-                Gauge(
-                    lineWidth: .relative(2),
-                    gradient: valueAvailabe ? .redToGreen : Gradient(colors: [.gray]),
-                    progress: cvhScore
-                ) {
-                    if let cvhScore, !cvhScore.isNaN {
-                        if #available(iOS 26.0, *) {
-                            Text(Int(cvhScore * 100), format: .number)
-                                .font(.largeTitle.scaled(by: 1.2).bold())
-                        } else {
-                            Text(Int(cvhScore * 100), format: .number)
-                                .font(.largeTitle.bold())
-                        }
-                    } else {
-                        Text("—")
-                            .font(.largeTitle.bold())
-                            .foregroundStyle(.secondary)
-                    }
-                } minimumValueText: {
-                    Text("  0")
-                        .foregroundStyle(valueAvailabe ? .primary : .secondary)
-                } maximumValueText: {
-                    Text("100 ")
-                        .foregroundStyle(valueAvailabe ? .primary : .secondary)
-                }
-                .frame(width: 140, height: 140)
-                Spacer()
-            }
-            .padding(.vertical, 16)
-            .background(.background)
-            .clipShape(RoundedRectangle(cornerRadius: HealthDashboardConstants.gridComponentCornerRadius))
+        VStack {
+            overallScoreButton
             HStack {
                 Text("HEART_HEALTH_DASHBOARD_HEADER")
                     .font(.caption)
@@ -135,6 +112,35 @@ struct HeartHealthDashboard: View {
             }
                 .padding(.horizontal)
         }
+    }
+    
+    private var overallScoreButton: some View {
+        Button {
+            isPresentingScoreSheet = true
+        } label: {
+            VStack(spacing: 4) {
+                OverallScoreGauge(score: cvhScore)
+                if $cvhScore.hasLimitedData {
+                    Text("HHD_LIMITED_DATA_DISCLAIMER")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(.background)
+            .clipShape(RoundedRectangle(cornerRadius: HealthDashboardConstants.gridComponentCornerRadius))
+            .overlay(alignment: .topTrailing) {
+                Image(systemSymbol: .infoCircle)
+                    .foregroundStyle(.secondary)
+                    .padding(12)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Shows how your score is calculated")
+        .accessibilityIdentifier("MHC:OverallScore")
     }
     
     @ViewBuilder private var learnMoreSection: some View {
