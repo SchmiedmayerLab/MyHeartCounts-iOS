@@ -100,7 +100,6 @@
 		80D0321D2FE52D3D0090B041 /* GroveLocalStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0321C2FE52D3D0090B041 /* GroveLocalStorage */; };
 		80D032212FE52D3D0090B041 /* GroveNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032202FE52D3D0090B041 /* GroveNotifications */; };
 		80D032232FE52D3D0090B041 /* GroveQuestionnaire in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032222FE52D3D0090B041 /* GroveQuestionnaire */; };
-		80D0FA022FE52D3D0090B041 /* GroveQuestionnaireUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0FA012FE52D3D0090B041 /* GroveQuestionnaireUI */; };
 		80D032252FE52D3D0090B041 /* GroveQuestionnaireFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032242FE52D3D0090B041 /* GroveQuestionnaireFHIR */; };
 		80D0322B2FE52D3D0090B041 /* GroveSensorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0322A2FE52D3D0090B041 /* GroveSensorKit */; };
 		80D032312FE52D3D0090B041 /* GroveTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032302FE52D3D0090B041 /* GroveTesting */; };
@@ -112,6 +111,7 @@
 		80D032562FE5315D0090B041 /* XCTGroveAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032552FE5315D0090B041 /* XCTGroveAccount */; };
 		80D032582FE5315D0090B041 /* XCTGroveNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032572FE5315D0090B041 /* XCTGroveNotifications */; };
 		80D0325A2FE5315D0090B041 /* XCTGroveQuestionnaire in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032592FE5315D0090B041 /* XCTGroveQuestionnaire */; };
+		80D0FA022FE52D3D0090B041 /* GroveQuestionnaireUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0FA012FE52D3D0090B041 /* GroveQuestionnaireUI */; };
 		80D8EE1E3027BA3D00A76707 /* ResearchKitSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */; };
 		80E982FB2EBA463500202499 /* GroveConsent in Frameworks */ = {isa = PBXBuildFile; productRef = 805BE3CE2E060B3A001E5CA4 /* GroveConsent */; };
 		9739A0C62AD7B5730084BEA5 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 9739A0C52AD7B5730084BEA5 /* FirebaseStorage */; };
@@ -1684,11 +1684,6 @@
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = GroveQuestionnaire;
 		};
-		80D0FA012FE52D3D0090B041 /* GroveQuestionnaireUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
-			productName = GroveQuestionnaireUI;
-		};
 		80D032242FE52D3D0090B041 /* GroveQuestionnaireFHIR */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
@@ -1743,6 +1738,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = XCTGroveQuestionnaire;
+		};
+		80D0FA012FE52D3D0090B041 /* GroveQuestionnaireUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveQuestionnaireUI;
 		};
 		80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */ = {
 			isa = XCSwiftPackageProductDependency;

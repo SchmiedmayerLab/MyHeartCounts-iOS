@@ -1328,6 +1328,9 @@
         }
       }
     },
+    "Are you sure you want to log out?" : {
+
+    },
     "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose." : {
       "localizations" : {
         "en-GB" : {
@@ -3288,6 +3291,9 @@
         }
       }
     },
+    "Failed to log out" : {
+
+    },
     "Failed to process Sleep Sessions" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3304,6 +3310,9 @@
           }
         }
       }
+    },
+    "Failed to withdraw from study" : {
+
     },
     "False" : {
       "localizations" : {
@@ -4380,6 +4389,9 @@
         }
       }
     },
+    "Historical Health Upload Completed" : {
+
+    },
     "Home" : {
       "localizations" : {
         "en-GB" : {
@@ -5185,6 +5197,9 @@
           }
         }
       }
+    },
+    "Log Out" : {
+
     },
     "Logging Out…" : {
       "localizations" : {
@@ -10220,6 +10235,7 @@
       }
     },
     "Unable to find Questionnaire" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en-GB" : {
           "stringUnit" : {
@@ -10250,6 +10266,9 @@
           }
         }
       }
+    },
+    "Unable to Load Questionnaire" : {
+
     },
     "Unable to save" : {
       "localizations" : {

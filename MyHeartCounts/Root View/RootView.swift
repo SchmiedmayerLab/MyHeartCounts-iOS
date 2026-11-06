@@ -55,6 +55,7 @@ struct RootView: View {
         }
         .trackingScenePhase()
         .modifier(ConsentRenewalSheetModifier())
+//        .softScrollEdge() // ???
     }
 }
 

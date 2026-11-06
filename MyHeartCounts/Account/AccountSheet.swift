@@ -6,6 +6,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+// swiftlint:disable file_length
+
 import FirebaseCore
 import FirebaseFunctions
 import GroveAccount
@@ -34,9 +36,11 @@ struct AccountSheet: View {
     @Environment(StudyManager.self) private var studyManager
     // swiftlint:enable attributes
     
+    @State private var viewState: ViewState = .idle
     @State private var isInSetup = false
     @State private var isPresentingFeedbackSheet = false
     @State private var withdrawalSigning: WithdrawalSigningRequest?
+    @State private var activeAccountAction: AccountAction?
     
     @AccountFeatureFlagQuery(.isDebugModeEnabled)
     private var debugModeEnabled
@@ -48,7 +52,13 @@ struct AccountSheet: View {
         NavigationStack {
             ZStack {
                 if account.signedIn && !isInSetup {
-                    accountOverview
+                    AccountOverview(
+                        close: .showCloseButton,
+                        logout: .disabled,
+                        deletion: .disabled
+                    ) {
+                        accountSheetExtraContent
+                    }
                 } else {
                     AccountSetup { _ in
                         if dismissAfterSignIn {
@@ -78,21 +88,8 @@ struct AccountSheet: View {
             }
         }
         .accessibilityIdentifier("MHC:AccountSheet")
-    }
-    
-    private var accountOverview: some View {
-        AccountOverview(
-            close: .showCloseButton,
-            deletion: showsWithdrawalBelowLogout
-                ? .belowLogout(.custom(labels: .withdrawFromStudy) {
-                    try await withdrawFromStudy()
-                })
-                : .inEditMode(.custom(labels: .withdrawFromStudy) {
-                    try await withdrawFromStudy()
-                })
-        ) {
-            accountSheetExtraContent
-        }
+        .viewStateAlert(state: $viewState)
+        .accountActionAlert(currentAction: $activeAccountAction, perform: performAccountAction)
     }
     
     @ViewBuilder private var accountSheetExtraContent: some View {
@@ -141,14 +138,8 @@ struct AccountSheet: View {
                 }
             }
         }
-    }
-    
-    /// Imperial participants found "Withdraw from Study" hard to discover behind "Edit", so their account sheet lists it below "Log Out".
-    private var showsWithdrawalBelowLogout: Bool {
-        switch DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford) {
-        case .stanford: false
-        case .imperial: true
-        }
+        AccountMgmtSection(currentAction: $activeAccountAction)
+            .disabled(viewState == .processing)
     }
     
     private var isProcessingHealthData: Bool {
@@ -261,6 +252,28 @@ struct AccountSheet: View {
             .httpsCallable("markAccountForStudyWithdrawal")
             .call([:])
         try await account.accountService.logout()
+    }
+    
+    /// Runs in its own `Task`, because the action needs to outlive the alert that triggered it:
+    /// the alert dismisses itself as soon as its button is tapped.
+    private func performAccountAction(_ action: AccountAction) {
+        viewState = .processing
+        Task {
+            do {
+                switch action {
+                case .logOut:
+                    try await account.accountService.logout()
+                case .withdraw:
+                    try await withdrawFromStudy()
+                }
+                viewState = .idle
+                dismiss()
+            } catch is CancellationError {
+                viewState = .idle
+            } catch {
+                viewState = .error(AnyLocalizedError(error: error, defaultErrorDescription: action.defaultErrorDescription))
+            }
+        }
     }
 }
 
@@ -396,6 +409,138 @@ extension AccountSheet {
     }
 }
 
+
+extension AccountSheet {
+    private struct AccountMgmtSection: View {
+        typealias ViewAction = AccountAction
+        @Environment(\.editMode)
+        private var editMode
+        
+        @Binding var currentAction: ViewAction?
+        
+        private var enabledActions: Set<ViewAction> {
+            // Imperial participants found "Withdraw from Study" hard to discover behind "Edit", so their account sheet always lists it.
+            let alwaysOfferWithdrawal = DeferredConfigLoading.currentStudyVariant.effective() == .imperial
+            if alwaysOfferWithdrawal {
+                return [.logOut, .withdraw]
+            } else {
+                let isEditing = editMode?.wrappedValue == .active
+                return isEditing ? [.withdraw] : [.logOut]
+            }
+        }
+        
+        var body: some View {
+            let enabledActions = self.enabledActions
+            Section {
+                if enabledActions.contains(.logOut) {
+                    makeButton(for: .logOut)
+                }
+                if enabledActions.contains(.withdraw) {
+                    makeButton(for: .withdraw)
+                }
+            } footer: {
+                Footer()
+            }
+        }
+        
+        @ViewBuilder
+        private func makeButton(for action: ViewAction) -> some View {
+            Button(action.title, role: .destructive) {
+                currentAction = action
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .disabled(currentAction != nil)
+        }
+    }
+}
+
+
+extension AccountSheet {
+    private struct Footer: View {
+        @State private var kittenMode = KittenMode()
+
+        var body: some View {
+            Text(verbatim: "Made with ❤️ in Stanford🎸, Hamburg⚓️, and Munich🥨")
+                .frame(maxWidth: .infinity, minHeight: 47, maxHeight: 47, alignment: .center)
+                .onTapGesture {
+                    releaseCritter()
+                }
+                .listRowInsets(.zero)
+                .padding(.top)
+        }
+
+        private func releaseCritter() {
+            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            if let scene = scenes.first(where: { $0.activationState == .foregroundActive }) {
+                kittenMode.releaseCritter(in: scene)
+            }
+        }
+    }
+}
+
+
+extension AccountSheet {
+    fileprivate enum AccountAction {
+        case logOut
+        case withdraw
+    }
+    
+    
+    @Observable
+    fileprivate final class AccountSheetModel {
+        var activeAction: AccountAction?
+    }
+}
+
+
+extension AccountSheet.AccountAction {
+    var title: LocalizedStringResource {
+        switch self {
+        case .logOut:
+            "Log Out"
+        case .withdraw:
+            "Withdraw from Study"
+        }
+    }
+    
+    var shortTitle: LocalizedStringResource {
+        switch self {
+        case .logOut:
+            "Log Out"
+        case .withdraw:
+            "Withdraw"
+        }
+    }
+    
+    var confirmationTitle: LocalizedStringResource {
+        switch self {
+        case .logOut:
+            "Log Out"
+        case .withdraw:
+            "Withdraw from Study"
+        }
+    }
+    
+    var confirmationMessage: LocalizedStringResource {
+        switch self {
+        case .logOut:
+            "Are you sure you want to log out?"
+        case .withdraw:
+            "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose."
+        }
+    }
+    
+    var defaultErrorDescription: LocalizedStringResource {
+        switch self {
+        case .logOut:
+            "Failed to log out"
+        case .withdraw:
+            "Failed to withdraw from study"
+        }
+    }
+}
+
+
 extension AccountOverviewOperationLabels {
     fileprivate static let withdrawFromStudy = Self(
         formButton: "Withdraw from Study",
@@ -403,4 +548,25 @@ extension AccountOverviewOperationLabels {
         confirmationAlertMessage: "Are you sure you want to withdraw from the My Heart Counts study?\nYou can re-enroll later if you choose.",
         confirmationAlertSubmitButton: "Withdraw"
     )
+}
+
+
+extension View {
+    fileprivate func accountActionAlert(
+        currentAction: Binding<AccountSheet.AccountAction?>,
+        perform: @MainActor @escaping (_ action: AccountSheet.AccountAction) -> Void
+    ) -> some View {
+        self.alert(currentAction.wrappedValue?.title ?? "", item: currentAction) { action in
+            Button(role: .destructive) {
+                perform(action)
+            } label: {
+                Text(action.shortTitle)
+            }
+            Button(role: .cancel, action: {}) {
+                Text("Cancel")
+            }
+        } message: { action in
+            Text(action.confirmationMessage)
+        }
+    }
 }
