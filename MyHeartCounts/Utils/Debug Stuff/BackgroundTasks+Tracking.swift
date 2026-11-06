@@ -9,12 +9,11 @@
 import BackgroundTasks
 import Foundation
 import GroveFoundation
+import GroveViews
 import SwiftUI
 
 
 extension LocalPreferenceKeys {
-    static let backgroundTaskEvents = LocalPreferenceKey<[MHCBackgroundTasks.Event]>("backgroundTaskEvents", default: [])
-    
     static let backgroundTaskNotifications = LocalPreferenceKey<Bool>("backgroundTaskNotifications", default: false)
 }
 
@@ -47,16 +46,14 @@ extension MHCBackgroundTasks {
         @LocalPreference(.backgroundTaskNotifications)
         private var enableNotifications
         
-        @LocalPreference(.backgroundTaskEvents)
-        private var events
-        
+        @State private var events: [MHCBackgroundTasks.Event] = []
         @State private var pendingRequests: [BGTaskRequest] = []
+        @State private var viewState: ViewState = .idle
+        @State private var exportedEvents: ShareSheetInput?
         
         var body: some View {
             Form {
-                Section {
-                    Toggle("Enable Notifications" as String, isOn: $enableNotifications)
-                }
+                controlsSection
                 Section("Pending Tasks" as String) {
                     ForEach(pendingRequests, id: \.self) { request in
                         VStack(alignment: .leading) {
@@ -92,11 +89,24 @@ extension MHCBackgroundTasks {
             }
             .navigationTitle("Background Tasks" as String)
             .navigationBarTitleDisplayMode(.inline)
+            .viewStateAlert(state: $viewState)
+            .shareSheet(item: $exportedEvents)
             .onAppear {
-                reloadScheduledTasks()
+                reload()
             }
             .refreshable {
-                reloadScheduledTasks()
+                reload()
+            }
+        }
+        
+        private var controlsSection: some View {
+            Section {
+                AsyncButton(state: $viewState) {
+                    exportedEvents = try ShareSheetInput(exportEvents())
+                } label: {
+                    Label("Export Event Log" as String, systemImage: "square.and.arrow.up")
+                }
+                Toggle("Enable Notifications" as String, isOn: $enableNotifications)
             }
         }
         
@@ -122,7 +132,14 @@ extension MHCBackgroundTasks {
             return processed.sorted(using: KeyPathComparator(\.start, order: .reverse))
         }
         
-        private func reloadScheduledTasks() {
+        private func exportEvents() throws -> URL {
+            let url = URL.temporaryDirectory.appending(component: "BackgroundTasksLog.jsonl")
+            try MHCBackgroundTasks.EventLog.shared.contents().write(to: url, options: .atomic)
+            return url
+        }
+        
+        private func reload() {
+            events = MHCBackgroundTasks.EventLog.shared.events()
             Task { @MainActor in
                 pendingRequests = await BGTaskScheduler.shared.pendingTaskRequests()
             }
