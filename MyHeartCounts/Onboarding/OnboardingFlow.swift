@@ -23,7 +23,8 @@ struct OnboardingSheet: View {
     @Binding var didComplete: Bool
     
     var body: some View {
-        if !didComplete {
+        // the sheet would cover up the RootView, which is what displays the launch error.
+        if !didComplete, DeferredConfigLoading.launchError == nil {
             Color.clear.frame(height: 0)
                 .sheet(isPresented: !$didComplete) {
                     AppOnboardingFlow(didComplete: $didComplete)

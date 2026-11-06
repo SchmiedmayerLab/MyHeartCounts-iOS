@@ -31,31 +31,47 @@ struct RootView: View {
     
     var body: some View {
         ZStack {
-            switch setupTestEnvironment.state {
-            case .disabled, .done:
-                if didCompleteOnboarding, account != nil, !appState.isLoggingOut {
-                    TabView()
-                        // we might simply want to make every `taskPerformingAnchor` also an `taskContinuationAnchor` at some point?
-                        // it's not trivial, though, since we'd also need to make sure that if there's multiple `taskContinuationAnchor`s, only one of them will actually pick up the task...
-                        .taskContinuationAnchor()
-                        .taskPerformingAnchor()
-                        .rootSheetAnchor()
-                        .checkingStudyVariantConsistency()
-                } else if appState.isLoggingOut {
-                    FullScreenProgressView(title: "Logging Out…")
+            if let launchError = DeferredConfigLoading.launchError {
+                LaunchErrorView(error: launchError)
+            } else {
+                switch setupTestEnvironment.state {
+                case .disabled, .done:
+                    if didCompleteOnboarding, account != nil, !appState.isLoggingOut {
+                        TabView()
+                            // we might simply want to make every `taskPerformingAnchor` also an `taskContinuationAnchor` at some point?
+                            // it's not trivial, though, since we'd also need to make sure that if there's multiple `taskContinuationAnchor`s, only one of them will actually pick up the task...
+                            .taskContinuationAnchor()
+                            .taskPerformingAnchor()
+                            .rootSheetAnchor()
+                            .checkingStudyVariantConsistency()
+                    } else if appState.isLoggingOut {
+                        FullScreenProgressView(title: "Logging Out…")
+                    }
+                case .pending, .settingUp:
+                    FullScreenProgressView(
+                        title: "Setting Up Test Environment" as String,
+                        subtitle: setupTestEnvironment.desc
+                    )
+                case .failure(let error):
+                    LaunchErrorView(error: error)
                 }
-            case .pending, .settingUp:
-                FullScreenProgressView(
-                    title: "Setting Up Test Environment" as String,
-                    subtitle: setupTestEnvironment.desc
-                )
-            case .failure(let error):
-                ContentUnavailableView("Error", systemSymbol: .exclamationmarkOctagon, description: Text(error.localizedDescription))
             }
         }
         .trackingScenePhase()
         .modifier(ConsentRenewalSheetModifier())
 //        .softScrollEdge() // ???
+    }
+}
+
+
+extension RootView {
+    /// Displays an error that prevented the app from launching into its regular UI.
+    private struct LaunchErrorView: View {
+        let error: any Error
+
+        var body: some View {
+            ContentUnavailableView("Error", systemSymbol: .exclamationmarkOctagon, description: Text(error.localizedDescription))
+        }
     }
 }
 
