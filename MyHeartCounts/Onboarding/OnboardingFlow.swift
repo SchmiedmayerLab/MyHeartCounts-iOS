@@ -20,15 +20,23 @@ import SwiftUI
 
 
 struct OnboardingSheet: View {
+    @Environment(MyHeartCountsDelegate.self)
+    private var appDelegate
+
     @Binding var didComplete: Bool
-    
+
     var body: some View {
-        // the sheet would cover up the RootView, which is what displays the launch error.
-        if !didComplete, DeferredConfigLoading.launchError == nil {
-            Color.clear.frame(height: 0)
-                .sheet(isPresented: !$didComplete) {
-                    AppOnboardingFlow(didComplete: $didComplete)
-                }
+        switch appDelegate.launchState {
+        case .ready, .settingUpTestEnvironment:
+            if !didComplete {
+                Color.clear.frame(height: 0)
+                    .sheet(isPresented: !$didComplete) {
+                        AppOnboardingFlow(didComplete: $didComplete)
+                    }
+            }
+        case .failed:
+            // the sheet would cover up the RootView, which is what displays the error.
+            EmptyView()
         }
     }
 }

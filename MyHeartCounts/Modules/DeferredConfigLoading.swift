@@ -94,11 +94,6 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
             .unknown
         }
     }
-
-    /// The error that kept the app from loading its Firebase config during launch, if any.
-    ///
-    /// Only written while the Grove configuration is being evaluated, i.e. before the first view gets rendered, which is why it doesn't need to be observable.
-    @MainActor private(set) static var launchError: LoadingError?
     
     enum LoadingError: LocalizedError {
         case unableToLoadFirebaseConfigPlist(underlying: (any Error)? = nil)
@@ -255,26 +250,21 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
     }
     
     
-    @MainActor static var initialAppLaunchConfig: [any Module] {
+    @MainActor
+    static func initialAppLaunchConfig() throws(LoadingError) -> [any Module] {
         let studyVariant = LocalPreferencesStore.standard[.enrolledStudyVariant] ?? .stanford
-        do throws(LoadingError) {
-            return if FeatureFlags.disableFirebase {
-                baseModules(preferredLocale: .autoupdatingCurrent)
-            } else if let selector = FeatureFlags.overrideFirebaseConfig {
-                try config(for: selector, studyVariant: studyVariant)
-            } else if let selector = LocalPreferencesStore.standard[.enrolledFirebaseConfig],
-                      LocalPreferencesStore.standard[.onboardingFlowComplete] || !StudyManager().studyEnrollments.isEmpty {
-                // Completed onboarding takes the original restoration path without inspecting the study store.
-                // Otherwise, only restore an actual (possibly unfinished) enrollment, not an abandoned region selection.
-                // Leave the saved value untouched, including when it isn't restored.
-                try config(for: selector, studyVariant: studyVariant)
-            } else {
-                []
-            }
-        } catch {
-            logger.error("Unable to load the Firebase config during launch: \(error)")
-            launchError = error
-            return []
+        return if FeatureFlags.disableFirebase {
+            baseModules(preferredLocale: .autoupdatingCurrent)
+        } else if let selector = FeatureFlags.overrideFirebaseConfig {
+            try config(for: selector, studyVariant: studyVariant)
+        } else if let selector = LocalPreferencesStore.standard[.enrolledFirebaseConfig],
+                  LocalPreferencesStore.standard[.onboardingFlowComplete] || !StudyManager().studyEnrollments.isEmpty {
+            // Completed onboarding takes the original restoration path without inspecting the study store.
+            // Otherwise, only restore an actual (possibly unfinished) enrollment, not an abandoned region selection.
+            // Leave the saved value untouched, including when it isn't restored.
+            try config(for: selector, studyVariant: studyVariant)
+        } else {
+            []
         }
     }
     
