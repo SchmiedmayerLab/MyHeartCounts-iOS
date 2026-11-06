@@ -29,8 +29,18 @@ struct CVHScore: DynamicProperty {
         case stepCount
     }
     
+    /// One of the components that feed into the composite score.
+    struct Component: Identifiable {
+        let keyPath: KeyPath<CVHScore, ScoreResult>
+        let result: ScoreResult
+        
+        var id: KeyPath<CVHScore, ScoreResult> {
+            keyPath
+        }
+    }
+    
     /// The number of score components that need to have data, for the composite score to be computed.
-    private static let minNumComponentsForScore = 3
+    static let minNumComponentsForScore = 3
     /// The number of score components that need to have data, for the composite score to be considered meaningful.
     private static let minNumComponentsForMeaningfulScore = 5
     
@@ -111,24 +121,30 @@ struct CVHScore: DynamicProperty {
         availableComponentScores.count < Self.minNumComponentsForMeaningfulScore
     }
     
+    /// The components that feed into the composite score, including those that don't have any data.
+    var components: [Component] {
+        let exerciseKeyPath: KeyPath<CVHScore, ScoreResult> = switch preferredExerciseMetric {
+        case .exerciseMinutes:
+            \.physicalExerciseScore
+        case .stepCount:
+            \.stepCountScore
+        }
+        let keyPaths: [KeyPath<CVHScore, ScoreResult>] = [
+            \.dietScore,
+            exerciseKeyPath,
+            \.nicotineExposureScore,
+            \.sleepHealthScore,
+            \.bodyMassIndexScore,
+            \.bloodLipidsScore,
+            \.bloodGlucoseScore,
+            \.bloodPressureScore
+        ]
+        return keyPaths.map { Component(keyPath: $0, result: self[keyPath: $0]) }
+    }
+    
     /// The scores of those composite score components that have data, each in the range of `0...1`.
     private var availableComponentScores: [Double] {
-        let scores: [ScoreResult] = Array {
-            dietScore
-            switch preferredExerciseMetric {
-            case .exerciseMinutes:
-                physicalExerciseScore
-            case .stepCount:
-                stepCountScore
-            }
-            nicotineExposureScore
-            sleepHealthScore
-            bodyMassIndexScore
-            bloodLipidsScore
-            bloodGlucoseScore
-            bloodPressureScore
-        }
-        return scores.compactMap { $0.score.map { $0.clamped(to: 0...1) } }
+        components.compactMap { $0.result.score.map { $0.clamped(to: 0...1) } }
     }
     
     var projectedValue: Self {
