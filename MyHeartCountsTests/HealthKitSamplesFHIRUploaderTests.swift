@@ -29,21 +29,17 @@ struct HealthKitSamplesFHIRUploaderTests {
     /// The bulk session's processor, exporting through the harness and staging into `files`, or failing to stage.
     private func bulkUploader(
         files: StagedUploadFiles = StagedUploadFiles(),
-        unreadable: StagedUploadFiles = StagedUploadFiles(),
         failsToStage: Bool = false,
-        now: @escaping @Sendable () -> Date = { .now },
-        makeBundle: @escaping HealthUploadBatch.MakeBundle = HealthUploadBatch.packBundle
+        now: @escaping @Sendable () -> Date = { .now }
     ) -> HealthKitSamplesFHIRUploader {
         let harness = harness
-        return HealthKitSamplesFHIRUploader(healthKit: HealthKit(), now: now, makeBundle: makeBundle) { _ in
+        return HealthKitSamplesFHIRUploader(healthKit: HealthKit(), now: now) { _ in
             try harness.exporter()
         } stage: { file, _ in
             if failsToStage {
                 throw StagingFailure()
             }
             try files.stage(file)
-        } stageUnreadable: { file, _ in
-            try unreadable.stage(file)
         }
     }
 
@@ -119,35 +115,5 @@ struct HealthKitSamplesFHIRUploaderTests {
         let laterRecords = try later.records
         #expect(laterRecords.map(\.sourceRecord) == records.map(\.sourceRecord))
         #expect(Set(laterRecords.map(\.version)).isDisjoint(with: records.map(\.version)))
-    }
-
-    /// A record no Bundle can carry costs only itself: it leaves as an `unreadable_` object, named by its keyed Provenance,
-    /// and the batch completes, so the session does not retry it forever.
-    @Test
-    func aRecordThatFailsAloneLeavesAsAnUnreadableObjectAndTheBatchCompletes() async throws {
-        let samples = (0..<3).map(ExchangeHarness.steps)
-        let delivery = try await harness.exporter().deliver(samples)
-        let records = try samples.map { try #require(delivery.records[$0.uuid]) }
-        let doomed = records[1]
-        let files = StagedUploadFiles()
-        let unreadable = StagedUploadFiles()
-        let uploader = bulkUploader(
-            files: files,
-            unreadable: unreadable,
-            now: { ExchangeHarness.start },
-            makeBundle: HealthUploadBatch.failingBundles(alone: [doomed.version.fullURL])
-        )
-
-        try await uploader.process(samples, of: .stepCount)
-
-        #expect(try files.records.map(\.version) == [records[0].version, records[2].version])
-        #expect(unreadable.all == [doomed.json])
-        #expect(unreadable.names == [
-            HealthUploadBatch.filename(
-                typePrefix: "unreadable_\(SampleType.stepCount.id)",
-                provenanceFullURLs: [doomed.version.fullURL],
-                fileExtension: "zstd"
-            )
-        ])
     }
 }

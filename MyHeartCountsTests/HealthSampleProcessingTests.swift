@@ -69,8 +69,6 @@ struct HealthSampleProcessingTests {
         let files = StagedUploadFiles()
         try await HealthUploadBatch.stage(records, sampleType: SampleType.stepCount.id, packedAt: startDate) { file in
             try files.stage(file)
-        } stageUnreadable: { file in
-            Issue.record("Unexpected unreadable object \(file.lastPathComponent)")
         }
         #expect(files.all.count == 1)
         let observations = try exportedObservations(from: try #require(files.all.first))

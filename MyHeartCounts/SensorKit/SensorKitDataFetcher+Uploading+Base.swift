@@ -208,25 +208,25 @@ extension MHCSensorSampleUploadStrategy {
         for sensor: Sensor<Sample>,
         publication: SensorKitBatchPublication
     ) async throws {
+        let file = URL.temporaryDirectory.appending(
+            path: HealthUploadBatch.filename(typePrefix: sensor.id, provenanceFullURLs: archived.provenanceFullURLs, fileExtension: "zip"),
+            directoryHint: .notDirectory
+        )
         defer {
-            // Staging moves the file; this only removes what staging did not take.
+            // Staging moves the file; these only remove what staging did not take.
             try? FileManager.default.removeItem(at: archived.finalizedArchive.url)
+            try? FileManager.default.removeItem(at: file)
         }
-        try await HealthUploadBatch.withTemporaryDirectory { directory in
-            let file = directory.appending(
-                path: HealthUploadBatch.filename(typePrefix: sensor.id, provenanceFullURLs: archived.provenanceFullURLs, fileExtension: "zip"),
-                directoryHint: .notDirectory
-            )
-            try FileManager.default.moveItem(at: archived.finalizedArchive.url, to: file)
-            try publication.destination.validateCurrentAccount()
-            try await publication.uploader.stageFile(
-                at: file,
-                category: ManagedFileUpload.Category(sensor),
-                accountDataGeneration: publication.destination.accountDataGeneration,
-                // The batch info travels with the file, so that the batch can be inspected without downloading it.
-                metadata: [UploadBatchArchive.batchInfoMetadataKey: String(decoding: archived.finalizedArchive.batchInfo, as: UTF8.self)]
-            )
-        }
+        try? FileManager.default.removeItem(at: file)
+        try FileManager.default.moveItem(at: archived.finalizedArchive.url, to: file)
+        try publication.destination.validateCurrentAccount()
+        try await publication.uploader.stageFile(
+            at: file,
+            category: ManagedFileUpload.Category(sensor),
+            accountDataGeneration: publication.destination.accountDataGeneration,
+            // The batch info travels with the file, so that the batch can be inspected without downloading it.
+            metadata: [UploadBatchArchive.batchInfoMetadataKey: String(decoding: archived.finalizedArchive.batchInfo, as: UTF8.self)]
+        )
     }
 
     /// Publishes the records prepared from one fetched batch through MHC's storage backend.

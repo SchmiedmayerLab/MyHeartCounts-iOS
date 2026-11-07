@@ -53,11 +53,6 @@ extension HealthUploadStaging {
             case subjectSystem
             case subjectValue
         }
-        /// The most a stored payload may decompress to: far above any record, and an allocation that always succeeds.
-        ///
-        /// A zstd frame states its own size, and an allocation of a size a damaged frame states is a trap no `try?` catches.
-        private static let maximumPayloadSize = 64 << 20
-
         static let databaseTableName = "pendingSamples"
         static var timestampColumn: Column { Column(Columns.timestamp.name) }
         static var sampleTypeColumn: Column { Column(Columns.sampleType.name) }
@@ -72,16 +67,6 @@ extension HealthUploadStaging {
         var payloadFormat: PayloadFormat = .record
         var subjectSystem: String?
         var subjectValue: String?
-
-        /// The row's payload, or `nil` when ``fhirJson`` can't be decompressed.
-        var decompressedPayload: Data? {
-            Self.decompressedPayload(of: fhirJson)
-        }
-
-        /// What a row's stored `fhirJson` decompresses to, or `nil` when it can't be decompressed.
-        static func decompressedPayload(of stored: Data) -> Data? {
-            try? Zstd.decompress(stored, maximumDecompressedSize: maximumPayloadSize)
-        }
     }
 
     struct PendingDeletionRecord: _PendingEntityRecord {
@@ -185,7 +170,7 @@ extension HealthUploadStaging {
         var eventBundleRows: [UUID] = []
         let rows = try Row.fetchCursor(db, PendingSampleRecord.select(SampleColumn.id, SampleColumn.fhirJson))
         while let row = try rows.next() {
-            let json = PendingSampleRecord.decompressedPayload(of: row[SampleColumn.fhirJson.name])
+            let json = try? (row[SampleColumn.fhirJson.name] as Data).decompressed(using: Zstd.self)
             if json.flatMap({ try? JSONDecoder().decode(Payload.self, from: $0) })?.resourceType == "Bundle" {
                 eventBundleRows.append(row[SampleColumn.id.name])
             }
