@@ -11,6 +11,7 @@ import GroveFHIRContract
 import GroveFoundation
 import HealthKit
 @testable import MyHeartCounts
+import Synchronization
 import Testing
 
 
@@ -26,9 +27,63 @@ struct HealthUploadBatchStagingTests {
         return try samples.map { try #require(delivery.records[$0.uuid]) }
     }
 
-    /// One exporter can't state two subjects, and an upload must not mix them: such a batch stages nothing.
+    /// A batch has no size limit, so each pass's Bundles are staged, and released, before the next pass packs.
     @Test
-    func aRecordOfAnotherSubjectFailsTheBatchBeforeItStages() async throws {
+    func aBatchStagesEachPassBeforeItPacksTheNext() async throws {
+        let steps = Mutex<[String]>([])
+
+        try await HealthUploadBatch.stage(
+            try await Self.records(count: 5),
+            sampleType: Self.stepCount,
+            packedAt: ExchangeHarness.start,
+            recordsPerPass: 2,
+            makeBundle: { packer, packedAt throws(ExchangeGraphError) in
+                steps.withLock { $0.append("pack \(packer.recordCount)") }
+                return try packer.bundle(packedAt: packedAt)
+            },
+            stage: { _ in
+                steps.withLock { $0.append("stage") }
+            },
+            stageUnreadable: { file in
+                Issue.record("Unexpected unreadable object \(file.lastPathComponent)")
+            }
+        )
+
+        #expect(steps.withLock { $0 } == ["pack 2", "stage", "pack 2", "stage", "pack 1", "stage"])
+    }
+
+    /// A record no one-record Bundle can carry leaves through `stageUnreadable`, and every other record still leaves in a
+    /// Bundle: nothing throws, so the batch is acknowledged.
+    @Test
+    func aRecordThatFailsAloneLeavesAsAnUnreadableObject() async throws {
+        let records = try await Self.records(count: 3)
+        let doomed = records[1]
+        let files = StagedUploadFiles()
+        let unreadable = StagedUploadFiles()
+
+        try await HealthUploadBatch.stage(
+            records,
+            sampleType: Self.stepCount,
+            packedAt: ExchangeHarness.start,
+            makeBundle: HealthUploadBatch.failingBundles(alone: [doomed.version.fullURL]),
+            stage: { try files.stage($0) },
+            stageUnreadable: { try unreadable.stage($0) }
+        )
+
+        #expect(try files.records.map(\.version) == [records[0].version, records[2].version])
+        #expect(unreadable.all == [doomed.json])
+        #expect(unreadable.names == [
+            HealthUploadBatch.filename(
+                typePrefix: "unreadable_\(Self.stepCount)",
+                provenanceFullURLs: [doomed.version.fullURL],
+                fileExtension: "zstd"
+            )
+        ])
+    }
+
+    /// One exporter can't state two subjects, and an upload must not mix them: such a pass stages nothing.
+    @Test
+    func aRecordOfAnotherSubjectFailsThePassBeforeItStages() async throws {
         let records = try await Self.records(count: 1) + Self.records(count: 1, subject: try ExchangeHarness.otherSubject)
         let files = StagedUploadFiles()
 
@@ -37,7 +92,8 @@ struct HealthUploadBatchStagingTests {
                 records,
                 sampleType: Self.stepCount,
                 packedAt: ExchangeHarness.start,
-                stage: { try files.stage($0) }
+                stage: { try files.stage($0) },
+                stageUnreadable: { try files.stage($0) }
             )
         }
 
@@ -74,5 +130,27 @@ struct HealthUploadBatchStagingTests {
         #expect(later.names != first.names)
         #expect(try later.records.map(\.sourceRecord) == first.records.map(\.sourceRecord))
         #expect(Set(try later.records.map(\.version)).isDisjoint(with: try first.records.map(\.version)))
+    }
+
+    /// File names follow from content, so two writers of the same bytes must not share a file: the one finishing first would
+    /// remove what the other is still staging.
+    @Test
+    func writersOfTheSameBytesEachHaveTheirOwnFile() async throws {
+        let contents = Data("the same bytes".utf8)
+        let name = "same-name.json.zstd"
+        var outerFile: URL?
+
+        try await HealthUploadBatch.stageFile(contents, filename: name) { outer in
+            outerFile = outer
+            try await HealthUploadBatch.stageFile(contents, filename: name) { inner in
+                #expect(inner != outer)
+                #expect(inner.lastPathComponent == name)
+            }
+            #expect(try Data(contentsOf: outer) == contents)
+        }
+
+        let file = try #require(outerFile)
+        #expect(file.lastPathComponent == name)
+        #expect(!FileManager.default.fileExists(atPath: file.deletingLastPathComponent().path(percentEncoded: false)))
     }
 }

@@ -211,6 +211,12 @@ struct HealthUploadStagingDrainLivenessTests {
         Data(UUID().uuidString.utf8)
     }
 
+    /// A zstd frame whose damaged descriptor makes its header state a content size of 2^62 bytes: a size that fits in `Int`,
+    /// so only a bound keeps it from reaching an allocation, whose failure is a trap.
+    private static func frameStatingAnImpossibleSize() -> Data {
+        Data([0x28, 0xB5, 0x2F, 0xFD, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0x40]) + corruptPayload()
+    }
+
     /// A payload that decompresses, but to no record.
     private static func invalidPayload() throws -> Data {
         try legacyPayload(resourceType: "Bundle").compressed(using: Zstd.self)
@@ -319,6 +325,18 @@ struct HealthUploadStagingDrainLivenessTests {
         let category = ManagedFileUpload.Category.unreadableHealthUpload
         #expect(category.id == "HealthKitUpload/unreadable")
         #expect(category.firebasePath == "unreadableHealthSamples")
+    }
+
+    /// A chunk takes about a quarter of what is available, and a chunk's measured cost never exceeds what is available.
+    @Test
+    func chunkSizeFollowsAvailableMemory() {
+        let mebibyte = 1 << 20
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 64 * mebibyte) == nil)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 255 * mebibyte) == nil)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 256 * mebibyte) == 1024)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 400 * mebibyte) == 1600)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 1024 * mebibyte) == 4096)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 8192 * mebibyte) == 10_000)
     }
 }
 
@@ -511,6 +529,25 @@ extension HealthUploadStagingDrainLivenessTests {
         #expect(drain.unreadable.map(\.contents) == [stored])
         let namesAnUnreadableObject = drain.staged.contains { $0.name.hasPrefix("unreadable_") }
         #expect(!namesAnUnreadableObject)
+        #expect(try drain.stagedVersions() == [[versions[0], versions[2]]])
+        #expect(drain.events == [Self.event(.unreadable, rows: 1)])
+        #expect(try staging.isEmpty)
+    }
+
+    /// Rule 4 must hold for a frame stating any size: decompressing it unbounded would trap, and every later drain with it.
+    @Test
+    func aRowWhoseFrameStatesAnImpossibleSizeStagesOneRawObject() async throws {
+        let staging = try await HealthUploadStaging.resolvedForTesting()
+        try await staging.add((0..<3).map(ExchangeHarness.steps))
+        let rows = try staging.sampleRows()
+        let versions = try rows.map { try Self.record(of: $0).version }
+        let stored = Self.frameStatingAnImpossibleSize()
+        try staging.replacePayload(of: rows[1], with: stored)
+
+        let drain = try await DrainRecording().samples(of: staging)
+
+        #expect(drain.unreadable.map(\.name) == ["unreadable_\(Self.stepCount)_\(Self.digest(stored)).raw"])
+        #expect(drain.unreadable.map(\.contents) == [stored])
         #expect(try drain.stagedVersions() == [[versions[0], versions[2]]])
         #expect(drain.events == [Self.event(.unreadable, rows: 1)])
         #expect(try staging.isEmpty)

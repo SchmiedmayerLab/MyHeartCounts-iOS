@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import Algorithms
 import CryptoKit
 import Foundation
 import GRDB
@@ -24,8 +25,8 @@ enum HealthUploadBatch {
     typealias MakeBundle = @Sendable (ExchangeBundlePacker, Date) throws(ExchangeGraphError) -> ExchangeGraph
 
     enum PackingError: Error {
-        /// Records fresh from the exporter can't travel in a Bundle.
-        case unpackableRecords(count: Int)
+        /// Records fresh from one exporter state several subjects, which no upload may mix.
+        case recordsOfAnotherSubject(count: Int)
     }
 
     /// The deterministic JSON of a refused deletion's object, whose bytes name its file: sorted keys, unescaped slashes.
@@ -63,50 +64,70 @@ enum HealthUploadBatch {
         try packer.bundle(packedAt: packedAt)
     }
 
-    /// Compresses and writes one Bundle under its H17 name, returning the file staged uploads take.
-    static func write(_ bundle: ExchangeGraph, typePrefix: String) throws -> URL {
-        try write(
+    /// Runs `body` with a new directory of its own, and removes it with whatever `body` left in it.
+    ///
+    /// File names follow from content, so two writers of the same content each need a directory: in a shared one, the first
+    /// to finish would remove the file the other is still staging.
+    static func withTemporaryDirectory(_ body: (URL) async throws -> Void) async throws {
+        let directory = URL.temporaryDirectory.appending(component: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+        }
+        try await body(directory)
+    }
+
+    /// Writes `contents` as a file named `filename`, and hands it to `stage`, which may take it.
+    static func stageFile(_ contents: Data, filename: String, through stage: (URL) async throws -> Void) async throws {
+        try await withTemporaryDirectory { directory in
+            let url = directory.appending(path: filename, directoryHint: .notDirectory)
+            try contents.write(to: url, options: .atomic)
+            try await stage(url)
+        }
+    }
+
+    /// Compresses one Bundle, and hands it to `stage` as a file under its H17 name.
+    static func stageFile(_ bundle: ExchangeGraph, typePrefix: String, through stage: (URL) async throws -> Void) async throws {
+        try await stageFile(
             try bundle.json.compressed(using: Zstd.self),
-            filename: filename(typePrefix: typePrefix, provenanceFullURLs: bundle.provenanceFullURLs, fileExtension: "json.zstd")
+            filename: filename(typePrefix: typePrefix, provenanceFullURLs: bundle.provenanceFullURLs, fileExtension: "json.zstd"),
+            through: stage
         )
     }
 
-    /// Writes already-serialized batch bytes under `filename`.
-    static func write(_ payload: consuming Data, filename: String) throws -> URL {
-        let url = URL.temporaryDirectory.appending(path: filename, directoryHint: .notDirectory)
-        try (consume payload).write(to: url, options: .atomic)
-        return url
-    }
-
     /// Packs records fresh from the exporter and hands each Bundle's file to `stage`: one Bundle, unless the batch is past
-    /// the packer's caps.
+    /// the packer's caps. A record no one-record Bundle can carry costs only itself: it goes to `stageUnreadable` as an
+    /// `unreadable_` object, and the batch still completes.
     ///
-    /// - throws: ``PackingError/unpackableRecords(count:)`` when a record can't travel even alone; the batch then stays
-    ///     unacknowledged.
+    /// A batch has no size limit, and a parsed Bundle costs several times its bytes, so the records are packed and staged
+    /// `recordsPerPass` at a time, by default the packer's record cap. Only one pass's Bundles are alive at once.
+    ///
+    /// - throws: ``PackingError/recordsOfAnotherSubject(count:)`` when one exporter's records name several subjects; the batch
+    ///     then stays unacknowledged.
     static func stage(
         _ records: [ExchangeRecord],
         sampleType: String,
         packedAt: Date,
-        stage: (URL) async throws -> Void
+        recordsPerPass: Int = 2_000,
+        makeBundle: MakeBundle = packBundle,
+        stage: (URL) async throws -> Void,
+        stageUnreadable: (URL) async throws -> Void
     ) async throws {
-        guard !records.isEmpty else {
-            return
-        }
-        let packed = HealthUploadStagingUploader.packChunk(
-            records.map { (rowID: UUID(), record: $0) },
-            kind: .active,
-            packedAt: packedAt
-        )
-        HealthUploadIntegrityEvent.report(packed.tally, sampleType: sampleType, to: HealthUploadIntegrityEvent.log)
-        guard packed.failedAlone.isEmpty, packed.otherSubject.isEmpty else {
-            throw PackingError.unpackableRecords(count: packed.failedAlone.count + packed.otherSubject.count)
-        }
-        for bundle in packed.bundles {
-            let url = try write(bundle, typePrefix: sampleType)
-            defer {
-                try? FileManager.default.removeItem(at: url)
+        for pass in records.chunks(ofCount: recordsPerPass) {
+            let entries = pass.map { (rowID: UUID(), record: $0) }
+            let packed = HealthUploadStagingUploader.packChunk(entries, kind: .active, packedAt: packedAt, makeBundle: makeBundle)
+            HealthUploadIntegrityEvent.report(packed.tally, sampleType: sampleType, to: HealthUploadIntegrityEvent.log)
+            guard packed.otherSubject.isEmpty else {
+                throw PackingError.recordsOfAnotherSubject(count: packed.otherSubject.count)
             }
-            try await stage(url)
+            for bundle in packed.bundles {
+                try await stageFile(bundle, typePrefix: sampleType, through: stage)
+            }
+            let failedAlone = Set(packed.failedAlone)
+            for entry in entries where failedAlone.contains(entry.rowID) {
+                let object = try UploadObject.unreadable(entry.record, sampleType: sampleType)
+                try await stageFile(object.contents, filename: object.filename, through: stageUnreadable)
+            }
         }
     }
 
@@ -148,27 +169,13 @@ final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, S
     nonisolated private static let dataRetentionOffsetInDays = 3
 
     nonisolated static var drainChunkSize: Int? {
-        let minimumChunkSize = 1000
-        let maximumChunkSize = 10_000
-        let bytesPerRecord = 10_000
-        let minimumAvailableMemory = 64 * 1024 * 1024
         let availableMemory = os_proc_available_memory()
-
         #if targetEnvironment(simulator)
         if availableMemory == 0 {
             return 2000
         }
         #endif
-
-        // Below 64 MiB, a useful batch leaves too little headroom for the rest of the app.
-        guard availableMemory >= minimumAvailableMemory else {
-            return nil
-        }
-        let calculatedChunkSize = availableMemory / 4 / bytesPerRecord
-        guard calculatedChunkSize >= minimumChunkSize else {
-            return nil
-        }
-        return min(maximumChunkSize, calculatedChunkSize)
+        return drainChunkSize(availableMemory: availableMemory)
     }
 
     // swiftlint:disable attributes
@@ -300,7 +307,67 @@ final class HealthUploadStagingUploader: Grove::Module, EnvironmentAccessible, S
 }
 
 
+extension HealthUploadBatch {
+    /// One file a chunk or a batch leaves the device as, besides its Bundles.
+    struct UploadObject {
+        let filename: String
+        let contents: Data
+
+        /// An `unreadable_` object: `contents` exactly as they are, named by their digest.
+        static func unreadable(_ contents: Data, sampleType: String, fileExtension: String) -> Self {
+            Self(
+                filename: "unreadable_\(sampleType)_\(HealthUploadBatch.digest(of: contents)).\(fileExtension)",
+                contents: contents
+            )
+        }
+
+        /// The `unreadable_` object of a record no row stores the bytes of, as a retraction or a record fresh from the exporter:
+        /// its own bytes, compressed and named by its keyed Provenance fullUrl, as a re-conversion states other bytes under the
+        /// same key.
+        static func unreadable(_ record: ExchangeRecord, sampleType: String) throws -> Self {
+            Self(
+                filename: HealthUploadBatch.filename(
+                    typePrefix: "unreadable_\(sampleType)",
+                    provenanceFullURLs: [record.version.fullURL],
+                    fileExtension: "zstd"
+                ),
+                contents: try record.json.compressed(using: Zstd.self)
+            )
+        }
+
+        /// One JSON array of a legacy kind's stored elements, or `nil` when the chunk holds none. The array has the shape
+        /// the staging build uploaded, and each element travels as stored.
+        static func legacy(_ elements: [Data], sampleType: String) throws -> Self? {
+            guard !elements.isEmpty else {
+                return nil
+            }
+            let array = HealthUploadBatch.jsonArray(elements) { $0 }
+            return Self(
+                filename: "\(sampleType)_\(HealthUploadBatch.digest(of: array)).json.zstd",
+                contents: try array.compressed(using: Zstd.self)
+            )
+        }
+    }
+}
+
+
 extension HealthUploadStagingUploader {
+    /// How many rows one chunk may take, or `nil` when `availableMemory` leaves too little headroom for any chunk.
+    ///
+    /// A chunk parses every row into a record, validates each Bundle and holds every parsed Bundle until the chunk is staged.
+    /// That peaks at about 125 MiB for 1,000 rows, 290 MiB for 2,000, 370 MiB for 5,000 and 590 MiB for 10,000 (macOS Release,
+    /// 9.5 KB Apple Watch heart-rate records). So a chunk takes about a quarter of available memory, and at most 60%, which it
+    /// reaches near the floor.
+    nonisolated static func drainChunkSize(availableMemory: Int) -> Int? {
+        let maximumChunkSize = 10_000
+        let bytesPerRecord = 64 * 1024
+        let minimumAvailableMemory = 256 * 1024 * 1024
+        guard availableMemory >= minimumAvailableMemory else {
+            return nil
+        }
+        return min(maximumChunkSize, availableMemory / 4 / bytesPerRecord)
+    }
+
     /// Drains staged samples, then staged deletions, handing each file to `stage` with the category it uploads under.
     ///
     /// A sample drain that stopped early, or threw, leaves the deletions for the next drain.
