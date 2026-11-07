@@ -36,7 +36,7 @@ import MyHeartCountsShared
 //    retraction read back from bytes, is stated by no one and passes.
 // 7. A deletion Grove refuses to retract leaves alone, as a JSON object of its row's stored fields.
 extension HealthUploadStagingUploader {
-    /// What one chunk of records became: ``packChunk(_:kind:packedAt:makeBundle:)``'s result.
+    /// What one chunk of records became: ``packChunk(_:kind:packedAt:makeBundle:makePacker:)``'s result.
     struct PackedChunk {
         /// The Bundles to stage, in packing order.
         var bundles: [ExchangeGraph] = []
