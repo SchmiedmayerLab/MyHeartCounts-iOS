@@ -147,7 +147,11 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
         // two components, so that the nicotine response is the third one, which makes the overall score appear
         enterBMIAndLDLCholesterol()
 
+        // entering the samples scrolled the dashboard down, which unloads the score card's list cell
         let dashboardScore = app.buttons["MHC:OverallScore"]
+        for _ in 0..<4 where !dashboardScore.exists {
+            app.swipeDown()
+        }
         XCTAssert(dashboardScore.waitForExistence(timeout: 2))
         XCTAssert(
             app.buttons
