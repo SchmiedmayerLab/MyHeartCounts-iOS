@@ -19,17 +19,16 @@ struct HeartHealthScoreSheet: View {
     private static let dataEntryOrder: [KeyPath<CVHScore, ScoreResult>] = [
         \.nicotineExposureScore,
         \.bodyMassIndexScore,
+        \.mentalHealthScore,
         \.dietScore,
         \.bloodPressureScore,
         \.bloodGlucoseScore,
         \.bloodLipidsScore
     ]
-    
+
     let score: Double?
     let components: [CVHScore.Component]
-    /// The title of the dashboard tile that doesn't count toward the score.
-    let unscoredTileTitle: String
-    
+
     @State private var componentToAddDataFor: CVHScore.Component?
     
     private var componentsWithData: [CVHScore.Component] {
@@ -77,6 +76,7 @@ struct HeartHealthScoreSheet: View {
         Section {
             VStack(spacing: 8) {
                 OverallScoreGauge(score: score)
+                    .accessibilityIdentifier("MHC:ScoreSheet:OverallScore")
                 Text("Based on \(componentsWithData.count) of \(components.count) score components")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -92,8 +92,6 @@ struct HeartHealthScoreSheet: View {
             Text("Your overall score appears once at least \(CVHScore.minNumComponentsForScore) components have data.")
         } header: {
             Text("How It's Calculated")
-        } footer: {
-            Text("\(unscoredTileTitle) is shown on your dashboard, but doesn't count toward your overall score.")
         }
     }
     
@@ -109,6 +107,7 @@ struct HeartHealthScoreSheet: View {
                         }
                     }
                 }
+                .accessibilityIdentifier("MHC:ScoreSheet:Component:\(component.result.sampleType.displayTitle(in: .enUS))")
             }
         }
     }
@@ -128,6 +127,7 @@ struct HeartHealthScoreSheet: View {
                         Text(Self.dataEntryHint(for: component.keyPath))
                     }
                 }
+                .accessibilityIdentifier("MHC:ScoreSheet:AddData:\(component.result.sampleType.displayTitle(in: .enUS))")
             }
             ForEach(automaticComponents) { component in
                 LabeledContent {
@@ -150,6 +150,8 @@ struct HeartHealthScoreSheet: View {
             "One question"
         case \.bodyMassIndexScore:
             "Your height and weight"
+        case \.mentalHealthScore:
+            "Five questions"
         case \.dietScore:
             "A questionnaire about your diet"
         case \.bloodPressureScore:

@@ -56,8 +56,7 @@ struct HeartHealthDashboard: View {
             NavigationStack {
                 HeartHealthScoreSheet(
                     score: cvhScore,
-                    components: $cvhScore.components,
-                    unscoredTileTitle: $cvhScore.mentalHealthScore.sampleType.displayTitle
+                    components: $cvhScore.components
                 )
             }
         }
@@ -139,10 +138,20 @@ struct HeartHealthDashboard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Heart Health Score")
+        .accessibilityValue(overallScoreAccessibilityValue)
         .accessibilityHint("Shows how your score is calculated")
         .accessibilityIdentifier("MHC:OverallScore")
     }
-    
+
+    private var overallScoreAccessibilityValue: String {
+        let scoreValue = OverallScoreGauge.accessibilityValue(for: cvhScore)
+        guard $cvhScore.hasLimitedData else {
+            return scoreValue
+        }
+        return [scoreValue, String(localized: "HHD_LIMITED_DATA_DISCLAIMER")].formatted(.list(type: .unit, width: .short))
+    }
+
     @ViewBuilder private var learnMoreSection: some View {
         if let learnMoreText = studyManager.localizedMarkdown(for: "LearnMore", in: .hhdExplainer) {
             Section("Understanding Your Heart Health Score") {
@@ -173,6 +182,7 @@ struct HeartHealthDashboard: View {
         return HealthDashboardGridTile(
             title: score.sampleType.displayTitle,
             accessibilityIdentifier: score.sampleType.displayTitle(in: .enUS),
+            accessibilityValue: Self.tileAccessibilityValue(for: score),
             headerInsets: .init(top: 0, leading: 8, bottom: 0, trailing: 0),
             onTap: {
                 scoreResultToExplain = .init(keyPath: scoreKeyPath)
@@ -218,6 +228,15 @@ extension HeartHealthDashboard {
     
     static func canAddSample(for keyPath: KeyPath<CVHScore, ScoreResult>) -> Bool {
         cvhKeyPathsWithDataEntryEnabled.contains(keyPath)
+    }
+
+    /// The score of a dashboard tile, as VoiceOver reads it.
+    fileprivate static func tileAccessibilityValue(for score: ScoreResult) -> String {
+        if let value = score.score, !value.isNaN {
+            String(localized: "Score Result: \(Int(value * 100)) percent")
+        } else {
+            String(localized: "No Data")
+        }
     }
     
     

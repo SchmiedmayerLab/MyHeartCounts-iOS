@@ -10,22 +10,6 @@
     "  0" : {
       "shouldTranslate" : false
     },
-    "%@ is shown on your dashboard, but doesn't count toward your overall score." : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ is shown on your dashboard, but doesn't count towards your overall score."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ se muestra en tu panel, pero no cuenta para tu puntuación general."
-          }
-        }
-      }
-    },
     "A questionnaire about your diet" : {
       "localizations" : {
         "es" : {
@@ -3787,6 +3771,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Primera mitad del Código Postal"
+          }
+        }
+      }
+    },
+    "Five questions" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cinco preguntas"
           }
         }
       }

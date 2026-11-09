@@ -93,6 +93,7 @@ struct HealthDashboardGridSection<Content: View>: View {
 struct HealthDashboardGridTile<Content: View>: View {
     private let title: String
     private let accessibilityIdentifier: String
+    private let accessibilityValue: String?
     private let headerInsets: EdgeInsets
     private let tapAction: (@MainActor () -> Void)?
     private let content: Content
@@ -108,6 +109,7 @@ struct HealthDashboardGridTile<Content: View>: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(title)
+                .accessibilityValue(accessibilityValue ?? "")
                 .accessibilityIdentifier("MHC:DashboardTile:\(accessibilityIdentifier)")
             } else {
                 tile
@@ -120,12 +122,14 @@ struct HealthDashboardGridTile<Content: View>: View {
     init(
         title: String,
         accessibilityIdentifier: String? = nil,
+        accessibilityValue: String? = nil,
         headerInsets: EdgeInsets = .zero,
         onTap tapAction: (@MainActor () -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
         self.accessibilityIdentifier = accessibilityIdentifier ?? title
+        self.accessibilityValue = accessibilityValue
         self.headerInsets = headerInsets
         self.tapAction = tapAction
         self.content = content()

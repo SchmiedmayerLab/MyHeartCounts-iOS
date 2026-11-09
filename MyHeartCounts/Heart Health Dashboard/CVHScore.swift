@@ -134,6 +134,7 @@ struct CVHScore: DynamicProperty {
             exerciseKeyPath,
             \.nicotineExposureScore,
             \.sleepHealthScore,
+            \.mentalHealthScore,
             \.bodyMassIndexScore,
             \.bloodLipidsScore,
             \.bloodGlucoseScore,

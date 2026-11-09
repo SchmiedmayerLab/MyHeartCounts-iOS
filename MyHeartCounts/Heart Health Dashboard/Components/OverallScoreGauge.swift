@@ -45,5 +45,17 @@ struct OverallScoreGauge: View {
                 .foregroundStyle(valueAvailable ? .primary : .secondary)
         }
         .frame(width: 140, height: 140)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Heart Health Score")
+        .accessibilityValue(Self.accessibilityValue(for: score))
+    }
+
+    /// The score as VoiceOver reads it: the number, or "No Data" if there is no score.
+    static func accessibilityValue(for score: Double?) -> String {
+        if let score, !score.isNaN {
+            Int(score * 100).formatted()
+        } else {
+            String(localized: "No Data")
+        }
     }
 }
