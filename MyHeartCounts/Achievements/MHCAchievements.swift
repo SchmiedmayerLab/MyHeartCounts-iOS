@@ -105,6 +105,7 @@ extension Achievement {
         return fmt
     }()
     
+    @MainActor
     static func registerDefaultAchievements(with manager: AchievementsManager) { // swiftlint:disable:this function_body_length
         manager.register(achievements: Array { // swiftlint:disable:this closure_body_length
             Self(

@@ -17,6 +17,9 @@ import SwiftUI
 
 
 struct ComprehensionScreening: View {
+    @Environment(ConsentManager.self)
+    private var consentManager
+    
     let consentDoc: ConsentDocument
     
     var body: some View {
@@ -42,10 +45,25 @@ struct ComprehensionScreening: View {
             }
             return isTrue(\.seekHelpIfNotFeelingWell) && isTrue(\.studyParticipationIsVoluntary) && isTrue(\.canStopParticipatingAtAnyTime)
         } continue: { _, path in
-            path.append {
-                Consent(document: consentDoc)
-                    .onboardingStep(.consent)
-                    .injectingGrove()
+            let showConsent: @MainActor () -> Void = { [consentDoc] in
+                path.append {
+                    Consent(document: consentDoc)
+                        .onboardingStep(.consent)
+                        .injectingGrove()
+                }
+            }
+            if let participantInformation = consentManager.loadParticipantInformation() {
+                path.append {
+                    ParticipantInformationSheet(
+                        document: participantInformation,
+                        privacyNotice: consentManager.loadPrivacyNotice(),
+                        continueAction: showConsent
+                    )
+                        .onboardingStep(.participantInformation)
+                        .injectingGrove()
+                }
+            } else {
+                showConsent()
             }
         }
     }

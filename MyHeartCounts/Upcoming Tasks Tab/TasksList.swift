@@ -235,7 +235,7 @@ extension TasksList {
                     component,
                     in: studyBundle,
                     locale: studyManager.preferredLocale,
-                    studyVariant: DeferredConfigLoading.activeStudyVariant ?? .stanford
+                    studyVariant: DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford)
                   ) else {
                 logger.error("Error fetching & loading & procesing Article")
                 return

@@ -29,6 +29,21 @@ struct CVHScore: DynamicProperty {
         case stepCount
     }
     
+    /// One of the components that feed into the composite score.
+    struct Component: Identifiable {
+        let keyPath: KeyPath<CVHScore, ScoreResult>
+        let result: ScoreResult
+        
+        var id: KeyPath<CVHScore, ScoreResult> {
+            keyPath
+        }
+    }
+    
+    /// The number of score components that need to have data, for the composite score to be computed.
+    static let minNumComponentsForScore = 3
+    /// The number of score components that need to have data, for the composite score to be considered meaningful.
+    private static let minNumComponentsForMeaningfulScore = 5
+    
     var preferredExerciseMetric: PreferredExerciseMetric {
         switch (!statsExerciseTime.isEmpty, !statsStepCount.isEmpty) {
         case (true, _), (false, false):
@@ -97,23 +112,40 @@ struct CVHScore: DynamicProperty {
     
     /// the composite CVH score, in the range of `0...1`. `nil` if there aren't enough input values to compute a score
     var wrappedValue: Double? {
-        let scores: [ScoreResult] = Array {
-            dietScore
-            switch preferredExerciseMetric {
-            case .exerciseMinutes:
-                physicalExerciseScore
-            case .stepCount:
-                stepCountScore
-            }
-            nicotineExposureScore
-            sleepHealthScore
-            bodyMassIndexScore
-            bloodLipidsScore
-            bloodGlucoseScore
-            bloodPressureScore
+        let scoreResults = availableComponentScores
+        return scoreResults.count < Self.minNumComponentsForScore ? nil : scoreResults.reduce(0, +) / Double(scoreResults.count)
+    }
+    
+    /// Whether too few score components have data for the composite score to be meaningful.
+    var hasLimitedData: Bool {
+        availableComponentScores.count < Self.minNumComponentsForMeaningfulScore
+    }
+    
+    /// The components that feed into the composite score, including those that don't have any data.
+    var components: [Component] {
+        let exerciseKeyPath: KeyPath<CVHScore, ScoreResult> = switch preferredExerciseMetric {
+        case .exerciseMinutes:
+            \.physicalExerciseScore
+        case .stepCount:
+            \.stepCountScore
         }
-        let scoreResults = scores.compactMap { $0.score.map { $0.clamped(to: 0...1) } }
-        return scoreResults.count < 5 ? nil : scoreResults.reduce(0, +) / Double(scoreResults.count)
+        let keyPaths: [KeyPath<CVHScore, ScoreResult>] = [
+            \.dietScore,
+            exerciseKeyPath,
+            \.nicotineExposureScore,
+            \.sleepHealthScore,
+            \.mentalHealthScore,
+            \.bodyMassIndexScore,
+            \.bloodLipidsScore,
+            \.bloodGlucoseScore,
+            \.bloodPressureScore
+        ]
+        return keyPaths.map { Component(keyPath: $0, result: self[keyPath: $0]) }
+    }
+    
+    /// The scores of those composite score components that have data, each in the range of `0...1`.
+    private var availableComponentScores: [Double] {
+        components.compactMap { $0.result.score.map { $0.clamped(to: 0...1) } }
     }
     
     var projectedValue: Self {

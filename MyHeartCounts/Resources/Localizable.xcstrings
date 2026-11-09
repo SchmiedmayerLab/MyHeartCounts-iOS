@@ -10,6 +10,190 @@
     "  0" : {
       "shouldTranslate" : false
     },
+    "A questionnaire about your diet" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un cuestionario sobre tu alimentación"
+          }
+        }
+      }
+    },
+    "Based on %lld of %lld score components" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basada en %lld de %lld componentes de la puntuación"
+          }
+        }
+      }
+    },
+    "Collected automatically" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se recopila automáticamente"
+          }
+        }
+      }
+    },
+    "Complete Your Score" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completa tu puntuación"
+          }
+        }
+      }
+    },
+    "Components With Data" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Componentes con datos"
+          }
+        }
+      }
+    },
+    "Heart Health Score" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puntuación de salud cardiovascular"
+          }
+        }
+      }
+    },
+    "HHD_SCORE_SHEET_CALCULATION_EXPLAINER" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each score component is rated from 0 to 100, and higher is better. Your overall score is the average of the components that have data. Components without data are left out, not counted as 0."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each score component is rated from 0 to 100, and higher is better. Your overall score is the average of the components that have data. Components without data are left out, not counted as 0."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada componente de la puntuación se valora de 0 a 100, y cuanto más alto, mejor. Tu puntuación general es la media de los componentes que tienen datos. Los componentes sin datos se omiten, no se cuentan como 0."
+          }
+        }
+      }
+    },
+    "HHD_SCORE_SHEET_COMPLETE_FOOTER" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adding data makes your score more complete. Your score may go up or down as a result."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adding data makes your score more complete. Your score may go up or down as a result."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agregar datos hace que tu puntuación sea más completa. Como resultado, tu puntuación puede subir o bajar."
+          }
+        }
+      }
+    },
+    "How It's Calculated" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo se calcula"
+          }
+        }
+      }
+    },
+    "Needs a blood glucose reading" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requiere una medición de la glucosa en sangre"
+          }
+        }
+      }
+    },
+    "Needs a blood pressure reading" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requiere una medición de la presión arterial"
+          }
+        }
+      }
+    },
+    "Needs a lab result" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requiere un resultado de laboratorio"
+          }
+        }
+      }
+    },
+    "One question" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una pregunta"
+          }
+        }
+      }
+    },
+    "Shows how your score is calculated" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra cómo se calcula tu puntuación"
+          }
+        }
+      }
+    },
+    "Your height and weight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu altura y tu peso"
+          }
+        }
+      }
+    },
+    "Your overall score appears once at least %lld components have data." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu puntuación general aparece cuando al menos %lld componentes tienen datos."
+          }
+        }
+      }
+    },
     "—" : {
       "shouldTranslate" : false
     },
@@ -1739,22 +1923,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Graduado/a universitario/a o título de Licenciatura"
-          }
-        }
-      }
-    },
-    "College/University Graduate Degree" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "College/University Graduate Degree"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Posgrado universitario (maestría/doctorado)"
           }
         }
       }
@@ -3607,6 +3775,16 @@
         }
       }
     },
+    "Five questions" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cinco preguntas"
+          }
+        }
+      }
+    },
     "Flights Climbed" : {
       "localizations" : {
         "es" : {
@@ -4353,6 +4531,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Algunas métricas, como el sueño o los minutos de ejercicio, solo están disponibles si tiene un Apple Watch conectado a este iPhone."
+          }
+        }
+      }
+    },
+    "HHD_LIMITED_DATA_DISCLAIMER" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More data needed"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More data needed"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se necesitan más datos"
           }
         }
       }
@@ -5361,22 +5561,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Massachusetts"
-          }
-        }
-      }
-    },
-    "Master" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Master"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Maestría"
           }
         }
       }
@@ -10555,38 +10739,6 @@
         }
       }
     },
-    "Vocational Training" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vocational Training"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Formación profesional"
-          }
-        }
-      }
-    },
-    "Vocational training / apprenticeship / diploma" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vocational training / apprenticeship / diploma"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Formación profesional / aprendizaje / diploma"
-          }
-        }
-      }
-    },
     "w" : {
       "localizations" : {
         "es" : {
@@ -13288,6 +13440,719 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Su corazón ha latido unas %1$@ veces desde que se inscribió, aproximadamente el %2$@ de una vida promedio."
+          }
+        }
+      }
+    },
+    "High school / A levels / GCSE" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "High school / A levels / GCSE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Educación secundaria / A levels / GCSE"
+          }
+        }
+      }
+    },
+    "Undergraduate" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undergraduate"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grado universitario"
+          }
+        }
+      }
+    },
+    "Postgraduate Master's" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Postgraduate Master's"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máster (posgrado)"
+          }
+        }
+      }
+    },
+    "Postgraduate Doctorate" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Postgraduate Doctorate"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doctorado (posgrado)"
+          }
+        }
+      }
+    },
+    "Ethnicity" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ethnicity"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etnia"
+          }
+        }
+      }
+    },
+    "Prefer not to say" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prefer not to say"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prefiero no decirlo"
+          }
+        }
+      }
+    },
+    "White" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "White"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blanco"
+          }
+        }
+      }
+    },
+    "Asian or Asian British" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asian or Asian British"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asiático o británico asiático"
+          }
+        }
+      }
+    },
+    "Other ethnic group" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other ethnic group"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otro grupo étnico"
+          }
+        }
+      }
+    },
+    "Health Conditions" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health Conditions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Problemas de salud"
+          }
+        }
+      }
+    },
+    "Select Health Conditions" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Health Conditions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seleccionar problemas de salud"
+          }
+        }
+      }
+    },
+    "I have this health condition" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I have this health condition"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tengo este problema de salud"
+          }
+        }
+      }
+    },
+    "I don't have this health condition" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I don't have this health condition"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No tengo este problema de salud"
+          }
+        }
+      }
+    },
+    "Physical Activity Habits" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Physical Activity Habits"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hábitos de actividad física"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_A_TITLE" : {
+      "comment" : "Short title of stage-of-change option A, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usually active"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usually active"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normalmente activo/a"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_B_TITLE" : {
+      "comment" : "Short title of stage-of-change option B, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active as part of my routine"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active as part of my routine"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activo/a como parte de mi rutina"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_C_TITLE" : {
+      "comment" : "Short title of stage-of-change option C, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not active and not considering it"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not active and not considering it"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No activo/a y sin planes de serlo"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_D_TITLE" : {
+      "comment" : "Short title of stage-of-change option D, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thinking about starting"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thinking about starting"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pensando en empezar"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_E_TITLE" : {
+      "comment" : "Short title of stage-of-change option E, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planning to start soon"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planning to start soon"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planeando empezar pronto"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_F_TITLE" : {
+      "comment" : "Short title of stage-of-change option F, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started in the last 6 months"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started in the last 6 months"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empecé en los últimos 6 meses"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_G_TITLE" : {
+      "comment" : "Short title of stage-of-change option G, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started over 6 months ago"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started over 6 months ago"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empecé hace más de 6 meses"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_H_TITLE" : {
+      "comment" : "Short title of stage-of-change option H, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active most weeks"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active most weeks"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activo/a la mayoría de las semanas"
+          }
+        }
+      }
+    },
+    "STAGE_OF_CHANGE_OPTION_I_TITLE" : {
+      "comment" : "Short title of stage-of-change option I, shown to Imperial participants",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active for several years"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active for several years"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activo/a desde hace varios años"
+          }
+        }
+      }
+    },
+    "Postcode" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Postcode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código postal"
+          }
+        }
+      }
+    },
+    "Not a valid UK postcode" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not a valid UK postcode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es un código postal del Reino Unido válido"
+          }
+        }
+      }
+    },
+    "CHI Number" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CHI Number"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Número CHI"
+          }
+        }
+      }
+    },
+    "Not a valid CHI number" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not a valid CHI number"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es un número CHI válido"
+          }
+        }
+      }
+    },
+    "Find your CHI Number" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find your CHI Number"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busca tu número CHI"
+          }
+        }
+      }
+    },
+    "Hide Keyboard" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Keyboard"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocultar teclado"
+          }
+        }
+      }
+    },
+    "Participant Information Sheet" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Participant Information Sheet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoja de información para participantes"
+          }
+        }
+      }
+    },
+    "WELCOME_AREA1_DESCRIPTION_IMPERIAL" : {
+      "comment" : "Imperial study version of WELCOME_AREA1_DESCRIPTION",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your involvement helps Imperial College London researchers understand how personalized digital coaching can improve physical activity and your overall health today and in the future."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your involvement helps Imperial College London researchers understand how personalised digital coaching can improve physical activity and your overall health today and in the future."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu participación ayuda a los investigadores del Imperial College London a comprender cómo el entrenamiento digital personalizado puede mejorar la actividad física y tu salud general hoy y en el futuro."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_1_PRIMARY_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_1_PRIMARY_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’re invited to join an Imperial College London research study that tracks physical activity through your smartphone to improve heart health knowledge. You’ll complete brief health surveys and perform simple fitness assessments like the 6-minute walk test using your phone."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’re invited to join an Imperial College London research study that tracks physical activity through your smartphone to improve heart health knowledge. You’ll complete brief health surveys and perform simple fitness assessments like the 6-minute walk test using your phone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le invitamos a unirse a un estudio de investigación del Imperial College London que registra la actividad física a través de su teléfono inteligente para mejorar el conocimiento sobre la salud del corazón. Completará breves encuestas de salud y realizará evaluaciones de condición física sencillas, como la prueba de caminata de 6 minutos, usando su teléfono."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_1_LEARN_MORE_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_1_LEARN_MORE_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This research study is conducted by researchers at Imperial College London to understand how physical activity relates to cardiovascular health. The app will guide you through various assessments including the 6-minute walk test. Your participation is flexible meaning you can engage with the study as much or as little as you choose. The smartphone-based approach allows us to collect data in your natural environment rather than requiring visits to a clinical facility."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This research study is conducted by researchers at Imperial College London to understand how physical activity relates to cardiovascular health. The app will guide you through various assessments including the 6-minute walk test. Your participation is flexible meaning you can engage with the study as much or as little as you choose. The smartphone-based approach allows us to collect data in your natural environment rather than requiring visits to a clinical facility."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este estudio de investigación es llevado a cabo por investigadores del Imperial College London para entender cómo la actividad física se relaciona con la salud cardiovascular. La aplicación lo guiará a través de varias evaluaciones, incluida la prueba de caminata de 6 minutos. Su participación es flexible, lo que significa que puede participar en el estudio tanto como desee. El enfoque basado en teléfonos inteligentes nos permite recopilar datos en su entorno natural en lugar de requerir visitas a una instalación clínica."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_3_PRIMARY_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_3_PRIMARY_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We will collect data from the Health app on your iPhone which will be protected through encryption. Your personal information is stored separately from health data, and you control what sensor and health data you share with us.\n\nBy agreeing to this consent, your data will be combined with data from other participants for analysis by Imperial College London researchers and its research partners."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We will collect data from the Health app on your iPhone which will be protected through encryption. Your personal information is stored separately from health data, and you control what sensor and health data you share with us.\n\nBy agreeing to this consent, your data will be combined with data from other participants for analysis by Imperial College London researchers and its research partners."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recopilaremos datos de la Health app en su iPhone, los cuales estarán protegidos mediante cifrado. Su información personal se almacena por separado de los datos de salud, y usted controla qué datos de sensores y salud comparte con nosotros.\n\nAl aceptar este consentimiento, sus datos se combinarán con datos de otros participantes para ser analizados por los investigadores del Imperial College London y sus socios de investigación."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_3_LEARN_MORE_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_3_LEARN_MORE_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The study collects data through your phone's sensors, including accelerometer data for movement and heart rate if available through connected devices. All data transmission uses encryption technology to protect your information. We separate your identifying information from your health data in our secure databases. You'll have options within the app to control what information is shared. We follow strict protocols approved by a UK Research Ethics Committee to maintain your privacy."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The study collects data through your phone's sensors, including accelerometer data for movement and heart rate if available through connected devices. All data transmission uses encryption technology to protect your information. We separate your identifying information from your health data in our secure databases. You'll have options within the app to control what information is shared. We follow strict protocols approved by a UK Research Ethics Committee to maintain your privacy."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El estudio recopila datos a través de los sensores de su teléfono, incluidos datos del acelerómetro para medir el movimiento y la frecuencia cardíaca, cuando esta se encuentre disponible mediante dispositivos conectados. Toda la transmisión de datos utiliza tecnología de cifrado para proteger su información. Su información identificable se mantiene separada de sus datos de salud en nuestras bases de datos seguras. La aplicación le ofrecerá opciones para controlar qué información se comparte. Seguimos protocolos estrictos aprobados por un Comité de Ética de la Investigación del Reino Unido para proteger su privacidad."
+          }
+        }
+      }
+    },
+    "ONBOARDING_DISCLAIMER_4_LEARN_MORE_TEXT_IMPERIAL" : {
+      "comment" : "Imperial study version of ONBOARDING_DISCLAIMER_4_LEARN_MORE_TEXT",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Physical risks are minimal but could include temporary muscle soreness or strain from fitness activities. There's also a small risk related to data privacy despite our security measures. Benefits include access to your own activity data and the knowledge that you're contributing to research that may help improve heart health recommendations. Your participation is entirely voluntary, and you can stop participating at any time without penalty by contacting the research team. This research has been reviewed by a UK Research Ethics Committee to ensure participant protection."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Physical risks are minimal but could include temporary muscle soreness or strain from fitness activities. There's also a small risk related to data privacy despite our security measures. Benefits include access to your own activity data and the knowledge that you're contributing to research that may help improve heart health recommendations. Your participation is entirely voluntary, and you can stop participating at any time without penalty by contacting the research team. This research has been reviewed by a UK Research Ethics Committee to ensure participant protection."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los riesgos físicos son mínimos, pero podrían incluir dolor o tensión muscular temporal debido a actividades físicas. También hay un pequeño riesgo relacionado con la privacidad de los datos a pesar de nuestras medidas de seguridad. Los beneficios incluyen el acceso a sus propios datos de actividad y el conocimiento de que está contribuyendo a una investigación que puede ayudar a mejorar las recomendaciones de salud del corazón. Su participación es completamente voluntaria, y puede dejar de participar en cualquier momento sin penalización contactando al equipo de investigación. Esta investigación ha sido revisada por un Comité de Ética de la Investigación del Reino Unido para garantizar la protección de los participantes."
+          }
+        }
+      }
+    },
+    "Mixed or multiple ethnic groups" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mixed or multiple ethnic groups"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupos étnicos mixtos o múltiples"
+          }
+        }
+      }
+    },
+    "Black, African, Caribbean or Black British" : {
+      "localizations" : {
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Black, African, Caribbean or Black British"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Negro, africano, caribeño o británico negro"
           }
         }
       }

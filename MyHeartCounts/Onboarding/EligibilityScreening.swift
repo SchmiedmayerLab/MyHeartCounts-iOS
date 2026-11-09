@@ -111,9 +111,10 @@ struct EligibilityScreening: View {
                 Grove.loadFirebase(for: backendRegion, studyVariant: variant)
                 try? await Task.sleep(for: .seconds(3))
             } else {
-                try DeferredConfigLoading.setActiveStudyVariant(variant)
+                try DeferredConfigLoading.setCurrentStudyVariant(variant)
             }
-            guard DeferredConfigLoading.activeStudyVariant != nil else {
+            // check that the firebase load succeeded, ie that `DeferredConfigLoading.activeConfiguration` is set.
+            guard case .active = DeferredConfigLoading.currentStudyVariant else {
                 throw DeferredConfigLoading.StudyVariantError.missingConfiguration
             }
             try await studyLoader.update()

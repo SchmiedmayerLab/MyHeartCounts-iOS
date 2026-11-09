@@ -14,19 +14,15 @@ import MyHeartCountsShared
 
 /// A collection of feature flags for My Heart Counts.
 enum FeatureFlags {
-    /// Selects the variant for fresh test enrollments, including bundles loaded from a URL.
-    static var studyVariantOverride: StudyVariant? {
-        #if DEBUG
-        LaunchOptions.launchOptions[.studyVariant]
-        #else
-        nil
-        #endif
-    }
-
     /// Unlocks temporary Imperial enrollment against the US backend in Debug builds, the simulator, and TestFlight installations.
     /// Enter `pls let me in anyway` in the UK Coming Soon screen's email field to enter this mode.
     /// Existing enrollments retain their saved study variant and backend independently of this flag.
     static var enableUKStudyTesting: Bool {
+        isDevelopmentOrTestFlightBuild
+    }
+
+    /// Whether this is a Debug build, a simulator build, or a TestFlight installation, as opposed to an App Store installation.
+    static var isDevelopmentOrTestFlightBuild: Bool {
         #if DEBUG || targetEnvironment(simulator)
         true
         #else
@@ -34,12 +30,26 @@ enum FeatureFlags {
         #endif
     }
 
-    /// Locks the onboarding to a single study variant: the region selection is fixed to the variant's region, which then is eligible for enrollment.
+    /// Forces the entire app to unconditionally use a specific study variant.
+    ///
+    /// The value here is determined based on the first match from the following sources:
+    /// 1. Info.plist entry for the `MHCForcedStudyVariant` key
+    /// 2. `--studyVariant` launch option
+    ///
+    /// All aspects of the app should follow this value, e.g. the onboarding will be locked to a single study variant
+    /// (the region selection is fixed to the variant's region, which then is eligible for enrollment).
     /// These builds also use the study bundle they were built with, instead of the one published to the backend.
     ///
-    /// Set via the `MHCForcedStudyVariant` Info.plist key, which `fastlane deploy variant:imperial` adds for the Imperial TestFlight builds.
+    /// A `nil` value means that no variant is being forced, and the app will determine the current/active variant normally,
+    /// e.g. based on the last launch's active variant.
     static var forcedStudyVariant: StudyVariant? {
-        (Bundle.main.object(forInfoDictionaryKey: "MHCForcedStudyVariant") as? String).flatMap(StudyVariant.init(rawValue:))
+        if let rawValue = Bundle.main.object(forInfoDictionaryKey: "MHCForcedStudyVariant") as? String {
+            guard let variant = StudyVariant(rawValue: rawValue) else {
+                preconditionFailure("Info.plist 'MHCForcedStudyVariant' key has invalid value '\(rawValue)'")
+            }
+            return variant
+        }
+        return LaunchOptions.launchOptions[.studyVariant]
     }
 
     /// Disables the Firebase interactions, including the login/sign-up step and the Firebase Firestore upload.

@@ -42,7 +42,7 @@ struct Consent: View {
                 var accountDetailUpdates = AccountDetails()
                 accountDetailUpdates.lastSignedConsentDate = .now
                 accountDetailUpdates.lastSignedConsentVersion = document.metadata.version?.description
-                accountDetailUpdates.futureStudies = document.userResponses.toggleValue(for: .futureStudiesOptIn) == true
+                accountDetailUpdates.futureStudies = document.userResponses.futureStudiesOptIn
                 accountDetailUpdates.didOptInToTrial = document.userResponses.selectedOption(for: .trialOptIn) == .trialYes
                 let modifications = try AccountModifications(modifiedDetails: accountDetailUpdates)
                 try await account.accountService.updateAccountDetails(modifications)
@@ -83,7 +83,7 @@ struct Consent: View {
 
 
 extension Locale {
-    fileprivate var preferredPaperSize: ConsentDocument.ExportConfiguration.PaperSize {
+    var preferredPaperSize: ConsentDocument.ExportConfiguration.PaperSize {
         switch self.region {
         case .unitedStates: .usLetter
         default: .dinA4

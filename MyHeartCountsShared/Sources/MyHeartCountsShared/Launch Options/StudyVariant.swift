@@ -19,7 +19,7 @@ extension StudyVariant: LaunchOptionDecodable, LaunchOptionEncodable {
 
 
 extension LaunchOptions {
-    /// Selects the study variant for a fresh test enrollment, independently of the bundle source and device locale.
+    /// Allows forcing the app to launch into a specific study variant. See `FeatureFlags.forcedStudyVariant` for more info.
     public static let studyVariant = LaunchOption<StudyVariant?>("--studyVariant", default: nil)
 }
 

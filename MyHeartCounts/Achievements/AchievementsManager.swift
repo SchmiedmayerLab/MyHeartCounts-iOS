@@ -227,18 +227,8 @@ final class AchievementsManager: ServiceModule, EnvironmentAccessible, @unchecke
     @ObservationIgnored @Dependency(Lifecycle.self) private var lifecycle
     // swiftlint:enable attributes
     
-    /// Protects ``_achievements``
-    @ObservationIgnored private let achievementsLock = RWLock()
-    /*nonisolated(unsafe)*/ private var _achievements: [Achievement] = []
-    
-    
-    var achievements: [Achievement] {
-        achievementsLock.withReadLock {
-            _achievements
-        }
-    }
-    
-    
+    @MainActor private(set) var achievements: [Achievement] = []
+
     /// The current availability of the achievement system.
     ///
     /// The system will be available most of the time, but if it is unavailable it typically is because the achievements state on the server is using a newer schema than what the app can support,
@@ -335,20 +325,20 @@ final class AchievementsManager: ServiceModule, EnvironmentAccessible, @unchecke
         systemAvailability == .available && (try? trackingSession()) == session
     }
 
+    @MainActor
     func register(achievement: Achievement) {
         register(achievements: CollectionOfOne(achievement))
     }
-    
+
+    @MainActor
     func register(achievements newEntries: some Sequence<Achievement>) {
-        achievementsLock.withWriteLock {
-            var seenIds = _achievements.mapIntoSet(\.id)
-            for new in newEntries where seenIds.insert(new.id).inserted {
-                assert(
-                    new.visibility != .secretUnlessNextInLadder || new.subcategory != nil,
-                    "Achievement '\(new.id)' is .secretUnlessNextInLadder but has no subcategory. 'next' is undefined without a ladder."
-                )
-                self._achievements.append(new)
-            }
+        var seenIds = achievements.mapIntoSet(\.id)
+        for new in newEntries where seenIds.insert(new.id).inserted {
+            assert(
+                new.visibility != .secretUnlessNextInLadder || new.subcategory != nil,
+                "Achievement '\(new.id)' is .secretUnlessNextInLadder but has no subcategory. 'next' is undefined without a ladder."
+            )
+            achievements.append(new)
         }
     }
     
@@ -1054,7 +1044,7 @@ extension AchievementsManager {
     
     
     /// user-displayable number of achievements existing in the app
-    var userDisplayableTotalAchievementCount: Int {
+    @MainActor var userDisplayableTotalAchievementCount: Int {
         achievements.count { $0.visibility != .internal }
     }
     

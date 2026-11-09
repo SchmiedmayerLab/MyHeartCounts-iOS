@@ -137,23 +137,32 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
         BodyMeasurementRow(descriptor: .weight)
     }
     Section {
-        LeafComponent(\.raceEthnicity) { binding, completionState in
-            let binding = binding.withDefault([])
-            NavigationLink {
-                RaceEthnicityPicker(selection: binding)
-            } label: {
-                HStack {
-                    Text("Race / Ethnicity")
-                    Spacer()
-                    Text(binding.wrappedValue.localizedDisplayTitle)
-                        .foregroundStyle(completionState.suggestedForegroundColor)
+        switch studyVariant {
+        case .stanford:
+            LeafComponent(\.raceEthnicity) { binding, completionState in
+                let binding = binding.withDefault([])
+                NavigationLink {
+                    RaceEthnicityPicker(selection: binding)
+                } label: {
+                    HStack {
+                        Text("Race / Ethnicity")
+                        Spacer()
+                        Text(binding.wrappedValue.localizedDisplayTitle)
+                            .foregroundStyle(completionState.suggestedForegroundColor)
+                    }
                 }
             }
-        }
-        if studyVariant == .stanford {
             LeafComponent(\.latinoStatus) { binding, completionState in
                 makeSimpleValuePickerRow(
                     "Are you Hispanic/Latino?",
+                    binding: binding.withDefault(.notSet),
+                    completionState: completionState
+                )
+            }
+        case .imperial:
+            LeafComponent(\.ukEthnicity) { binding, completionState in
+                makeSimpleValuePickerRow(
+                    "Ethnicity",
                     binding: binding.withDefault(.notSet),
                     completionState: completionState
                 )
@@ -163,7 +172,7 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
     Section {
         LeafComponent(\.comorbidities, isRequired: didOptInToTrial) { binding, _ in
             NavigationLink {
-                ComorbiditiesPicker(selection: binding.withDefault(Comorbidities()))
+                ComorbiditiesPicker(studyVariant: studyVariant, selection: binding.withDefault(Comorbidities()))
                     .onAppear {
                         if binding.wrappedValue == nil {
                             // If the value initially is nil, we set it to an empty selection when the picker is presented
@@ -174,10 +183,11 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                         }
                     }
             } label: {
+                let title = studyVariant.localized(stanford: "Comorbidities", imperial: "Health Conditions")
                 if let comorbidities = binding.wrappedValue {
-                    NavigationLinkLabel("Comorbidities", isEmpty: false, value: "\(comorbidities.count) selected")
+                    NavigationLinkLabel(title, isEmpty: false, value: "\(comorbidities.count) selected")
                 } else {
-                    NavigationLinkLabel("Comorbidities", isEmpty: true, value: "Not Set")
+                    NavigationLinkLabel(title, isEmpty: true, value: "Not Set")
                 }
             }
         }
@@ -222,7 +232,9 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
                     )
                 }
             }
-            // UK postcode will be asked here
+            LeafComponent(\.ukPostcode, isRequired: false) { binding, _ in
+                UKPostcodeTextField(value: binding.withDefault(""))
+            }
             LeafComponent(\.ukEducationLevel, isRequired: didOptInToTrial) { binding, completionState in
                 makeSimpleValuePickerRow(
                     "Education Level",
@@ -240,28 +252,45 @@ func demographicsLayout( // swiftlint:disable:this function_body_length
         }
     }
     if studyVariant == .imperial {
+        // Scotland issues CHI numbers instead of NHS numbers.
         LeafComponent(\.nhsNumber, isRequired: false) { binding, _ in
             let binding = binding.withDefault(NHSNumber(unchecked: ""))
-            SwiftUI.Section {
-                NHSNumberTextField(value: binding)
-            } header: {
-                Text("NHS Number")
-            } footer: {
-                Link2("Find your NHS Number", "https://www.nhs.uk/nhs-services/online-services/find-nhs-number/")
-                    .font(.footnote)
-                    .tint(.blue)
+            ShownForScotland(false) {
+                SwiftUI.Section {
+                    HealthServiceNumberTextField(value: binding)
+                } header: {
+                    Text("NHS Number")
+                } footer: {
+                    Link2("Find your NHS Number", "https://www.nhs.uk/nhs-services/online-services/find-nhs-number/")
+                        .font(.footnote)
+                        .tint(.blue)
+                }
+            }
+        }
+        LeafComponent(\.chiNumber, isRequired: false) { binding, _ in
+            let binding = binding.withDefault(CHINumber(unchecked: ""))
+            ShownForScotland(true) {
+                SwiftUI.Section {
+                    HealthServiceNumberTextField(value: binding)
+                } header: {
+                    Text("CHI Number")
+                } footer: {
+                    Link2("Find your CHI Number", "https://mycare.scot")
+                        .font(.footnote)
+                        .tint(.blue)
+                }
             }
         }
     }
     Section {
         LeafComponent(\.stageOfChange, isRequired: didOptInToTrial) { binding, completionState in
             NavigationLink {
-                StageOfChangePicker(selection: binding)
+                StageOfChangePicker(studyVariant: studyVariant, selection: binding)
             } label: {
                 NavigationLinkLabel(
-                    "Stage of Change",
+                    studyVariant.localized(stanford: "Stage of Change", imperial: "Physical Activity Habits"),
                     completionState: completionState,
-                    value: completionState.isIncomplete ? "No Selection" : "\(binding.withDefault(.notSet).id.uppercased())"
+                    value: completionState.isIncomplete ? "No Selection" : binding.withDefault(.notSet).wrappedValue.label(for: studyVariant)
                 )
             }
         }
@@ -330,6 +359,30 @@ private struct NavigationLinkLabel: View {
         self.title = title
         self.value = value
         self.valueForegroundColor = completionState.suggestedForegroundColor
+    }
+}
+
+
+/// Shows its content only if whether the selected UK region lies in Scotland matches `isScotland`.
+private struct ShownForScotland<Content: View>: View {
+    @Environment(DemographicsData.self) private var data
+    
+    private let isScotland: Bool
+    private let content: Content
+    
+    var body: some View {
+        let selectionIsScotland = switch data[\.ukRegion] {
+        case .some(.scotland): true
+        default: false
+        }
+        if selectionIsScotland == isScotland {
+            content
+        }
+    }
+    
+    init(_ isScotland: Bool, @ViewBuilder content: () -> Content) {
+        self.isScotland = isScotland
+        self.content = content()
     }
 }
 

@@ -7,13 +7,18 @@
 //
 
 import Foundation
+import MHCStudyDefinition
 
 
 struct StageOfChangeOption: Hashable, Identifiable, Sendable {
     let id: String
-    // periphery:ignore - API
     let title: LocalizedStringResource?
     let text: LocalizedStringResource
+    
+    /// The option's short label: its letter in the Stanford study, and its title in the Imperial study.
+    func label(for studyVariant: StudyVariant) -> LocalizedStringResource {
+        studyVariant.localized(stanford: "\(id.uppercased())", imperial: title ?? "\(id.uppercased())")
+    }
 }
 
 
@@ -47,14 +52,14 @@ extension StageOfChangeOption {
     static let notSet = Self(id: "0", title: nil, text: "Not Set")
     
     static let allOptions: [Self] = [
-        Self(id: "a", title: nil, text: "STAGE_OF_CHANGE_OPTION_A"),
-        Self(id: "b", title: nil, text: "STAGE_OF_CHANGE_OPTION_B"),
-        Self(id: "c", title: nil, text: "STAGE_OF_CHANGE_OPTION_C"),
-        Self(id: "d", title: nil, text: "STAGE_OF_CHANGE_OPTION_D"),
-        Self(id: "e", title: nil, text: "STAGE_OF_CHANGE_OPTION_E"),
-        Self(id: "f", title: nil, text: "STAGE_OF_CHANGE_OPTION_F"),
-        Self(id: "g", title: nil, text: "STAGE_OF_CHANGE_OPTION_G"),
-        Self(id: "h", title: nil, text: "STAGE_OF_CHANGE_OPTION_H"),
-        Self(id: "i", title: nil, text: "STAGE_OF_CHANGE_OPTION_I")
+        Self(id: "a", title: "STAGE_OF_CHANGE_OPTION_A_TITLE", text: "STAGE_OF_CHANGE_OPTION_A"),
+        Self(id: "b", title: "STAGE_OF_CHANGE_OPTION_B_TITLE", text: "STAGE_OF_CHANGE_OPTION_B"),
+        Self(id: "c", title: "STAGE_OF_CHANGE_OPTION_C_TITLE", text: "STAGE_OF_CHANGE_OPTION_C"),
+        Self(id: "d", title: "STAGE_OF_CHANGE_OPTION_D_TITLE", text: "STAGE_OF_CHANGE_OPTION_D"),
+        Self(id: "e", title: "STAGE_OF_CHANGE_OPTION_E_TITLE", text: "STAGE_OF_CHANGE_OPTION_E"),
+        Self(id: "f", title: "STAGE_OF_CHANGE_OPTION_F_TITLE", text: "STAGE_OF_CHANGE_OPTION_F"),
+        Self(id: "g", title: "STAGE_OF_CHANGE_OPTION_G_TITLE", text: "STAGE_OF_CHANGE_OPTION_G"),
+        Self(id: "h", title: "STAGE_OF_CHANGE_OPTION_H_TITLE", text: "STAGE_OF_CHANGE_OPTION_H"),
+        Self(id: "i", title: "STAGE_OF_CHANGE_OPTION_I_TITLE", text: "STAGE_OF_CHANGE_OPTION_I")
     ]
 }

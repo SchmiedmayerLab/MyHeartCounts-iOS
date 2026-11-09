@@ -66,7 +66,7 @@ final class NewsManager: Module, EnvironmentAccessible {
                 logger.trace("TOTAL TIME SPENT FETCHING AND PROCESSING NEWS: \(endTS - startTS)")
             }
             let locale = studyManager.preferredLocale
-            let studyVariant = DeferredConfigLoading.activeStudyVariant ?? .stanford
+            let studyVariant = DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford)
             let storage = Storage.storage()
             let newsFolder = storage.reference(withPath: studyVariant.newsStoragePath)
             guard let newsArticleFiles = try? await newsFolder.listAll() else {
