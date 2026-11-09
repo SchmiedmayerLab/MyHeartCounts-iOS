@@ -139,8 +139,69 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
         XCTAssert(questionnaire.waitUntilDismissed())
         XCTAssert(app.staticTexts["Most Recent Response: Quit more than 5 years ago"].waitForExistence(timeout: 10))
     }
-    
-    
+
+
+    func testNicotineExposureEntryViaScoreSheet() throws {
+        try launchAppAndEnrollIntoStudy()
+        goToTab(.heartHealth)
+        // two components, so that the nicotine response is the third one, which makes the overall score appear
+        enterBMIAndLDLCholesterol()
+
+        // entering the samples scrolled the dashboard down, which unloads the score card's list cell
+        let dashboardScore = app.buttons["MHC:OverallScore"]
+        for _ in 0..<4 where !dashboardScore.exists {
+            app.swipeDown()
+        }
+        XCTAssert(dashboardScore.waitForExistence(timeout: 2))
+        XCTAssert(
+            app.buttons
+                .element(matching: "identifier == %@ AND value BEGINSWITH %@", "MHC:OverallScore", "No Data")
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertEqual(app.buttons["MHC:DashboardTile:Nicotine Exposure"].value as? String, "No Data")
+
+        dashboardScore.tap()
+        XCTAssert(app.navigationBars["Heart Health Score"].waitForExistence(timeout: 2))
+        let sheetScore = app.descendants(matching: .any)["MHC:ScoreSheet:OverallScore"]
+        XCTAssert(sheetScore.waitForExistence(timeout: 2))
+        XCTAssertEqual(sheetScore.value as? String, "No Data")
+
+        let addNicotineButton = app.buttons["MHC:ScoreSheet:AddData:Nicotine Exposure"]
+        XCTAssert(addNicotineButton.waitForExistence(timeout: 2))
+        addNicotineButton.tap()
+        XCTAssert(questionnaire.waitUntilPresented())
+        questionnaire.question("dcb2277e-fe96-4f45-844a-ef58a9516380").select("Never smoked/vaped")
+        questionnaire.submit()
+        XCTAssert(questionnaire.waitUntilDismissed())
+
+        // the nicotine row moves from "Complete Your Score" to "Components With Data"
+        XCTAssert(addNicotineButton.waitForNonExistence(timeout: 10))
+        XCTAssert(app.buttons["MHC:ScoreSheet:Component:Nicotine Exposure"].waitForExistence(timeout: 2))
+        // the overall score at the top of the sheet appears
+        XCTAssert(
+            app.descendants(matching: .any)
+                .element(matching: "identifier == %@ AND value MATCHES %@", "MHC:ScoreSheet:OverallScore", "[0-9]+")
+                .waitForExistence(timeout: 10)
+        )
+        let score = try XCTUnwrap(sheetScore.value as? String)
+
+        app.navigationBars["Heart Health Score"].buttons["Close"].tap()
+        XCTAssert(app.navigationBars["Heart Health Score"].waitForNonExistence(timeout: 2))
+        // the dashboard shows the same overall score
+        XCTAssert(
+            app.buttons
+                .element(matching: "identifier == %@ AND value MATCHES %@", "MHC:OverallScore", "\(score)([^0-9].*)?")
+                .waitForExistence(timeout: 5)
+        )
+        // the nicotine tile shows the new response's score
+        XCTAssert(
+            app.buttons
+                .element(matching: "identifier == %@ AND value MATCHES %@", "MHC:DashboardTile:Nicotine Exposure", "Score Result: [0-9]+ percent")
+                .waitForExistence(timeout: 5)
+        )
+    }
+
+
     func testDietScoreProcessing() throws {
         // The survey contains multiple questions on one page and needs a dedicated UI-test flow.
         throw XCTSkip("TODO")
@@ -253,5 +314,38 @@ class HealthDashboardTests: MHCTestCase, @unchecked Sendable {
         app.swipeUp()
         app.buttons["Sleep"].tap()
         XCTAssert(app.staticTexts["Most Recent Night: 6 hours and 36 minutes"].waitForExistence(timeout: 5))
+    }
+}
+
+
+extension HealthDashboardTests {
+    /// Enters a BMI and an LDL cholesterol sample via the dashboard tiles, and returns to the dashboard.
+    private func enterBMIAndLDLCholesterol() {
+        XCTAssert(app.buttons["Body Mass Index"].waitForExistence(timeout: 2))
+        app.buttons["Body Mass Index"].tap()
+        XCTAssert(app.navigationBars["Body Mass Index"].buttons["Add Data"].waitForExistence(timeout: 2))
+        app.navigationBars["Body Mass Index"].buttons["Add Data"].tap()
+        XCTAssert(app.navigationBars["Enter BMI"].waitForExistence(timeout: 2))
+        app.segmentedControls.buttons["BMI"].tap()
+        let bmiTextField = app.textFields["QuantityDataEntry:Body Mass Index"]
+        XCTAssert(bmiTextField.waitForExistence(timeout: 2))
+        bmiTextField.tap()
+        bmiTextField.typeText("23")
+        let saveBMIButton = app.navigationBars["Enter BMI"].buttons["Save"]
+        XCTAssert(saveBMIButton.wait(for: \.isEnabled, toEqual: true, timeout: 1))
+        saveBMIButton.tap()
+        XCTAssert(app.staticTexts["Most Recent Sample: 23"].waitForExistence(timeout: 5))
+        app.navigationBars["Body Mass Index"].buttons["Close"].tap()
+
+        XCTAssert(app.buttons["LDL Cholesterol"].waitForExistence(timeout: 2))
+        app.buttons["LDL Cholesterol"].tap()
+        XCTAssert(app.navigationBars["LDL Cholesterol"].buttons["Add Data"].waitForExistence(timeout: 2))
+        app.navigationBars["LDL Cholesterol"].buttons["Add Data"].tap()
+        let ldlTextField = app.textFields["QuantityDataEntry:LDL Cholesterol"]
+        XCTAssert(ldlTextField.waitForExistence(timeout: 2))
+        ldlTextField.typeText("100")
+        app.navigationBars["Enter LDL Cholesterol"].buttons["Save"].tap()
+        XCTAssert(app.staticTexts["Most Recent Sample: 100 mg/dL"].waitForExistence(timeout: 4))
+        app.navigationBars["LDL Cholesterol"].buttons["Close"].tap()
     }
 }

@@ -35,6 +35,7 @@ struct HeartHealthDashboard: View {
     @CVHScore private var cvhScore
     
     @State private var scoreResultToExplain: MetricDescriptor?
+    @State private var isPresentingScoreSheet = false
     @State private var isPresentingPastTimedWalkTestResults = false
     
     var body: some View {
@@ -49,6 +50,14 @@ struct HeartHealthDashboard: View {
                             DismissButton()
                         }
                     }
+            }
+        }
+        .sheet(isPresented: $isPresentingScoreSheet) {
+            NavigationStack {
+                HeartHealthScoreSheet(
+                    score: cvhScore,
+                    components: $cvhScore.components
+                )
             }
         }
         .adaptiveSheet(isPresented: $isPresentingPastTimedWalkTestResults) {
@@ -91,41 +100,8 @@ struct HeartHealthDashboard: View {
     
     
     @ViewBuilder private var topSection: some View {
-        let valueAvailabe = !(cvhScore?.isNaN ?? true)
-        VStack { // swiftlint:disable:this closure_body_length
-            HStack {
-                Spacer()
-                Gauge(
-                    lineWidth: .relative(2),
-                    gradient: valueAvailabe ? .redToGreen : Gradient(colors: [.gray]),
-                    progress: cvhScore
-                ) {
-                    if let cvhScore, !cvhScore.isNaN {
-                        if #available(iOS 26.0, *) {
-                            Text(Int(cvhScore * 100), format: .number)
-                                .font(.largeTitle.scaled(by: 1.2).bold())
-                        } else {
-                            Text(Int(cvhScore * 100), format: .number)
-                                .font(.largeTitle.bold())
-                        }
-                    } else {
-                        Text("—")
-                            .font(.largeTitle.bold())
-                            .foregroundStyle(.secondary)
-                    }
-                } minimumValueText: {
-                    Text("  0")
-                        .foregroundStyle(valueAvailabe ? .primary : .secondary)
-                } maximumValueText: {
-                    Text("100 ")
-                        .foregroundStyle(valueAvailabe ? .primary : .secondary)
-                }
-                .frame(width: 140, height: 140)
-                Spacer()
-            }
-            .padding(.vertical, 16)
-            .background(.background)
-            .clipShape(RoundedRectangle(cornerRadius: HealthDashboardConstants.gridComponentCornerRadius))
+        VStack {
+            overallScoreButton
             HStack {
                 Text("HEART_HEALTH_DASHBOARD_HEADER")
                     .font(.caption)
@@ -137,6 +113,45 @@ struct HeartHealthDashboard: View {
         }
     }
     
+    private var overallScoreButton: some View {
+        Button {
+            isPresentingScoreSheet = true
+        } label: {
+            VStack(spacing: 4) {
+                OverallScoreGauge(score: cvhScore)
+                if $cvhScore.hasLimitedData {
+                    Text("HHD_LIMITED_DATA_DISCLAIMER")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(.background)
+            .clipShape(RoundedRectangle(cornerRadius: HealthDashboardConstants.gridComponentCornerRadius))
+            .overlay(alignment: .topTrailing) {
+                Image(systemSymbol: .infoCircle)
+                    .foregroundStyle(.secondary)
+                    .padding(12)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Heart Health Score")
+        .accessibilityValue(overallScoreAccessibilityValue)
+        .accessibilityHint("Shows how your score is calculated")
+        .accessibilityIdentifier("MHC:OverallScore")
+    }
+
+    private var overallScoreAccessibilityValue: String {
+        let scoreValue = OverallScoreGauge.accessibilityValue(for: cvhScore)
+        guard $cvhScore.hasLimitedData else {
+            return scoreValue
+        }
+        return "\(scoreValue), \(String(localized: "HHD_LIMITED_DATA_DISCLAIMER"))"
+    }
+
     @ViewBuilder private var learnMoreSection: some View {
         if let learnMoreText = studyManager.localizedMarkdown(for: "LearnMore", in: .hhdExplainer) {
             Section("Understanding Your Heart Health Score") {
@@ -167,6 +182,7 @@ struct HeartHealthDashboard: View {
         return HealthDashboardGridTile(
             title: score.sampleType.displayTitle,
             accessibilityIdentifier: score.sampleType.displayTitle(in: .enUS),
+            accessibilityValue: Self.tileAccessibilityValue(for: score),
             headerInsets: .init(top: 0, leading: 8, bottom: 0, trailing: 0),
             onTap: {
                 scoreResultToExplain = .init(keyPath: scoreKeyPath)
@@ -212,6 +228,15 @@ extension HeartHealthDashboard {
     
     static func canAddSample(for keyPath: KeyPath<CVHScore, ScoreResult>) -> Bool {
         cvhKeyPathsWithDataEntryEnabled.contains(keyPath)
+    }
+
+    /// The score of a dashboard tile, as VoiceOver reads it.
+    fileprivate static func tileAccessibilityValue(for score: ScoreResult) -> String {
+        if let value = score.score, !value.isNaN {
+            String(localized: "Score Result: \(Int(value * 100)) percent")
+        } else {
+            String(localized: "No Data")
+        }
     }
     
     
