@@ -113,6 +113,7 @@ extension OnboardingStep {
     static let disclaimer3 = Self(rawValue: "disclaimer3")
     static let disclaimer4 = Self(rawValue: "disclaimer4")
     static let comprehension = Self(rawValue: "comprehension")
+    static let participantInformation = Self(rawValue: "participantInformation")
     static let consent = Self(rawValue: "consent")
     static let healthAccess = Self(rawValue: "healthAccess")
     static let healthRecords = Self(rawValue: "healthRecords")

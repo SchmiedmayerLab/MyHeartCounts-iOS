@@ -89,7 +89,7 @@ struct NewsTab: RootViewTab {
                 }
             }
             Section {
-                let website = MyHeartCounts.website(.homepage)
+                let website = MyHeartCounts.website()
                 let websiteHost = website.host() ?? website.absoluteString
                 Link2(website) {
                     Text({ () -> AttributedString in

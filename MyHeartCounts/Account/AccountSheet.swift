@@ -11,6 +11,7 @@
 import FirebaseCore
 import FirebaseFunctions
 import GroveAccount
+import GroveConsent
 import GroveHealthKitBulkExport
 import GroveLicense
 import GroveSensorKit
@@ -28,6 +29,7 @@ struct AccountSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openSettingsApp) private var openSettingsApp
     @Environment(Account.self) private var account
+    @Environment(ConsentManager.self) private var consentManager: ConsentManager?
     @Environment(HistoricalHealthSamplesExportManager.self) private var historicalDataExportMgr
     @Environment(ManagedFileUpload.self) private var managedFileUpload
     @Environment(SensorKitDataFetcher.self) private var sensorKitDataFetcher
@@ -37,6 +39,7 @@ struct AccountSheet: View {
     @State private var viewState: ViewState = .idle
     @State private var isInSetup = false
     @State private var isPresentingFeedbackSheet = false
+    @State private var withdrawalSigning: WithdrawalSigningRequest?
     @State private var activeAccountAction: AccountAction?
     
     @AccountFeatureFlagQuery(.isDebugModeEnabled)
@@ -74,6 +77,15 @@ struct AccountSheet: View {
                     FeedbackForm()
                 }
             }
+            .sheet(item: $withdrawalSigning) { request in
+                WithdrawalForm(document: request.document) {
+                    request.finish(didSign: true)
+                }
+                .onDisappear {
+                    // dismissing the form without signing it cancels the withdrawal
+                    request.finish(didSign: false)
+                }
+            }
         }
         .accessibilityIdentifier("MHC:AccountSheet")
         .viewStateAlert(state: $viewState)
@@ -104,7 +116,7 @@ struct AccountSheet: View {
         }
         Section {
             AboutRow()
-            Link2(MyHeartCounts.website(.privacyPolicy)) {
+            PrivacyPolicyLink {
                 Label("Privacy Policy", systemSymbol: .lockShield)
                     .foregroundStyle(.textLabel)
             }
@@ -178,7 +190,7 @@ struct AccountSheet: View {
     
     @ViewBuilder
     private func studyParticipationSection(_ enrollment: StudyEnrollment) -> some View {
-        Link2(MyHeartCounts.website(.homepage)) {
+        Link2(MyHeartCounts.website()) {
             HStack {
                 makeEnrolledStudyRow(for: enrollment)
                 Spacer()
@@ -227,6 +239,15 @@ struct AccountSheet: View {
     }
     
     private func withdrawFromStudy() async throws {
+        if let withdrawalForm = consentManager?.loadWithdrawalForm() {
+            // the study requires a signed record of the withdrawal, which is kept with the participant's consent forms.
+            let didSign = await withCheckedContinuation { continuation in
+                withdrawalSigning = WithdrawalSigningRequest(document: withdrawalForm, continuation: continuation)
+            }
+            guard didSign else {
+                throw CancellationError()
+            }
+        }
         _ = try await Functions.functions()
             .httpsCallable("markAccountForStudyWithdrawal")
             .call([:])
@@ -252,6 +273,27 @@ struct AccountSheet: View {
             } catch {
                 viewState = .error(AnyLocalizedError(error: error, defaultErrorDescription: action.defaultErrorDescription))
             }
+        }
+    }
+}
+
+
+extension AccountSheet {
+    /// A pending request for the participant to sign the study's withdrawal form, which the withdrawal waits for.
+    @MainActor
+    private final class WithdrawalSigningRequest: Identifiable {
+        let document: ConsentDocument
+        private var continuation: CheckedContinuation<Bool, Never>?
+        
+        init(document: ConsentDocument, continuation: CheckedContinuation<Bool, Never>) {
+            self.document = document
+            self.continuation = continuation
+        }
+        
+        /// Resumes the waiting withdrawal; calls after the first one have no effect.
+        func finish(didSign: Bool) {
+            continuation?.resume(returning: didSign)
+            continuation = nil
         }
     }
 }
@@ -323,7 +365,7 @@ extension AccountSheet {
             }
             .accessibilityElement()
             .accessibilityIdentifier("MHC:AboutRow")
-            .sheet(isPresented: $showExtendedInfo) {
+            .sheet(isPresented: $showExtendedInfo) { // swiftlint:disable:this closure_body_length
                 NavigationStack {
                     Form {
                         Section {
@@ -334,7 +376,10 @@ extension AccountSheet {
                         Section {
                             LabeledContent("Project ID" as String, value: FirebaseApp.app()?.options.projectID ?? "n/a")
                             LabeledContent("Account ID" as String, value: account.details?.accountId ?? "n/a")
-                            LabeledContent("Study Variant" as String, value: DeferredConfigLoading.activeStudyVariant?.rawValue ?? "n/a")
+                            LabeledContent(
+                                "Study Variant" as String,
+                                value: DeferredConfigLoading.currentStudyVariant.effective()?.rawValue ?? "n/a"
+                            )
                             LabeledContent("Study Backend" as String, value: DeferredConfigLoading.activeFirebaseConfig?.description ?? "n/a")
                         }
                         Section {
@@ -374,7 +419,8 @@ extension AccountSheet {
         @Binding var currentAction: ViewAction?
         
         private var enabledActions: Set<ViewAction> {
-            let alwaysOfferWithdrawal = DeferredConfigLoading.activeStudyVariant == .imperial
+            // Imperial participants found "Withdraw from Study" hard to discover behind "Edit", so their account sheet always lists it.
+            let alwaysOfferWithdrawal = DeferredConfigLoading.currentStudyVariant.effective() == .imperial
             if alwaysOfferWithdrawal {
                 return [.logOut, .withdraw]
             } else {

@@ -11,6 +11,7 @@ import GroveConsent
 import GroveFoundation
 import GroveOnboarding
 import GroveViews
+import MHCStudyDefinition
 import SFSafeSymbols
 import SwiftUI
 
@@ -83,13 +84,19 @@ struct ConsentDisclaimers: View {
 
 
 extension ConsentDisclaimers {
-    init(consentDoc: ConsentDocument) {
+    init(studyVariant variant: StudyVariant, consentDoc: ConsentDocument) {
         let steps: [DisclaimerConfig] = [
             .init(
                 icon: .textPageBadgeMagnifyingglass,
                 title: "ONBOARDING_DISCLAIMER_1_TITLE",
-                primaryText: "ONBOARDING_DISCLAIMER_1_PRIMARY_TEXT",
-                learnMoreText: "ONBOARDING_DISCLAIMER_1_LEARN_MORE_TEXT",
+                primaryText: variant.localized(
+                    stanford: "ONBOARDING_DISCLAIMER_1_PRIMARY_TEXT",
+                    imperial: "ONBOARDING_DISCLAIMER_1_PRIMARY_TEXT_IMPERIAL"
+                ),
+                learnMoreText: variant.localized(
+                    stanford: "ONBOARDING_DISCLAIMER_1_LEARN_MORE_TEXT",
+                    imperial: "ONBOARDING_DISCLAIMER_1_LEARN_MORE_TEXT_IMPERIAL"
+                ),
                 stepId: .disclaimer1
             ),
             .init(
@@ -102,15 +109,24 @@ extension ConsentDisclaimers {
             .init(
                 icon: .lockSquareStack,
                 title: "ONBOARDING_DISCLAIMER_3_TITLE",
-                primaryText: "ONBOARDING_DISCLAIMER_3_PRIMARY_TEXT",
-                learnMoreText: "ONBOARDING_DISCLAIMER_3_LEARN_MORE_TEXT",
+                primaryText: variant.localized(
+                    stanford: "ONBOARDING_DISCLAIMER_3_PRIMARY_TEXT",
+                    imperial: "ONBOARDING_DISCLAIMER_3_PRIMARY_TEXT_IMPERIAL"
+                ),
+                learnMoreText: variant.localized(
+                    stanford: "ONBOARDING_DISCLAIMER_3_LEARN_MORE_TEXT",
+                    imperial: "ONBOARDING_DISCLAIMER_3_LEARN_MORE_TEXT_IMPERIAL"
+                ),
                 stepId: .disclaimer3
             ),
             .init(
                 icon: .documentOnClipboard,
                 title: "ONBOARDING_DISCLAIMER_4_TITLE",
                 primaryText: "ONBOARDING_DISCLAIMER_4_PRIMARY_TEXT",
-                learnMoreText: "ONBOARDING_DISCLAIMER_4_LEARN_MORE_TEXT",
+                learnMoreText: variant.localized(
+                    stanford: "ONBOARDING_DISCLAIMER_4_LEARN_MORE_TEXT",
+                    imperial: "ONBOARDING_DISCLAIMER_4_LEARN_MORE_TEXT_IMPERIAL"
+                ),
                 stepId: .disclaimer4
             )
         ]

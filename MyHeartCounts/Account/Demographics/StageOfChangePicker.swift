@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import MHCStudyDefinition
 import SFSafeSymbols
 import SwiftUI
 
@@ -17,6 +18,7 @@ struct StageOfChangePicker: View {
         case separate
     }
     
+    let studyVariant: StudyVariant
     @Binding var selection: StageOfChangeOption?
     
     var body: some View {
@@ -29,7 +31,7 @@ struct StageOfChangePicker: View {
             }
             content(using: .separate)
         }
-        .navigationTitle("Stage of Change")
+        .navigationTitle(Text(studyVariant.localized(stanford: "Stage of Change", imperial: "Physical Activity Habits")))
     }
     
     @ViewBuilder
@@ -57,7 +59,7 @@ struct StageOfChangePicker: View {
         } label: {
             VStack(alignment: .leading) {
                 HStack {
-                    Text(option.id.uppercased())
+                    Text(option.label(for: studyVariant))
                         .font(.headline)
                         .foregroundStyle(.textLabel)
                     Spacer()
@@ -66,7 +68,7 @@ struct StageOfChangePicker: View {
                             .accessibilityLabel("Is selected")
                     }
                 }
-                .frame(height: 30)
+                .frame(minHeight: 30)
                 Text(option.text)
                     .foregroundStyle(.textLabel.secondary)
             }

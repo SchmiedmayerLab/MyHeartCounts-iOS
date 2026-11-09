@@ -110,7 +110,7 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
     }
     
     func loadConsentDoc(from studyBundle: StudyBundle) throws -> ConsentDocument {
-        guard let studyVariant = DeferredConfigLoading.activeStudyVariant else {
+        guard let studyVariant = DeferredConfigLoading.currentStudyVariant.effective() else {
             throw NSError(mhcErrorCode: .unspecified, localizedDescription: "Unable to determine study variant")
         }
         guard let fileRef = studyBundle.studyDefinition.metadata.consentFileRef,
@@ -125,6 +125,41 @@ final class ConsentManager: Module, EnvironmentAccessible, Sendable {
         return try ConsentDocument(
             markdown: consentText,
             initialName: account?.details?.name
+        )
+    }
+    
+    /// The Participant Information Sheet that participants read before signing the consent, if the current study bundle has one.
+    func loadParticipantInformation() -> MarkdownDocument? {
+        loadTextNextToConsent(ParticipantInformationSheet.fileRef).flatMap { text in
+            try? MarkdownDocument(processing: text)
+        }
+    }
+    
+    /// The study's privacy notice, if the current study bundle has one.
+    func loadPrivacyNotice() -> MarkdownDocument? {
+        loadTextNextToConsent(PrivacyNotice.fileRef).flatMap { text in
+            try? MarkdownDocument(processing: text)
+        }
+    }
+    
+    /// The form in which participants sign their withdrawal from the study, if the current study bundle has one.
+    func loadWithdrawalForm() -> ConsentDocument? {
+        loadTextNextToConsent(WithdrawalForm.fileRef).flatMap { text in
+            try? ConsentDocument(markdown: text, initialName: account?.details?.name)
+        }
+    }
+    
+    /// Loads a document that the current study bundle stores next to its consent, in the consent's locale.
+    private func loadTextNextToConsent(_ fileRef: StudyBundle.FileReference) -> String? {
+        guard let studyBundle = try? studyBundleLoader.studyBundle?.get(),
+              let studyVariant = DeferredConfigLoading.currentStudyVariant.effective() else {
+            return nil
+        }
+        return studyBundle.consentText(
+            for: fileRef,
+            in: studyVariant.consentLocale(preferred: studyManager.preferredLocale),
+            using: .requirePerfectMatch,
+            fallbackLocale: nil
         )
     }
 }

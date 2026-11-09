@@ -13,14 +13,6 @@ import GroveStudy
 import MHCStudyDefinition
 
 
-extension AccountDetails {
-    /// Accounts enrolled before the variant field existed belong to the original Stanford study.
-    var existingStudyVariant: StudyVariant? {
-        studyVariant ?? (dateOfEnrollment != nil ? .stanford : nil)
-    }
-}
-
-
 extension StudyVariant {
     var region: Locale.Region {
         switch self {
@@ -38,6 +30,17 @@ extension StudyVariant {
         switch self {
         case .stanford: "/public/news/"
         case .imperial: "/public/news-UK/"
+        }
+    }
+
+    /// Selects the variant-specific version of a localized text.
+    ///
+    /// Study variant is a localization axis separate from language: variant-dependent texts use one string catalog key per variant,
+    /// each localized into all app languages as usual. Every variant is spelled out, so that adding one makes the compiler flag each call site.
+    func localized(stanford: LocalizedStringResource, imperial: LocalizedStringResource) -> LocalizedStringResource {
+        switch self {
+        case .stanford: stanford
+        case .imperial: imperial
         }
     }
 

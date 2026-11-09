@@ -64,11 +64,9 @@ extension EducationStatusUK {
     static let preferNotToState: Self? = Self(id: "preferNotToState", title: "Prefer not to state")
     
     static let options: [Self] = [
-        Self(id: "didNotAttendSchool", title: "Didn't attend school"),
-        Self(id: "highSchool", title: "High School"),
-        Self(id: "vocationalTraining", title: "Vocational Training", subtitle: "Vocational training / apprenticeship / diploma"),
-        Self(id: "someCollege", title: "College/University Graduate Degree"),
-        Self(id: "master", title: "Master"),
-        Self(id: "doctoralDegree", title: "Doctoral Degree")
+        Self(id: "highSchool", title: "High school / A levels / GCSE"),
+        Self(id: "undergraduate", title: "Undergraduate"),
+        Self(id: "master", title: "Postgraduate Master's"),
+        Self(id: "doctoralDegree", title: "Postgraduate Doctorate")
     ]
 }

@@ -9,6 +9,7 @@
 import Grove
 import GroveOnboarding
 import GroveViews
+import MHCStudyDefinition
 import SFSafeSymbols
 import SwiftUI
 
@@ -16,6 +17,8 @@ import SwiftUI
 struct Welcome: View {
     @Environment(ManagedNavigationStack.Path.self)
     private var onboardingPath
+    
+    private let studyVariant = DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford)
     
     var body: some View {
         OnboardingPage(title: "My Heart Counts", description: "WELCOME_SUBTITLE") {
@@ -31,7 +34,7 @@ struct Welcome: View {
         Grid(horizontalSpacing: 16, verticalSpacing: 16) {
             OnboardingIconGridRow(
                 icon: .appBadge,
-                text: "WELCOME_AREA1_DESCRIPTION"
+                text: studyVariant.localized(stanford: "WELCOME_AREA1_DESCRIPTION", imperial: "WELCOME_AREA1_DESCRIPTION_IMPERIAL")
             )
             OnboardingIconGridRow(
                 icon: .wandAndSparklesInverse,
