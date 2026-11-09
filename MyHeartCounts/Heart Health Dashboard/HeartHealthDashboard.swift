@@ -149,7 +149,7 @@ struct HeartHealthDashboard: View {
         guard $cvhScore.hasLimitedData else {
             return scoreValue
         }
-        return [scoreValue, String(localized: "HHD_LIMITED_DATA_DISCLAIMER")].formatted(.list(type: .unit, width: .short))
+        return "\(scoreValue), \(String(localized: "HHD_LIMITED_DATA_DISCLAIMER"))"
     }
 
     @ViewBuilder private var learnMoreSection: some View {
