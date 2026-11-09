@@ -72,6 +72,9 @@ final class DemographicsData {
     var raceEthnicity = Field<RaceEthnicity>(isEmpty: { $0.isEmpty }) {
         didSet { onChange() }
     }
+    var ukEthnicity = Field<EthnicityUK>(isEmpty: { $0 == .notSet }) {
+        didSet { onChange() }
+    }
     var latinoStatus = Field<LatinoStatusOption>(isEmpty: { $0 == .notSet }) {
         didSet { onChange() }
     }
@@ -87,6 +90,9 @@ final class DemographicsData {
     var ukRegion = Field<UKRegion>() {
         didSet { onChange() }
     }
+    var ukPostcode = Field<String>(isEmpty: { $0.isEmpty }) {
+        didSet { onChange() }
+    }
     var usEducationLevel = Field<EducationStatusUS>() {
         didSet { onChange() }
     }
@@ -100,6 +106,9 @@ final class DemographicsData {
         didSet { onChange() }
     }
     var nhsNumber = Field<NHSNumber>() {
+        didSet { onChange() }
+    }
+    var chiNumber = Field<CHINumber>() {
         didSet { onChange() }
     }
     var futureStudiesOptIn = Field<Bool>() {
@@ -142,16 +151,19 @@ final class DemographicsData {
         self[\.height] = details.heightInCM.map { HKQuantity(unit: .meterUnit(with: .centi), doubleValue: $0) }
         self[\.weight] = details.weightInKG.map { HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: $0) }
         self[\.raceEthnicity] = details.raceEthnicity
+        self[\.ukEthnicity] = details.ethnicityUK
         self[\.latinoStatus] = details.latinoStatus
         self[\.bloodType] = details.bloodType
         self[\.comorbidities] = details.comorbidities
         self[\.usRegion] = details.usRegion
         self[\.ukRegion] = details.ukRegion
+        self[\.ukPostcode] = details.ukPostcode
         self[\.usEducationLevel] = details.educationUS
         self[\.ukEducationLevel] = details.educationUK
         self[\.usHouseholdIncome] = details.householdIncomeUS
         self[\.ukHouseholdIncome] = details.householdIncomeUK
         self[\.nhsNumber] = details.nhsNumber
+        self[\.chiNumber] = details.chiNumber
         self[\.futureStudiesOptIn] = details.futureStudies
         self[\.stageOfChange] = details.stageOfChange
         self[\.referralSource] = details.referralSource
@@ -241,16 +253,19 @@ final class DemographicsData {
             $0.doubleValue(for: .gramUnit(with: .kilo))
         }
         write(\.raceEthnicity, to: \.raceEthnicity)
+        write(\.ukEthnicity, to: \.ethnicityUK)
         write(\.latinoStatus, to: \.latinoStatus)
         write(\.bloodType, to: \.bloodType)
         write(\.comorbidities, to: \.comorbidities)
         write(\.usRegion, to: \.usRegion)
         write(\.ukRegion, to: \.ukRegion)
+        write(self[\.ukPostcode].flatMap { $0.isEmpty ? nil : $0 }, to: \.ukPostcode)
         write(\.usEducationLevel, to: \.educationUS)
         write(\.ukEducationLevel, to: \.educationUK)
         write(\.usHouseholdIncome, to: \.householdIncomeUS)
         write(\.ukHouseholdIncome, to: \.householdIncomeUK)
         write(\.nhsNumber, to: \.nhsNumber)
+        write(\.chiNumber, to: \.chiNumber)
         write(\.futureStudiesOptIn, to: \.futureStudies)
         write(\.stageOfChange, to: \.stageOfChange)
         write(\.referralSource, to: \.referralSource)

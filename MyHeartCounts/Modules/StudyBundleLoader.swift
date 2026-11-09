@@ -139,7 +139,7 @@ final class StudyBundleLoader: Module, Sendable {
         let source = Source(
             // Variant-locked TestFlight builds use the study bundle they were built with, not the one published to the backend.
             selector: (FeatureFlags.forcedStudyVariant.map(StudyBundleSelector.bundledWithApp) ?? LaunchOptions.launchOptions[.studyBundleSelector])
-                .withVariant(DeferredConfigLoading.activeStudyVariant),
+                .withVariant(DeferredConfigLoading.currentStudyVariant.effective()),
             firebaseConfig: FeatureFlags.overrideFirebaseConfig ?? DeferredConfigLoading.activeFirebaseConfig
         )
         if self.source != source {

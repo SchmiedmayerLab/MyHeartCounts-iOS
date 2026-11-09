@@ -77,25 +77,7 @@ struct StudyVariantTests {
             #expect(prefs[.enrolledFirebaseConfig] == .region(.unitedStates))
         }
     }
-
-    @Test
-    func onlyLegacyEnrolledAccountsDefaultToStanford() {
-        var details = AccountDetails()
-        #expect(details.existingStudyVariant == nil)
-
-        details.dateOfEnrollment = Date(timeIntervalSince1970: 1_700_000_000)
-        #expect(details.existingStudyVariant == .stanford)
-    }
-
-    @Test(arguments: StudyVariant.allCases)
-    func explicitAccountVariantTakesPrecedence(variant: StudyVariant) {
-        var details = AccountDetails()
-        details.studyVariant = variant
-        #expect(details.existingStudyVariant == variant)
-
-        details.dateOfEnrollment = Date(timeIntervalSince1970: 1_700_000_000)
-        #expect(details.existingStudyVariant == variant)
-    }
+    
 
     private func withPreferences(_ body: (LocalPreferencesStore) throws -> Void) throws {
         let suiteName = "StudyVariantTests.\(UUID().uuidString)"

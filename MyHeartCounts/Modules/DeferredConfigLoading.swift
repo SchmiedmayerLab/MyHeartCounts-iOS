@@ -53,32 +53,27 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
     /// The independent backend and study selections used together for this process. Variant changes also update observing views.
     @Observable
     @MainActor
-    final class StudyConfiguration {
+    final class StudyConfiguration { // intentionally a class.
         let firebaseConfig: FirebaseConfigSelector
         private(set) var studyVariant: StudyVariant
-
+        
         init(firebaseConfig: FirebaseConfigSelector, studyVariant: StudyVariant) {
             self.firebaseConfig = firebaseConfig
             self.studyVariant = studyVariant
         }
-
+        
         func selectStudyVariant(_ variant: StudyVariant, enrolledVariant: StudyVariant?) throws {
             if let enrolledVariant, enrolledVariant != variant {
                 throw StudyVariantError.mismatch(expected: enrolledVariant, actual: variant)
             }
             studyVariant = variant
         }
-
+        
         func persist(in prefs: LocalPreferencesStore) throws {
             try selectStudyVariant(studyVariant, enrolledVariant: prefs[.enrolledStudyVariant])
             prefs[.enrolledStudyVariant] = studyVariant
             prefs[.enrolledFirebaseConfig] = firebaseConfig
         }
-    }
-
-    enum StudyVariantError: Error, Equatable {
-        case missingConfiguration
-        case mismatch(expected: StudyVariant, actual: StudyVariant)
     }
 
     /// Includes temporary onboarding selections; persisted only when study enrollment starts.
@@ -88,12 +83,41 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
         activeConfiguration?.firebaseConfig
     }
 
-    @MainActor static var activeStudyVariant: StudyVariant? {
-        activeConfiguration?.studyVariant
+    
+    @MainActor static var currentStudyVariant: CurrentStudyVariant {
+        if let activeConfiguration {
+            .active(activeConfiguration.studyVariant)
+        } else if let forced = FeatureFlags.forcedStudyVariant {
+            // we dont have an activeConfig yet, but we do have a forced variant pending
+            .pending(forced)
+        } else {
+            .unknown
+        }
     }
     
-    enum LoadingError: Error {
+    enum LoadingError: LocalizedError {
         case unableToLoadFirebaseConfigPlist(underlying: (any Error)? = nil)
+        /// The main bundle doesn't contain a plist with the specified name.
+        case plistNotFoundInBundle(name: String)
+        /// The file at the specified path doesn't exist, or isn't a valid Firebase config plist.
+        case invalidFirebaseConfigPlist(path: String)
+        /// There is no Firebase config for the specified region.
+        case unsupportedRegion(Locale.Region)
+
+        var errorDescription: String? {
+            switch self {
+            case .unableToLoadFirebaseConfigPlist(underlying: nil):
+                "Unable to load the app's Firebase config."
+            case .unableToLoadFirebaseConfigPlist(underlying: let underlying?):
+                "Unable to load the app's Firebase config: \(underlying.localizedDescription)"
+            case .plistNotFoundInBundle(let name):
+                "Unable to find '\(name).plist' in the app bundle."
+            case .invalidFirebaseConfigPlist(let path):
+                "The Firebase config at '\(path)' doesn't exist, or isn't a valid plist."
+            case .unsupportedRegion(let region):
+                "There is no Firebase config for region '\(region.identifier)'."
+            }
+        }
     }
     
     enum FirebaseConfigSelector: Codable, Equatable, Sendable, LaunchOptionDecodable, CustomStringConvertible {
@@ -117,10 +141,9 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
         
         /// Decodes a `FirebaseConfigSelector` from a launch option value
         ///
-        /// `--firebaseConfig region=US`
-        /// `--firebaseConfig plist=GoogleService-Info_UK.plist`
-        /// `--firebaseConfig plist=/Users/lukas/Desktop/MHC.plist`
-        /// `--firebaseConfig plist=https://mhc.stanford.edu/config.plist`
+        /// `--overrideFirebaseConfig region=US`
+        /// `--overrideFirebaseConfig plist=GoogleService-Info-Override` (the name of a plist in the main bundle, without its file extension)
+        /// `--overrideFirebaseConfig plist=/Users/lukas/Desktop/MHC.plist`
         init(decodingLaunchOption context: LaunchOptionDecodingContext) throws {
             try context.assertNumRawArgs(.equal(1))
             let components = context.rawArgs[0].split(separator: "=")
@@ -153,7 +176,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
     }
     
     
-    static func firebaseOptions(for configSelector: FirebaseConfigSelector) throws(LoadingError) -> FirebaseOptions? {
+    static func firebaseOptions(for configSelector: FirebaseConfigSelector) throws(LoadingError) -> FirebaseOptions {
         if let overrideSelector = FeatureFlags.overrideFirebaseConfig {
             try _firebaseOptions(for: overrideSelector)
         } else {
@@ -163,7 +186,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
     
     
     // swiftlint:disable:next cyclomatic_complexity
-    private static func _firebaseOptions(for configSelector: FirebaseConfigSelector) throws(LoadingError) -> FirebaseOptions? {
+    private static func _firebaseOptions(for configSelector: FirebaseConfigSelector) throws(LoadingError) -> FirebaseOptions {
         logger.notice("[\(#function)] selector: \(String(describing: configSelector))")
         // swiftlint:disable legacy_objc_type
         // FirebaseOptions is an NSDictionary-based API...
@@ -190,8 +213,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
             case .unitedKingdom:
                 key = "UK"
             default:
-                logger.error("[\(#function)] invalid region input '\(region.identifier)'. returning nil")
-                return nil
+                throw .unsupportedRegion(region)
             }
             guard let configDict = combinedConfig[key] as? NSDictionary else {
                 throw .unableToLoadFirebaseConfigPlist()
@@ -202,37 +224,45 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
                 throw .unableToLoadFirebaseConfigPlist(underlying: error)
             }
             logger.notice("[\(#function)] using '\(key)' Firebase config")
-            return FirebaseOptions(contentsOfFile: tmpUrl.path)
+            return try firebaseOptions(contentsOfFile: tmpUrl.path)
         case .custom(let plistNameInBundle):
             guard let bundlePlistUrl = Bundle.main.url(forResource: plistNameInBundle, withExtension: "plist") else {
-                logger.error("[\(#function)] unable to find '\(plistNameInBundle).plist' in bundle. returning nil")
-                return nil
+                throw .plistNotFoundInBundle(name: plistNameInBundle)
             }
             logger.notice("[\(#function)] returning config for '\(plistNameInBundle).plist' in bundle")
-            return FirebaseOptions(contentsOfFile: bundlePlistUrl.path)
+            return try firebaseOptions(contentsOfFile: bundlePlistUrl.path)
         case .customUrl(let url):
             guard url.isFileURL else {
                 preconditionFailure("Only file urls are supported when loading external firebase configs!")
             }
             logger.notice("[\(#function)] returning config for plist at '\(url.path)'")
-            return FirebaseOptions(contentsOfFile: url.path)
+            return try firebaseOptions(contentsOfFile: url.path)
         }
         // swiftlint:enable legacy_objc_type
     }
+
+
+    private static func firebaseOptions(contentsOfFile path: String) throws(LoadingError) -> FirebaseOptions {
+        guard let options = FirebaseOptions(contentsOfFile: path) else {
+            throw .invalidFirebaseConfigPlist(path: path)
+        }
+        return options
+    }
     
     
-    @MainActor static var initialAppLaunchConfig: [any Module] {
+    @MainActor
+    static func initialAppLaunchConfig() throws(LoadingError) -> [any Module] {
         let studyVariant = LocalPreferencesStore.standard[.enrolledStudyVariant] ?? .stanford
         return if FeatureFlags.disableFirebase {
             baseModules(preferredLocale: .autoupdatingCurrent)
         } else if let selector = FeatureFlags.overrideFirebaseConfig {
-            config(for: selector, studyVariant: studyVariant)
+            try config(for: selector, studyVariant: studyVariant)
         } else if let selector = LocalPreferencesStore.standard[.enrolledFirebaseConfig],
                   LocalPreferencesStore.standard[.onboardingFlowComplete] || !StudyManager().studyEnrollments.isEmpty {
             // Completed onboarding takes the original restoration path without inspecting the study store.
             // Otherwise, only restore an actual (possibly unfinished) enrollment, not an abandoned region selection.
             // Leave the saved value untouched, including when it isn't restored.
-            config(for: selector, studyVariant: studyVariant)
+            try config(for: selector, studyVariant: studyVariant)
         } else {
             []
         }
@@ -248,103 +278,95 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
     
     /// Constructs an Array of Grove Modules for loading Firebase and the other related modules, configured based on the specified selector.
     ///
-    /// Returns nil if there was an issue resolving the selector.
+    /// Throws if there was an issue resolving the selector.
     @MainActor
     static func config( // swiftlint:disable:this function_body_length
         for configSelector: FirebaseConfigSelector,
         studyVariant: StudyVariant = .stanford
-    ) -> [any Module] {
+    ) throws(LoadingError) -> [any Module] {
         let configSelector = FeatureFlags.overrideFirebaseConfig ?? configSelector
-        let studyVariant = LocalPreferencesStore.standard[.enrolledStudyVariant] ?? FeatureFlags.studyVariantOverride ?? studyVariant
+        // An existing enrollment wins, even over a forced variant. See `checkingStudyVariantConsistency()` for how we surface that disagreement.
+        let studyVariant = LocalPreferencesStore.standard[.enrolledStudyVariant] ?? FeatureFlags.forcedStudyVariant ?? studyVariant
         let configuration = StudyConfiguration(firebaseConfig: configSelector, studyVariant: studyVariant)
         let preferredLocale = studyVariant.preferredLocale
         guard !FeatureFlags.disableFirebase else {
             activeConfiguration = configuration
             return baseModules(preferredLocale: preferredLocale)
         }
-        do {
-            guard let firebaseOptions = try firebaseOptions(for: configSelector) else {
-                logger.notice("FirebaseOptions fetch returned nil. Not initializing anything.")
-                return []
+        let firebaseOptions = try firebaseOptions(for: configSelector)
+        logger.notice("Created FirebaseOptions for project '\(firebaseOptions.projectID ?? "")'")
+        activeConfiguration = configuration
+        return Array { // swiftlint:disable:this closure_body_length
+            ConfigureFirebaseApp(/*name: "My Heart Counts", */options: firebaseOptions)
+            firestore
+            FirestoreCacheCleanup()
+            AccountConfiguration(
+                service: FirebaseAccountService(providers: [.emailAndPassword], emulatorSettings: accountEmulator),
+                storageProvider: FirestoreAccountStorage(storeIn: FirebaseConfiguration.usersCollection),
+                configuration: [
+                    .requires(\.userId),
+                    .requires(\.name),
+                    // additional values stored using the `FirestoreAccountStorage` within our Standard implementation
+                    .manual(\.dateOfBirth),
+                    // account mgmt
+                    .manual(\.studyVariant),
+                    .manual(\.didOptInToTrial),
+                    .manual(\.futureStudies),
+                    .manual(\.hasWithdrawnFromStudy),
+                    .manual(\.dateOfEnrollment),
+                    .manual(\.historicalHealthUploadCompletedDate),
+                    // consent tracking
+                    .manual(\.lastSignedConsentDate),
+                    .manual(\.lastSignedConsentVersion),
+                    // notifications
+                    .manual(\.fcmToken),
+                    .manual(\.preferredWorkoutTypes),
+                    .manual(\.preferredNudgeNotificationTime),
+                    .manual(\.stageOfChange),
+                    .manual(\.postTrialNudgesOptIn),
+                    // demographics
+                    .manual(\.mhcGenderIdentity),
+                    .manual(\.usRegion),
+                    .manual(\.usZipCodePrefix),
+                    .manual(\.householdIncomeUS),
+                    .manual(\.ukRegion),
+                    .manual(\.ukPostcode),
+                    .manual(\.householdIncomeUK),
+                    .manual(\.heightInCM),
+                    .manual(\.weightInKG),
+                    .manual(\.raceEthnicity),
+                    .manual(\.ethnicityUK),
+                    .manual(\.latinoStatus),
+                    .manual(\.biologicalSexAtBirth),
+                    .manual(\.bloodType),
+                    .manual(\.educationUS),
+                    .manual(\.educationUK),
+                    .manual(\.comorbidities),
+                    .manual(\.nhsNumber),
+                    .manual(\.chiNumber),
+                    .manual(\.referralSource),
+                    // env tracking
+                    .manual(\.mostRecentOnboardingStep),
+                    .manual(\.lastActiveDate),
+                    .manual(\.timeZone),
+                    .manual(\.language),
+                    .manual(\.preferredMeasurementSystem),
+                    // internal stuff
+                    .manual(\.enableDebugMode)
+                ]
+            )
+            if FeatureFlags.useFirebaseEmulator {
+                FirebaseStorageConfiguration(emulatorSettings: (host: "localhost", port: 9199))
+                FirebaseFunctions(emulatorHost: "localhost", port: 5001)
+            } else {
+                FirebaseStorageConfiguration()
+                FirebaseFunctions()
             }
-            logger.notice("Created FirebaseOptions for project '\(firebaseOptions.projectID ?? "")'")
-            activeConfiguration = configuration
-            return Array { // swiftlint:disable:this closure_body_length
-                ConfigureFirebaseApp(/*name: "My Heart Counts", */options: firebaseOptions)
-                firestore
-                FirestoreCacheCleanup()
-                AccountConfiguration(
-                    service: FirebaseAccountService(providers: [.emailAndPassword], emulatorSettings: accountEmulator),
-                    storageProvider: FirestoreAccountStorage(storeIn: FirebaseConfiguration.usersCollection),
-                    configuration: [
-                        .requires(\.userId),
-                        .requires(\.name),
-                        // additional values stored using the `FirestoreAccountStorage` within our Standard implementation
-                        .manual(\.dateOfBirth),
-                        // account mgmt
-                        .manual(\.studyVariant),
-                        .manual(\.didOptInToTrial),
-                        .manual(\.futureStudies),
-                        .manual(\.hasWithdrawnFromStudy),
-                        .manual(\.dateOfEnrollment),
-                        .manual(\.historicalHealthUploadCompletedDate),
-                        // consent tracking
-                        .manual(\.lastSignedConsentDate),
-                        .manual(\.lastSignedConsentVersion),
-                        // notifications
-                        .manual(\.fcmToken),
-                        .manual(\.preferredWorkoutTypes),
-                        .manual(\.preferredNudgeNotificationTime),
-                        .manual(\.stageOfChange),
-                        .manual(\.postTrialNudgesOptIn),
-                        // demographics
-                        .manual(\.mhcGenderIdentity),
-                        .manual(\.usRegion),
-                        .manual(\.usZipCodePrefix),
-                        .manual(\.householdIncomeUS),
-                        .manual(\.ukRegion),
-                        .manual(\.ukPostcode),
-                        .manual(\.householdIncomeUK),
-                        .manual(\.heightInCM),
-                        .manual(\.weightInKG),
-                        .manual(\.raceEthnicity),
-                        .manual(\.latinoStatus),
-                        .manual(\.biologicalSexAtBirth),
-                        .manual(\.bloodType),
-                        .manual(\.educationUS),
-                        .manual(\.educationUK),
-                        .manual(\.comorbidities),
-                        .manual(\.nhsNumber),
-                        .manual(\.referralSource),
-                        // env tracking
-                        .manual(\.mostRecentOnboardingStep),
-                        .manual(\.lastActiveDate),
-                        .manual(\.timeZone),
-                        .manual(\.language),
-                        .manual(\.preferredMeasurementSystem),
-                        // internal stuff
-                        .manual(\.enableDebugMode)
-                    ]
-                )
-                if FeatureFlags.useFirebaseEmulator {
-                    FirebaseStorageConfiguration(emulatorSettings: (host: "localhost", port: 9199))
-                    FirebaseFunctions(emulatorHost: "localhost", port: 5001)
-                } else {
-                    FirebaseStorageConfiguration()
-                    FirebaseFunctions()
-                }
-                baseModules(preferredLocale: preferredLocale)
-                HealthKitStatsCalculator()
-                StatsStore()
-                EnvironmentTracking()
-                LoadFirebaseTracking() // intentionally the very last thing!!!
-            }
-        } catch {
-            logger.error("""
-                FirebaseOptions fetch threw an error. Not initializing anything.
-                Error: \(error)
-                """)
-            return []
+            baseModules(preferredLocale: preferredLocale)
+            HealthKitStatsCalculator()
+            StatsStore()
+            EnvironmentTracking()
+            LoadFirebaseTracking() // intentionally the very last thing!!!
         }
     }
     
@@ -383,22 +405,54 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
 
 
 extension DeferredConfigLoading {
+    enum CurrentStudyVariant: Hashable, Sendable {
+        case active(StudyVariant)
+        case pending(StudyVariant)
+        case unknown
+        
+        func effective() -> StudyVariant? {
+            switch self {
+            case .active(let variant), .pending(let variant):
+                variant
+            case .unknown:
+                nil
+            }
+        }
+        
+        func effective(fallback: @autoclosure () -> StudyVariant) -> StudyVariant {
+            effective() ?? fallback()
+        }
+    }
+    
+    
+    enum StudyVariantError: Error, Equatable {
+        case missingConfiguration
+        case mismatch(expected: StudyVariant, actual: StudyVariant)
+    }
+    
+    
     /// Resolves the variant before enrollment; an existing enrollment cannot change variants.
     @MainActor
-    static func setActiveStudyVariant(_ variant: StudyVariant) throws {
+    static func setCurrentStudyVariant(_ newVariant: StudyVariant) throws {
         guard let activeConfiguration else {
             throw StudyVariantError.missingConfiguration
         }
-        if let override = FeatureFlags.studyVariantOverride, override != variant {
-            throw StudyVariantError.mismatch(expected: override, actual: variant)
+        if let override = FeatureFlags.forcedStudyVariant, override != newVariant {
+            // caller is trying to set the study variant to something that isn't the forced override
+            throw StudyVariantError.mismatch(expected: override, actual: newVariant)
         }
         let previousVariant = activeConfiguration.studyVariant
-        try activeConfiguration.selectStudyVariant(variant, enrolledVariant: LocalPreferencesStore.standard[.enrolledStudyVariant])
-        guard previousVariant != variant else {
+        try activeConfiguration.selectStudyVariant(
+            newVariant,
+            enrolledVariant: LocalPreferencesStore.standard[.enrolledStudyVariant]
+        )
+        guard previousVariant != newVariant else {
             return
         }
-        GroveAppDelegate.grove?.module(StudyManager.self)?.preferredLocale = variant.preferredLocale
-        GroveAppDelegate.grove?.module(NewsManager.self)?.invalidate()
+        if let grove = GroveAppDelegate.grove {
+            grove.module(StudyManager.self)?.preferredLocale = newVariant.preferredLocale
+            grove.module(NewsManager.self)?.invalidate()
+        }
     }
 
     /// Saves both selections before enrollment can persist study data.
@@ -452,8 +506,11 @@ extension Grove {
     @MainActor
     private func loadFirebase(for region: Locale.Region, studyVariant: StudyVariant) {
         DeferredConfigLoading.logger.notice("Will load firebase")
-        let config = DeferredConfigLoading.config(for: .region(region), studyVariant: studyVariant)
-        guard !config.isEmpty else {
+        let config: [any Module]
+        do throws(DeferredConfigLoading.LoadingError) {
+            config = try DeferredConfigLoading.config(for: .region(region), studyVariant: studyVariant)
+        } catch {
+            DeferredConfigLoading.logger.error("Unable to load firebase: \(error)")
             return
         }
         for module in config {

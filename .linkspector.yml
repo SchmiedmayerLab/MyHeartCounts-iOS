@@ -1,0 +1,22 @@
+#
+# This source file is part of the My Heart Counts iOS open-source project
+#
+# SPDX-FileCopyrightText: 2026 Stanford University and the project authors (see CONTRIBUTORS.md)
+#
+# SPDX-License-Identifier: MIT
+#
+
+# Replaces the default config of the shared Markdown Links workflow, so it repeats those defaults.
+dirs:
+  - .
+useGitIgnore: true
+ignorePatterns:
+  - pattern: '^doc:.*$'
+  - pattern: '^http://localhost.*$'
+  # times out from GitHub-hosted runners, although it loads fine elsewhere
+  - pattern: '^https://myheartcounts\.stanford\.edu(/.*)?$'
+replacementPatterns:
+  - pattern: '(.*)#gh-dark-mode-only'
+    replacement: '$1'
+  - pattern: '(.*)#gh-light-mode-only'
+    replacement: '$1'

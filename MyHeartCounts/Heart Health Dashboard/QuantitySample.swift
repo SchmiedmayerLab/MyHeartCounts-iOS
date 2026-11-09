@@ -216,6 +216,9 @@ enum MHCQuantitySampleType: Hashable, Identifiable, Sendable {
     
     var displayUnit: HKUnit {
         switch self {
+        case .healthKit(.bodyMass) where Locale.current.measurementSystem == .uk:
+            // Grove displays body mass in pounds for the UK measurement system, but UK health services record it in kilograms.
+            .gramUnit(with: .kilo)
         case .healthKit(let sampleType):
             sampleType.displayUnit
         case .custom(let sampleType):

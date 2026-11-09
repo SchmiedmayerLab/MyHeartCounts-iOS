@@ -8,6 +8,7 @@
 
 import GroveAccount
 import GroveViews
+import MHCStudyDefinition
 import SFSafeSymbols
 import SwiftUI
 
@@ -35,14 +36,17 @@ struct UpdateComorbiditiesButton: View {
         .sheet(isPresented: $showSheet) {
             @Bindable var data = demographicsData
             NavigationStack {
-                ComorbiditiesPicker(selection: $data[\.comorbidities].withDefault(Comorbidities()))
-                    .navigationBarTitleDisplayMode(.inline)
-                    .interactiveDismissDisabled()
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            closeSheetButton
-                        }
+                ComorbiditiesPicker(
+                    studyVariant: DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford),
+                    selection: $data[\.comorbidities].withDefault(Comorbidities())
+                )
+                .navigationBarTitleDisplayMode(.inline)
+                .interactiveDismissDisabled()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        closeSheetButton
                     }
+                }
             }
             .onAppear {
                 demographicsData.populateIfEmpty(from: account)

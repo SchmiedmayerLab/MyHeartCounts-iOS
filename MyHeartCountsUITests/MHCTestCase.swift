@@ -113,7 +113,7 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
     /// - parameter weightEntryUnitOverride: Allows overriding the unit the app will use when manually entering a weight quantity.
     ///     Allowed values are `kg`, `lbs`, or `nil` (the default).
     /// - parameter extraLaunchArgs: Additional arguments that will be appended to the app's launch arguments. `nil` values will be skipped.
-    func launchAppAndEnrollIntoStudy( // swiftlint:disable:this function_body_length
+    func launchAppAndEnrollIntoStudy( // swiftlint:disable:this function_body_length cyclomatic_complexity
         skip: Bool = false,
         studyVariant: StudyVariant = .stanford,
         locale: Locale = .enUS,
@@ -149,7 +149,11 @@ class MHCTestCase: XCTestCase, @unchecked Sendable {
             "--useFirebaseEmulator"
             testEnvironmentConfig.launchOptionArgs(for: .setupTestEnvironment)
             StudyBundleSelector.atUrl(studyBundleUrl).launchOptionArgs(for: .studyBundleSelector)
-            Optional(studyVariant).launchOptionArgs(for: .studyVariant)
+            // `--studyVariant` forces the variant (see `FeatureFlags.forcedStudyVariant`), which also locks the region selection
+            // and makes the app ignore the `.atUrl` bundle above. Stanford tests therefore skip it, and rely on the app defaulting to `.stanford`.
+            if studyVariant != .stanford {
+                Optional(studyVariant).launchOptionArgs(for: .studyVariant)
+            }
             "--disableAutomaticBulkHealthExport"
             enableDebugMode.launchOptionArgs(for: .forceEnableDebugMode)
             enableHealthRecords.launchOptionArgs(for: .enableHealthRecords)

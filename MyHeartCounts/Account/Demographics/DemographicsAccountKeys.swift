@@ -108,6 +108,16 @@ extension AccountDetails {
     var raceEthnicity: RaceEthnicity?
     
     @AccountKey(
+        id: "ethnicityUK",
+        name: "Ethnicity (UK)",
+        category: .demographics,
+        options: .mutable,
+        as: EthnicityUK.self,
+        initial: .empty(.notSet)
+    )
+    var ethnicityUK: EthnicityUK?
+    
+    @AccountKey(
         id: "latinoStatus",
         name: "Latino / Hispanic?",
         category: .demographics,
@@ -178,6 +188,16 @@ extension AccountDetails {
     var nhsNumber: NHSNumber?
     
     @AccountKey(
+        id: "chiNumber",
+        name: "CHI Number",
+        category: .demographics,
+        options: .mutable,
+        as: CHINumber.self,
+        initial: .empty(CHINumber(unchecked: ""))
+    )
+    var chiNumber: CHINumber?
+    
+    @AccountKey(
         id: "ukPostcode",
         name: "Postcode (UK)",
         category: .demographics,
@@ -220,8 +240,8 @@ extension AccountDetails {
 @KeyEntry(
     \.usRegion, \.usZipCodePrefix, \.householdIncomeUS, \.educationUS,
     \.ukRegion, \.ukPostcode, \.householdIncomeUK, \.educationUK,
-    \.heightInCM, \.weightInKG, \.bloodType, \.nhsNumber, \.mhcGenderIdentity,
-    \.raceEthnicity, \.latinoStatus,
+    \.heightInCM, \.weightInKG, \.bloodType, \.nhsNumber, \.chiNumber, \.mhcGenderIdentity,
+    \.raceEthnicity, \.ethnicityUK, \.latinoStatus,
     \.biologicalSexAtBirth, \.comorbidities, \.futureStudies, \.stageOfChange, \.referralSource
 )
 extension AccountKeys {}

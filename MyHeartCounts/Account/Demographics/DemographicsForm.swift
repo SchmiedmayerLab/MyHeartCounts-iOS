@@ -17,6 +17,7 @@ import MHCStudyDefinition
 import MyHeartCountsShared
 import SFSafeSymbols
 import SwiftUI
+import UIKit
 
 
 // MARK: DemographicsForm
@@ -82,7 +83,7 @@ private struct Impl<Footer: View>: View {
     @State private var trialOptInOverride: Bool?
     
     private var studyVariant: StudyVariant {
-        studyVariantOverride ?? DeferredConfigLoading.activeStudyVariant ?? .stanford
+        studyVariantOverride ?? DeferredConfigLoading.currentStudyVariant.effective(fallback: .stanford)
     }
     
     var body: some View {
@@ -105,9 +106,22 @@ private struct Impl<Footer: View>: View {
         }
         .accessibilityIdentifier("DemographicsForm")
         .viewStateAlert(state: $viewState)
+        // the NHS and CHI number fields use the number pad, which has no return key to dismiss it.
+        .scrollDismissesKeyboard(.interactively)
         .toolbar {
             if ProcessInfo.isBeingUITested {
                 testingSupportToolbarItem
+            }
+            ToolbarItem(placement: .keyboard) {
+                HStack {
+                    Spacer()
+                    Button {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    } label: {
+                        Image(systemSymbol: .keyboardChevronCompactDown)
+                            .accessibilityLabel("Hide Keyboard")
+                    }
+                }
             }
         }
     }
@@ -243,16 +257,17 @@ extension Impl {
                 data[\.sexAtBirth] = .male
                 data[\.height] = HKQuantity(unit: .meterUnit(with: .centi), doubleValue: 186)
                 data[\.weight] = HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: 67)
-                data[\.raceEthnicity] = .white
                 data[\.bloodType] = .aPositive
                 data[\.comorbidities] = .init()
                 switch studyVariant {
                 case .stanford:
+                    data[\.raceEthnicity] = .white
                     data[\.latinoStatus] = LatinoStatusOption.options[0]
                     data[\.usRegion] = .dc
                     data[\.usEducationLevel] = EducationStatusUS.options[0]
                     data[\.usHouseholdIncome] = HouseholdIncomeUS.options[0]
                 case .imperial:
+                    data[\.ukEthnicity] = EthnicityUK.options[0]
                     data[\.ukRegion] = .england(.init(name: "London"))
                     data[\.ukEducationLevel] = EducationStatusUK.options[0]
                     data[\.ukHouseholdIncome] = HouseholdIncomeUK.options[0]

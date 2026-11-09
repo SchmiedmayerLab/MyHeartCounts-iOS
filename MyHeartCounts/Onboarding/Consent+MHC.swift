@@ -23,6 +23,14 @@ extension ConsentDocument.UserResponses {
     }
     
     
+    /// Whether the participant agreed to be contacted about future studies.
+    ///
+    /// The Stanford consent asks this with a toggle, the Imperial consent with a Yes/No choice.
+    var futureStudiesOptIn: Bool {
+        toggleValue(for: .futureStudiesOptIn) ?? (selectedOption(for: .futureStudiesOptIn) == .futureStudiesYes)
+    }
+    
+    
     func toggleValue(for key: ToggleKey) -> Bool? { // swiftlint:disable:this discouraged_optional_boolean
         toggles[key.rawValue]
     }
@@ -41,10 +49,12 @@ extension ConsentDocument.UserResponses.ToggleKey {
 
 extension ConsentDocument.UserResponses.SelectKey {
     static let trialOptIn = Self(rawValue: "short-term-physical-activity-trial")
+    static let futureStudiesOptIn = Self(rawValue: "future-studies")
 }
 
 
 extension ConsentDocument.UserResponses.SelectOptionKey {
+    static let futureStudiesYes = Self(rawValue: "future-studies-yes")
     static let trialYes = Self(rawValue: "short-term-physical-activity-trial-yes")
     static let trialNo = Self(rawValue: "short-term-physical-activity-trial-no")
 }

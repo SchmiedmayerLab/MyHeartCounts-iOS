@@ -20,12 +20,17 @@ import SwiftUI
 struct ConsentRenewalFlow: View {
     @Environment(\.dismiss)
     private var dismiss
+    @Environment(ConsentManager.self)
+    private var consentManager
     
     let document: ConsentDocument
     
     var body: some View {
         ManagedNavigationStack {
             ConsentRenewalExplainer()
+            if let participantInformation = consentManager.loadParticipantInformation() {
+                ParticipantInformationSheet(document: participantInformation, privacyNotice: consentManager.loadPrivacyNotice())
+            }
             Consent(document: document) {
                 dismiss()
             }
