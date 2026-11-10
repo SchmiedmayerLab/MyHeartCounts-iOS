@@ -75,7 +75,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.determineenvironment.outputs.environment }}
-      variants: ${{ steps.determineenvironment.outputs.variants }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -83,21 +82,12 @@ jobs:
         id: determineenvironment
         run: |
           if [[ -z "${{ inputs.environment }}" ]]; then
-            ENVIRONMENT=staging
+            echo "environment=staging" >> "$GITHUB_OUTPUT"
+            echo "environment: staging"
           else
-            ENVIRONMENT="${{ inputs.environment }}"
+            echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+            echo "environment: ${{ inputs.environment }}"
           fi
-          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
-          echo "environment: $ENVIRONMENT"
-
-          # Every deployment also produces an Imperial TestFlight build, except App Store releases (Imperial builds are TestFlight-only).
-          if [[ "$ENVIRONMENT" == "production" ]]; then
-            VARIANTS='["stanford"]'
-          else
-            VARIANTS='["stanford", "imperial"]'
-          fi
-          echo "variants=$VARIANTS" >> "$GITHUB_OUTPUT"
-          echo "variants: $VARIANTS"
   vars:
     name: Inject Environment Variables In Deployment Workflow
     needs: determineenvironment
@@ -138,22 +128,15 @@ jobs:
       actions: read
     secrets: inherit
   testflight:
-    name: iOS App TestFlight Deployment (${{ matrix.variant }})
+    name: iOS App TestFlight Deployment
     needs: [determineenvironment, vars, test]
     # TEMPORARY: the actual deployment is paused; the workflow only builds and tests. Remove this line to deploy again.
     if: ${{ false }}
-    strategy:
-      # Stanford builds get even build numbers and Imperial builds odd ones (see the Fastfile). The legs run one after the other,
-      # so each leg picks its number after the previous upload has finished and the numbers keep increasing.
-      max-parallel: 1
-      fail-fast: false
-      matrix:
-        variant: ${{ fromJSON(needs.determineenvironment.outputs.variants) }}
+    # TestFlight deployments build, upload, and distribute both study variants (see the `deploy` lane in the Fastfile).
     uses: SchmiedmayerLab/.github/.github/workflows/xcode-deploy.yml@v0.5
     permissions:
       contents: read
     with:
-      job_name: Deploy (${{ matrix.variant }})
       runs_on_labels: '["macOS", "self-hosted"]'
       xcode_version: 'latest-stable'
       environment: ${{ needs.determineenvironment.outputs.environment }}
@@ -161,9 +144,8 @@ jobs:
       setup_signing: true
       command: >-
         fastlane deploy environment:"${{ needs.determineenvironment.outputs.environment }}"
-        variant:"${{ matrix.variant }}"
         versionname:"${{ needs.vars.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
-        ${{ matrix.variant == 'stanford' && inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
+        ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
         strip_sensorkit_entitlement:false
     secrets:
       APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
