@@ -70,27 +70,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  determineenvironment:
-    name: Determine Environment
-    runs-on: ubuntu-latest
-    outputs:
-      environment: ${{ steps.determineenvironment.outputs.environment }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-      - name: Determine Environment
-        id: determineenvironment
-        run: |
-          if [[ -z "${{ inputs.environment }}" ]]; then
-            echo "environment=staging" >> "$GITHUB_OUTPUT"
-            echo "environment: staging"
-          else
-            echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
-            echo "environment: ${{ inputs.environment }}"
-          fi
-  vars:
-    name: Inject Environment Variables In Deployment Workflow
-    needs: determineenvironment
+  version:
+    name: Determine Version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.script.outputs.version }}
@@ -104,7 +85,6 @@ jobs:
           initial_version: "4.0.0"
       - id: script
         run: |
-          echo "Injecting Environment Variables In Deployment Workflow ..."
           if [[ -z "${{ inputs.version }}" ]]; then
             IFS='.' read -r MAJOR MINOR PATCH <<< "${{ steps.get-latest-tag.outputs.tag }}"
 
@@ -117,11 +97,8 @@ jobs:
             echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
             echo "version: ${{ inputs.version }}"
           fi
-          echo "buildnumber: ${{ inputs.buildnumber }}"
-          echo "releasenotes: ${{ inputs.releasenotes }}"
   test:
     name: Build and Test
-    needs: determineenvironment
     uses: ./.github/workflows/build-and-test.yml
     permissions:
       contents: read
@@ -129,7 +106,7 @@ jobs:
     secrets: inherit
   testflight:
     name: iOS App TestFlight Deployment
-    needs: [determineenvironment, vars, test]
+    needs: [version, test]
     # TEMPORARY: the actual deployment is paused; the workflow only builds and tests. Remove this line to deploy again.
     if: ${{ false }}
     # TestFlight deployments build, upload, and distribute both study variants (see the `deploy` lane in the Fastfile).
@@ -139,12 +116,12 @@ jobs:
     with:
       runs_on_labels: '["macOS", "self-hosted"]'
       xcode_version: 'latest-stable'
-      environment: ${{ needs.determineenvironment.outputs.environment }}
+      environment: ${{ inputs.environment || 'staging' }}
       injected_secret_file_path: 'MyHeartCounts/Supporting Files/GoogleService-Info.plist'
       setup_signing: true
       command: >-
-        fastlane deploy environment:"${{ needs.determineenvironment.outputs.environment }}"
-        versionname:"${{ needs.vars.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
+        fastlane deploy environment:"${{ inputs.environment || 'staging' }}"
+        versionname:"${{ needs.version.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
         ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
         strip_sensorkit_entitlement:false
     secrets:
