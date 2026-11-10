@@ -14,5 +14,5 @@ self-hosted-runner:
 paths:
   .github/workflows/deployment.yml:
     ignore:
-      # TEMPORARY: the TestFlight deployment is switched off with `if: ${{ false }}`; remove this together with that line.
+      # TEMPORARY: the Deploy job is switched off with `if: ${{ false }}`; remove this together with that line.
       - 'constant expression "false" in condition'
