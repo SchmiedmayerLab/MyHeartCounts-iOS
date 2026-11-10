@@ -193,14 +193,21 @@ platform :ios do
     
     signin
     
+    # Stanford builds always get even build numbers, Imperial builds odd ones.
+    parity = variant == "imperial" ? 1 : 0
+    parity_name = parity.zero? ? "even" : "odd"
     buildnumber = options[:buildnumber].to_s.strip
     if buildnumber.empty?
       latest_build_number = latest_testflight_build_number(
         app_identifier: appidentifier
       )
       buildnumber = latest_build_number + 1
-      UI.message("No build number provided. Incrementing to #{buildnumber}.")
+      buildnumber += 1 unless buildnumber % 2 == parity
+      UI.message("No build number provided. Using the next #{parity_name} build number: #{buildnumber}.")
     else
+      unless buildnumber.match?(/\A\d+\z/) && buildnumber.to_i % 2 == parity
+        UI.user_error!("#{variant.capitalize} builds need an #{parity_name} build number, got '#{buildnumber}'.")
+      end
       UI.message("Using provided build number: #{buildnumber}.")
     end
     increment_build_number(

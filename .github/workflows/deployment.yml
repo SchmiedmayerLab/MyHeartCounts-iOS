@@ -31,7 +31,7 @@ on:
         type: string
       buildnumber:
         description: |
-          Optional build number to use for the Stanford build. The Imperial build always takes the next free build number.
+          Optional build number for the Stanford build; must be even. The Imperial build always takes the next free odd build number.
         required: false
         type: string
       releasenotes:
@@ -55,7 +55,7 @@ on:
         type: string
       buildnumber:
         description: |
-          Optional build number to use for the Stanford build. The Imperial build always takes the next free build number.
+          Optional build number for the Stanford build; must be even. The Imperial build always takes the next free odd build number.
         required: false
         type: string
       releasenotes:
@@ -143,8 +143,8 @@ jobs:
     # TEMPORARY: the actual deployment is paused; the workflow only builds and tests. Remove this line to deploy again.
     if: ${{ false }}
     strategy:
-      # The variants upload to the same App Store Connect app, so they must run one after the other:
-      # each leg takes the next free build number, which only accounts for builds that have finished uploading.
+      # Stanford builds get even build numbers and Imperial builds odd ones (see the Fastfile). The legs run one after the other,
+      # so each leg picks its number after the previous upload has finished and the numbers keep increasing.
       max-parallel: 1
       fail-fast: false
       matrix:
