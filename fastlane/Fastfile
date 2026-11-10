@@ -120,6 +120,7 @@ platform :ios do
 
     build_app(
       scheme: APP_CONFIG[:scheme],
+      output_name: options[:output_name].to_s.strip.empty? ? APP_CONFIG[:scheme] : options[:output_name],
       derived_data_path: ".derivedData",
       skip_profile_detection: true,
       xcargs: [
@@ -155,17 +156,17 @@ platform :ios do
     versionname = options[:versionname].to_s.strip.empty? ? APP_CONFIG[:default_version_name] : options[:versionname]
     releasenotes = options[:releasenotes].to_s.strip.empty? ? APP_CONFIG[:default_release_notes] : options[:releasenotes]
     strip_sensorkit_entitlement = options[:strip_sensorkit_entitlement].to_s == "true"
-    variant = options[:variant].to_s.strip.empty? ? "stanford" : options[:variant].to_s.strip.downcase
+    # The explicit build number is for the Stanford build; every other build takes the next free number.
+    stanford_buildnumber = options[:buildnumber].to_s.strip
+    # TestFlight deployments always ship both study variants. Imperial builds are TestFlight-only.
+    variants = environment == "production" ? ["stanford"] : ["stanford", "imperial"]
 
-    unless ["stanford", "imperial"].include?(variant)
-      UI.user_error!("Unknown study variant '#{variant}'. Expected 'stanford' or 'imperial'.")
-    end
-    if variant == "imperial" && environment == "production"
-      UI.user_error!("Imperial builds are TestFlight-only.")
+    unless stanford_buildnumber.empty? || (stanford_buildnumber.match?(/\A\d+\z/) && stanford_buildnumber.to_i.even?)
+      UI.user_error!("Stanford builds need an even build number, got '#{stanford_buildnumber}'.")
     end
 
     UI.message("Using environment: #{environment}")
-    UI.message("Using study variant: #{variant}")
+    UI.message("Using study variants: #{variants.join(", ")}")
     UI.message("Using app identifier: #{appidentifier}")
     UI.message("Using secondary app identifier: #{secondaryAppIdentifier}")
     UI.message("Using provisioning profile: #{provisioningProfile}")
@@ -192,39 +193,54 @@ platform :ios do
     end
     
     signin
-    
-    buildnumber = options[:buildnumber].to_s.strip
-    if buildnumber.empty?
-      latest_build_number = latest_testflight_build_number(
-        app_identifier: appidentifier
-      )
-      buildnumber = latest_build_number + 1
-      UI.message("No build number provided. Incrementing to #{buildnumber}.")
-    else
-      UI.message("Using provided build number: #{buildnumber}.")
-    end
-    increment_build_number(
-      build_number: buildnumber
-    )
 
     if strip_sensorkit_entitlement
       puts 'Stripping SensorKit entitlement'
       sh('plutil', '-remove', 'com\.apple\.developer\.sensorkit\.reader\.allow', '../MyHeartCounts/Supporting Files/MyHeartCounts.entitlements')
     end
 
-    with_forced_study_variant(File.expand_path("../#{APP_CONFIG[:plist_path]}", __dir__), variant) do
-      archive(
-        appidentifier: appidentifier,
-        secondaryAppIdentifier: secondaryAppIdentifier,
-        provisioningProfile: provisioningProfile,
-        secondaryProvisioningProfile: secondaryProvisioningProfile,
+    # Archive every variant before uploading any of them, so that a variant that fails to compile stops the deployment
+    # before anything reaches App Store Connect.
+    # Stanford builds always get even build numbers, Imperial builds odd ones.
+    highest_buildnumber = latest_testflight_build_number(
+      app_identifier: appidentifier
+    )
+    builds = variants.map do |variant|
+      if variant == "stanford" && !stanford_buildnumber.empty?
+        buildnumber = stanford_buildnumber.to_i
+      else
+        buildnumber = highest_buildnumber + 1
+        buildnumber += 1 unless buildnumber % 2 == (variant == "imperial" ? 1 : 0)
+      end
+      highest_buildnumber = [highest_buildnumber, buildnumber].max
+      UI.message("Archiving the #{variant} variant as build #{buildnumber}.")
+      increment_build_number(
+        build_number: buildnumber
       )
+
+      with_forced_study_variant(File.expand_path("../#{APP_CONFIG[:plist_path]}", __dir__), variant) do
+        archive(
+          appidentifier: appidentifier,
+          secondaryAppIdentifier: secondaryAppIdentifier,
+          provisioningProfile: provisioningProfile,
+          secondaryProvisioningProfile: secondaryProvisioningProfile,
+          output_name: "#{APP_CONFIG[:scheme]}-#{variant}",
+        )
+      end
+      ipa = lane_context[SharedValues::IPA_OUTPUT_PATH]
+      {
+        variant: variant,
+        ipa: ipa,
+        version: FastlaneCore::IpaFileAnalyser.fetch_app_version(ipa),
+        buildnumber: FastlaneCore::IpaFileAnalyser.fetch_app_build(ipa)
+      }
     end
     commit = last_git_commit
     
     if environment == "production"
       deliver(
         app_identifier: appidentifier,
+        ipa: builds.first[:ipa],
         release_notes: {
           'en-US' => releasenotes,
           'en-GB' => releasenotes,
@@ -238,25 +254,45 @@ platform :ios do
         precheck_include_in_app_purchases: false,
       )
     else
-      testflight_group = if variant == "imperial"
-        "External Testers (Imperial)"
-      elsif environment == "development"
-        "Development"
-      else
-        "External Testers (Stanford)"
+      changelogs = {
+        "stanford" => commit[:message],
+        "imperial" => "[UK] #{commit[:message]}"
+      }
+      testflight_groups = {
+        "stanford" => environment == "development" ? "Development" : "External Testers (Stanford)",
+        "imperial" => "External Testers (Imperial)"
+      }
+
+      # Upload every build and wait until App Store Connect has processed it, without handing it to any testers yet.
+      builds.each do |build|
+        upload_to_testflight(
+          app_identifier: appidentifier,
+          ipa: build[:ipa],
+          skip_submission: true,
+          changelog: changelogs[build[:variant]]
+        )
       end
-      upload_to_testflight(
-        app_identifier: appidentifier,
-        distribute_external: true,
-        reject_build_waiting_for_review: true,
-        expire_previous_builds: false,
-        groups: [
-          testflight_group
-        ],
-        submit_beta_review: true,
-        notify_external_testers: true,
-        changelog: variant == "imperial" ? "[UK] #{commit[:message]}" : commit[:message]
-      )
+
+      # Only now that every variant is on TestFlight do the builds go out to the testers.
+      builds.each_with_index do |build, index|
+        upload_to_testflight(
+          app_identifier: appidentifier,
+          distribute_only: true,
+          app_version: build[:version],
+          build_number: build[:buildnumber],
+          distribute_external: true,
+          # Pilot expires *any* build of this version that is waiting for beta review.
+          # Only the first build may do that, otherwise it would expire the builds this run has just submitted.
+          reject_build_waiting_for_review: index.zero?,
+          expire_previous_builds: false,
+          groups: [
+            testflight_groups[build[:variant]]
+          ],
+          submit_beta_review: true,
+          notify_external_testers: true,
+          changelog: changelogs[build[:variant]]
+        )
+      end
     end
   end
 end

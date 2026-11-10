@@ -24,15 +24,6 @@ on:
           - development
           - staging
           - production
-      variant:
-        description: |
-          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "External Testers (Imperial)" TestFlight group.
-        required: true
-        default: 'stanford'
-        type: choice
-        options:
-          - stanford
-          - imperial
       version:
         description: |
           The semantic version of the app that should be released.
@@ -40,7 +31,7 @@ on:
         type: string
       buildnumber:
         description: |
-          Optional build number to use for deployment.
+          Optional build number for the Stanford build; must be even. The Imperial build always takes the next free odd build number.
         required: false
         type: string
       releasenotes:
@@ -57,12 +48,6 @@ on:
         required: false
         type: string
         default: staging
-      variant:
-        description: |
-          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "External Testers (Imperial)" TestFlight group.
-        required: false
-        type: string
-        default: stanford
       version:
         description: |
           The semantic version of the app that should be released.
@@ -70,7 +55,7 @@ on:
         type: string
       buildnumber:
         description: |
-          Optional build number to use for deployment.
+          Optional build number for the Stanford build; must be even. The Imperial build always takes the next free odd build number.
         required: false
         type: string
       releasenotes:
@@ -145,6 +130,9 @@ jobs:
   testflight:
     name: iOS App TestFlight Deployment
     needs: [determineenvironment, vars, test]
+    # TEMPORARY: the actual deployment is paused; the workflow only builds and tests. Remove this line to deploy again.
+    if: ${{ false }}
+    # TestFlight deployments build, upload, and distribute both study variants (see the `deploy` lane in the Fastfile).
     uses: SchmiedmayerLab/.github/.github/workflows/xcode-deploy.yml@v0.5
     permissions:
       contents: read
@@ -156,7 +144,6 @@ jobs:
       setup_signing: true
       command: >-
         fastlane deploy environment:"${{ needs.determineenvironment.outputs.environment }}"
-        variant:"${{ inputs.variant || 'stanford' }}"
         versionname:"${{ needs.vars.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
         ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
         strip_sensorkit_entitlement:false
