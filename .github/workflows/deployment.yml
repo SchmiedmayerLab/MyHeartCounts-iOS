@@ -24,15 +24,6 @@ on:
           - development
           - staging
           - production
-      variant:
-        description: |
-          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "External Testers (Imperial)" TestFlight group.
-        required: true
-        default: 'stanford'
-        type: choice
-        options:
-          - stanford
-          - imperial
       version:
         description: |
           The semantic version of the app that should be released.
@@ -40,7 +31,7 @@ on:
         type: string
       buildnumber:
         description: |
-          Optional build number to use for deployment.
+          Optional build number to use for the Stanford build. The Imperial build always takes the next free build number.
         required: false
         type: string
       releasenotes:
@@ -57,12 +48,6 @@ on:
         required: false
         type: string
         default: staging
-      variant:
-        description: |
-          The study variant the build is for. `imperial` locks the onboarding to the Imperial study and distributes to the "External Testers (Imperial)" TestFlight group.
-        required: false
-        type: string
-        default: stanford
       version:
         description: |
           The semantic version of the app that should be released.
@@ -70,7 +55,7 @@ on:
         type: string
       buildnumber:
         description: |
-          Optional build number to use for deployment.
+          Optional build number to use for the Stanford build. The Imperial build always takes the next free build number.
         required: false
         type: string
       releasenotes:
@@ -90,6 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.determineenvironment.outputs.environment }}
+      variants: ${{ steps.determineenvironment.outputs.variants }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -97,12 +83,21 @@ jobs:
         id: determineenvironment
         run: |
           if [[ -z "${{ inputs.environment }}" ]]; then
-            echo "environment=staging" >> "$GITHUB_OUTPUT"
-            echo "environment: staging"
+            ENVIRONMENT=staging
           else
-            echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
-            echo "environment: ${{ inputs.environment }}"
+            ENVIRONMENT="${{ inputs.environment }}"
           fi
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+          echo "environment: $ENVIRONMENT"
+
+          # Every deployment also produces an Imperial TestFlight build, except App Store releases (Imperial builds are TestFlight-only).
+          if [[ "$ENVIRONMENT" == "production" ]]; then
+            VARIANTS='["stanford"]'
+          else
+            VARIANTS='["stanford", "imperial"]'
+          fi
+          echo "variants=$VARIANTS" >> "$GITHUB_OUTPUT"
+          echo "variants: $VARIANTS"
   vars:
     name: Inject Environment Variables In Deployment Workflow
     needs: determineenvironment
@@ -143,12 +138,22 @@ jobs:
       actions: read
     secrets: inherit
   testflight:
-    name: iOS App TestFlight Deployment
+    name: iOS App TestFlight Deployment (${{ matrix.variant }})
     needs: [determineenvironment, vars, test]
+    # TEMPORARY: the actual deployment is paused; the workflow only builds and tests. Remove this line to deploy again.
+    if: ${{ false }}
+    strategy:
+      # The variants upload to the same App Store Connect app, so they must run one after the other:
+      # each leg takes the next free build number, which only accounts for builds that have finished uploading.
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.determineenvironment.outputs.variants) }}
     uses: SchmiedmayerLab/.github/.github/workflows/xcode-deploy.yml@v0.5
     permissions:
       contents: read
     with:
+      job_name: Deploy (${{ matrix.variant }})
       runs_on_labels: '["macOS", "self-hosted"]'
       xcode_version: 'latest-stable'
       environment: ${{ needs.determineenvironment.outputs.environment }}
@@ -156,9 +161,9 @@ jobs:
       setup_signing: true
       command: >-
         fastlane deploy environment:"${{ needs.determineenvironment.outputs.environment }}"
-        variant:"${{ inputs.variant || 'stanford' }}"
+        variant:"${{ matrix.variant }}"
         versionname:"${{ needs.vars.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
-        ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
+        ${{ matrix.variant == 'stanford' && inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
         strip_sensorkit_entitlement:false
     secrets:
       APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
