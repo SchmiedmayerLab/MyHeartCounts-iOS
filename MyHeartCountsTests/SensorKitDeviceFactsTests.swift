@@ -72,7 +72,8 @@ struct SensorKitDeviceFactsTests {
     }
 
     /// A peripheral is a recording Device of its own, stating every fact of the `SRSourceDevice`, which the Provenance's
-    /// source entity names as its performer and no output references.
+    /// source entity names as its performer, beside the `SRDevice` as its composer. Unless the peripheral supplied every
+    /// sample, every output keeps naming the `SRDevice`.
     @Test
     func theProvenanceNamesEveryPeripheralAsAPerformer() async throws {
         try await publish(through: harness.publication(uploads: uploads, sourceDevices: [.pinnedPeripheral()]))
@@ -92,10 +93,38 @@ struct SensorKitDeviceFactsTests {
         let provenances = resources.compactMap { $0.get(if: Provenance.self) }
         #expect(provenances.count == 1)
         let agents = try #require(provenances.first?.entity?.first?.agent)
-        #expect(agents.map(\.who.reference?.value?.string) == [peripheral.url])
-        #expect(agents.first?.type?.coding?.first?.code?.value?.string == "performer")
+        #expect(agents.map(\.who.reference?.value?.string) == [peripheral.url, recording.url])
+        #expect(agents.map { $0.type?.coding?.first?.code?.value?.string } == ["performer", "composer"])
         let documents = resources.compactMap { $0.get(if: DocumentReference.self) }
         #expect(!documents.contains { $0.author?.contains { $0.reference?.value?.string == peripheral.url } == true })
+        let observations = resources.compactMap { $0.get(if: Observation.self) }
+        #expect(!observations.isEmpty)
+        #expect(observations.allSatisfy { $0.device?.reference?.value?.string == recording.url })
+    }
+
+    /// A sole peripheral that supplied every sample of the batch is the device its Observations name; the `SRDevice` stays
+    /// the composer and the Recording Document's author.
+    @Test
+    func aSolePeripheralThatSuppliedEverySampleIsTheObservationsDevice() async throws {
+        try await publish(through: harness.publication(
+            uploads: uploads,
+            sourceDevices: [.pinnedPeripheral()],
+            sourceDevicesSuppliedEverySample: true
+        ))
+
+        let devices = try recordingDevices
+        #expect(devices.count == 2)
+        let recording = try #require(devices.first { $0.device.modelNumber?.value?.string == "iPhone18,1" })
+        let peripheral = try #require(devices.first { $0.device.modelNumber?.value?.string == "Ear One" })
+        let resources = try bundle.entry?.compactMap(\.resource) ?? []
+        let observations = resources.compactMap { $0.get(if: Observation.self) }
+        #expect(!observations.isEmpty)
+        #expect(observations.allSatisfy { $0.device?.reference?.value?.string == peripheral.url })
+        let agents = try #require(resources.compactMap { $0.get(if: Provenance.self) }.first?.entity?.first?.agent)
+        #expect(agents.map(\.who.reference?.value?.string) == [peripheral.url, recording.url])
+        for document in resources.compactMap({ $0.get(if: DocumentReference.self) }) {
+            #expect(document.author?.contains { $0.reference?.value?.string == recording.url } == true)
+        }
     }
 
     /// `SRDevice.name` is the name a person gave the device: it enters the recording Device only. The batch's info, the
@@ -117,14 +146,32 @@ struct SensorKitDeviceFactsTests {
     /// what Grove maps from SensorKit's.
     @Test
     func persistedDevicesKeepEveryFact() async throws {
-        let publication = try harness.publication(uploads: uploads, sourceDevices: [.pinnedPeripheral()])
+        let publication = try harness.publication(
+            uploads: uploads,
+            sourceDevices: [.pinnedPeripheral()],
+            sourceDevicesSuppliedEverySample: true
+        )
         let first = try await publication.batchFacts().devices
         let redelivered = try await publication.batchFacts().devices
 
         for devices in [first, redelivered] {
             #expect(devices.recordingDevice == RecordingDevice(publication.info.device))
             #expect(devices.sourceDevices == [RecordingDevice(SensorKit.SourceDeviceInfo.pinnedPeripheral())])
+            #expect(devices.sourcesSuppliedEverySample)
         }
+    }
+
+    /// Retry state persisted before the batch stated whether its peripherals supplied every sample reads back as not
+    /// stating it, so a redelivery keeps naming the `SRDevice` as its Observations' device.
+    @Test
+    func devicesPersistedWithoutTheSampleFlagReadBackWithoutIt() throws {
+        let devices = SensorBatchDevices.testing(sources: [.pinnedPeripheral()], sourcesSuppliedEverySample: true)
+        var object = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(devices)) as? [String: Any])
+        #expect(object.removeValue(forKey: "sourcesSuppliedEverySample") as? Bool == true)
+        let legacy = try JSONDecoder().decode(SensorBatchDevices.self, from: JSONSerialization.data(withJSONObject: object))
+        #expect(legacy.recording == devices.recording)
+        #expect(legacy.sources == devices.sources)
+        #expect(!legacy.sourcesSuppliedEverySample)
     }
 }
 
