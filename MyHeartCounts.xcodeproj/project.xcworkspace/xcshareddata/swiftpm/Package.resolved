@@ -1,5 +1,5 @@
 {
-  "originHash" : "99e17b85b9bb4190801b96f1c1fc3f80e1910267e10d4a6268e35f1ac17558f5",
+  "originHash" : "6df741bce8861d5f4422a2d9fe0284e2ebeed948f5d2da7448e910ad63b5ded8",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -96,7 +96,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/Grove.git",
       "state" : {
-        "revision" : "672577f2df9167620551022cc838f997bf6b8dc3"
+        "revision" : "5aba9a0ad1a0e6bd4046b523d1dbd70b7cb71e6d",
+        "version" : "0.3.0-beta.11"
       }
     },
     {
@@ -140,7 +141,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git",
       "state" : {
-        "revision" : "15a57fb1040fccd905782e331fb84a10df875812"
+        "revision" : "35ce82beda926b6542c4b2dadc7e2dc126237403"
       }
     },
     {
