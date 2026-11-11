@@ -10,3 +10,9 @@ self-hosted-runner:
   # Custom labels of the self-hosted runners.
   labels:
     - xcode-26.6
+
+paths:
+  .github/workflows/deployment.yml:
+    ignore:
+      # TEMPORARY: the Deploy job is switched off with `if: ${{ false }}`; remove this together with that line.
+      - 'constant expression "false" in condition'
