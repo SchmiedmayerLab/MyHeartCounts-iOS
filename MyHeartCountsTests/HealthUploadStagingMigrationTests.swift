@@ -187,7 +187,8 @@ struct HealthUploadStagingMigrationTests {
     }
 
     /// H20: one v4 database can hold both legacy kinds, so the migration reads each row's own payload, and only its top
-    /// level. A payload it can't read stays a resource; the drain uploads it as an `unreadable_` object.
+    /// level. A payload it can't read stays a resource; the drain uploads one that is no JSON object as an `unreadable_`
+    /// object.
     @Test
     func v5ClassifiesEachRowByTheTopLevelResourceTypeOfItsPayload() async throws {
         let payloads: [(fhirJson: Data, format: HealthUploadStaging.PendingSampleRecord.PayloadFormat)] = [

@@ -29,7 +29,7 @@ import MyHeartCountsShared
 //    byte cap, which then travels alone.
 // 3. A `deferred` record goes into the next Bundle of the same chunk.
 // 4. A row that can't be decompressed or validated leaves alone, as its stored bytes, in an `unreadable_` object. A legacy
-//    row is valid when its payload is one JSON object, since it is spliced into its kind's array as stored.
+//    row is valid when its payload is one UTF-8 JSON object, since it is spliced into its kind's array as stored.
 // 5. When a Bundle fails to validate, its records are re-packed one per Bundle; a record whose one-record Bundle still fails
 //    leaves alone, as rule 4 says.
 // 6. Applied first: a row stored under another subject is removed before anything reads its payload, and so is a record
@@ -278,6 +278,18 @@ extension HealthUploadStagingUploader {
         return true
     }
 
+    /// Whether a legacy payload may be spliced into its kind's array as stored (rule 4): one UTF-8 JSON object.
+    ///
+    /// Anything else makes the array unparseable or puts a non-resource into it. `JSONSerialization` alone also reads
+    /// UTF-16, UTF-32 and a byte order mark, so the payload must start with `{` and hold no NUL byte, which UTF-8 JSON
+    /// never contains. It still reads a trailing comma, which none of the encoders that wrote these rows produce.
+    nonisolated static func isLegacyElement(_ json: Data) -> Bool {
+        let whitespace: Set<UInt8> = [0x20, 0x09, 0x0A, 0x0D]
+        return json.first { !whitespace.contains($0) } == UInt8(ascii: "{")
+            && !json.contains(0)
+            && (try? JSONSerialization.jsonObject(with: json)) is [String: Any]
+    }
+
     /// What `chunk`'s rows leave the device as, by rules 1 to 6.
     nonisolated private static func upload(
         of chunk: HealthUploadStaging.DrainChunk<HealthUploadStaging.PendingSampleRecord>,
@@ -303,8 +315,7 @@ extension HealthUploadStagingUploader {
             }
             switch row.payloadFormat {
             case .legacyResource, .legacyEventBundle:
-                // Rule 4: one payload that isn't a JSON object would make the whole spliced array unparseable.
-                guard (try? JSONSerialization.jsonObject(with: json)) is [String: Any] else {
+                guard Self.isLegacyElement(json) else {
                     upload.leaveUnreadable(row, sampleType: chunk.sampleType, fileExtension: "zstd")
                     continue
                 }

@@ -588,12 +588,13 @@ extension HealthUploadStagingDrainLivenessTests {
         #expect(try staging.isEmpty)
     }
 
-    /// A legacy payload is spliced into its kind's array as stored, so one that decompresses to no JSON object leaves
-    /// alone instead of making the whole array unparseable.
+    /// A legacy payload is spliced into its kind's array as stored, so one that decompresses to no UTF-8 JSON object
+    /// leaves alone instead of breaking the array or putting a non-resource into it.
     @Test(arguments: [PayloadFormat.legacyResource, .legacyEventBundle], [
         #"{"resourceType":"Observation","valueQuantity":{"value":NaN}}"#,
         #"{"resourceType":"Observation""#,
-        #"["Observation"]"#
+        #"["Observation"]"#,
+        "\u{FEFF}" + #"{"resourceType":"Observation"}"#
     ])
     func aLegacyRowThatIsNoJSONObjectStagesOneZstdObject(format: PayloadFormat, payload: String) async throws {
         let staging = try await HealthUploadStaging.resolvedForTesting()
@@ -610,6 +611,17 @@ extension HealthUploadStagingDrainLivenessTests {
         #expect(try drain.stagedJSON.allSatisfy { (try? JSONSerialization.jsonObject(with: $0)) is [Any] })
         #expect(drain.events == [Self.event(.unreadable, rows: 1)])
         #expect(try staging.isEmpty)
+    }
+
+    @Test
+    func aLegacyElementIsOneUTF8JSONObject() throws {
+        let object = #"{"resourceType":"Observation"}"#
+        #expect(HealthUploadStagingUploader.isLegacyElement(Data(object.utf8)))
+        #expect(HealthUploadStagingUploader.isLegacyElement(Data(" \n\(object)".utf8)))
+        #expect(!HealthUploadStagingUploader.isLegacyElement(Data("\u{FEFF}\(object)".utf8)))
+        #expect(!HealthUploadStagingUploader.isLegacyElement(try #require(object.data(using: .utf16LittleEndian))))
+        #expect(!HealthUploadStagingUploader.isLegacyElement(Data(#"["Observation"]"#.utf8)))
+        #expect(!HealthUploadStagingUploader.isLegacyElement(Data()))
     }
 
     /// Legacy rows never share a file with records or with the other legacy kind, and their elements travel as stored.
