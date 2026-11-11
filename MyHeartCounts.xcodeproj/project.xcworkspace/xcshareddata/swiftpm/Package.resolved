@@ -96,7 +96,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/Grove.git",
       "state" : {
-        "revision" : "624617c7cf6c483fdd5a4c41379070582ec11ca2"
+        "revision" : "36116764b89a1cdccb146b53bb0f8e14e21932ce"
       }
     },
     {
@@ -140,7 +140,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SchmiedmayerLab/MyHeartCounts-StudyDefinitions.git",
       "state" : {
-        "revision" : "70f07ac66a5aa7d1a6a2d6c861b90e35c8035b4f"
+        "revision" : "bd97df2cd98e484c70d66f0eac1faa96217e0bf0"
       }
     },
     {
