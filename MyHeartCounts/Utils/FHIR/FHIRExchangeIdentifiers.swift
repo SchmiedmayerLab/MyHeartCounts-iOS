@@ -18,7 +18,7 @@ enum FHIRExchangeIdentifiers {
         case sensorKit = "sensorkit"
     }
 
-    /// The deployment root the Grove opaque, event, and entry-node systems derive from.
+    /// The deployment root the Grove opaque, snapshot, record-version and record-retraction systems derive from.
     static let deploymentRoot: IdentifierSystem = "https://myheartcounts.stanford.edu/fhir"
 
     static let application: IdentifierSystem =
@@ -38,55 +38,17 @@ enum FHIRExchangeIdentifiers {
     static let visitLocation: IdentifierSystem =
         "https://myheartcounts.stanford.edu/fhir/identifiers/sensorkit-visit-location"
 
-    /// The wire-visible key id selecting the store-bound secret every identity is minted from.
-    static let identityKeyID = "store"
+    /// What every key id starts with, before the key's per-subject fingerprint.
+    static let identityKeyIDPrefix = "s"
+
+    /// The native SensorKit record system of the repository `scope` names, as
+    /// ``FHIRExchangeStateStore/sensorKitRecordScope(of:secret:)`` gives it.
+    static func sensorKitSourceRecord(scope: String) throws -> IdentifierSystem {
+        try IdentifierSystem("\(sensorKitSourceRecord.rawValue)/\(scope)")
+    }
 
     /// The canonical of the protocol one study revision follows.
     static func studyProtocol(studyID: String) -> FHIRPrimitive<Canonical> {
         FHIRPrimitive(Canonical(stringLiteral: "\(deploymentRoot.rawValue)/PlanDefinition/\(studyID)"))
-    }
-}
-
-
-extension FHIRExchangeEventFacts {
-    var application: ApplicationDevice {
-        get throws {
-            try ApplicationDevice(
-                name: applicationName,
-                bundleIdentifier: applicationBundleIdentifier,
-                version: applicationVersion,
-                build: applicationBuild
-            )
-        }
-    }
-
-    var host: HostDevice {
-        get throws {
-            try HostDevice(
-                operatingSystemVersion: hostOperatingSystemVersion,
-                name: hostName,
-                manufacturer: hostManufacturer,
-                modelNumber: hostModelNumber
-            )
-        }
-    }
-
-    /// The enrollment the event is relevant to, stated with the exact protocol revision it ran under.
-    func studies(for subject: FHIRExchangeSubject) throws -> [StudyEnrollment] {
-        guard let study else {
-            return []
-        }
-        let studyID = study.id.lowercased()
-        return [
-            try StudyEnrollment(
-                study: BusinessIdentifier(system: FHIRExchangeIdentifiers.researchStudy, value: studyID),
-                protocolURL: FHIRExchangeIdentifiers.studyProtocol(studyID: studyID),
-                protocolVersion: String(study.revision),
-                enrollment: BusinessIdentifier(
-                    system: FHIRExchangeIdentifiers.researchSubject,
-                    value: "\(studyID):\(subject.identity.value)"
-                )
-            )
-        ]
     }
 }

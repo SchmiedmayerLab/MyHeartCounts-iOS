@@ -13,21 +13,22 @@ public import Foundation
 ///
 /// The archive's layout (``BatchInfo/formatVersion`` 1):
 /// - `batchinfo.json`: the batch's ``BatchInfo``, which sums up the records it holds.
-/// - `bundles.json`: a JSON array of the records' FHIR Bundles, each spliced in verbatim, in the order they were added.
-/// - `recordings/<name>`: each recording a Bundle references, at the path relative to the archive's root that the Bundle
+/// - `bundle.json`: the one FHIR Bundle that holds every record, verbatim.
+/// - `recordings/<name>`: each recording the Bundle references, at the path relative to the archive's root that the Bundle
 ///     states (see ``recordingPath(forName:)``).
 ///
-/// Records are added one at a time: each record's recording is written to the archive's file right away, while its
-/// Bundle is kept until ``finalize()`` writes `bundles.json` and `batchinfo.json`. An archive that is not finalized
-/// removes its file. Every entry is compressed with Zstandard, unless that would not make it smaller.
+/// Records are added one at a time: each record's recording is written to the archive's file right away, and
+/// ``finalize(bundle:)`` writes `bundle.json` and `batchinfo.json`. An archive that is not finalized removes its file.
+/// Every entry is compressed with Zstandard, unless that would not make it smaller.
 ///
-/// The same records, added in the same order, always produce the same entries. The archive's compressed bytes are the
-/// same only under the same version of Zstandard, which guarantees reproducible output within a release only; an
-/// archive rebuilt after an update may differ from an earlier one byte for byte while holding the same entries.
+/// The same records, added in the same order, and the same Bundle always produce the same entries. The archive's
+/// compressed bytes are the same only under the same version of Zstandard, which guarantees reproducible output within a
+/// release only; an archive rebuilt after an update may differ from an earlier one byte for byte while holding the same
+/// entries.
 ///
 /// ``Reader`` reads an archive back.
 public struct UploadBatchArchive: ~Copyable {
-    /// A recording a record's Bundle references.
+    /// A recording the Bundle references.
     public struct Recording: Hashable, Sendable {
         /// The recording's file name within the archive's `recordings/` directory.
         public let name: String
@@ -48,7 +49,7 @@ public struct UploadBatchArchive: ~Copyable {
     }
 
     private static let batchInfoPath = "batchinfo.json"
-    private static let bundlesPath = "bundles.json"
+    private static let bundlePath = "bundle.json"
     private static let recordingsDirectory = "recordings/"
     /// The deterministic JSON the batch info is written as: sorted keys, and every date as an ISO 8601 instant in UTC,
     /// with its fractional seconds.
@@ -68,8 +69,8 @@ public struct UploadBatchArchive: ~Copyable {
     private var info: BatchInfo
     private let url: URL
     private var archive: ZipArchive
-    /// The `bundles.json` array, as far as the records added so far fill it.
-    private var bundles = Data("[".utf8)
+    /// The names of the recordings written so far.
+    private var recordingNames: Set<String> = []
 
     /// Creates an empty archive in a temporary file, for records of one sample type.
     ///
@@ -87,37 +88,35 @@ public struct UploadBatchArchive: ~Copyable {
         recordingsDirectory + name
     }
 
-    /// Adds one record: its Bundle, the recording the Bundle references, if any, and the facts the batch info sums up.
+    /// Adds one record: the recording the Bundle references for it, if any, and the facts the batch info sums up.
     ///
-    /// - parameter bundle: The record's FHIR Bundle, as JSON, which is written verbatim.
+    /// A recording name is written once: equal names hold equal bytes, and byte-identical records at two coordinates
+    /// are legal, so the second record's recording is the first's.
+    ///
     /// - parameter recording: The recording the Bundle references, under the path ``recordingPath(forName:)`` gives
     ///     for its name.
     /// - parameter timeRange: The time span the record's samples cover.
     /// - parameter sampleCount: The number of samples the record holds.
     public mutating func addRecord(
-        bundle: Data,
         recording: Recording? = nil,
         timeRange: Range<Date>,
         sampleCount: Int
     ) throws {
-        if let recording {
+        if let recording, recordingNames.insert(recording.name).inserted {
             try archive.addEntry(at: Self.recordingPath(forName: recording.name), contents: recording.contents, compression: .zstd)
         }
-        if info.numRecords > 0 {
-            bundles.append(UInt8(ascii: ","))
-        }
-        bundles.append(bundle)
         info.startDate = min(info.startDate ?? timeRange.lowerBound, timeRange.lowerBound)
         info.endDate = max(info.endDate ?? timeRange.upperBound, timeRange.upperBound)
         info.numRecords += 1
         info.numSamples += sampleCount
     }
 
-    /// Writes `bundles.json` and `batchinfo.json`, and completes the archive.
-    public consuming func finalize() throws -> Finalized {
-        bundles.append(UInt8(ascii: "]"))
+    /// Writes `bundle.json` and `batchinfo.json`, and completes the archive.
+    ///
+    /// - parameter bundle: The FHIR Bundle of every record added, as JSON, which is written verbatim.
+    public consuming func finalize(bundle: Data) throws -> Finalized {
         let batchInfo = try Self.encoder.encode(info)
-        try archive.addEntry(at: Self.bundlesPath, contents: bundles, compression: .zstd)
+        try archive.addEntry(at: Self.bundlePath, contents: bundle, compression: .zstd)
         try archive.addEntry(at: Self.batchInfoPath, contents: batchInfo, compression: .zstd)
         try archive.finalize()
         return Finalized(url: url, batchInfo: batchInfo)
@@ -186,11 +185,11 @@ extension UploadBatchArchive {
 
 //        Field    SensorKit    HealthKit
 //        formatVersion    1    1
-//        source    sensorkit    healthkit
-//        sampleType    com.apple.SensorKit.accelerometer    HKQuantityTypeIdentifierHeartRate
-//        start, end    the batch’s time range    min/max of the samples’ dates
-//        recordCount    bundles in the archive    bundles in the archive
-//        sampleCount    samples across records (a CSV record holds many)    same as recordCount
+//        source    com.apple.SensorKit    com.apple.HealthKit
+//        sampleTypeId    com.apple.SensorKit.accelerometer    HKQuantityTypeIdentifierHeartRate
+//        startDate, endDate    the batch’s time range    min/max of the samples’ dates
+//        numRecords    records in the archive’s Bundle    records in the archive’s Bundle
+//        numSamples    samples across records (a CSV record holds many)    same as numRecords
 //        device    the batch’s product type, e.g. Watch7,12    (omitted)
     }
 }
@@ -212,7 +211,7 @@ extension UploadBatchArchive {
     public struct Reader {
         /// The batch's info.
         public let info: BatchInfo
-        /// The paths of the batch's recordings, relative to the archive's root, as the Bundles that reference them state.
+        /// The paths of the batch's recordings, relative to the archive's root, as the Bundle that references them states.
         public let recordingPaths: [String]
         private let archive: ZipArchive.Reader
 
@@ -246,9 +245,9 @@ extension UploadBatchArchive {
             return try archive.contents(of: entry)
         }
 
-        /// The batch's Bundles: the contents of `bundles.json`, a JSON array of them.
-        public func bundles() throws -> Data {
-            try Self.contents(at: UploadBatchArchive.bundlesPath, in: archive)
+        /// The batch's Bundle: the contents of `bundle.json`.
+        public func bundle() throws -> Data {
+            try Self.contents(at: UploadBatchArchive.bundlePath, in: archive)
         }
 
         /// The recording at `path`, one of the ``recordingPaths``.

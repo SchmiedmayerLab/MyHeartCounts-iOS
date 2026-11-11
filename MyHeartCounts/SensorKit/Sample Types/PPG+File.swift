@@ -22,9 +22,9 @@ extension SRPhotoplethysmogramSample {
             publication: SensorKitBatchPublication,
             for sensor: Sensor<SRPhotoplethysmogramSample>,
             activity: SensorKitDataFetcher.InProgressActivity
-        ) async throws -> ExchangeProducer.Receipt? {
+        ) async throws {
             guard let timeRange = samples.coveredTimeRange else {
-                return nil
+                return
             }
             let ppgSamples = Array(samples)
             // The whole batch is one record, so a batch Grove refuses is skipped as a whole.
@@ -32,7 +32,7 @@ extension SRPhotoplethysmogramSample {
                 try SensorKitPPGRecording(samples: ppgSamples).prepared()
             }
             guard let prepared else {
-                return nil
+                return
             }
             let upload = SensorKitRecordUpload(
                 ordinal: 0,
@@ -51,7 +51,7 @@ extension SRPhotoplethysmogramSample {
                     admission: .callerAuthorizedOpaquePayload
                 )
             }
-            return try await publish([upload], for: sensor, publication: publication, activity: activity)
+            try await publish([upload], for: sensor, publication: publication, activity: activity)
         }
     }
 }

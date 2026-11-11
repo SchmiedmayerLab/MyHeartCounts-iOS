@@ -26,7 +26,7 @@ where Sample.SafeRepresentation: GroveStructuredSensorSample {
         publication: SensorKitBatchPublication,
         for sensor: Sensor<Sample>,
         activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws -> ExchangeProducer.Receipt? {
+    ) async throws {
         activity.updateMessage("Converting \(sensor.displayName)")
         var uploads: [SensorKitRecordUpload] = []
         for (recordOrdinal, sample) in samples.enumerated() {
@@ -59,7 +59,7 @@ where Sample.SafeRepresentation: GroveStructuredSensorSample {
                 )
             })
         }
-        return try await publish(uploads, for: sensor, publication: publication, activity: activity)
+        try await publish(uploads, for: sensor, publication: publication, activity: activity)
     }
 }
 

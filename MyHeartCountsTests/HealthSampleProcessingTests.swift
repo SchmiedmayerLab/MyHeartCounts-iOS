@@ -61,12 +61,17 @@ struct HealthSampleProcessingTests {
             system: FHIRExchangeIdentifiers.participant,
             value: "test"
         ))
-        let exporter = try FHIRExchangeStateStore().healthKitExporter(subject: subject, ledger: .forTesting())
-        var graphs: [Data] = []
+        let exporter = try FHIRExchangeStateStore().healthKitExporter(subject: subject, facts: .testing())
+        var records: [ExchangeRecord] = []
         _ = try await exporter.exportBatch(samples, at: startDate, recordProvider: .healthKit(HealthKit())) { entry in
-            graphs.append(try entry.json())
+            records.append(try entry.exchangeRecord())
         }
-        let observations = try exportedObservations(from: HealthUploadBatch.jsonArray(graphs) { $0 })
+        let files = StagedUploadFiles()
+        try await HealthUploadBatch.stage(records, sampleType: SampleType.stepCount.id, packedAt: startDate) { file in
+            try files.stage(file)
+        }
+        #expect(files.all.count == 1)
+        let observations = try exportedObservations(from: try #require(files.all.first))
         #expect(observations.count == 3)
         #expect(observations.map(\.quantityValue) == [
             HKQuantity(unit: .count(), doubleValue: 12),
@@ -219,8 +224,10 @@ struct HealthSampleProcessingTests {
     }
 
 
+    /// A redelivery is converted again at its own ingestion instant and replaces the unclaimed row, so one version of the
+    /// sample stays staged: a new version of the same source record.
     @Test
-    func healthUploadStagingRedeliveryPreservesExactFHIRPayload() async throws {
+    func healthUploadStagingRedeliveryReplacesAnUnclaimedRow() async throws {
         let healthUploadStaging = try stagingForTesting()
         await withDependencyResolution(standard: FakeStandard()) {
             healthUploadStaging
@@ -255,7 +262,11 @@ struct HealthSampleProcessingTests {
 
         #expect(first.map(\.sampleId) == [sample.uuid])
         #expect(retry.map(\.sampleId) == [sample.uuid])
-        #expect(first.map(\.fhirJson) == retry.map(\.fhirJson))
+        #expect(first.map(\.id) != retry.map(\.id))
+        let firstRecord = try ExchangeRecord(validating: try #require(first.first).fhirJson.decompressed(using: Zstd.self))
+        let retryRecord = try ExchangeRecord(validating: try #require(retry.first).fhirJson.decompressed(using: Zstd.self))
+        #expect(retryRecord.sourceRecord == firstRecord.sourceRecord)
+        #expect(retryRecord.version != firstRecord.version)
     }
 
 
@@ -381,8 +392,9 @@ struct HealthSampleProcessingTests {
             limit: 100
         ) {
             drainedSampleTypes.insert(chunk.sampleType)
-            let jsonArray = try chunk.rows.jsonArrayData()
-            bundles.append(contentsOf: try JSONDecoder().decode([ModelsR4.Bundle].self, from: jsonArray))
+            for row in chunk.rows {
+                bundles.append(try JSONDecoder().decode(ModelsR4.Bundle.self, from: try row.fhirJson.decompressed(using: Zstd.self)))
+            }
             try healthUploadStaging.remove(chunk)
         }
         #expect(try healthUploadStaging.fetchNextDrainChunk(
@@ -391,12 +403,16 @@ struct HealthSampleProcessingTests {
             limit: 100
         ) == nil)
         #expect(drainedSampleTypes == [SampleType.stepCount.id, SampleType.heartRate.id])
-        // Ingestion stores every Bundle under its id, so each one names the sample it came from.
-        #expect(Set(bundles.compactMap { $0.id?.value?.string }) == Set(newSamples.map(\.uuid.uuidString)))
+        // Every record names the sample it came from only through the governed native identifier of its primary output.
+        #expect(bundles.allSatisfy { $0.id == nil && $0.identifier == nil })
         let observations = bundles.compactMap { bundle in
             bundle.entry?.lazy.compactMap { $0.resource?.get(if: Observation.self) }.first
         }
         #expect(observations.count == 2)
+        let nativeIdentifiers = observations.flatMap { $0.identifier ?? [] }.filter { identifier in
+            identifier.system?.value?.url.absoluteString == FHIRExchangeIdentifiers.healthKitNativeRecord.rawValue
+        }
+        #expect(Set(nativeIdentifiers.compactMap { $0.value?.value?.string }) == Set(newSamples.map { $0.uuid.uuidString.lowercased() }))
         let values = observations.compactMap { observation -> Double? in
             guard case .quantity(let quantity) = observation.value else {
                 return nil
@@ -437,14 +453,13 @@ private func stagingForTesting(
     )
 }
 
-/// The Observations a Grove export carries.
+/// The Observations a staged upload file carries.
 ///
-/// Grove writes one exchange Bundle per sample — the Observation beside the Device and Provenance
-/// that attribute it — rather than a bare Observation.
+/// An upload file is one exchange Bundle of its records: each record's Observation beside the Device and Provenance that
+/// attribute it, rather than bare Observations.
 private func exportedObservations(from data: Data) throws -> [Observation] {
-    try JSONDecoder().decode([ModelsR4.Bundle].self, from: data).compactMap { bundle in
-        bundle.entry?.lazy.compactMap { $0.resource?.get(if: Observation.self) }.first
-    }
+    let bundle = try JSONDecoder().decode(ModelsR4.Bundle.self, from: data)
+    return bundle.entry?.compactMap { $0.resource?.get(if: Observation.self) } ?? []
 }
 
 extension Observation {

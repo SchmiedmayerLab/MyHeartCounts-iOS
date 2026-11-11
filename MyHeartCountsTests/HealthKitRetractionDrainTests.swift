@@ -14,17 +14,35 @@ import GroveHealthKit
 import GroveHealthKitFHIR
 import HealthKit
 @testable import MyHeartCounts
+import Synchronization
 import Testing
 
 
-/// The deletion drain retracts each staged chunk through one exporter call, and releases the chunk's events only
-/// once its payload is staged and its rows are removed.
+/// The deletion drain retracts each staged chunk through one exporter call, and stages it as one Retraction Bundle, whose
+/// rows go only once the Bundle is staged.
 @Suite
 struct HealthKitRetractionDrainTests {
     private struct DrainedChunk {
+        let name: String
         let payload: Data
-        /// The chunk's retraction reservations when its payload was staged.
-        let reservations: Int
+
+        /// The Bundle's retraction records, in entry order.
+        var records: [ExchangeRecord] {
+            get throws {
+                try packedRecords(in: payload, kind: .retraction)
+            }
+        }
+
+        init(file: URL) throws {
+            name = file.lastPathComponent
+            payload = try Data(contentsOf: file).decompressed(using: Zstd.self)
+        }
+    }
+
+    private struct Drain {
+        var chunks: [DrainedChunk] = []
+        /// How many rows each exporter call retracted.
+        var retractedRows: [Int] = []
     }
 
     /// Stages deletions of `samples` of `sampleType`, as the anchored query reports them.
@@ -32,100 +50,128 @@ struct HealthKitRetractionDrainTests {
         try staging.add(samples.map { try HKDeletedObject.make(uuid: $0.uuid) }, ofType: sampleType, deletedAfter: nil)
     }
 
-    /// Drains every staged deletion, returning each chunk's decompressed payload.
-    private static func drain(_ staging: HealthUploadStaging) async throws -> [DrainedChunk] {
-        let ledger = try staging.ledger
+    /// Drains every staged deletion, none of which may leave as anything but a Retraction Bundle.
+    private static func drain(_ staging: HealthUploadStaging) async throws -> Drain {
         var chunks: [DrainedChunk] = []
+        let retractedRows = Mutex<[Int]>([])
         let finished = try await HealthUploadStagingUploader.drainPendingDeletions(
             from: staging,
             before: .distantFuture,
-            maximumChunks: nil
-        ) { url in
-            chunks.append(DrainedChunk(
-                payload: try Data(contentsOf: url).decompressed(using: Zstd.self),
-                reservations: try ledger.reservationCount
-            ))
-        }
+            maximumChunks: nil,
+            subject: try ExchangeHarness.subject,
+            stage: { url in
+                chunks.append(try DrainedChunk(file: url))
+            },
+            stageUnreadable: { url in
+                Issue.record("A valid retraction left as \(url.lastPathComponent)")
+            },
+            retractionOutcomes: { staging, rows, subject in
+                retractedRows.withLock { $0.append(rows.count) }
+                return try await staging.retractionBatch(for: rows, subject: subject)
+            },
+            integrityEvents: { event in
+                Issue.record("A healthy chunk reported \(event.kind.rawValue)")
+            }
+        )
         #expect(finished)
-        return chunks
+        return Drain(chunks: chunks, retractedRows: retractedRows.withLock { $0 })
     }
 
-    /// M4, M12: each chunk is one retract and one release, and the drain forgets the active reservations the deleted
-    /// samples' deliveries left behind.
+    /// The `entry` array of `bundle`, which states everything but the Bundle's own packing time.
+    private static func entries(of bundle: Data) throws -> Data {
+        let members = try #require(try JSONSerialization.jsonObject(with: bundle) as? [String: Any])
+        return try JSONSerialization.data(withJSONObject: try #require(members["entry"]), options: .sortedKeys)
+    }
+
+    /// The retraction records of `outcomes`, in outcome order.
+    private static func records(of outcomes: [HealthKitFHIRExporter.Retraction.Outcome]) -> [ExchangeRecord] {
+        outcomes.compactMap { outcome -> ExchangeRecord? in
+            guard case .record(let record) = outcome else {
+                return nil
+            }
+            return record
+        }
+    }
+
+    /// M4, M12: each chunk is one exporter call and one Retraction Bundle, which retracts the source records the deleted
+    /// samples' additions delivered.
     @Test
-    func drainRetractsEachChunkInOneCallAndForgetsTheDeletedSamples() async throws {
+    func drainRetractsEachChunkInOneCallIntoOneBundle() async throws {
         let staging = try await HealthUploadStaging.resolvedForTesting(autoElideUploadsWhenInsertingDeletions: false)
-        let ledger = try staging.ledger
-        let steps = (0..<3).map(LedgerHarness.steps)
+        let steps = (0..<3).map(ExchangeHarness.steps)
         let heartRates = (3..<5).map(heartRateSample)
-        // Delivered, but released never: the reservations a crash after the anchor commit leaves behind.
-        _ = try await staging.add(steps)
-        _ = try await staging.add(heartRates)
-        _ = try staging.drainStagedSamples()
-        #expect(try ledger.reservationCount == 5)
+        // Delivered and drained, so the deletions have no addition left to wait for.
+        try await staging.add(steps)
+        try await staging.add(heartRates)
+        let delivered = try staging.drainStagedSamples().values.map { try ExchangeRecord(validating: $0).sourceRecord }
+        #expect(delivered.count == 5)
         try Self.delete(steps, ofType: .stepCount, in: staging)
         try Self.delete(heartRates, ofType: .heartRate, in: staging)
-        let counter = try ledger.countingTransactions()
 
-        let chunks = try await Self.drain(staging)
+        let drain = try await Self.drain(staging)
 
-        #expect(chunks.count == 2)
-        #expect(counter.transactions == 4)
-        #expect(try ledger.reservationCount == 0)
+        #expect(drain.chunks.count == 2)
+        #expect(drain.retractedRows.sorted() == [2, 3])
+        #expect(try drain.chunks.map { try $0.records.count }.sorted() == [2, 3])
+        #expect(Set(try drain.chunks.flatMap { try $0.records }.map(\.sourceRecord)) == Set(delivered))
         #expect(try staging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
     }
 
-    /// M12: a chunk's payload is its retraction graphs' validated bytes, spliced in verbatim.
+    /// M12: a chunk's payload is its retraction records' validated entries, spliced in verbatim, under the name their keys
+    /// give it.
     @Test
-    func drainedPayloadSplicesTheRetractionGraphsJSON() async throws {
+    func drainedBundleSplicesTheRetractionRecordsEntries() async throws {
         let staging = try await HealthUploadStaging.resolvedForTesting()
-        try Self.delete((0..<3).map(LedgerHarness.steps), ofType: .stepCount, in: staging)
-        var staged: [Data] = []
-        var expected: [Data] = []
+        try Self.delete((0..<3).map(ExchangeHarness.steps), ofType: .stepCount, in: staging)
+        var staged: [DrainedChunk] = []
+        let retracted = Mutex<[ExchangeRecord]>([])
 
         _ = try await HealthUploadStagingUploader.drainPendingDeletions(
             from: staging,
             before: .distantFuture,
-            maximumChunks: nil
-        ) { url in
-            staged.append(try Data(contentsOf: url).decompressed(using: Zstd.self))
-            // While the chunk holds its events, the exact retry of its rows reproduces the graphs the drain staged.
-            let chunk = try #require(try staging.fetchNextDrainChunk(
-                of: HealthUploadStaging.PendingDeletionRecord.self,
-                before: .distantFuture,
-                limit: 100
-            ))
-            let rows = chunk.rows.sorted { $0.sampleId.uuidString.lowercased() < $1.sampleId.uuidString.lowercased() }
-            let exporter = try staging.healthKitExporter(accountDataGeneration: LocalPreferencesStore.standard[.accountDataGeneration])
-            let retry = try await exporter.healthKitRetractions(
-                of: rows.map { row in
-                    HealthKitDeletedRecord(
-                        sourceTypeIdentifier: row.sampleType,
-                        nativeRecordID: row.sampleId,
-                        deletedAfter: row.deletedAfter,
-                        detectedAt: row.timestamp
-                    )
-                },
-                recordedAt: .now
-            )
-            expected.append(splicedJSONArray(retry.graphs.compactMap { $0?.json }))
-            retry.receipt.completeAfterSourceAcknowledgement()
-        }
+            maximumChunks: nil,
+            subject: try ExchangeHarness.subject,
+            stage: { url in
+                staged.append(try DrainedChunk(file: url))
+            },
+            stageUnreadable: { url in
+                Issue.record("A valid retraction left as \(url.lastPathComponent)")
+            },
+            retractionOutcomes: { staging, rows, subject in
+                let outcomes = try await staging.retractionBatch(for: rows, subject: subject)
+                retracted.withLock { $0 += Self.records(of: outcomes) }
+                return outcomes
+            }
+        )
 
         #expect(staged.count == 1)
-        #expect(staged == expected)
-        #expect(try staging.ledger.reservationCount == 0)
+        let chunk = try #require(staged.first)
+        let records = retracted.withLock { $0 }
+        #expect(records.count == 3)
+        var packer = ExchangeBundlePacker(kind: .retraction)
+        for record in records {
+            let result = try packer.insert(record)
+            #expect(result == .inserted)
+        }
+        let expected = try packer.bundle(packedAt: .now)
+        #expect(try Self.entries(of: chunk.payload) == Self.entries(of: expected.json))
+        #expect(try chunk.records.map(\.version) == records.map(\.version))
+        #expect(chunk.name == HealthUploadBatch.filename(
+            typePrefix: HKQuantityTypeIdentifier.stepCount.rawValue,
+            provenanceFullURLs: records.map(\.version.fullURL),
+            fileExtension: "json.zstd"
+        ))
+        #expect(try staging.isEmpty)
     }
 
-    /// M7: a chunk whose rows could not be removed after staging its payload releases nothing, so the next drain
-    /// retracts it again under the same events, and releases them only once the rows are gone.
+    /// M7: a chunk whose rows could not be removed after staging its Bundle stays, so the next drain retracts it again under
+    /// the same keys and the same file name.
     @Test
-    func chunkReleasesItsEventsOnlyOnceItsRowsAreRemoved() async throws {
+    func chunkIsRetractedAgainUntilItsRowsAreRemoved() async throws {
         try await withTemporaryRoot { root in
             let database = root.appending(path: "healthObservations.sqlite3", directoryHint: .notDirectory)
             let staging = try await HealthUploadStaging.resolvedForTesting(persistence: .onDisk(url: database))
-            let ledger = try staging.ledger
-            try Self.delete((0..<3).map(LedgerHarness.steps), ofType: .stepCount, in: staging)
+            try Self.delete((0..<3).map(ExchangeHarness.steps), ofType: .stepCount, in: staging)
             // Another connection makes removing the drained rows fail.
             let saboteur = try DatabaseQueue(path: database.path(percentEncoded: false))
             try await saboteur.write { db in
@@ -135,27 +181,31 @@ struct HealthKitRetractionDrainTests {
                     """)
             }
 
-            var failedPayload: Data?
+            var failedChunk: DrainedChunk?
             await #expect(throws: (any Error).self) {
                 _ = try await HealthUploadStagingUploader.drainPendingDeletions(
                     from: staging,
                     before: .distantFuture,
-                    maximumChunks: nil
-                ) { url in
-                    #expect(try ledger.reservationCount == 3, "the payload is staged while the chunk holds its events")
-                    failedPayload = try Data(contentsOf: url).decompressed(using: Zstd.self)
-                }
+                    maximumChunks: nil,
+                    subject: try ExchangeHarness.subject,
+                    stage: { url in
+                        failedChunk = try DrainedChunk(file: url)
+                    },
+                    stageUnreadable: { url in
+                        Issue.record("A valid retraction left as \(url.lastPathComponent)")
+                    }
+                )
             }
-            #expect(try ledger.reservationCount == 3)
             #expect(try staging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 3)
 
             try await saboteur.write { db in
                 try db.execute(sql: "DROP TRIGGER failRemoval")
             }
-            let drained = try await Self.drain(staging)
-            #expect(drained.map(\.payload) == [try #require(failedPayload)])
-            #expect(drained.map(\.reservations) == [3])
-            #expect(try ledger.reservationCount == 0)
+            let drained = try await Self.drain(staging).chunks
+            let failed = try #require(failedChunk)
+            #expect(drained.map(\.name) == [failed.name])
+            #expect(try drained.flatMap { try $0.records }.map(\.version) == failed.records.map(\.version))
+            #expect(try staging.fetchCount(of: HealthUploadStaging.PendingDeletionRecord.self) == 0)
             try saboteur.close()
         }
     }

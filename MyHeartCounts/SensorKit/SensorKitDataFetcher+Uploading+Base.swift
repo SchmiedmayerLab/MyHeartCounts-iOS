@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+import CryptoKit
 import Foundation
 import GroveFHIRContract
 import GroveSensorKit
@@ -14,32 +15,29 @@ import MyHeartCountsShared
 import OSLog
 
 
-/// The exact bytes of a record's recording, archived beside its graph under the file extension the upload strategy that
-/// wrote them names.
+/// The exact bytes of a record's recording, archived beside the batch's Bundle under the file extension the upload strategy
+/// that wrote them names.
 struct SensorKitUploadSidecar: Sendable {
     let data: Data
     let fileExtension: String
 }
 
 
-/// One record a batch exports, under its identity.
+/// One record a batch exports.
 private struct ExportedRecord {
     /// The record's position in its batch, under which a refusal of the record is logged.
     let ordinal: Int
-    /// The record's identity, which names its recording within the batch's archive and enters the archive's name.
-    let sourceRecordID: SensorKitSourceRecordID
-    /// The exact bytes archived beside the record's graph, if it has any.
-    let sidecar: SensorKitUploadSidecar?
+    /// The recording archived beside the batch's Bundle, if the record has any.
+    let recording: UploadBatchArchive.Recording?
     /// The number of the batch's samples the record holds, which the batch's info sums up.
     let sampleCount: Int
     /// The time span the record's samples cover, which the batch's info sums up.
     let timeRange: Range<Date>
 
-    /// The record `upload` prepared, under the identity `sourceRecordID`.
-    init(_ upload: SensorKitRecordUpload, sourceRecordID: SensorKitSourceRecordID) {
+    /// The record `upload` prepared, whose sidecar is archived as `recording`.
+    init(_ upload: SensorKitRecordUpload, recording: UploadBatchArchive.Recording?) {
         ordinal = upload.ordinal
-        self.sourceRecordID = sourceRecordID
-        sidecar = upload.sidecar
+        self.recording = recording
         sampleCount = upload.sampleCount
         timeRange = upload.timeRange
     }
@@ -51,8 +49,8 @@ private struct ExportedRecord {
 /// Grove's preparation and export are deterministic, so an exact redelivery refuses identically. The upload
 /// strategies therefore skip a refused record and still acknowledge its batch; failing the batch instead would
 /// redeliver it forever and block every newer record of the sensor. Every other error (account fence, retry state,
-/// ledger, staging, Firestore) aborts the batch without acknowledging it, and so does a record that no longer
-/// prepares where an earlier attempt prepared it, as that is drift.
+/// staging, Firestore) aborts the batch without acknowledging it, and so does a record that no longer prepares where
+/// an earlier attempt prepared it, as that is drift.
 struct SensorKitRecordRefusal {
     let underlying: any Error
 
@@ -96,8 +94,14 @@ struct SensorKitRecordRefusal {
 private struct ArchivedBatch {
     /// The finalized batch archive
     let finalizedArchive: UploadBatchArchive.Finalized
-    /// The identities of the records the archive holds, from which its upload name derives.
-    let recordIDs: [UUID]
+    /// The fullUrls of the Provenances of the archive's Bundle, from which its upload name derives.
+    let provenanceFullURLs: [String]
+}
+
+
+private enum SensorKitArchiveError: Error {
+    /// A batch states a second version of one of its source records, which its one Bundle can't carry.
+    case secondRecordVersion
 }
 
 
@@ -115,11 +119,11 @@ struct SensorKitRecordUpload {
     let sampleCount: Int
     /// The time span the record's samples cover, from the earliest sample's start to the latest sample's end.
     let timeRange: Range<Date>
-    /// The exact bytes uploaded beside the record's graph, if it has any.
+    /// The exact bytes uploaded beside the batch's Bundle, if the record has any.
     let sidecar: SensorKitUploadSidecar?
     /// The bytes a retry of the record must reproduce: Grove's retry evidence of the record.
     let retryEvidence: Data
-    /// What else a retry must reproduce, where the record's graph states more than its `retryEvidence` covers.
+    /// What else a retry must reproduce, where the record states more than its `retryEvidence` covers.
     ///
     /// Checked under a digest of its own, so a pending batch whose `retryEvidence` an earlier build recorded still
     /// matches it.
@@ -149,112 +153,63 @@ struct SensorKitRecordUpload {
 
 
 extension MHCSensorSampleUploadStrategy {
-    /// The name of a record's recording within its batch's archive.
-    private static func recordingName(of sidecar: SensorKitUploadSidecar, sourceRecordID: SensorKitSourceRecordID) -> String {
-        "\(sourceRecordID.value).\(sidecar.fileExtension)"
+    /// A record's recording within its batch's archive, named by its content: changed bytes get a new name, and the name
+    /// carries no source record identifier.
+    private static func recording(of sidecar: SensorKitUploadSidecar) -> UploadBatchArchive.Recording {
+        UploadBatchArchive.Recording(
+            name: "\(SHA256.hash(data: sidecar.data).lowercaseHexString).\(sidecar.fileExtension)",
+            contents: sidecar.data
+        )
     }
 
-    /// Archives the records of one batch that Grove exported, logging and leaving out each record it refused.
+    /// Archives the records of one batch that Grove exported, packed into the archive's one Bundle, logging and leaving out
+    /// each record it refused.
     ///
     /// - parameter records: The batch's exported records, each with its export outcome.
-    /// - returns: The finalized archive's file, its batch info's JSON and the identities of the records it holds, or `nil`
-    ///     if Grove refused every record.
+    /// - parameter packedAt: The Bundle's timestamp, which a redelivery repeats.
+    /// - returns: The finalized archive's file, its batch info's JSON and the fullUrls of its Provenances, or `nil` if Grove
+    ///     refused every record.
     private static func archive(
         _ records: some Sequence<(ExportedRecord, SensorKitFHIRExporter.Export.Outcome)>,
         for sensor: Sensor<Sample>,
-        publication: SensorKitBatchPublication
+        publication: SensorKitBatchPublication,
+        packedAt: Date
     ) throws -> ArchivedBatch? {
         var archive = try UploadBatchArchive(
             source: .sensorKit,
             sampleTypeId: sensor.id,
             device: publication.info.device.productType
         )
-        var recordIDs: [UUID] = []
-        for (record, outcome) in records {
+        // A batch's archive carries one Bundle, whatever its size.
+        var packer = ExchangeBundlePacker(kind: .active, maximumRecords: .max, maximumBytes: .max)
+        for (exported, outcome) in records {
             switch outcome {
-            case .graph(let graph):
-                try archive.addRecord(
-                    bundle: graph.json,
-                    recording: record.sidecar.map { sidecar in
-                        UploadBatchArchive.Recording(
-                            name: recordingName(of: sidecar, sourceRecordID: record.sourceRecordID),
-                            contents: sidecar.data
-                        )
-                    },
-                    timeRange: record.timeRange,
-                    sampleCount: record.sampleCount
-                )
-                recordIDs.append(record.sourceRecordID.uuid)
+            case .record(let record):
+                guard try packer.insert(record) != .deferred else {
+                    throw SensorKitArchiveError.secondRecordVersion
+                }
+                try archive.addRecord(recording: exported.recording, timeRange: exported.timeRange, sampleCount: exported.sampleCount)
             case .refused(let reason):
-                SensorKitRecordRefusal(underlying: reason).log(for: sensor, recordOrdinal: record.ordinal)
+                SensorKitRecordRefusal(underlying: reason).log(for: sensor, recordOrdinal: exported.ordinal)
             }
         }
         // An archive that is not finalized removes its file.
-        guard !recordIDs.isEmpty else {
+        guard packer.recordCount > 0 else {
             return nil
         }
-        let finalizedArchive = try archive.finalize()
-        return ArchivedBatch(finalizedArchive: finalizedArchive, recordIDs: recordIDs)
+        let bundle = try packer.bundle(packedAt: packedAt)
+        let finalizedArchive = try archive.finalize(bundle: bundle.json)
+        return ArchivedBatch(finalizedArchive: finalizedArchive, provenanceFullURLs: bundle.provenanceFullURLs)
     }
 
-    /// Publishes the records prepared from one fetched batch through MHC's storage backend.
-    ///
-    /// Grove owns the exact payload bytes and the FHIR graphs; MHC owns the retry check, the durable file upload and
-    /// the acknowledgement boundary. In order:
-    /// 1. Each record's bytes are checked against those first seen at its acquisition coordinate, all in one
-    ///    transaction of the retry state, so a batch whose content drifted fails before anything is exported.
-    /// 2. The records are exported in one call, stating the zone the batch was first published in. A record Grove
-    ///    refuses is logged and skipped.
-    /// 3. The batch is staged for upload as one ``UploadBatchArchive``: the graphs, verbatim, in `bundles.json`, and each
-    ///    sidecar under `recordings/`, at the path relative to the archive's root its graph's DocumentReference states.
-    ///    The archive is named by the exported records' identities, so a redelivery overwrites what an earlier attempt
-    ///    uploaded.
-    ///
-    /// - returns: The export's receipt, or `nil` when nothing was exported. Release it once the batch is
-    ///     acknowledged; until then, a redelivery of the batch restates the same events, byte for byte.
-    /// - throws: Any error but a refusal aborts the batch, which must then not be acknowledged.
-    func publish(
-        _ uploads: [SensorKitRecordUpload],
+    /// Stages `archived` for upload, under the name its Provenances give it.
+    private static func stage(
+        _ archived: ArchivedBatch,
         for sensor: Sensor<Sample>,
-        publication: SensorKitBatchPublication,
-        activity: SensorKitDataFetcher.InProgressActivity
-    ) async throws -> ExchangeProducer.Receipt? {
-        // Presentation only: the record's identity travels as the typed Identifier, never a label.
-        let title = sensor.displayName
-        var records: [SensorKitRecord] = []
-        var exported: [ExportedRecord] = []
-        let sourceRecordIDs = try publication.sourceRecordIDs(of: uploads)
-        for (upload, sourceRecordID) in zip(uploads, sourceRecordIDs) {
-            let sidecarPath = upload.sidecar.map {
-                UploadBatchArchive.recordingPath(forName: Self.recordingName(of: $0, sourceRecordID: sourceRecordID))
-            }
-            do {
-                records.append(try upload.makeRecord(sourceRecordID, title, sidecarPath))
-            } catch {
-                SensorKitRecordRefusal(underlying: error).log(for: sensor, recordOrdinal: upload.ordinal)
-                continue
-            }
-            exported.append(ExportedRecord(upload, sourceRecordID: sourceRecordID))
-        }
-        guard !records.isEmpty else {
-            return nil
-        }
-        // One outcome per record, in input order.
-        var outcomes: [SensorKitFHIRExporter.Export.Outcome] = []
-        let receipt = try await publication.exporter().export(
-            records,
-            sourceTimeZone: try publication.sourceTimeZone(),
-            at: publication.conversionInstant
-        ) { export in
-            outcomes.append(export.outcome)
-        }
-        assert(outcomes.count == exported.count)
-        activity.updateMessage("Submitting for upload")
-        guard let archived = try Self.archive(zip(exported, outcomes), for: sensor, publication: publication) else {
-            return receipt
-        }
+        publication: SensorKitBatchPublication
+    ) async throws {
         let file = URL.temporaryDirectory.appending(
-            path: HealthUploadBatch.filename(typePrefix: sensor.id, identifiers: archived.recordIDs, fileExtension: "zip"),
+            path: HealthUploadBatch.filename(typePrefix: sensor.id, provenanceFullURLs: archived.provenanceFullURLs, fileExtension: "zip"),
             directoryHint: .notDirectory
         )
         defer {
@@ -272,7 +227,73 @@ extension MHCSensorSampleUploadStrategy {
             // The batch info travels with the file, so that the batch can be inspected without downloading it.
             metadata: [UploadBatchArchive.batchInfoMetadataKey: String(decoding: archived.finalizedArchive.batchInfo, as: UTF8.self)]
         )
-        return receipt
+    }
+
+    /// Publishes the records prepared from one fetched batch through MHC's storage backend.
+    ///
+    /// Grove owns the exact payload bytes and the FHIR records; MHC owns the retry check, the durable file upload and
+    /// the acknowledgement boundary. In order:
+    /// 1. Each record's bytes are checked against those first seen at its acquisition coordinate, all in one
+    ///    transaction of the retry state, so a batch whose content drifted fails before anything is exported.
+    /// 2. The records are exported in one call, stating the zone, the conversion instant, the conversion facts and the devices
+    ///    the batch was first published with. A record Grove refuses is logged and skipped.
+    /// 3. The batch is staged for upload as one ``UploadBatchArchive``: its one Bundle, verbatim, in `bundle.json`, and each
+    ///    sidecar under `recordings/`, at the path relative to the archive's root its DocumentReference states. The Bundle
+    ///    states the persisted conversion instant as its timestamp, and the archive is named by its Provenances, so a
+    ///    redelivery holds the same entries and overwrites what an earlier attempt uploaded.
+    ///
+    /// Until the batch is acknowledged, a redelivery repeats every record version.
+    ///
+    /// - throws: Any error but a refusal aborts the batch, which must then not be acknowledged.
+    func publish(
+        _ uploads: [SensorKitRecordUpload],
+        for sensor: Sensor<Sample>,
+        publication: SensorKitBatchPublication,
+        activity: SensorKitDataFetcher.InProgressActivity
+    ) async throws {
+        // Presentation only: the record's identity travels as the typed Identifier, never a label.
+        let title = sensor.displayName
+        var records: [SensorKitRecord] = []
+        var exported: [ExportedRecord] = []
+        let sourceRecordIDs = try publication.sourceRecordIDs(of: uploads)
+        for (upload, sourceRecordID) in zip(uploads, sourceRecordIDs) {
+            let recording = upload.sidecar.map(Self.recording(of:))
+            let sidecarPath = recording.map { UploadBatchArchive.recordingPath(forName: $0.name) }
+            do {
+                records.append(try upload.makeRecord(sourceRecordID, title, sidecarPath))
+            } catch {
+                SensorKitRecordRefusal(underlying: error).log(for: sensor, recordOrdinal: upload.ordinal)
+                continue
+            }
+            exported.append(ExportedRecord(upload, recording: recording))
+        }
+        guard !records.isEmpty else {
+            return
+        }
+        let batchFacts = try await publication.batchFacts()
+        // One outcome per record, in input order.
+        var outcomes: [SensorKitFHIRExporter.Export.Outcome] = []
+        try await publication.exporter(stating: batchFacts.conversionFacts).export(
+            records,
+            sourceTimeZone: batchFacts.timeZone,
+            recordingDevice: batchFacts.devices.recordingDevice,
+            sourceDevices: batchFacts.devices.sourceDevices,
+            sourceDevicesSuppliedEverySample: batchFacts.devices.sourcesSuppliedEverySample,
+            at: batchFacts.conversionInstant
+        ) { export in
+            outcomes.append(export.outcome)
+        }
+        assert(outcomes.count == exported.count)
+        activity.updateMessage("Submitting for upload")
+        guard let archived = try Self.archive(
+            zip(exported, outcomes),
+            for: sensor,
+            publication: publication,
+            packedAt: batchFacts.conversionInstant
+        ) else {
+            return
+        }
+        try await Self.stage(archived, for: sensor, publication: publication)
     }
 }
 

@@ -60,9 +60,7 @@ final class MyHeartCountsDelegate: GroveAppDelegate {
             setupTestEnvironment
             loadInitialConfig()
             HealthKit()
-            FHIRExchangeLedger(
-                location: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .default
-            )
+            HealthKitExporterHolder()
             HealthUploadStaging(
                 persistence: ProcessInfo.isReallyRunningInXCTest ? .inMemory : .onDisk
             )
@@ -91,6 +89,7 @@ final class MyHeartCountsDelegate: GroveAppDelegate {
                 ManagedFileUpload.Category.liveHealthUpload
                 ManagedFileUpload.Category.historicalHealthUpload
                 ManagedFileUpload.Category.healthDeletions
+                ManagedFileUpload.Category.unreadableHealthUpload
                 for sensor in SensorKit.mhcSensors {
                     ManagedFileUpload.Category(sensor)
                 }
