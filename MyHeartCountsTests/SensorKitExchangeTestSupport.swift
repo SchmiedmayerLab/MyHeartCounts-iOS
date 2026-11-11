@@ -226,11 +226,16 @@ extension SensorKit.SourceDeviceInfo {
 
 extension SensorBatchDevices {
     /// The devices of a batch `device` recorded and `sources` supplied.
-    static func testing(device: SRDevice = PinnedSensorKitDevice(), sources: [SensorKit.SourceDeviceInfo] = []) -> Self {
+    static func testing(
+        device: SRDevice = PinnedSensorKitDevice(),
+        sources: [SensorKit.SourceDeviceInfo] = [],
+        sourcesSuppliedEverySample: Bool = false
+    ) -> Self {
         Self(SensorKit.BatchInfo(
             timeRange: SensorKitPublicationHarness.start..<SensorKitPublicationHarness.start,
             device: SensorKit.DeviceInfo(device),
             sourceDevices: sources,
+            sourceDevicesSuppliedEverySample: sourcesSuppliedEverySample,
             acquisitionBatch: SensorKit.AcquisitionBatchCoordinate(
                 cursorTimestamp: SensorKitPublicationHarness.start,
                 resetGeneration: 2,
@@ -274,13 +279,16 @@ struct SensorKitPublicationHarness {
     ///   - facts: The conversion facts, if this is the batch's first delivery; `nil` states the default test facts.
     ///   - device: The device SensorKit states, if this is the batch's first delivery.
     ///   - sourceDevices: The peripherals SensorKit states, if this is the batch's first delivery.
+    ///   - sourceDevicesSuppliedEverySample: Whether SensorKit named a peripheral for every sample, if this is the batch's
+    ///     first delivery.
     func publication(
         uploads: RecordedSensorKitUploads,
         at instant: Date = Self.start,
         streamPartition: UInt64 = 0,
         facts: MyHeartCounts::ConversionFacts? = nil,
         device: SRDevice = PinnedSensorKitDevice(),
-        sourceDevices: [SensorKit.SourceDeviceInfo] = []
+        sourceDevices: [SensorKit.SourceDeviceInfo] = [],
+        sourceDevicesSuppliedEverySample: Bool = false
     ) throws -> SensorKitBatchPublication {
         let subject = try subject
         return try SensorKitBatchPublication(
@@ -289,6 +297,7 @@ struct SensorKitPublicationHarness {
                 timeRange: Self.start..<Self.start.addingTimeInterval(600),
                 device: SensorKit.DeviceInfo(device),
                 sourceDevices: sourceDevices,
+                sourceDevicesSuppliedEverySample: sourceDevicesSuppliedEverySample,
                 acquisitionBatch: SensorKit.AcquisitionBatchCoordinate(
                     streamPartition: streamPartition,
                     cursorTimestamp: Self.start,

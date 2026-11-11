@@ -278,6 +278,7 @@ extension MHCSensorSampleUploadStrategy {
             sourceTimeZone: batchFacts.timeZone,
             recordingDevice: batchFacts.devices.recordingDevice,
             sourceDevices: batchFacts.devices.sourceDevices,
+            sourceDevicesSuppliedEverySample: batchFacts.devices.sourcesSuppliedEverySample,
             at: batchFacts.conversionInstant
         ) { export in
             outcomes.append(export.outcome)

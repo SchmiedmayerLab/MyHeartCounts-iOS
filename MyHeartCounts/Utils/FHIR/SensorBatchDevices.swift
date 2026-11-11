@@ -35,6 +35,11 @@ struct SensorBatchDevices: Codable, Equatable, Sendable {
     let recording: Facts
     /// The peripherals that supplied the batch, which the Provenance of every one of its records names.
     let sources: [Facts]
+    /// Whether every sample of the batch came from one of ``sources``, so a record may name its sole peripheral as its
+    /// Observations' device.
+    ///
+    /// Retry state persisted before this flag existed decodes it as `false`, which keeps the batch's `SRDevice` as that device.
+    let sourcesSuppliedEverySample: Bool
 
     var recordingDevice: RecordingDevice {
         recording.recordingDevice
@@ -42,6 +47,19 @@ struct SensorBatchDevices: Codable, Equatable, Sendable {
 
     var sourceDevices: [RecordingDevice] {
         sources.map(\.recordingDevice)
+    }
+
+    init(recording: Facts, sources: [Facts], sourcesSuppliedEverySample: Bool) {
+        self.recording = recording
+        self.sources = sources
+        self.sourcesSuppliedEverySample = sourcesSuppliedEverySample
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        recording = try container.decode(Facts.self, forKey: .recording)
+        sources = try container.decode([Facts].self, forKey: .sources)
+        sourcesSuppliedEverySample = try container.decodeIfPresent(Bool.self, forKey: .sourcesSuppliedEverySample) ?? false
     }
 }
 
@@ -51,7 +69,8 @@ extension SensorBatchDevices {
     init(_ info: SensorKit.BatchInfo) {
         self.init(
             recording: Facts(RecordingDevice(info.device)),
-            sources: info.sourceDevices.map { Facts(RecordingDevice($0)) }
+            sources: info.sourceDevices.map { Facts(RecordingDevice($0)) },
+            sourcesSuppliedEverySample: info.sourceDevicesSuppliedEverySample
         )
     }
 }
