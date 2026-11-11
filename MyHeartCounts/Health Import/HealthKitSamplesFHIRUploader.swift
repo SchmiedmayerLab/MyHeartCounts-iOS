@@ -17,7 +17,8 @@ import GroveHealthKitFHIR
 /// Exports each bulk batch in as few exporter calls as ``HealthKitFHIRExporter/voltageBudget`` allows, packs its records
 /// into one Bundle, and stages it as the batch's upload file.
 ///
-/// A batch past the packer's caps becomes several Bundles, each staged as a file of its own.
+/// A batch past the packer's caps becomes several Bundles, each staged as a file of its own. A record no Bundle can carry
+/// costs only itself: it is staged alone, as an `unreadable_` object.
 ///
 /// Everything it reaches beyond the samples is injected, so tests run ``process(_:of:)`` themselves, without a signed-in
 /// account, Firebase or the app's exporter holder.
@@ -30,19 +31,27 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
     private let exporter: @Sendable (_ accountDataGeneration: Int) async throws -> HealthKitFHIRExporter
     /// Durably stages one batch's upload file for `accountDataGeneration`; staging is cancellation-safe.
     private let stage: @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
+    /// Durably stages one `unreadable_` object of a batch for `accountDataGeneration`.
+    private let stageUnreadable: @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
     /// The instant a batch is converted and packed at.
     private let now: @Sendable () -> Date
+    /// How a packed Bundle is finished.
+    private let makeBundle: HealthUploadBatch.MakeBundle
     
     init(
         healthKit: HealthKit,
         now: @escaping @Sendable () -> Date = { .now },
+        makeBundle: @escaping HealthUploadBatch.MakeBundle = HealthUploadBatch.packBundle,
         exporter: @escaping @Sendable (_ accountDataGeneration: Int) async throws -> HealthKitFHIRExporter,
-        stage: @escaping @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
+        stage: @escaping @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void,
+        stageUnreadable: @escaping @Sendable (_ file: URL, _ accountDataGeneration: Int) async throws -> Void
     ) {
         self.healthKit = healthKit
         self.now = now
+        self.makeBundle = makeBundle
         self.exporter = exporter
         self.stage = stage
+        self.stageUnreadable = stageUnreadable
     }
 
     func process<Sample>(
@@ -57,6 +66,7 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
         let numSamples = samples.count
         let exporter = exporter
         let stage = stage
+        let stageUnreadable = stageUnreadable
         do {
             let exporter = try await exporter(accountDataGeneration)
             let samples = samples
@@ -73,8 +83,15 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
                 ) { entry in
                     records.append(try entry.exchangeRecord())
                 }
-                try await HealthUploadBatch.stage(records, sampleType: sampleType.id, packedAt: conversionInstant) { url in
+                try await HealthUploadBatch.stage(
+                    records,
+                    sampleType: sampleType.id,
+                    packedAt: conversionInstant,
+                    makeBundle: makeBundle
+                ) { url in
                     try await stage(url, accountDataGeneration)
+                } stageUnreadable: { url in
+                    try await stageUnreadable(url, accountDataGeneration)
                 }
                 return export
             }
@@ -107,6 +124,12 @@ extension HealthKitSamplesFHIRUploader {
             try await standard.managedFileUpload.stage(
                 file,
                 category: .historicalHealthUpload,
+                accountDataGeneration: accountDataGeneration
+            )
+        } stageUnreadable: { file, accountDataGeneration in
+            try await standard.managedFileUpload.stage(
+                file,
+                category: .unreadableHealthUpload,
                 accountDataGeneration: accountDataGeneration
             )
         }

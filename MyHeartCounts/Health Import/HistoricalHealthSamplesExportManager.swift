@@ -313,7 +313,7 @@ extension HistoricalHealthSamplesExportManager {
     }
 
     /// Records the conclusion of the historical upload in the account, once every batch was processed without failures
-    /// and every resulting file has been uploaded.
+    /// and every resulting file has been uploaded, `unreadable_` objects included.
     private func recordCompletionIfConcluded(
         of session: any BulkExportSession<HealthKitSamplesFHIRUploader>,
         accountDataGeneration: Int
@@ -326,7 +326,7 @@ extension HistoricalHealthSamplesExportManager {
             return
         }
         do {
-            try await managedFileUpload.waitUntilDrained(.historicalHealthUpload)
+            try await managedFileUpload.waitUntilHistoricalUploadDrained()
         } catch {
             return
         }
@@ -371,7 +371,8 @@ extension ManagedFileUpload.Category {
         title: "HealthKit Deletions",
         firebasePath: "healthDeletions"
     )
-    /// Every staged row the drain can't turn into a valid Bundle, uploaded alone under an `unreadable_` file name.
+    /// Every staged row the drain can't turn into a valid Bundle, and every record of a batch that no Bundle can carry,
+    /// uploaded alone under an `unreadable_` file name.
     ///
     /// No valid Bundle uses this category or that prefix, so any consumer can tell such an object apart from a Bundle.
     static let unreadableHealthUpload = Self(
@@ -379,4 +380,16 @@ extension ManagedFileUpload.Category {
         title: "HealthKit Upload (Unreadable)",
         firebasePath: "unreadableHealthSamples"
     )
+}
+
+
+extension ManagedFileUpload {
+    /// Waits until every file a historical upload staged has been uploaded: its Bundles, and the `unreadable_` objects of
+    /// the records no Bundle could carry.
+    ///
+    /// The live uploads share the unreadable category, so an object of theirs holds up the wait too.
+    func waitUntilHistoricalUploadDrained() async throws {
+        try await waitUntilDrained(.historicalHealthUpload)
+        try await waitUntilDrained(.unreadableHealthUpload)
+    }
 }

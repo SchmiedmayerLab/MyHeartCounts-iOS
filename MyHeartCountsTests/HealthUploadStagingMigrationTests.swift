@@ -187,7 +187,8 @@ struct HealthUploadStagingMigrationTests {
     }
 
     /// H20: one v4 database can hold both legacy kinds, so the migration reads each row's own payload, and only its top
-    /// level. A payload it can't read stays a resource, for the drain to upload as it is stored.
+    /// level. A payload it can't read stays a resource; the drain uploads one that is no JSON object as an `unreadable_`
+    /// object.
     @Test
     func v5ClassifiesEachRowByTheTopLevelResourceTypeOfItsPayload() async throws {
         let payloads: [(fhirJson: Data, format: HealthUploadStaging.PendingSampleRecord.PayloadFormat)] = [
@@ -199,7 +200,9 @@ struct HealthUploadStagingMigrationTests {
             (try Self.compressed(#"{"status":"final"}"#), .legacyResource),
             (try Self.compressed("not JSON"), .legacyResource),
             (Data(#"{"resourceType":"Bundle"}"#.utf8), .legacyResource),
-            (Data([0x00, 0x7F, 0xFF]), .legacyResource)
+            (Data([0x00, 0x7F, 0xFF]), .legacyResource),
+            // A damaged frame stating a content size of 2^62 bytes, which the migration must not try to allocate.
+            (Data([0x28, 0xB5, 0x2F, 0xFD, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0x40]), .legacyResource)
         ]
         let samples = payloads.map { V4Sample(fhirJson: $0.fhirJson) }
         let dbQueue = try DatabaseQueue()

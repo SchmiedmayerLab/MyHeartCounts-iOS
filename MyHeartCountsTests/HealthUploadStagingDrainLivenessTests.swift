@@ -211,6 +211,12 @@ struct HealthUploadStagingDrainLivenessTests {
         Data(UUID().uuidString.utf8)
     }
 
+    /// A zstd frame whose damaged descriptor makes its header state a content size of 2^62 bytes: a size that fits in `Int`,
+    /// so only a bound keeps it from reaching an allocation, whose failure is a trap.
+    private static func frameStatingAnImpossibleSize() -> Data {
+        Data([0x28, 0xB5, 0x2F, 0xFD, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0x40]) + corruptPayload()
+    }
+
     /// A payload that decompresses, but to no record.
     private static func invalidPayload() throws -> Data {
         try legacyPayload(resourceType: "Bundle").compressed(using: Zstd.self)
@@ -319,6 +325,18 @@ struct HealthUploadStagingDrainLivenessTests {
         let category = ManagedFileUpload.Category.unreadableHealthUpload
         #expect(category.id == "HealthKitUpload/unreadable")
         #expect(category.firebasePath == "unreadableHealthSamples")
+    }
+
+    /// A chunk takes about a quarter of what is available, and a chunk's measured cost never exceeds what is available.
+    @Test
+    func chunkSizeFollowsAvailableMemory() {
+        let mebibyte = 1 << 20
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 64 * mebibyte) == nil)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 255 * mebibyte) == nil)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 256 * mebibyte) == 1024)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 400 * mebibyte) == 1600)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 1024 * mebibyte) == 4096)
+        #expect(HealthUploadStagingUploader.drainChunkSize(availableMemory: 8192 * mebibyte) == 10_000)
     }
 }
 
@@ -516,6 +534,25 @@ extension HealthUploadStagingDrainLivenessTests {
         #expect(try staging.isEmpty)
     }
 
+    /// Rule 4 must hold for a frame stating any size: decompressing it unbounded would trap, and every later drain with it.
+    @Test
+    func aRowWhoseFrameStatesAnImpossibleSizeStagesOneRawObject() async throws {
+        let staging = try await HealthUploadStaging.resolvedForTesting()
+        try await staging.add((0..<3).map(ExchangeHarness.steps))
+        let rows = try staging.sampleRows()
+        let versions = try rows.map { try Self.record(of: $0).version }
+        let stored = Self.frameStatingAnImpossibleSize()
+        try staging.replacePayload(of: rows[1], with: stored)
+
+        let drain = try await DrainRecording().samples(of: staging)
+
+        #expect(drain.unreadable.map(\.name) == ["unreadable_\(Self.stepCount)_\(Self.digest(stored)).raw"])
+        #expect(drain.unreadable.map(\.contents) == [stored])
+        #expect(try drain.stagedVersions() == [[versions[0], versions[2]]])
+        #expect(drain.events == [Self.event(.unreadable, rows: 1)])
+        #expect(try staging.isEmpty)
+    }
+
     @Test
     func aRowThatFailsValidationStagesOneZstdObject() async throws {
         let staging = try await HealthUploadStaging.resolvedForTesting()
@@ -549,6 +586,42 @@ extension HealthUploadStagingDrainLivenessTests {
         #expect(try drain.stagedJSON == [splicedJSONArray([element])])
         #expect(drain.events == [Self.event(.unreadable, rows: 1)])
         #expect(try staging.isEmpty)
+    }
+
+    /// A legacy payload is spliced into its kind's array as stored, so one that decompresses to no UTF-8 JSON object
+    /// leaves alone instead of breaking the array or putting a non-resource into it.
+    @Test(arguments: [PayloadFormat.legacyResource, .legacyEventBundle], [
+        #"{"resourceType":"Observation","valueQuantity":{"value":NaN}}"#,
+        #"{"resourceType":"Observation""#,
+        #"["Observation"]"#,
+        "\u{FEFF}" + #"{"resourceType":"Observation"}"#
+    ])
+    func aLegacyRowThatIsNoJSONObjectStagesOneZstdObject(format: PayloadFormat, payload: String) async throws {
+        let staging = try await HealthUploadStaging.resolvedForTesting()
+        let stored = try Data(payload.utf8).compressed(using: Zstd.self)
+        let element = Self.legacyPayload(resourceType: format == .legacyResource ? "Observation" : "Bundle")
+        try staging.insertRow(Self.legacyRow(format, storing: stored))
+        try staging.insertRow(Self.legacyRow(format, storing: try element.compressed(using: Zstd.self)))
+
+        let drain = try await DrainRecording().samples(of: staging)
+
+        #expect(drain.unreadable.map(\.name) == ["unreadable_\(Self.stepCount)_\(Self.digest(stored)).zstd"])
+        #expect(drain.unreadable.map(\.contents) == [stored])
+        #expect(try drain.stagedJSON == [splicedJSONArray([element])])
+        #expect(try drain.stagedJSON.allSatisfy { (try? JSONSerialization.jsonObject(with: $0)) is [Any] })
+        #expect(drain.events == [Self.event(.unreadable, rows: 1)])
+        #expect(try staging.isEmpty)
+    }
+
+    @Test
+    func aLegacyElementIsOneUTF8JSONObject() throws {
+        let object = #"{"resourceType":"Observation"}"#
+        #expect(HealthUploadStagingUploader.isLegacyElement(Data(object.utf8)))
+        #expect(HealthUploadStagingUploader.isLegacyElement(Data(" \n\(object)".utf8)))
+        #expect(!HealthUploadStagingUploader.isLegacyElement(Data("\u{FEFF}\(object)".utf8)))
+        #expect(!HealthUploadStagingUploader.isLegacyElement(try #require(object.data(using: .utf16LittleEndian))))
+        #expect(!HealthUploadStagingUploader.isLegacyElement(Data(#"["Observation"]"#.utf8)))
+        #expect(!HealthUploadStagingUploader.isLegacyElement(Data()))
     }
 
     /// Legacy rows never share a file with records or with the other legacy kind, and their elements travel as stored.

@@ -28,7 +28,8 @@ import MyHeartCountsShared
 // 2. A record that would take a non-empty packer past a cap comes back `deferred`; an empty packer admits a record over the
 //    byte cap, which then travels alone.
 // 3. A `deferred` record goes into the next Bundle of the same chunk.
-// 4. A row that can't be decompressed or validated leaves alone, as its stored bytes, in an `unreadable_` object.
+// 4. A row that can't be decompressed or validated leaves alone, as its stored bytes, in an `unreadable_` object. A legacy
+//    row is valid when its payload is one UTF-8 JSON object, since it is spliced into its kind's array as stored.
 // 5. When a Bundle fails to validate, its records are re-packed one per Bundle; a record whose one-record Bundle still fails
 //    leaves alone, as rule 4 says.
 // 6. Applied first: a row stored under another subject is removed before anything reads its payload, and so is a record
@@ -48,40 +49,23 @@ extension HealthUploadStagingUploader {
         var tally: [HealthUploadIntegrityEvent.Kind: Int] = [:]
     }
 
-    /// One file a chunk leaves the device as, besides its Bundles.
-    private struct UploadObject {
-        let filename: String
-        let contents: Data
-
-        /// An `unreadable_` object: `contents` exactly as they are, named by their digest.
-        static func unreadable(_ contents: Data, sampleType: String, fileExtension: String) -> Self {
-            Self(
-                filename: "unreadable_\(sampleType)_\(HealthUploadBatch.digest(of: contents)).\(fileExtension)",
-                contents: contents
-            )
-        }
-
-        /// One JSON array of a legacy kind's stored elements, or `nil` when the chunk holds none. The array has the shape
-        /// the staging build uploaded, and each element travels as stored.
-        static func legacy(_ elements: [Data], sampleType: String) throws -> Self? {
-            guard !elements.isEmpty else {
-                return nil
-            }
-            let array = HealthUploadBatch.jsonArray(elements) { $0 }
-            return Self(
-                filename: "\(sampleType)_\(HealthUploadBatch.digest(of: array)).json.zstd",
-                contents: try array.compressed(using: Zstd.self)
-            )
-        }
-    }
-
     /// What one chunk leaves the device as.
     private struct ChunkUpload {
         var bundles: [ExchangeGraph] = []
         /// Staged like the Bundles.
-        var legacyFiles: [UploadObject] = []
-        var unreadable: [UploadObject] = []
+        var legacyFiles: [HealthUploadBatch.UploadObject] = []
+        var unreadable: [HealthUploadBatch.UploadObject] = []
         var tally: [HealthUploadIntegrityEvent.Kind: Int] = [:]
+
+        /// Rule 4: `row` leaves alone, as its stored bytes.
+        mutating func leaveUnreadable(
+            _ row: HealthUploadStaging.PendingSampleRecord,
+            sampleType: String,
+            fileExtension: String
+        ) {
+            unreadable.append(.unreadable(row.fhirJson, sampleType: sampleType, fileExtension: fileExtension))
+            tally[.unreadable, default: 0] += 1
+        }
     }
 
     /// A deletion Grove refused to retract, as the JSON object it is uploaded as (rule 7).
@@ -225,21 +209,17 @@ extension HealthUploadStagingUploader {
         stage: (URL) async throws -> Void,
         stageUnreadable: (URL) async throws -> Void
     ) async throws {
-        func stageFile(at url: URL, through stage: (URL) async throws -> Void) async throws {
-            defer {
-                try? FileManager.default.removeItem(at: url)
-            }
-            try Swift::Task.checkCancellation()
-            try await stage(url)
-        }
         for bundle in upload.bundles {
-            try await stageFile(at: try HealthUploadBatch.write(bundle, typePrefix: typePrefix), through: stage)
+            try Swift::Task.checkCancellation()
+            try await HealthUploadBatch.stageFile(bundle, typePrefix: typePrefix, through: stage)
         }
         for file in upload.legacyFiles {
-            try await stageFile(at: try HealthUploadBatch.write(file.contents, filename: file.filename), through: stage)
+            try Swift::Task.checkCancellation()
+            try await HealthUploadBatch.stageFile(file.contents, filename: file.filename, through: stage)
         }
         for object in upload.unreadable {
-            try await stageFile(at: try HealthUploadBatch.write(object.contents, filename: object.filename), through: stageUnreadable)
+            try Swift::Task.checkCancellation()
+            try await HealthUploadBatch.stageFile(object.contents, filename: object.filename, through: stageUnreadable)
         }
     }
 }
@@ -298,6 +278,18 @@ extension HealthUploadStagingUploader {
         return true
     }
 
+    /// Whether a legacy payload may be spliced into its kind's array as stored (rule 4): one UTF-8 JSON object.
+    ///
+    /// Anything else makes the array unparseable or puts a non-resource into it. `JSONSerialization` alone also reads
+    /// UTF-16, UTF-32 and a byte order mark, so the payload must start with `{` and hold no NUL byte, which UTF-8 JSON
+    /// never contains. It still reads a trailing comma, which none of the encoders that wrote these rows produce.
+    nonisolated static func isLegacyElement(_ json: Data) -> Bool {
+        let whitespace: Set<UInt8> = [0x20, 0x09, 0x0A, 0x0D]
+        return json.first { !whitespace.contains($0) } == UInt8(ascii: "{")
+            && !json.contains(0)
+            && (try? JSONSerialization.jsonObject(with: json)) is [String: Any]
+    }
+
     /// What `chunk`'s rows leave the device as, by rules 1 to 6.
     nonisolated private static func upload(
         of chunk: HealthUploadStaging.DrainChunk<HealthUploadStaging.PendingSampleRecord>,
@@ -317,20 +309,24 @@ extension HealthUploadStagingUploader {
                 upload.tally[.otherSubject, default: 0] += 1
                 continue
             }
-            guard let json = try? row.fhirJson.decompressed(using: Zstd.self) else {
-                upload.unreadable.append(.unreadable(row.fhirJson, sampleType: chunk.sampleType, fileExtension: "raw"))
-                upload.tally[.unreadable, default: 0] += 1
+            guard let json = row.decompressedPayload else {
+                upload.leaveUnreadable(row, sampleType: chunk.sampleType, fileExtension: "raw")
                 continue
             }
             switch row.payloadFormat {
-            case .legacyResource:
-                legacyResources.append(json)
-            case .legacyEventBundle:
-                legacyEventBundles.append(json)
+            case .legacyResource, .legacyEventBundle:
+                guard Self.isLegacyElement(json) else {
+                    upload.leaveUnreadable(row, sampleType: chunk.sampleType, fileExtension: "zstd")
+                    continue
+                }
+                if row.payloadFormat == .legacyResource {
+                    legacyResources.append(json)
+                } else {
+                    legacyEventBundles.append(json)
+                }
             case .record:
                 guard let record = try? ExchangeRecord(validating: json) else {
-                    upload.unreadable.append(.unreadable(row.fhirJson, sampleType: chunk.sampleType, fileExtension: "zstd"))
-                    upload.tally[.unreadable, default: 0] += 1
+                    upload.leaveUnreadable(row, sampleType: chunk.sampleType, fileExtension: "zstd")
                     continue
                 }
                 guard !record.namesAnotherSubject(than: subject) else {
@@ -348,7 +344,7 @@ extension HealthUploadStagingUploader {
             upload.unreadable.append(.unreadable(row.fhirJson, sampleType: chunk.sampleType, fileExtension: "zstd"))
         }
         upload.legacyFiles = try [legacyResources, legacyEventBundles].compactMap { elements in
-            try UploadObject.legacy(elements, sampleType: chunk.sampleType)
+            try HealthUploadBatch.UploadObject.legacy(elements, sampleType: chunk.sampleType)
         }
         return upload
     }
@@ -444,7 +440,7 @@ extension HealthUploadStagingUploader {
                 records.append((rowID: row.id, record: record))
             case .refused(let reason):
                 let object = try HealthUploadBatch.encoder.encode(RefusedDeletion(row, subject: subject, reason: reason))
-                upload.unreadable.append(UploadObject(
+                upload.unreadable.append(HealthUploadBatch.UploadObject(
                     filename: "unreadable_\(sampleType)_\(HealthUploadBatch.digest(of: object)).deletion.zstd",
                     contents: try object.compressed(using: Zstd.self)
                 ))
@@ -456,18 +452,10 @@ extension HealthUploadStagingUploader {
         let packed = packChunk(records, kind: .retraction, packedAt: .now, makeBundle: makeBundle)
         upload.bundles = packed.bundles
         upload.tally.merge(packed.tally, uniquingKeysWith: +)
-        // A deletion row stores no payload, so what leaves here is the retraction itself, named by its keyed Provenance
-        // fullUrl, as the re-conversion of a re-drain states other bytes under the same key.
+        // A deletion row stores no payload, so what leaves here is the retraction itself.
         let failedAlone = Set(packed.failedAlone)
         for (_, record) in records.filter({ failedAlone.contains($0.rowID) }) {
-            upload.unreadable.append(UploadObject(
-                filename: HealthUploadBatch.filename(
-                    typePrefix: "unreadable_\(sampleType)",
-                    provenanceFullURLs: [record.version.fullURL],
-                    fileExtension: "zstd"
-                ),
-                contents: try record.json.compressed(using: Zstd.self)
-            ))
+            upload.unreadable.append(try .unreadable(record, sampleType: sampleType))
         }
         return upload
     }

@@ -139,6 +139,9 @@ extension MyHeartCountsStandard.HealthObservationUploadDependencies {
                 return try testing.stateStore.healthKitExporter(subject: testing.subject, facts: testing.facts ?? .testing())
             },
             stageFile: stageFile,
+            stageUnreadableFile: { file, _ in
+                Issue.record("Unexpected unreadable object \(file.lastPathComponent)")
+            },
             logger: Logger(subsystem: "edu.stanford.MyHeartCounts.tests", category: "HealthObservationUpload")
         )
     }
