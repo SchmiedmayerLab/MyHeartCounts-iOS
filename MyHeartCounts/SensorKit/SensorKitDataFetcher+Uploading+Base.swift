@@ -185,7 +185,7 @@ extension MHCSensorSampleUploadStrategy {
         for (exported, outcome) in records {
             switch outcome {
             case .record(let record):
-                guard try packer.add(record) != .deferred else {
+                guard try packer.insert(record) != .deferred else {
                     throw SensorKitArchiveError.secondRecordVersion
                 }
                 try archive.addRecord(recording: exported.recording, timeRange: exported.timeRange, sampleCount: exported.sampleCount)

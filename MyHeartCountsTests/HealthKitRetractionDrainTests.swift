@@ -150,8 +150,8 @@ struct HealthKitRetractionDrainTests {
         #expect(records.count == 3)
         var packer = ExchangeBundlePacker(kind: .retraction)
         for record in records {
-            let admission = try packer.add(record)
-            #expect(admission == .added)
+            let result = try packer.insert(record)
+            #expect(result == .inserted)
         }
         let expected = try packer.bundle(packedAt: .now)
         #expect(try Self.entries(of: chunk.payload) == Self.entries(of: expected.json))

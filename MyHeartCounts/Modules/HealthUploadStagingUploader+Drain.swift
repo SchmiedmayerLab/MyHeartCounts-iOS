@@ -151,7 +151,7 @@ extension HealthUploadStagingUploader {
         func repackAlone(_ entry: (rowID: UUID, record: ExchangeRecord)) {
             var alone = makePacker(entry.record.kind)
             do {
-                _ = try alone.add(entry.record)
+                _ = try alone.insert(entry.record)
                 chunk.bundles.append(try makeBundle(alone, packedAt))
             } catch {
                 chunk.failedAlone.append(entry.rowID)
@@ -164,7 +164,7 @@ extension HealthUploadStagingUploader {
             packerKind = kind
             packer = makePacker(kind)
             do {
-                _ = try packer.add(entry.record)
+                _ = try packer.insert(entry.record)
                 packed = [entry]
             } catch {
                 // A fresh packer of the record's kind holds nothing to refuse it for.
@@ -175,8 +175,8 @@ extension HealthUploadStagingUploader {
 
         for entry in records {
             do throws(ExchangeBundlePacker.Failure) {
-                switch try packer.add(entry.record) {
-                case .added:
+                switch try packer.insert(entry.record) {
+                case .inserted:
                     packed.append(entry)
                 case .duplicate:
                     break
