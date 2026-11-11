@@ -102,6 +102,9 @@ extension NotificationsManager: NotificationHandler {
 extension NotificationsManager: NotificationTokenHandler {
     func receiveUpdatedDeviceToken(_ deviceToken: Data) {
         Task {
+            // Without a configured FirebaseApp, `Messaging.messaging()` returns nil (despite being imported as non-optional),
+            // and the `token()` call below would then never call its completion handler, leaking the continuation.
+            await Grove.waitForFirebaseLoaded()
             let messaging = Messaging.messaging()
             messaging.apnsToken = deviceToken
             guard let fcmToken = try? await messaging.token() else {
