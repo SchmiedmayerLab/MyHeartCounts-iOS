@@ -28,7 +28,8 @@ import MyHeartCountsShared
 // 2. A record that would take a non-empty packer past a cap comes back `deferred`; an empty packer admits a record over the
 //    byte cap, which then travels alone.
 // 3. A `deferred` record goes into the next Bundle of the same chunk.
-// 4. A row that can't be decompressed or validated leaves alone, as its stored bytes, in an `unreadable_` object.
+// 4. A row that can't be decompressed or validated leaves alone, as its stored bytes, in an `unreadable_` object. A legacy
+//    row is valid when its payload is one JSON object, since it is spliced into its kind's array as stored.
 // 5. When a Bundle fails to validate, its records are re-packed one per Bundle; a record whose one-record Bundle still fails
 //    leaves alone, as rule 4 says.
 // 6. Applied first: a row stored under another subject is removed before anything reads its payload, and so is a record
@@ -55,6 +56,16 @@ extension HealthUploadStagingUploader {
         var legacyFiles: [HealthUploadBatch.UploadObject] = []
         var unreadable: [HealthUploadBatch.UploadObject] = []
         var tally: [HealthUploadIntegrityEvent.Kind: Int] = [:]
+
+        /// Rule 4: `row` leaves alone, as its stored bytes.
+        mutating func leaveUnreadable(
+            _ row: HealthUploadStaging.PendingSampleRecord,
+            sampleType: String,
+            fileExtension: String
+        ) {
+            unreadable.append(.unreadable(row.fhirJson, sampleType: sampleType, fileExtension: fileExtension))
+            tally[.unreadable, default: 0] += 1
+        }
     }
 
     /// A deletion Grove refused to retract, as the JSON object it is uploaded as (rule 7).
@@ -287,19 +298,24 @@ extension HealthUploadStagingUploader {
                 continue
             }
             guard let json = row.decompressedPayload else {
-                upload.unreadable.append(.unreadable(row.fhirJson, sampleType: chunk.sampleType, fileExtension: "raw"))
-                upload.tally[.unreadable, default: 0] += 1
+                upload.leaveUnreadable(row, sampleType: chunk.sampleType, fileExtension: "raw")
                 continue
             }
             switch row.payloadFormat {
-            case .legacyResource:
-                legacyResources.append(json)
-            case .legacyEventBundle:
-                legacyEventBundles.append(json)
+            case .legacyResource, .legacyEventBundle:
+                // Rule 4: one payload that isn't a JSON object would make the whole spliced array unparseable.
+                guard (try? JSONSerialization.jsonObject(with: json)) is [String: Any] else {
+                    upload.leaveUnreadable(row, sampleType: chunk.sampleType, fileExtension: "zstd")
+                    continue
+                }
+                if row.payloadFormat == .legacyResource {
+                    legacyResources.append(json)
+                } else {
+                    legacyEventBundles.append(json)
+                }
             case .record:
                 guard let record = try? ExchangeRecord(validating: json) else {
-                    upload.unreadable.append(.unreadable(row.fhirJson, sampleType: chunk.sampleType, fileExtension: "zstd"))
-                    upload.tally[.unreadable, default: 0] += 1
+                    upload.leaveUnreadable(row, sampleType: chunk.sampleType, fileExtension: "zstd")
                     continue
                 }
                 guard !record.namesAnotherSubject(than: subject) else {

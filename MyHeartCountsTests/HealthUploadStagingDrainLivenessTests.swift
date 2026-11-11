@@ -588,6 +588,30 @@ extension HealthUploadStagingDrainLivenessTests {
         #expect(try staging.isEmpty)
     }
 
+    /// A legacy payload is spliced into its kind's array as stored, so one that decompresses to no JSON object leaves
+    /// alone instead of making the whole array unparseable.
+    @Test(arguments: [PayloadFormat.legacyResource, .legacyEventBundle], [
+        #"{"resourceType":"Observation","valueQuantity":{"value":NaN}}"#,
+        #"{"resourceType":"Observation""#,
+        #"["Observation"]"#
+    ])
+    func aLegacyRowThatIsNoJSONObjectStagesOneZstdObject(format: PayloadFormat, payload: String) async throws {
+        let staging = try await HealthUploadStaging.resolvedForTesting()
+        let stored = try Data(payload.utf8).compressed(using: Zstd.self)
+        let element = Self.legacyPayload(resourceType: format == .legacyResource ? "Observation" : "Bundle")
+        try staging.insertRow(Self.legacyRow(format, storing: stored))
+        try staging.insertRow(Self.legacyRow(format, storing: try element.compressed(using: Zstd.self)))
+
+        let drain = try await DrainRecording().samples(of: staging)
+
+        #expect(drain.unreadable.map(\.name) == ["unreadable_\(Self.stepCount)_\(Self.digest(stored)).zstd"])
+        #expect(drain.unreadable.map(\.contents) == [stored])
+        #expect(try drain.stagedJSON == [splicedJSONArray([element])])
+        #expect(try drain.stagedJSON.allSatisfy { (try? JSONSerialization.jsonObject(with: $0)) is [Any] })
+        #expect(drain.events == [Self.event(.unreadable, rows: 1)])
+        #expect(try staging.isEmpty)
+    }
+
     /// Legacy rows never share a file with records or with the other legacy kind, and their elements travel as stored.
     @Test
     func legacyRowsLeaveAsOneArrayPerKind() async throws {
