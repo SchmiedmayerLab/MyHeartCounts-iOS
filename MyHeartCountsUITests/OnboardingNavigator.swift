@@ -317,7 +317,8 @@ struct OnboardingNavigator { // swiftlint:disable:this type_body_length
     
     
     func navigateWorkoutPreferences() {
-        XCTAssert(app.staticTexts["Workout Preference"].waitForExistence(timeout: 2))
+        // iOS 27 doesn't expose the large "Workout Preference" title to accessibility, so the page is told by its first section.
+        XCTAssert(app.staticTexts["Preferred Workout Types"].waitForExistence(timeout: 2))
         XCTAssert(app.staticTexts["Cycling"].waitForExistence(timeout: 2))
         app.staticTexts["Cycling"].tap()
         app.swipeUp()

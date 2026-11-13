@@ -87,13 +87,19 @@ final class OnboardingTests: MHCTestCase, @unchecked Sendable {
         XCTAssert(app.staticTexts["HealthKit Access"].waitForExistence(timeout: 7))
         app.buttons["Continue"].tap()
         
-        XCTAssert(
-            app.staticTexts.matching("label LIKE %@", "* would like to access and update your Health data*").element.waitForExistence(timeout: 7)
+        let healthAccessPrompt = app.staticTexts.matching(
+            "label LIKE %@ OR label LIKE %@",
+            "* would like to access and update your Health data*", // before iOS 27
+            "Allow * to access your Health data*" // iOS 27
         )
-        app.tables.firstMatch.swipeUp()
+        XCTAssert(healthAccessPrompt.element.waitForExistence(timeout: 7))
         do {
             let toggle = app.switches["Active Energy"]
             XCTAssert(toggle.waitForExistence(timeout: 2))
+            // Off-screen rows can't be tapped; iOS 27 lists Active Energy further down than iOS 26.
+            for _ in 0..<10 where !toggle.isHittable {
+                app.tables.firstMatch.swipeUp()
+            }
             sleep(for: .seconds(0.5))
             XCTAssertEqual(try XCTUnwrap(toggle.value as? String), "0")
             toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
@@ -101,8 +107,20 @@ final class OnboardingTests: MHCTestCase, @unchecked Sendable {
             XCTAssertEqual(try XCTUnwrap(toggle.value as? String), "1")
         }
         sleep(for: .seconds(2))
-        
-        app.buttons["UIA.Health.Allow.Button"].tap()
+
+        // "Allow" is a bar button before iOS 27; from iOS 27 it's at the end of the list and has to be scrolled to,
+        // and a second page then asks how much history to share.
+        let allowButton = app.buttons.matching("identifier == %@ OR label == %@", "UIA.Health.Allow.Button", "Allow").firstMatch
+        for _ in 0..<12 where !(allowButton.exists && allowButton.isHittable) {
+            app.swipeUp()
+        }
+        allowButton.tap()
+        let allRecordedData = app.descendants(matching: .any).matching("label BEGINSWITH %@", "All Recorded Data").firstMatch
+        if allRecordedData.waitForExistence(timeout: 5) {
+            allRecordedData.tap()
+            XCTAssert(app.buttons["Allow"].wait(for: \.isHittable, toEqual: true, timeout: 10))
+            app.buttons["Allow"].tap()
+        }
         navigator.navigateWorkoutPreferences()
         navigator.navigateHealthRecordsIfNecessary()
         navigator.navigateNotificationsIfNecessary()
