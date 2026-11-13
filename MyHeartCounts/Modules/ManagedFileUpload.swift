@@ -126,6 +126,8 @@ final class ManagedFileUpload: Grove::Module, EnvironmentAccessible, Sendable {
 
     nonisolated let configuration: Configuration
     nonisolated(unsafe) private let fileManager = FileManager()
+    /// The Firebase Storage bucket that files are uploaded into; `nil` for the Firebase app's default bucket.
+    @ObservationIgnored var storageBucket: String?
 
     private let newUploads = AsyncStream.makeStream(of: PersistentIdentifier.self)
     /// Whether the queue currently accepts new work.
@@ -497,7 +499,9 @@ extension ManagedFileUpload {
         filename: String,
         metadata: [String: String]
     ) async throws {
-        let storageRef = Storage.storage().reference(withPath: "users/\(accountId)/\(category.firebasePath)/\(filename)")
+        let storageBucket = await self.storageBucket
+        let storage = storageBucket.map { Storage.storage(url: "gs://\($0)") } ?? Storage.storage()
+        let storageRef = storage.reference(withPath: "users/\(accountId)/\(category.firebasePath)/\(filename)")
         let bucket = storageRef.bucket
         let path = storageRef.fullPath
         await logger.notice("uploading to \(bucket):\(path)")

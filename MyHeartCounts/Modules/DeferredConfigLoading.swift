@@ -185,7 +185,6 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
     }
     
     
-    // swiftlint:disable:next cyclomatic_complexity
     private static func _firebaseOptions(for configSelector: FirebaseConfigSelector) throws(LoadingError) -> FirebaseOptions {
         logger.notice("[\(#function)] selector: \(String(describing: configSelector))")
         // swiftlint:disable legacy_objc_type
@@ -206,15 +205,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
             defer {
                 try? FileManager.default.removeItem(at: tmpUrl)
             }
-            let key: String
-            switch region {
-            case .unitedStates:
-                key = "US"
-            case .unitedKingdom:
-                key = "UK"
-            default:
-                throw .unsupportedRegion(region)
-            }
+            let key = try configKey(for: region)
             guard let configDict = combinedConfig[key] as? NSDictionary else {
                 throw .unableToLoadFirebaseConfigPlist()
             }
@@ -248,7 +239,43 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
         }
         return options
     }
-    
+
+    /// The key of a region's config in the combined `GoogleService-Info.plist`.
+    private static func configKey(for region: Locale.Region) throws(LoadingError) -> String {
+        switch region {
+        case .unitedStates:
+            return "US"
+        case .unitedKingdom:
+            return "UK"
+        default:
+            throw .unsupportedRegion(region)
+        }
+    }
+
+    /// The bucket for collected health data, from the `DATA_COLLECTION_BUCKET` key of the selected Firebase config.
+    ///
+    /// `nil` if the config doesn't name one, in which case uploads go to the default bucket.
+    static func dataCollectionBucket(for configSelector: FirebaseConfigSelector) -> String? {
+        // swiftlint:disable legacy_objc_type
+        let config: NSDictionary?
+        switch configSelector {
+        case .region(let region):
+            let combinedConfig = Bundle.main.url(forResource: "GoogleService-Info", withExtension: "plist")
+                .flatMap { try? NSDictionary(contentsOf: $0, error: ()) }
+            config = (try? configKey(for: region)).flatMap { combinedConfig?[$0] as? NSDictionary }
+        case .custom(let plistNameInBundle):
+            config = Bundle.main.url(forResource: plistNameInBundle, withExtension: "plist")
+                .flatMap { try? NSDictionary(contentsOf: $0, error: ()) }
+        case .customUrl(let url):
+            config = try? NSDictionary(contentsOf: url, error: ())
+        }
+        // swiftlint:enable legacy_objc_type
+        guard let bucket = config?["DATA_COLLECTION_BUCKET"] as? String, !bucket.isEmpty else {
+            return nil
+        }
+        return bucket
+    }
+
     
     @MainActor
     static func initialAppLaunchConfig() throws(LoadingError) -> [any Module] {
@@ -295,6 +322,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
         }
         let firebaseOptions = try firebaseOptions(for: configSelector)
         logger.notice("Created FirebaseOptions for project '\(firebaseOptions.projectID ?? "")'")
+        let dataCollectionBucket = dataCollectionBucket(for: configSelector)
         activeConfiguration = configuration
         return Array { // swiftlint:disable:this closure_body_length
             ConfigureFirebaseApp(/*name: "My Heart Counts", */options: firebaseOptions)
@@ -361,6 +389,12 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
             } else {
                 FirebaseStorageConfiguration()
                 FirebaseFunctions()
+            }
+            if let dataCollectionBucket {
+                DataCollectionStorage(
+                    bucket: dataCollectionBucket,
+                    emulatorConfig: FeatureFlags.useFirebaseEmulator ? (host: "localhost", port: 9199) : nil
+                )
             }
             baseModules(preferredLocale: preferredLocale)
             HealthKitStatsCalculator()
