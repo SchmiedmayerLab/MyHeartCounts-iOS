@@ -12,13 +12,23 @@ set -euo pipefail
 : "${GITHUB_ENV:?GITHUB_ENV must be set}"
 : "${GITHUB_RUN_ID:?GITHUB_RUN_ID must be set}"
 : "${UI_TEST_SIMULATOR_DEVICE_TYPE:?UI_TEST_SIMULATOR_DEVICE_TYPE must be set}"
-: "${UI_TEST_SIMULATOR_RUNTIME:?UI_TEST_SIMULATOR_RUNTIME must be set}"
 
-# Prints the identifier of the installed iOS simulator runtime with the requested version, if there is one.
+# Without an explicit version, use the iOS version of the selected Xcode's simulator SDK: the newest iOS that Xcode supports.
+if [[ -z "${UI_TEST_SIMULATOR_RUNTIME:-}" ]]; then
+    UI_TEST_SIMULATOR_RUNTIME="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+fi
+echo "Using the iOS $UI_TEST_SIMULATOR_RUNTIME simulator runtime"
+
+# Prints the identifier of the installed iOS simulator runtime with the requested version that supports the device type,
+# if there is one. Device-specific runtimes (e.g. `iOS-27-2-iPhone19-4`) share the version but only support their own
+# device type, and can be listed before the general runtime.
 runtime_identifier() {
     xcrun simctl list --json runtimes \
-    | jq -r --arg version "$UI_TEST_SIMULATOR_RUNTIME" \
-        'first(.runtimes[] | select(.platform == "iOS" and .version == $version and .isAvailable) | .identifier)'
+    | jq -r --arg version "$UI_TEST_SIMULATOR_RUNTIME" --arg deviceType "$UI_TEST_SIMULATOR_DEVICE_TYPE" \
+        'first(.runtimes[]
+            | select(.platform == "iOS" and .version == $version and .isAvailable)
+            | select(any(.supportedDeviceTypes[]?; .identifier == $deviceType))
+            | .identifier)'
 }
 
 runtime="$(runtime_identifier)"
