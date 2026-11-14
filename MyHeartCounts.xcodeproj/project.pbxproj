@@ -1298,7 +1298,7 @@
 			repositoryURL = "https://github.com/SchmiedmayerLab/Grove.git";
 			requirement = {
 				kind = exactVersion;
-				version = "0.3.0-beta.13";
+				version = "0.3.0-beta.14";
 			};
 			traits = (
 				Textual,
