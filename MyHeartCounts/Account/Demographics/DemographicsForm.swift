@@ -235,13 +235,15 @@ extension Impl {
                         type: SampleType.height.hkSampleType,
                         quantity: HKQuantity(unit: .meterUnit(with: .centi), doubleValue: 186),
                         start: .now,
-                        end: .now
+                        end: .now,
+                        metadata: HealthKit.timeZoneMetadata
                     ),
                     HKQuantitySample(
                         type: SampleType.bodyMass.hkSampleType,
                         quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: 70),
                         start: .now,
-                        end: .now
+                        end: .now,
+                        metadata: HealthKit.timeZoneMetadata
                     )
                 ]
                 try await healthKit.save(samples)

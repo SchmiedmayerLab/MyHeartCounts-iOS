@@ -129,6 +129,8 @@ struct SaveBloodPressureSampleView: View {
         guard let systolic, let diastolic, !containsInvalidInput else {
             return
         }
+        // The correlation and its members must state the same zone, or HealthKit may silently drop the correlation.
+        let metadata = HealthKit.timeZoneMetadata
         let correlation = HKCorrelation(
             type: SampleType.bloodPressure.hkSampleType,
             start: date,
@@ -138,15 +140,18 @@ struct SaveBloodPressureSampleView: View {
                     type: SampleType.bloodPressureSystolic.hkSampleType,
                     quantity: HKQuantity(unit: SampleType.bloodPressureSystolic.displayUnit, doubleValue: Double(systolic)),
                     start: date,
-                    end: date
+                    end: date,
+                    metadata: metadata
                 ),
                 HKQuantitySample(
                     type: SampleType.bloodPressureDiastolic.hkSampleType,
                     quantity: HKQuantity(unit: SampleType.bloodPressureDiastolic.displayUnit, doubleValue: Double(diastolic)),
                     start: date,
-                    end: date
+                    end: date,
+                    metadata: metadata
                 )
-            ]
+            ],
+            metadata: metadata
         )
         try await healthKit.save(correlation)
     }

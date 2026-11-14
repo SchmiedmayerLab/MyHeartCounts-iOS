@@ -66,13 +66,15 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
             type: SampleType.bloodGlucose.hkSampleType,
             quantity: HKQuantity(unit: SampleType.bloodGlucose.displayUnit, doubleValue: 91),
             start: cal.date(bySettingHour: 9, minute: 12, second: 0, of: cal.date(byAdding: .day, value: -5, to: .now)!)!,
-            end: cal.date(bySettingHour: 9, minute: 12, second: 0, of: cal.date(byAdding: .day, value: -5, to: .now)!)!
+            end: cal.date(bySettingHour: 9, minute: 12, second: 0, of: cal.date(byAdding: .day, value: -5, to: .now)!)!,
+            metadata: HealthKit.timeZoneMetadata
         ))
         try await healthKit.save(HKQuantitySample(
             type: SampleType.bodyMassIndex.hkSampleType,
             quantity: HKQuantity(unit: SampleType.bodyMassIndex.displayUnit, doubleValue: 19.7),
             start: cal.date(bySettingHour: 12, minute: 27, second: 0, of: cal.date(byAdding: .day, value: -7, to: .now)!)!,
-            end: cal.date(bySettingHour: 12, minute: 27, second: 0, of: cal.date(byAdding: .day, value: -7, to: .now)!)!
+            end: cal.date(bySettingHour: 12, minute: 27, second: 0, of: cal.date(byAdding: .day, value: -7, to: .now)!)!,
+            metadata: HealthKit.timeZoneMetadata
         ))
     }
     
@@ -218,13 +220,15 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
                 type: SampleType.stepCount.hkSampleType,
                 quantity: HKQuantity(unit: .count(), doubleValue: Double(descriptor.numSteps)),
                 start: descriptor.start,
-                end: endDate
+                end: endDate,
+                metadata: HealthKit.timeZoneMetadata
             )
             let distanceSample = HKQuantitySample(
                 type: SampleType.distanceWalkingRunning.hkSampleType,
                 quantity: HKQuantity(unit: .meter(), doubleValue: Double(descriptor.distanceInMeters)),
                 start: descriptor.start,
-                end: endDate
+                end: endDate,
+                metadata: HealthKit.timeZoneMetadata
             )
             if descriptor.createWorkout {
                 let workoutConfig = HKWorkoutConfiguration()
@@ -232,6 +236,7 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
                 workoutConfig.locationType = .outdoor
                 let workoutBuilder = HKWorkoutBuilder(healthStore: healthKit.healthStore, configuration: workoutConfig, device: .local())
                 try await workoutBuilder.beginCollection(at: descriptor.start)
+                try await workoutBuilder.addMetadata(HealthKit.timeZoneMetadata)
                 try await workoutBuilder.addSamples([stepsSample, distanceSample])
                 try await workoutBuilder.endCollection(at: endDate)
                 try await workoutBuilder.finishWorkout()
@@ -288,7 +293,8 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
                     type: SampleType.sleepAnalysis.hkSampleType,
                     value: descriptor.phase.rawValue,
                     start: start,
-                    end: start.addingTimeInterval(descriptor.duration.timeInterval)
+                    end: start.addingTimeInterval(descriptor.duration.timeInterval),
+                    metadata: HealthKit.timeZoneMetadata
                 ))
             }
             return samples
@@ -321,6 +327,8 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
     
     private func addBloodPressureSamples() async throws {
         let date = cal.date(bySettingHour: 17, minute: 49, second: 0, of: cal.date(byAdding: .day, value: -1, to: .now)!)!
+        // The correlation and its members must state the same zone, or HealthKit may silently drop the correlation.
+        let metadata = HealthKit.timeZoneMetadata
         let correlation = HKCorrelation(
             type: SampleType.bloodPressure.hkSampleType,
             start: date,
@@ -330,15 +338,18 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
                     type: SampleType.bloodPressureSystolic.hkSampleType,
                     quantity: HKQuantity(unit: SampleType.bloodPressureSystolic.displayUnit, doubleValue: 129),
                     start: date,
-                    end: date
+                    end: date,
+                    metadata: metadata
                 ),
                 HKQuantitySample(
                     type: SampleType.bloodPressureDiastolic.hkSampleType,
                     quantity: HKQuantity(unit: SampleType.bloodPressureSystolic.displayUnit, doubleValue: 90),
                     start: date,
-                    end: date
+                    end: date,
+                    metadata: metadata
                 )
-            ]
+            ],
+            metadata: metadata
         )
         try await healthKit.save(correlation)
     }
