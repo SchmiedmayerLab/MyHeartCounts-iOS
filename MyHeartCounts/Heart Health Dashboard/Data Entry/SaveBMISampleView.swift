@@ -147,8 +147,12 @@ struct SaveBMISampleView: View {
         guard let bmi else {
             return
         }
-        // The date picker reads the entered time in the current time zone.
-        let metadata: [String: Any] = [HKMetadataKeyTimeZone: TimeZone.current.identifier]
+        // The user typed the values in (BMI either directly or as the weight and height it's computed from), and the date
+        // picker reads the entered time in the current time zone.
+        let metadata: [String: Any] = [
+            HKMetadataKeyTimeZone: TimeZone.current.identifier,
+            HKMetadataKeyWasUserEntered: true
+        ]
         var samples: [HKQuantitySample] = [
             HKQuantitySample(
                 type: bmiSampleType.hkSampleType,
