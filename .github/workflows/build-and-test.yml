@@ -18,11 +18,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # The UI tests remote-control the Health app and don't support its iOS 27 redesign yet, so each UI test job runs on a
-  # fresh iOS 26.5 simulator (see create-ui-test-simulator.sh).
+  # Each UI test job runs on a fresh simulator with the newest iOS the selected Xcode supports
+  # (see create-ui-test-simulator.sh). Set UI_TEST_SIMULATOR_RUNTIME (e.g. '26.5') to pin an older iOS version instead.
   UI_TEST_PRODUCTS_PATH: .ci-cache/MHC-App-UITests.xctestproducts
   UI_TEST_SIMULATOR_DEVICE_TYPE: com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro
-  UI_TEST_SIMULATOR_RUNTIME: '26.5'
   UI_TEST_XCODE_VERSION: 'latest-stable'
 
 jobs:

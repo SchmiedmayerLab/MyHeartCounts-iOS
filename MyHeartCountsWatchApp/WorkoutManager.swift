@@ -94,7 +94,9 @@ final class WorkoutManager: NSObject, Module, EnvironmentAccessible, HKWorkoutSe
         
         workoutSession.startActivity(with: .now)
         try await builder.beginCollection(at: .now)
-        
+        // The workout starts now, so in the current time zone.
+        try await builder.addMetadata([HKMetadataKeyTimeZone: TimeZone.current.identifier])
+
         Task {
             try? await Task.sleep(for: .seconds(timeRange.upperBound.timeIntervalSince(timeRange.lowerBound)))
             try? await stopWorkout()
