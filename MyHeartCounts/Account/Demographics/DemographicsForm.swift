@@ -230,20 +230,22 @@ extension Impl {
         
         var body: some View {
             AsyncButton("Add Height & Weight Samples" as String, state: $viewState) {
+                // Dated now, so in the current time zone.
+                let metadata: [String: Any] = [HKMetadataKeyTimeZone: TimeZone.current.identifier]
                 let samples = [
                     HKQuantitySample(
                         type: SampleType.height.hkSampleType,
                         quantity: HKQuantity(unit: .meterUnit(with: .centi), doubleValue: 186),
                         start: .now,
                         end: .now,
-                        metadata: HealthKit.timeZoneMetadata
+                        metadata: metadata
                     ),
                     HKQuantitySample(
                         type: SampleType.bodyMass.hkSampleType,
                         quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: 70),
                         start: .now,
                         end: .now,
-                        metadata: HealthKit.timeZoneMetadata
+                        metadata: metadata
                     )
                 ]
                 try await healthKit.save(samples)

@@ -62,19 +62,21 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
             value: 110,
             date: cal.date(bySettingHour: 19, minute: 50, second: 0, of: cal.startOfPrevDay(for: .now))!
         ))
+        // The demo dates are built with `cal` (`Calendar.current`), so they're in the current time zone.
+        let metadata: [String: Any] = [HKMetadataKeyTimeZone: TimeZone.current.identifier]
         try await healthKit.save(HKQuantitySample(
             type: SampleType.bloodGlucose.hkSampleType,
             quantity: HKQuantity(unit: SampleType.bloodGlucose.displayUnit, doubleValue: 91),
             start: cal.date(bySettingHour: 9, minute: 12, second: 0, of: cal.date(byAdding: .day, value: -5, to: .now)!)!,
             end: cal.date(bySettingHour: 9, minute: 12, second: 0, of: cal.date(byAdding: .day, value: -5, to: .now)!)!,
-            metadata: HealthKit.timeZoneMetadata
+            metadata: metadata
         ))
         try await healthKit.save(HKQuantitySample(
             type: SampleType.bodyMassIndex.hkSampleType,
             quantity: HKQuantity(unit: SampleType.bodyMassIndex.displayUnit, doubleValue: 19.7),
             start: cal.date(bySettingHour: 12, minute: 27, second: 0, of: cal.date(byAdding: .day, value: -7, to: .now)!)!,
             end: cal.date(bySettingHour: 12, minute: 27, second: 0, of: cal.date(byAdding: .day, value: -7, to: .now)!)!,
-            metadata: HealthKit.timeZoneMetadata
+            metadata: metadata
         ))
     }
     
@@ -214,6 +216,8 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
             )
         ]
         
+        // The demo dates are built with `cal` (`Calendar.current`), so they're in the current time zone.
+        let metadata: [String: Any] = [HKMetadataKeyTimeZone: TimeZone.current.identifier]
         for descriptor in descriptors {
             let endDate = cal.date(byAdding: .minute, value: descriptor.durationInMin, to: descriptor.start)!
             let stepsSample = HKQuantitySample(
@@ -221,14 +225,14 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
                 quantity: HKQuantity(unit: .count(), doubleValue: Double(descriptor.numSteps)),
                 start: descriptor.start,
                 end: endDate,
-                metadata: HealthKit.timeZoneMetadata
+                metadata: metadata
             )
             let distanceSample = HKQuantitySample(
                 type: SampleType.distanceWalkingRunning.hkSampleType,
                 quantity: HKQuantity(unit: .meter(), doubleValue: Double(descriptor.distanceInMeters)),
                 start: descriptor.start,
                 end: endDate,
-                metadata: HealthKit.timeZoneMetadata
+                metadata: metadata
             )
             if descriptor.createWorkout {
                 let workoutConfig = HKWorkoutConfiguration()
@@ -236,7 +240,7 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
                 workoutConfig.locationType = .outdoor
                 let workoutBuilder = HKWorkoutBuilder(healthStore: healthKit.healthStore, configuration: workoutConfig, device: .local())
                 try await workoutBuilder.beginCollection(at: descriptor.start)
-                try await workoutBuilder.addMetadata(HealthKit.timeZoneMetadata)
+                try await workoutBuilder.addMetadata(metadata)
                 try await workoutBuilder.addSamples([stepsSample, distanceSample])
                 try await workoutBuilder.endCollection(at: endDate)
                 try await workoutBuilder.finishWorkout()
@@ -285,6 +289,8 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
             SampleDescriptor(phase: .awake, duration: .minutes(54)),
             SampleDescriptor(phase: .asleepCore, duration: .minutes(1.5))
         ]
+        // The demo dates are built with `cal` (`Calendar.current`), so they're in the current time zone.
+        let metadata: [String: Any] = [HKMetadataKeyTimeZone: TimeZone.current.identifier]
         func makeSamples(from sampleDescriptors: [SampleDescriptor], startingAt startDate: Date) -> [HKCategorySample] {
             var samples: [HKCategorySample] = []
             for descriptor in sampleDescriptors {
@@ -294,7 +300,7 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
                     value: descriptor.phase.rawValue,
                     start: start,
                     end: start.addingTimeInterval(descriptor.duration.timeInterval),
-                    metadata: HealthKit.timeZoneMetadata
+                    metadata: metadata
                 ))
             }
             return samples
@@ -327,8 +333,9 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
     
     private func addBloodPressureSamples() async throws {
         let date = cal.date(bySettingHour: 17, minute: 49, second: 0, of: cal.date(byAdding: .day, value: -1, to: .now)!)!
+        // The demo dates are built with `cal` (`Calendar.current`), so they're in the current time zone.
         // The correlation and its members must state the same zone, or HealthKit may silently drop the correlation (FB25571287).
-        let metadata = HealthKit.timeZoneMetadata
+        let metadata: [String: Any] = [HKMetadataKeyTimeZone: TimeZone.current.identifier]
         let correlation = HKCorrelation(
             type: SampleType.bloodPressure.hkSampleType,
             start: date,

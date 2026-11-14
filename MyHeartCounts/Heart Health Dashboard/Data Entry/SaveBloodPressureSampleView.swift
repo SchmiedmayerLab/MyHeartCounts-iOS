@@ -129,8 +129,9 @@ struct SaveBloodPressureSampleView: View {
         guard let systolic, let diastolic, !containsInvalidInput else {
             return
         }
-        // The correlation and its members must state the same zone, or HealthKit may silently drop the correlation (FB25571287).
-        let metadata = HealthKit.timeZoneMetadata
+        // The date picker reads the entered time in the current time zone. The correlation and its members must state
+        // the same zone, or HealthKit may silently drop the correlation (FB25571287).
+        let metadata: [String: Any] = [HKMetadataKeyTimeZone: TimeZone.current.identifier]
         let correlation = HKCorrelation(
             type: SampleType.bloodPressure.hkSampleType,
             start: date,

@@ -147,7 +147,8 @@ struct SaveBMISampleView: View {
         guard let bmi else {
             return
         }
-        let metadata = HealthKit.timeZoneMetadata
+        // The date picker reads the entered time in the current time zone.
+        let metadata: [String: Any] = [HKMetadataKeyTimeZone: TimeZone.current.identifier]
         var samples: [HKQuantitySample] = [
             HKQuantitySample(
                 type: bmiSampleType.hkSampleType,

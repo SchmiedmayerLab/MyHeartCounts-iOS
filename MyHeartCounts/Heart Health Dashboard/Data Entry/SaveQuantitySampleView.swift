@@ -158,7 +158,8 @@ struct SaveQuantitySampleView: View {
                 quantity: HKQuantity(unit: unit, doubleValue: value),
                 start: self.date,
                 end: self.date,
-                metadata: HealthKit.timeZoneMetadata
+                // The date picker reads the entered time in the current time zone.
+                metadata: [HKMetadataKeyTimeZone: TimeZone.current.identifier]
             )
             do {
                 try await self.healthKit.save(sample)
