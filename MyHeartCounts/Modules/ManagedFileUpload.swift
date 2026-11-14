@@ -126,8 +126,6 @@ final class ManagedFileUpload: Grove::Module, EnvironmentAccessible, Sendable {
 
     nonisolated let configuration: Configuration
     nonisolated(unsafe) private let fileManager = FileManager()
-    /// The Firebase Storage bucket that files are uploaded into; `nil` for the Firebase app's default bucket.
-    @ObservationIgnored var storageBucket: String?
 
     private let newUploads = AsyncStream.makeStream(of: PersistentIdentifier.self)
     /// Whether the queue currently accepts new work.
@@ -489,6 +487,9 @@ extension ManagedFileUpload {
     
     /// Uploads a staged file into the owning account's directory in the Firebase Storage.
     ///
+    /// The file goes into the data collection bucket if the active Firebase config names one
+    /// (``DeferredConfigLoading/activeDataCollectionBucket``), and into the Firebase app's default bucket otherwise.
+    ///
     /// - Note: only ever called when no `uploadOperation` was injected — `Storage.storage()` force-unwraps
     ///     `FirebaseApp.app()`, so merely mentioning it is unsafe in a context where firebase isn't configured.
     @concurrent
@@ -499,8 +500,8 @@ extension ManagedFileUpload {
         filename: String,
         metadata: [String: String]
     ) async throws {
-        let storageBucket = await self.storageBucket
-        let storage = storageBucket.map { Storage.storage(url: "gs://\($0)") } ?? Storage.storage()
+        let dataCollectionBucket = DeferredConfigLoading.activeDataCollectionBucket
+        let storage = dataCollectionBucket.map { Storage.storage(url: "gs://\($0)") } ?? Storage.storage()
         let storageRef = storage.reference(withPath: "users/\(accountId)/\(category.firebasePath)/\(filename)")
         let bucket = storageRef.bucket
         let path = storageRef.fullPath

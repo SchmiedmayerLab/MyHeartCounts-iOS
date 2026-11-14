@@ -13,13 +13,23 @@ import Testing
 
 @Suite
 struct DataCollectionBucketTests {
-    @Test
-    func readsBucketFromConfig() throws {
-        let url = try writeConfig(["PROJECT_ID": "test", "DATA_COLLECTION_BUCKET": "test-datacollection"])
+    @Test(arguments: ["test-datacollection", "mhc-datacollection-dev.starr-data.us"])
+    func readsBucketFromConfig(bucket: String) throws {
+        let url = try writeConfig(["PROJECT_ID": "test", "DATA_COLLECTION_BUCKET": bucket])
         defer {
             try? FileManager.default.removeItem(at: url)
         }
-        #expect(DeferredConfigLoading.dataCollectionBucket(for: .customUrl(url)) == "test-datacollection")
+        #expect(DeferredConfigLoading.dataCollectionBucket(for: .customUrl(url)) == bucket)
+    }
+
+    /// Values that `Storage.storage(url:)` would crash on, or that can't be a bucket name, fall back to the default bucket.
+    @Test(arguments: ["test-datacollection/v2", "gs://test-datacollection", "Test-DataCollection", "test datacollection"])
+    func invalidBucketUsesDefault(bucket: String) throws {
+        let url = try writeConfig(["PROJECT_ID": "test", "DATA_COLLECTION_BUCKET": bucket])
+        defer {
+            try? FileManager.default.removeItem(at: url)
+        }
+        #expect(DeferredConfigLoading.dataCollectionBucket(for: .customUrl(url)) == nil)
     }
 
     @Test(arguments: [

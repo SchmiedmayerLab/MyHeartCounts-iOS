@@ -83,6 +83,16 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
         activeConfiguration?.firebaseConfig
     }
 
+    /// The bucket that ``ManagedFileUpload`` uploads collected data into; `nil` for the Firebase app's default bucket.
+    ///
+    /// Set together with the Firebase config. Always `nil` when running against the Firebase emulator,
+    /// which only the default bucket is connected to (by `FirebaseStorageConfiguration`).
+    /// Readable from any isolation domain, so that uploads don't need to hop to the main actor for it.
+    static var activeDataCollectionBucket: String? {
+        _activeDataCollectionBucket.withLock { $0 }
+    }
+    private static let _activeDataCollectionBucket = Mutex<String?>(nil)
+
     
     @MainActor static var currentStudyVariant: CurrentStudyVariant {
         if let activeConfiguration {
@@ -254,7 +264,7 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
 
     /// The bucket for collected health data, from the `DATA_COLLECTION_BUCKET` key of the selected Firebase config.
     ///
-    /// `nil` if the config doesn't name one, in which case uploads go to the default bucket.
+    /// `nil` if the config doesn't name one, or names something that isn't a bucket name, in which case uploads go to the default bucket.
     static func dataCollectionBucket(for configSelector: FirebaseConfigSelector) -> String? {
         // swiftlint:disable legacy_objc_type
         let config: NSDictionary?
@@ -271,6 +281,12 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
         }
         // swiftlint:enable legacy_objc_type
         guard let bucket = config?["DATA_COLLECTION_BUCKET"] as? String, !bucket.isEmpty else {
+            return nil
+        }
+        // `Storage.storage(url:)` crashes on anything that isn't a bare bucket name (e.g., one with a path),
+        // so only accept the characters a bucket name can consist of.
+        guard bucket.allSatisfy({ $0.isASCII && ($0.isLowercase || $0.isNumber || "-_.".contains($0)) }) else {
+            logger.error("Ignoring invalid DATA_COLLECTION_BUCKET '\(bucket)'; uploads will go to the default bucket.")
             return nil
         }
         return bucket
@@ -322,7 +338,8 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
         }
         let firebaseOptions = try firebaseOptions(for: configSelector)
         logger.notice("Created FirebaseOptions for project '\(firebaseOptions.projectID ?? "")'")
-        let dataCollectionBucket = dataCollectionBucket(for: configSelector)
+        let bucket = FeatureFlags.useFirebaseEmulator ? nil : dataCollectionBucket(for: configSelector)
+        _activeDataCollectionBucket.withLock { $0 = bucket }
         activeConfiguration = configuration
         return Array { // swiftlint:disable:this closure_body_length
             ConfigureFirebaseApp(/*name: "My Heart Counts", */options: firebaseOptions)
@@ -389,12 +406,6 @@ enum DeferredConfigLoading { // swiftlint:disable:this type_body_length
             } else {
                 FirebaseStorageConfiguration()
                 FirebaseFunctions()
-            }
-            if let dataCollectionBucket {
-                DataCollectionStorage(
-                    bucket: dataCollectionBucket,
-                    emulatorConfig: FeatureFlags.useFirebaseEmulator ? (host: "localhost", port: 9199) : nil
-                )
             }
             baseModules(preferredLocale: preferredLocale)
             HealthKitStatsCalculator()
