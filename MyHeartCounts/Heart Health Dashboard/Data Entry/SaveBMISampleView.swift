@@ -147,12 +147,15 @@ struct SaveBMISampleView: View {
         guard let bmi else {
             return
         }
+        // The date picker reads the entered time in the current time zone.
+        let metadata: [String: Any] = [HKMetadataKeyTimeZone: TimeZone.current.identifier]
         var samples: [HKQuantitySample] = [
             HKQuantitySample(
                 type: bmiSampleType.hkSampleType,
                 quantity: HKQuantity(unit: bmiSampleType.displayUnit, doubleValue: bmi),
                 start: date,
-                end: date
+                end: date,
+                metadata: metadata
             )
         ]
         if let height {
@@ -160,7 +163,8 @@ struct SaveBMISampleView: View {
                 type: SampleType.height.hkSampleType,
                 quantity: HKQuantity(unit: heightUnit, doubleValue: height),
                 start: date,
-                end: date
+                end: date,
+                metadata: metadata
             ))
         }
         if let weight {
@@ -168,7 +172,8 @@ struct SaveBMISampleView: View {
                 type: SampleType.bodyMass.hkSampleType,
                 quantity: HKQuantity(unit: weightUnit, doubleValue: weight),
                 start: date,
-                end: date
+                end: date,
+                metadata: metadata
             ))
         }
         try await healthKit.save(samples)
