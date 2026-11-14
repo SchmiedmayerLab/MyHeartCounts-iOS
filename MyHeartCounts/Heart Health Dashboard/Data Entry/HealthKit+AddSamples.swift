@@ -85,8 +85,9 @@ extension HealthKit {
     
     /// The metadata every sample My Heart Counts creates states: the current time zone (`HKMetadataKeyTimeZone`).
     ///
-    /// - Important: A correlation and all of its members must state the same zone. HealthKit (seen on iOS 27.2) silently drops
-    ///     a correlation whose zone differs from its members', while the save still reports success.
+    /// - Important: A correlation and all of its members must state the same zone. HealthKit silently drops a correlation
+    ///     whose zone differs from its members', while the save still reports success (FB25571287; found on iOS 27.2,
+    ///     earlier versions not checked).
     static var timeZoneMetadata: [String: Any] {
         [HKMetadataKeyTimeZone: TimeZone.current.identifier]
     }

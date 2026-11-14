@@ -327,7 +327,7 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
     
     private func addBloodPressureSamples() async throws {
         let date = cal.date(bySettingHour: 17, minute: 49, second: 0, of: cal.date(byAdding: .day, value: -1, to: .now)!)!
-        // The correlation and its members must state the same zone, or HealthKit may silently drop the correlation.
+        // The correlation and its members must state the same zone, or HealthKit may silently drop the correlation (FB25571287).
         let metadata = HealthKit.timeZoneMetadata
         let correlation = HKCorrelation(
             type: SampleType.bloodPressure.hkSampleType,
