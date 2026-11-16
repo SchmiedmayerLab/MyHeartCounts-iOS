@@ -107,8 +107,6 @@ jobs:
   deploy:
     name: Deploy
     needs: [version, test]
-    # TEMPORARY: the actual deployment is paused; the workflow only builds and tests. Remove this line to deploy again.
-    if: ${{ false }}
     # TestFlight deployments build, upload, and distribute both study variants;
     # production deployments submit the Stanford build to the App Store (see the `deploy` lane in the Fastfile).
     uses: SchmiedmayerLab/.github/.github/workflows/xcode-deploy.yml@v0.5
