@@ -59,7 +59,7 @@ struct StageOfChangePicker: View {
         } label: {
             VStack(alignment: .leading) {
                 HStack {
-                    Text(option.label(for: studyVariant))
+                    Text(option.label)
                         .font(.headline)
                         .foregroundStyle(.textLabel)
                     Spacer()
