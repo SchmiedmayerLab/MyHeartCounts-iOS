@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import MHCStudyDefinition
 
 
 struct StageOfChangeOption: Hashable, Identifiable, Sendable {
@@ -15,9 +14,9 @@ struct StageOfChangeOption: Hashable, Identifiable, Sendable {
     let title: LocalizedStringResource?
     let text: LocalizedStringResource
     
-    /// The option's short label: its letter in the Stanford study, and its title in the Imperial study.
-    func label(for studyVariant: StudyVariant) -> LocalizedStringResource {
-        studyVariant.localized(stanford: "\(id.uppercased())", imperial: title ?? "\(id.uppercased())")
+    /// The option's short label: its title, or its letter if it has no title.
+    var label: LocalizedStringResource {
+        title ?? "\(id.uppercased())"
     }
 }
 

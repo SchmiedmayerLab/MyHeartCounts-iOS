@@ -46,7 +46,7 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
     
     func addDemoData() async throws {
         try assertCanAddDemoData()
-        try await removeAllDemoHealthKitData()
+        try await healthKit.deleteAllSamplesSavedByThisApp()
         
         try await healthKit.askForAuthorization(for: healthKitAccessRequirements)
         
@@ -102,25 +102,6 @@ final class DemoSetup: Module, EnvironmentAccessible, Sendable { // swiftlint:di
             value: 20,
             date: cal.date(bySettingHour: 8, minute: 7, second: 0, of: .now)!
         ))
-    }
-    
-    private func removeAllDemoHealthKitData() async throws {
-        func imp<Sample>(_ sampleType: some AnySampleType<Sample>) async throws {
-            let sampleType = SampleType(sampleType)
-            guard let samples = try? await healthKit.query(
-                sampleType,
-                timeRange: .ever,
-                predicate: HKQuery.predicateForObjects(from: .default())
-            ) else {
-                return
-            }
-            if !samples.isEmpty {
-                try await healthKit.healthStore.delete(samples)
-            }
-        }
-        for sampleType in HKObjectType.allKnownObjectTypes.compactMap(\.sampleType) {
-            try await imp(sampleType)
-        }
     }
     
     private func addCustomHealthSample(_ sample: QuantitySample) async throws {

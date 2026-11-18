@@ -8,10 +8,36 @@
 
 import Foundation
 import GroveFoundation
+import GroveHealthKit
 import GroveHealthKitFHIR
 import HealthKit
 import ModelsR4
 import MyHeartCountsShared
+
+
+extension HealthKit {
+    /// Deletes all samples this app saved to HealthKit, across all well-known sample types.
+    ///
+    /// HealthKit only lets an app delete the samples it saved itself; sample types the app can't query are skipped.
+    func deleteAllSamplesSavedByThisApp() async throws {
+        func imp<Sample>(_ sampleType: some AnySampleType<Sample>) async throws {
+            let sampleType = SampleType(sampleType)
+            guard let samples = try? await query(
+                sampleType,
+                timeRange: .ever,
+                predicate: HKQuery.predicateForObjects(from: .default())
+            ) else {
+                return
+            }
+            if !samples.isEmpty {
+                try await healthStore.delete(samples)
+            }
+        }
+        for sampleType in HKObjectType.allKnownObjectTypes.compactMap(\.sampleType) {
+            try await imp(sampleType)
+        }
+    }
+}
 
 
 extension HKUnit {

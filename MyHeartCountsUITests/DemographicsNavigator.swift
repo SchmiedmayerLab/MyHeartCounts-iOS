@@ -111,7 +111,7 @@ struct DemographicsNavigator {
         app.staticTexts["Stage of Change"].tap()
         app.buttons["StageOfChangeButton:a"].tap()
         app.navigationBars.buttons["BackButton"].tap()
-        XCTAssert(app.buttons["Stage of Change, A"].waitForExistence(timeout: 1))
+        XCTAssert(app.buttons["Stage of Change, Usually active"].waitForExistence(timeout: 1))
         
         if !skipReferralSource {
             fillInReferralSourceOption("Friend")
