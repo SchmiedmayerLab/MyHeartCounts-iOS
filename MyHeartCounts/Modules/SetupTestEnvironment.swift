@@ -156,6 +156,16 @@ final class SetupTestEnvironment: Module, EnvironmentAccessible, Sendable {
                 // ok
             }
         }
+        // HealthKit lives outside the app's container, so the early reset can't clear it, and the simulator keeps
+        // its samples across launches. Without this, a sample saved by an earlier test (eg a blood pressure reading)
+        // shows up in every later test on the same simulator.
+        // This runs after the unenrollment, so that no HealthKit data collection is active to pick up the deletions.
+        // Failure here is non-fatal, for the same reason as with `localStorage.deleteAll()` below.
+        do {
+            try await healthKit.deleteAllSamplesSavedByThisApp()
+        } catch {
+            logger.error("Unable to delete the app's HealthKit samples: \(error)")
+        }
         // The active Firebase selection is in memory and survives this preference reset.
         LocalPreferencesStore.standard.removeAllEntries(in: .app)
         switch config.loginAndEnroll {
