@@ -84,7 +84,7 @@ struct QuantityInputRow: View {
         self.displayUnit = displayUnit ?? sampleType.displayUnit
         self.allowsDecimalEntry = switch allowsDecimalEntry {
         case .automatic:
-            !sampleType.prefersNonDecimalValues(in: self.displayUnit)
+            !sampleType.prefersNonDecimalValues(in: self.displayUnit ?? sampleType.displayUnit)
         case .yes:
             true
         case .no:
@@ -116,7 +116,7 @@ struct QuantityInputRow: View {
         self.displayUnit = displayUnit ?? sampleType.displayUnit
         self.allowsDecimalEntry = switch allowsDecimalEntry {
         case .automatic:
-            !sampleType.prefersNonDecimalValues(in: self.displayUnit)
+            !sampleType.prefersNonDecimalValues(in: self.displayUnit ?? sampleType.displayUnit)
         case .yes:
             true
         case .no:

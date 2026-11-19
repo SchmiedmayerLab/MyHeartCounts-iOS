@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import GroveHealthKit
 import HealthKit
 import MyHeartCountsShared
 import SwiftUI

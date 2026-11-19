@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import GroveHealthKit
 import HealthKit
 @testable import MyHeartCounts
 import Testing
