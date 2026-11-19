@@ -43,6 +43,16 @@
         }
       }
     },
+    "Allow Saving to the Health App" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permitir guardar en la app Salud"
+          }
+        }
+      }
+    },
     "Based on %lld of %lld score components" : {
       "localizations" : {
         "es" : {
@@ -119,6 +129,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "HbA1c"
+          }
+        }
+      }
+    },
+    "HEALTH_DATA_ENTRY_DENIED_NOTICE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Heart Counts isn't allowed to save this data in the Health app. What you enter here is still shared with the study, but won't appear in the Health app or on your dashboard. You can change this in the iOS Settings app, under Privacy & Security → Health → My Heart Counts."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Heart Counts isn't allowed to save this data in the Health app. What you enter here is still shared with the study, but won't appear in the Health app or on your dashboard. You can change this in the iOS Settings app, under Privacy & Security → Health → My Heart Counts."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Heart Counts no tiene permiso para guardar estos datos en la app Salud. Lo que ingrese aquí se compartirá con el estudio, pero no aparecerá en la app Salud ni en el panel de My Heart Counts. Puede cambiar esto en la app Configuración de iOS, en Privacidad y seguridad → Salud → My Heart Counts."
+          }
+        }
+      }
+    },
+    "HEALTH_DATA_ENTRY_NOT_ASKED_YET_NOTICE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Heart Counts hasn't asked yet whether it may save this data in the Health app. Unless you allow it, what you enter here is still shared with the study, but won't appear in the Health app or on your dashboard."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Heart Counts hasn't asked yet whether it may save this data in the Health app. Unless you allow it, what you enter here is still shared with the study, but won't appear in the Health app or on your dashboard."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Heart Counts todavía no ha preguntado si puede guardar estos datos en la app Salud. A menos que lo permita, lo que ingrese aquí se compartirá con el estudio, pero no aparecerá en la app Salud ni en el panel de My Heart Counts."
           }
         }
       }
@@ -233,6 +287,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Requiere un resultado de laboratorio"
+          }
+        }
+      }
+    },
+    "Not Saved to the Health App" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se guarda en la app Salud"
           }
         }
       }

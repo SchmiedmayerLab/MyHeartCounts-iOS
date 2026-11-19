@@ -28,11 +28,6 @@ struct SaveBMISampleView: View {
         }
     }
     
-    @Environment(HealthKit.self)
-    private var healthKit
-    @Environment(\.dismiss)
-    private var dismiss
-    
     private let bmiSampleType = SampleType.bodyMassIndex
     private let weightSampleType = SampleType.bodyMass
     private let heightSampleType = SampleType.height
@@ -40,7 +35,6 @@ struct SaveBMISampleView: View {
     private let weightUnit: HKUnit
     private let heightUnit: HKUnit
     
-    @State private var viewState: ViewState = .idle
     @State private var inputMode: InputMode = .weightAndHeight
     @State private var date: Date = .now
     @State private var bmi: Double?
@@ -49,7 +43,14 @@ struct SaveBMISampleView: View {
     @State private var containsInvalidInput = false
     
     var body: some View {
-        Form { // swiftlint:disable:this closure_body_length
+        HealthDataEntryForm(
+            "Enter BMI",
+            healthKitTypes: [bmiSampleType.hkSampleType]
+                + (height == nil ? [] : [heightSampleType.hkSampleType])
+                + (weight == nil ? [] : [weightSampleType.hkSampleType]),
+            canSave: bmi != nil && !containsInvalidInput,
+            makeEntry: makeEntry
+        ) { // swiftlint:disable:this closure_body_length
             Section {
                 Picker("", selection: $inputMode) {
                     ForEach(InputMode.allCases, id: \.self) { mode in
@@ -90,34 +91,9 @@ struct SaveBMISampleView: View {
                 }
             }
         }
-        .navigationTitle("Enter BMI")
-        .viewStateAlert(state: $viewState)
         .storeQuantityRowInputsAllValid(in: $containsInvalidInput)
-        .toolbar {
-            toolbarContent
-        }
         .onChange(of: weight, updateBMI)
         .onChange(of: height, updateBMI)
-    }
-    
-    @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .cancellationAction) {
-            DismissButton()
-        }
-        ToolbarItem(placement: .confirmationAction) {
-            AsyncButton(
-                state: $viewState,
-                action: {
-                    try await save()
-                    dismiss()
-                },
-                label: {
-                    Label("Save", systemSymbol: .checkmark)
-                }
-            )
-            .disabled(bmi == nil || containsInvalidInput)
-            .buttonStyleGlassProminent()
-        }
     }
     
     init() {
@@ -143,9 +119,9 @@ struct SaveBMISampleView: View {
         bmi = weightQuantity.doubleValue(for: .gramUnit(with: .kilo)) / pow(heightQuantity.doubleValue(for: .meter()), 2)
     }
     
-    private func save() async throws {
+    private func makeEntry() -> HealthDataEntry? {
         guard let bmi else {
-            return
+            return nil
         }
         // The user typed the values in (BMI either directly or as the weight and height it's computed from), and the date
         // picker reads the entered time in the current time zone.
@@ -153,7 +129,7 @@ struct SaveBMISampleView: View {
             HKMetadataKeyTimeZone: TimeZone.current.identifier,
             HKMetadataKeyWasUserEntered: true
         ]
-        var samples: [HKQuantitySample] = [
+        var samples: [HKSample] = [
             HKQuantitySample(
                 type: bmiSampleType.hkSampleType,
                 quantity: HKQuantity(unit: bmiSampleType.displayUnit, doubleValue: bmi),
@@ -180,6 +156,6 @@ struct SaveBMISampleView: View {
                 metadata: metadata
             ))
         }
-        try await healthKit.save(samples)
+        return .healthKit(samples)
     }
 }
