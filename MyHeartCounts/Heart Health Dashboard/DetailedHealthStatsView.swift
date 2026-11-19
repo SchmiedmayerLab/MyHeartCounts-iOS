@@ -207,7 +207,7 @@ private struct MostRecentValue: View {
         }
         
         init(value: String, unit: HKUnit?) {
-            self.init(value: value, unit: unit == .count() ? nil : unit?.unitString)
+            self.init(value: value, unit: unit == .count() ? nil : unit?.mhcDisplayString)
         }
     }
     
@@ -292,7 +292,7 @@ private struct MostRecentValue: View {
                 components: [.init(value: valueDesc, unit: scoreResult.sampleType.displayUnit)],
                 valueAccessibilityDesc: { () -> LocalizedStringResource in
                     if let unit = scoreResult.sampleType.displayUnit, unit != .count() {
-                        "\(valueDesc) \(unit.unitString)"
+                        "\(valueDesc) \(unit.mhcDisplayString)"
                     } else {
                         "\(valueDesc)"
                     }
@@ -325,7 +325,7 @@ private struct MostRecentValue: View {
                 Component(value: value, unit: sampleType.displayUnit)
             ]
             valueAccessibilityDesc = if let unit = sampleType.displayUnit, unit != .count() {
-                 "\(value) \(unit.unitString)"
+                 "\(value) \(unit.mhcDisplayString)"
             } else {
                 "\(value)"
             }
