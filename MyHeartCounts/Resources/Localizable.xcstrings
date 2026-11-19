@@ -850,9 +850,6 @@
     "< 55" : {
 
     },
-    "< 85" : {
-      "shouldTranslate" : false
-    },
     "<120 / <80" : {
       "shouldTranslate" : false
     },
@@ -1089,23 +1086,14 @@
     "70 – 99" : {
 
     },
-    "85 – 99" : {
-      "shouldTranslate" : false
-    },
     "90 – 119" : {
       "shouldTranslate" : false
     },
     "100 " : {
       "shouldTranslate" : false
     },
-    "100 – 109" : {
-      "shouldTranslate" : false
-    },
     "100 – 129" : {
 
-    },
-    "110 – 125" : {
-      "shouldTranslate" : false
     },
     "120 – 149" : {
       "shouldTranslate" : false
@@ -1113,17 +1101,11 @@
     "120–129 / 80–89" : {
       "shouldTranslate" : false
     },
-    "126 – 139" : {
-
-    },
     "130 – 159" : {
 
     },
     "130–139 / 90–99" : {
       "shouldTranslate" : false
-    },
-    "140+" : {
-
     },
     "140+ / 90+" : {
       "shouldTranslate" : false
@@ -1801,12 +1783,6 @@
           }
         }
       }
-    },
-    "Blood Glucose (A1c)" : {
-
-    },
-    "Blood Glucose (Fasting)" : {
-
     },
     "Blood Lipids" : {
       "localizations" : {
@@ -10560,22 +10536,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo encontrar el Cuestionario"
-          }
-        }
-      }
-    },
-    "Unable to load data" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unable to load data"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se pudieron cargar los datos"
           }
         }
       }
