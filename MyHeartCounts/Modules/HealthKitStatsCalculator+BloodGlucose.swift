@@ -39,11 +39,17 @@ extension HealthKitStatsCalculator {
     /// Readings entered by hand or tagged with their meal time are always stored individually.
     ///
     /// - parameter monthStart: the start of the month; the hourly buckets are anchored there, as they are for HealthKit's statistics queries.
-    static func bloodGlucoseEntries(for samples: [HKQuantitySample], monthStart: Date, calendar: Calendar = .current) -> BloodGlucoseEntries {
+    /// - parameter sourceId: identifies the source that recorded a sample.
+    static func bloodGlucoseEntries(
+        for samples: [HKQuantitySample],
+        monthStart: Date,
+        calendar: Calendar = .current,
+        sourceId: (HKQuantitySample) -> String = { $0.sourceRevision.source.bundleIdentifier }
+    ) -> BloodGlucoseEntries {
         let unit = SampleType.bloodGlucose.canonicalUnit // mg/dL
         let continuousSources = Set(
             Dictionary(grouping: samples) { sample in
-                DailySource(source: sample.sourceRevision.source.bundleIdentifier, day: calendar.startOfDay(for: sample.startDate))
+                DailySource(source: sourceId(sample), day: calendar.startOfDay(for: sample.startDate))
             }
             .filter { $0.value.count > continuousGlucoseReadingsPerDay }
             .map(\.key.source)
@@ -54,7 +60,7 @@ extension HealthKitStatsCalculator {
             let value = sample.quantity.doubleValue(for: unit)
             let mealTime = (sample.metadata?[HKMetadataKeyBloodGlucoseMealTime] as? Int).flatMap(HKBloodGlucoseMealTime.init(rawValue:))
             let isUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true
-            if isUserEntered || mealTime != nil || !continuousSources.contains(sample.sourceRevision.source.bundleIdentifier) {
+            if isUserEntered || mealTime != nil || !continuousSources.contains(sourceId(sample)) {
                 readings.append(StatsDocument.BloodGlucose(
                     date: sample.startDate,
                     unit: unit,
