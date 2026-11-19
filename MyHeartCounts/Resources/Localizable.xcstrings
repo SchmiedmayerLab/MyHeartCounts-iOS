@@ -3490,6 +3490,9 @@
         }
       }
     },
+    "Ethnicity (UK)" : {
+
+    },
     "Exercise Time" : {
       "localizations" : {
         "es" : {
@@ -4413,6 +4416,9 @@
           }
         }
       }
+    },
+    "HealthKit Upload (Unreadable)" : {
+
     },
     "HEALTHKIT_PERMISSIONS_DESCRIPTION" : {
       "localizations" : {
