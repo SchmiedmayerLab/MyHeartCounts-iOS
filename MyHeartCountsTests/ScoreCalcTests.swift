@@ -8,6 +8,7 @@
 
 import Foundation
 import GroveHealthKit
+import GroveHealthKitUI
 import HealthKit
 @testable import MyHeartCounts
 import SwiftUI
