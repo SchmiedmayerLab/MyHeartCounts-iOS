@@ -14,6 +14,7 @@ import MyHeartCountsShared
 extension StatsDocument {
     private enum EntryCodingKeys: String, CodingKey {
         case start, end, unit, sum, min, max, avg, average, date, value, systolic, diastolic, id, endDate, duration, activityType
+        case mealTime, userEntered
     }
 
     private enum WireFormat {
@@ -164,6 +165,53 @@ extension StatsDocument {
             try container.encode(unit, forKey: .unit)
             try container.encode(systolic, forKey: .systolic)
             try container.encode(diastolic, forKey: .diastolic)
+        }
+    }
+
+    /// One individual blood glucose reading: either entered by the participant, or tagged with its meal time.
+    ///
+    /// All other blood glucose readings (typically those of continuous glucose monitors) are stored as hourly aggregates,
+    /// under a separate metric (see ``HealthKitStatsCalculator/MetricID/bloodGlucoseHourly``).
+    struct BloodGlucose: Codable, Hashable, Sendable {
+        /// When the reading was taken, relative to a meal.
+        enum MealTime: String, Codable, Hashable, Sendable {
+            case beforeMeal
+            case afterMeal
+        }
+
+        let date: Date
+        let unit: HKUnit
+        let value: Double
+        /// `nil` if unspecified.
+        let mealTime: MealTime?
+        /// Whether the participant entered the reading by hand, rather than a device recording it.
+        let isUserEntered: Bool
+
+        init(date: Date, unit: HKUnit, value: Double, mealTime: MealTime?, isUserEntered: Bool) {
+            self.date = date
+            self.unit = unit
+            self.value = value
+            self.mealTime = mealTime
+            self.isUserEntered = isUserEntered
+        }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: EntryCodingKeys.self)
+            try WireFormat.requireShape(allowing: [.date, .unit, .value, .mealTime, .userEntered], in: container)
+            date = try WireFormat.parseDate(container.decode(String.self, forKey: .date))
+            unit = try container.decode(HKUnit.self, forKey: .unit)
+            value = try container.decode(Double.self, forKey: .value)
+            mealTime = try container.decodeIfPresent(MealTime.self, forKey: .mealTime)
+            isUserEntered = try container.decode(Bool.self, forKey: .userEntered)
+        }
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: EntryCodingKeys.self)
+            try container.encode(date.formatted(WireFormat.dateFormat), forKey: .date)
+            try container.encode(unit, forKey: .unit)
+            try container.encode(value, forKey: .value)
+            try container.encodeIfPresent(mealTime, forKey: .mealTime)
+            try container.encode(isUserEntered, forKey: .userEntered)
         }
     }
 }
