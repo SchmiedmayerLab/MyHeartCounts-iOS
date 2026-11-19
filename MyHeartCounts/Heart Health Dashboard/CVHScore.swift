@@ -309,13 +309,13 @@ extension CVHScore {
         )
     }
     
-    /// The blood glucose score, from either a blood glucose reading or an HbA1c value.
+    /// The blood glucose score, from either an HbA1c value or a fasting blood glucose reading (each from the last 3 months).
     ///
-    /// - Important: Three of the rules here are PROVISIONAL, pending the study team's decision:
-    ///     - Participants who told us they have diabetes are scored by their HbA1c alone (as AHA Life's Essential 8 does).
-    ///     - Otherwise, whichever is newer decides: the most recent blood glucose reading, or the most recent HbA1c value.
-    ///     - Readings taken before a meal or without a meal time count; readings taken after a meal don't
-    ///       (the bands are fasting thresholds, and blood glucose rises after meals).
+    /// - Participants who told us they have diabetes are scored by their HbA1c alone, with AHA Life's Essential 8's diabetes tiers.
+    /// - Everyone else is scored by their most recent HbA1c value; their most recent blood glucose reading counts only if they
+    ///   have none (the study team's "HbA1c default, fasting blood glucose fallback").
+    /// - Readings taken before a meal or without a meal time count; readings taken after a meal don't
+    ///   (the bands are fasting thresholds, and blood glucose rises after meals).
     ///
     /// Continuous glucose monitors' readings (which are stored as hourly aggregates) never count.
     var bloodGlucoseScore: ScoreResult {
@@ -337,10 +337,10 @@ extension CVHScore {
         if hasDiabetes {
             return hbA1cScore(.cvhHbA1cWithDiabetes)
         }
-        let reading = statsBloodGlucoseReadings.last { $0.mealTime != .afterMeal }
-        if let hbA1c, hbA1c.endDate > reading?.date ?? .distantPast {
+        if hbA1c != nil {
             return hbA1cScore(.cvhHbA1c)
         }
+        let reading = statsBloodGlucoseReadings.last { $0.mealTime != .afterMeal }
         let readingType = MHCQuantitySampleType.healthKit(.bloodGlucose)
         return ScoreResult(
             "Most Recent Sample",
