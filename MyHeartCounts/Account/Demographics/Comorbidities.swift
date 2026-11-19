@@ -87,7 +87,6 @@ extension Comorbidities {
             self.subtitle = subtitle
         }
         
-        // periphery:ignore - API
         init?(id: String) {
             if let value = (Self.primaryComorbidities + Self.secondaryComorbidities).first(where: { $0.id == id }) {
                 self = value

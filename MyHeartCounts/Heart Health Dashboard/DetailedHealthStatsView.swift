@@ -120,52 +120,48 @@ struct DetailedHealthStatsView: View {
         case .disabled:
             EmptyView()
         case .enabled(let timeRange):
-            let dataSource = { () -> DefaultHealthDashboardTile.DataSource? in
-                switch sampleType {
-                case .healthKit(let proxy):
-                    return .healthKit(proxy)
-                case .custom(let sampleType):
-                    return .firebase(sampleType)
-                }
-            }()
-            Section {
-                if let dataSource {
-                    // Note: we're creating a chart config here, but depending on the specific sample type it might end up getting discarded
-                    // (eg: if the sample type is sleepAnalyis, in which case it's not something we display via the normal chart)
-                    let chartConfig = { () -> DefaultHealthDashboardTile.ChartConfig in
-                        switch sampleType {
-                        case .healthKit(.quantity(.stepCount)):
-                            return .init(chartType: .bar, aggregationInterval: .day)
-                        case .healthKit(.quantity(let sampleType)):
-                            return .default(for: sampleType, in: timeRange)
-                        case .healthKit:
-                            return .init(chartType: .line(), defaultAggregationIntervalFor: timeRange)
-                        case .custom:
-                            return .init(chartType: .line(), defaultAggregationIntervalFor: timeRange)
-                        }
-                    }()
-                    healthDashboardComponentView(
-                        for: .init(
-                            dataSource: dataSource,
-                            timeRange: timeRange,
-                            chartConfig: chartConfig
-                        ),
-                        accessory: .timeRangeSelector($chartTimeRange)
-                    )
-                    .padding(.horizontal)
-                    .healthStatsChartHoverHighlightEnabled()
-                    .environment(\.isRecentValuesViewInDetailedStatsSheet, true)
-                } else {
-                    HStack {
-                        Spacer()
-                        Text("Unable to load data")
-                        Spacer()
-                    }
-                }
+            let dataSource: DefaultHealthDashboardTile.DataSource = switch sampleType {
+            case .healthKit(let proxy): .healthKit(proxy)
+            case .custom(let sampleType): .firebase(sampleType)
             }
-            .frame(height: 220)
-            .listRowInsets(.zero)
+            // Note: we're creating a chart config here, but depending on the specific sample type it might end up getting discarded
+            // (eg: if the sample type is sleepAnalyis, in which case it's not something we display via the normal chart)
+            let chartConfig: DefaultHealthDashboardTile.ChartConfig = switch sampleType {
+            case .healthKit(.quantity(.stepCount)):
+                .init(chartType: .bar, aggregationInterval: .day)
+            case .healthKit(.quantity(let sampleType)):
+                .default(for: sampleType, in: timeRange)
+            case .healthKit, .custom:
+                .init(chartType: .line(), defaultAggregationIntervalFor: timeRange)
+            }
+            chartSection(dataSource: dataSource, chartConfig: chartConfig, timeRange: timeRange)
+            if keyPath == \.bloodGlucoseScore {
+                // the blood glucose component also covers HbA1c values, which have their own unit, and therefore their own chart.
+                chartSection(
+                    dataSource: .firebase(.hbA1c),
+                    chartConfig: .init(chartType: .line(), defaultAggregationIntervalFor: timeRange),
+                    timeRange: timeRange
+                )
+            }
         }
+    }
+    
+    private func chartSection(
+        dataSource: DefaultHealthDashboardTile.DataSource,
+        chartConfig: DefaultHealthDashboardTile.ChartConfig,
+        timeRange: HealthKitQueryTimeRange
+    ) -> some View {
+        Section {
+            healthDashboardComponentView(
+                for: .init(dataSource: dataSource, timeRange: timeRange, chartConfig: chartConfig),
+                accessory: .timeRangeSelector($chartTimeRange)
+            )
+            .padding(.horizontal)
+            .healthStatsChartHoverHighlightEnabled()
+            .environment(\.isRecentValuesViewInDetailedStatsSheet, true)
+        }
+        .frame(height: 220)
+        .listRowInsets(.zero)
     }
     
     
@@ -289,9 +285,9 @@ private struct MostRecentValue: View {
             }
             self.init(
                 scoreResult: scoreResult,
-                components: [.init(value: valueDesc, unit: scoreResult.sampleType.displayUnit)],
+                components: [.init(value: valueDesc, unit: scoreResult.inputUnit ?? scoreResult.sampleType.displayUnit)],
                 valueAccessibilityDesc: { () -> LocalizedStringResource in
-                    if let unit = scoreResult.sampleType.displayUnit, unit != .count() {
+                    if let unit = scoreResult.inputUnit ?? scoreResult.sampleType.displayUnit, unit != .count() {
                         "\(valueDesc) \(unit.mhcDisplayString)"
                     } else {
                         "\(valueDesc)"
@@ -322,9 +318,9 @@ private struct MostRecentValue: View {
         default:
             let value = value.formatted(FloatingPointFormatStyle<V>().precision(.fractionLength(...2)))
             components = [
-                Component(value: value, unit: sampleType.displayUnit)
+                Component(value: value, unit: scoreResult.inputUnit ?? sampleType.displayUnit)
             ]
-            valueAccessibilityDesc = if let unit = sampleType.displayUnit, unit != .count() {
+            valueAccessibilityDesc = if let unit = scoreResult.inputUnit ?? sampleType.displayUnit, unit != .count() {
                  "\(value) \(unit.mhcDisplayString)"
             } else {
                 "\(value)"

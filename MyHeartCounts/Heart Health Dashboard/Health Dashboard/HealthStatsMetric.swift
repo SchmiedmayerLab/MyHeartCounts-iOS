@@ -31,7 +31,7 @@ struct HealthStatsMetric: Hashable, Sendable {
     static let weight = Self(id: .weight, sampleType: .bodyMass)
     static let height = Self(id: .height, sampleType: .height)
     static let bmi = Self(id: .bmi, sampleType: .bodyMassIndex)
-    /// Hourly aggregates of the blood glucose readings that aren't stored individually (see ``BloodGlucoseStatsSample``).
+    /// Hourly aggregates of continuous glucose monitors' blood glucose readings (all other readings are ``BloodGlucoseStatsSample``s).
     ///
     /// Not in ``all``: it covers only some of the blood glucose sample type's readings.
     static let bloodGlucoseHourly = Self(id: .bloodGlucoseHourly, sampleType: .bloodGlucose)
@@ -73,7 +73,7 @@ struct SleepSessionStatsSample: Hashable, Sendable {
 
 /// A single blood glucose reading from the `blood-glucose` metric's stats documents.
 ///
-/// These are the participant-entered and meal-time-tagged readings; the `blood-glucose-hourly` metric holds hourly aggregates of all other readings.
+/// These are all readings but those of continuous glucose monitors, which the `blood-glucose-hourly` metric holds as hourly aggregates.
 struct BloodGlucoseStatsSample: Hashable, Sendable {
     let date: Date
     /// The reading, in mg/dL.

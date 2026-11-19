@@ -10,6 +10,7 @@
 
 import Foundation
 import GroveLocalization
+import HealthKit
 import MyHeartCountsShared
 import SwiftUI
 
@@ -197,6 +198,10 @@ struct ScoreResult: Hashable, Sendable {
     let score: Double?
     /// The time range represented by this score result
     let timeRange: Range<Date>?
+    /// The unit of ``inputValue``, if it isn't the ``sampleType``'s display unit.
+    ///
+    /// E.g., the blood glucose component can be scored from an HbA1c value instead of a blood glucose reading.
+    var inputUnit: HKUnit?
     
     
     var scoreAvailable: Bool {

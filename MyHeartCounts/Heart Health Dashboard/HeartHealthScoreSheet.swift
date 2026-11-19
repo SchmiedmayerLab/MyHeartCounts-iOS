@@ -157,7 +157,7 @@ struct HeartHealthScoreSheet: View {
         case \.bloodPressureScore:
             "Needs a blood pressure reading"
         case \.bloodGlucoseScore:
-            "Needs a blood glucose reading"
+            "Needs a blood glucose reading or HbA1c value"
         case \.bloodLipidsScore:
             "Needs a lab result"
         default:

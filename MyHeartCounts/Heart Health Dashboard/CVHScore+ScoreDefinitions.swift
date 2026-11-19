@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import HealthKit
 import MyHeartCountsShared
 import SwiftUI
 
@@ -131,14 +132,38 @@ extension ScoreDefinition {
         .inRange(190..., score: 0, explainer: "190+")
     ])
     
-    static let cvhBloodGlucose = ScoreDefinition(default: 0, scoringBands: [
-        .inRange(..<85, score: 1, explainer: "< 85"),
-        .inRange(85..<100, score: 0.9, explainer: "85 – 99"),
-        .inRange(100..<110, score: 0.75, explainer: "100 – 109"),
-        .inRange(110..<126, score: 0.5, explainer: "110 – 125"),
-        .inRange(126..<140, score: 0.25, explainer: "126 – 139"),
-        .inRange(140..., score: 0, explainer: "140+")
-    ])
+    /// Blood glucose readings, matched in the participant's blood glucose display unit.
+    ///
+    /// The bands are specified in mg/dL: < 85 → 1, 85–99 → 0.9, 100–109 → 0.75, 110–125 → 0.5, 126–139 → 0.25, 140+ → 0.
+    static let cvhBloodGlucose = bands(
+        upperBounds: [85, 100, 110, 126, 140],
+        scores: [1, 0.9, 0.75, 0.5, 0.25, 0],
+        specifiedIn: .milligramsPerDeciliter,
+        sampleType: .healthKit(.bloodGlucose)
+    )
+    
+    /// HbA1c, for participants who haven't told us they have diabetes; matched in the participant's HbA1c display unit.
+    ///
+    /// - Important: PROVISIONAL, pending the study team's decision: AHA Life's Essential 8's HbA1c tiers.
+    ///     < 5.7 % → 1, 5.7–6.4 % → 0.6; from 6.5 % (the diagnostic threshold for diabetes) on, the tiers of ``cvhHbA1cWithDiabetes``.
+    static let cvhHbA1c = bands(
+        upperBounds: [5.7, 6.5, 7, 8, 9, 10],
+        scores: [1, 0.6, 0.4, 0.3, 0.2, 0.1, 0],
+        specifiedIn: .percent(),
+        sampleType: .custom(.hbA1c)
+    )
+    
+    /// HbA1c, for participants who told us they have diabetes; matched in the participant's HbA1c display unit.
+    ///
+    /// - Important: PROVISIONAL, pending the study team's decision: AHA Life's Essential 8's diabetes tiers.
+    ///     < 7 % → 0.4, 7–7.9 % → 0.3, 8–8.9 % → 0.2, 9–9.9 % → 0.1, 10+ % → 0.
+    static let cvhHbA1cWithDiabetes = bands(
+        upperBounds: [7, 8, 9, 10],
+        scores: [0.4, 0.3, 0.2, 0.1, 0],
+        specifiedIn: .percent(),
+        sampleType: .custom(.hbA1c)
+    )
+    
     
     static let cvhBloodPressure = ScoreDefinition(
         default: 0,
@@ -167,5 +192,49 @@ extension ScoreDefinition {
         default: 0 // unreachable
         }
         return systolicScore + diastolicScore
+    }
+}
+
+
+extension ScoreDefinition {
+    /// Creates scoring bands that match values in the sample type's display unit, from band boundaries specified in another unit.
+    ///
+    /// The converted boundaries are rounded to the precision values get entered with in the display unit,
+    /// so that the bands we show and the bands a value gets matched against agree.
+    ///
+    /// - parameter upperBounds: The exclusive upper bounds of all bands but the last one, in ascending order.
+    /// - parameter scores: The bands' scores; one more than `upperBounds`.
+    private static func bands(
+        upperBounds: [Double],
+        scores: [Double],
+        specifiedIn boundsUnit: HKUnit,
+        sampleType: MHCQuantitySampleType
+    ) -> ScoreDefinition {
+        precondition(scores.count == upperBounds.count + 1)
+        let unit = sampleType.displayUnit
+        let fractionDigits = sampleType.prefersNonDecimalValues(in: unit) ? 0 : 1
+        let step = pow(10, -Double(fractionDigits))
+        let bounds = upperBounds.map { bound in
+            (sampleType.convert(bound, from: boundsUnit, to: unit) / step).rounded() * step
+        }
+        func format(_ value: Double) -> String {
+            value.formatted(.number.precision(.fractionLength(fractionDigits)))
+        }
+        let scoringBands: [ScoringBand] = scores.indices.map { idx in
+            let score = scores[idx]
+            switch idx {
+            case 0:
+                return .inRange(..<bounds[0], score: score, explainer: "< \(format(bounds[0]))")
+            case bounds.count:
+                return .inRange(bounds[idx - 1]..., score: score, explainer: "\(format(bounds[idx - 1]))+")
+            default:
+                return .inRange(
+                    bounds[idx - 1]..<bounds[idx],
+                    score: score,
+                    explainer: "\(format(bounds[idx - 1])) – \(format(bounds[idx] - step))"
+                )
+            }
+        }
+        return ScoreDefinition(default: 0, scoringBands: scoringBands)
     }
 }

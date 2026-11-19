@@ -323,9 +323,9 @@ extension HealthKitStatsCalculator {
         static let bmi = Self(rawValue: "bmi")
         static let sleep = Self("sleep")
         static let bloodPressure = Self("blood-pressure")
-        /// Individual blood glucose readings: those entered by the participant, and those tagged with their meal time.
+        /// Individual blood glucose readings (all but those of continuous glucose monitors; see ``bloodGlucoseEntries(for:monthStart:calendar:)``).
         static let bloodGlucose = Self("blood-glucose")
-        /// Hourly aggregates of all other blood glucose readings (typically from continuous glucose monitors).
+        /// Hourly aggregates of continuous glucose monitors' readings.
         static let bloodGlucoseHourly = Self("blood-glucose-hourly")
         static let workouts = Self("workouts")
         static let electrocardiograms = Self("electrocardiograms")
@@ -879,7 +879,7 @@ extension HealthKitStatsCalculator {
         }
     }
 
-    /// Writes a month's blood glucose samples as two metrics: individual readings, and hourly aggregates of all other readings.
+    /// Writes a month's blood glucose samples as two metrics: individual readings, and hourly aggregates of continuous glucose monitors' readings.
     ///
     /// They are separate metrics because a metric's readers expect either individual readings or time buckets, never a mix of both.
     @concurrent

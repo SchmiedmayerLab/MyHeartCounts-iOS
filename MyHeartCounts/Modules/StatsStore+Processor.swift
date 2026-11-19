@@ -249,25 +249,12 @@ extension StatsStore.Processor {
             amounts = Self.metricsWithDedicatedEntries.contains(input.metricID) ? nil : (quantity.value, nil)
         case .bloodPressure(let pressure):
             amounts = input.metricID == "blood-pressure" ? (pressure.systolic, pressure.diastolic) : nil
-        case .bloodGlucose(let reading):
-            guard input.metricID == "blood-glucose" else {
+        case .bloodGlucose, .workout, .electrocardiogram:
+            guard let (amount, entryEvent) = eventAmount(entry, metricID: input.metricID) else {
                 return nil
             }
-            amounts = (reading.value, nil)
-            event = .bloodGlucoseReading(reading)
-        case .workout(let workout):
-            guard input.metricID == "workouts", !workout.id.isEmpty, workout.endDate >= workout.date,
-                  workout.duration.isFinite, workout.duration >= 0 else {
-                return nil
-            }
-            amounts = (workout.duration, nil)
-            event = .workout(workout)
-        case .electrocardiogram(let electrocardiogram):
-            guard input.metricID == "electrocardiograms", !electrocardiogram.id.isEmpty, electrocardiogram.endDate >= electrocardiogram.date else {
-                return nil
-            }
-            amounts = (1, nil)
-            event = .electrocardiogram(electrocardiogram)
+            amounts = (amount, nil)
+            event = entryEvent
         }
         guard let amounts, amounts.primary.isFinite, amounts.secondary?.isFinite != false else {
             return nil
@@ -283,6 +270,30 @@ extension StatsStore.Processor {
             sources: [source],
             event: event
         )
+    }
+
+    /// The amount and event of an entry that describes one individual event, if the entry belongs to the metric.
+    private static func eventAmount(_ entry: StatsDocument.Entry, metricID: String) -> (amount: Double, event: Event)? {
+        switch entry {
+        case .bloodGlucose(let reading):
+            guard metricID == "blood-glucose" else {
+                return nil
+            }
+            return (reading.value, .bloodGlucoseReading(reading))
+        case .workout(let workout):
+            guard metricID == "workouts", !workout.id.isEmpty, workout.endDate >= workout.date,
+                  workout.duration.isFinite, workout.duration >= 0 else {
+                return nil
+            }
+            return (workout.duration, .workout(workout))
+        case .electrocardiogram(let electrocardiogram):
+            guard metricID == "electrocardiograms", !electrocardiogram.id.isEmpty, electrocardiogram.endDate >= electrocardiogram.date else {
+                return nil
+            }
+            return (1, .electrocardiogram(electrocardiogram))
+        case .aggregate, .quantity, .bloodPressure:
+            return nil
+        }
     }
 
     private static func convertedAverage(_ average: StatsDocument.Average?, from sourceUnit: HKUnit, to unit: HKUnit) -> StatsDocument.Average? {

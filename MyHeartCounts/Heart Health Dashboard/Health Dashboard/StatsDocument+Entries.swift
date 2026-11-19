@@ -168,10 +168,10 @@ extension StatsDocument {
         }
     }
 
-    /// One individual blood glucose reading: either entered by the participant, or tagged with its meal time.
+    /// One individual blood glucose reading.
     ///
-    /// All other blood glucose readings (typically those of continuous glucose monitors) are stored as hourly aggregates,
-    /// under a separate metric (see ``HealthKitStatsCalculator/MetricID/bloodGlucoseHourly``).
+    /// Continuous glucose monitors' readings are stored as hourly aggregates instead, under a separate metric
+    /// (see ``HealthKitStatsCalculator/bloodGlucoseEntries(for:monthStart:calendar:)``).
     struct BloodGlucose: Codable, Hashable, Sendable {
         /// When the reading was taken, relative to a meal.
         enum MealTime: String, Codable, Hashable, Sendable {

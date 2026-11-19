@@ -68,10 +68,8 @@ struct CVHScore: DynamicProperty {
     @MHCFirestoreQuery(sampleType: .nicotineExposure, timeRange: .last(months: 2))
     private var nicotineExposure
     
-    // NOTE: blood glucose is the one remaining HealthKit-queried score input: it has no stats-documents metric
-    // (it is planned to move to the custom fasting/A1c quantity sample types, which will live directly in firestore).
-    @HealthKitQuery(.bloodGlucose, timeRange: .last(days: 14))
-    private var bloodGlucose
+    @MHCFirestoreQuery(sampleType: .hbA1c, timeRange: .last(months: 3))
+    private var hbA1cSamples
     
     // MARK: server-side stats documents
     // (the dashboard's sole data source for the HealthKit-derived metrics; see `StatsDocumentsQuery`.)
@@ -108,6 +106,9 @@ struct CVHScore: DynamicProperty {
     
     @StatsDocumentsQuery<BloodPressureStatsSample>(bloodPressureIn: .last(months: 3))
     private var statsBloodPressure
+    
+    @StatsDocumentsQuery<BloodGlucoseStatsSample>(bloodGlucoseReadingsIn: .last(months: 3))
+    private var statsBloodGlucoseReadings
     
     
     /// the composite CVH score, in the range of `0...1`. `nil` if there aren't enough input values to compute a score
@@ -308,14 +309,55 @@ extension CVHScore {
         )
     }
     
+    /// The blood glucose score, from either a blood glucose reading or an HbA1c value.
+    ///
+    /// - Important: Three of the rules here are PROVISIONAL, pending the study team's decision:
+    ///     - Participants who told us they have diabetes are scored by their HbA1c alone (as AHA Life's Essential 8 does).
+    ///     - Otherwise, whichever is newer decides: the most recent blood glucose reading, or the most recent HbA1c value.
+    ///     - Readings taken before a meal or without a meal time count; readings taken after a meal don't
+    ///       (the bands are fasting thresholds, and blood glucose rises after meals).
+    ///
+    /// Continuous glucose monitors' readings (which are stored as hourly aggregates) never count.
     var bloodGlucoseScore: ScoreResult {
-        ScoreResult(
+        // the component keeps the blood glucose sample type (and with it its title and detail view), whichever measurement it's scored from.
+        let sampleType = MHCSampleType.healthKit(.quantity(.bloodGlucose))
+        let hbA1c = hbA1cSamples.first
+        func hbA1cScore(_ definition: ScoreDefinition) -> ScoreResult {
+            let hbA1cUnit = MHCQuantitySampleType.custom(.hbA1c).displayUnit
+            var result = ScoreResult(
+                "Most Recent HbA1c",
+                sampleType: sampleType,
+                sample: hbA1c,
+                value: { $0.value(as: hbA1cUnit) },
+                definition: definition
+            )
+            result.inputUnit = hbA1cUnit
+            return result
+        }
+        if hasDiabetes {
+            return hbA1cScore(.cvhHbA1cWithDiabetes)
+        }
+        let reading = statsBloodGlucoseReadings.last { $0.mealTime != .afterMeal }
+        if let hbA1c, hbA1c.endDate > reading?.date ?? .distantPast {
+            return hbA1cScore(.cvhHbA1c)
+        }
+        let readingType = MHCQuantitySampleType.healthKit(.bloodGlucose)
+        return ScoreResult(
             "Most Recent Sample",
-            sampleType: .healthKit(.quantity(.bloodGlucose)),
-            sample: bloodGlucose.last,
-            value: { $0.quantity.doubleValue(for: SampleType.bloodGlucose.displayUnit) },
+            sampleType: sampleType,
+            sample: reading,
+            value: { readingType.convert($0.value, from: .milligramsPerDeciliter, to: readingType.displayUnit) },
             definition: .cvhBloodGlucose
         )
+    }
+    
+    /// Whether the participant told us (in their demographics) that they have diabetes.
+    private var hasDiabetes: Bool {
+        guard let comorbidities = account?.details?.comorbidities,
+              let diabetes = Comorbidities.Comorbidity(id: "diabetes") else {
+            return false
+        }
+        return comorbidities[diabetes] != .notSelected
     }
     
     var bloodPressureScore: ScoreResult {
@@ -345,6 +387,7 @@ extension HealthKitQueryTimeRange {
 
 extension QuantitySample: CVHScore.ComponentSampleProtocol {}
 extension BloodPressureStatsSample: CVHScore.ComponentSampleProtocol {}
+extension BloodGlucoseStatsSample: CVHScore.ComponentSampleProtocol {}
 extension SleepSessionStatsSample: CVHScore.ComponentSampleProtocol {}
 
 extension QuantitySample {

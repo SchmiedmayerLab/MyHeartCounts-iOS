@@ -10,6 +10,9 @@
     "  0" : {
       "shouldTranslate" : false
     },
+    "%@+" : {
+      "shouldTranslate" : false
+    },
     "A questionnaire about your diet" : {
       "localizations" : {
         "es" : {
@@ -20,12 +23,52 @@
         }
       }
     },
+    "A single measurement, for example from a finger-prick test or a lab test." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una sola medición, por ejemplo, de una prueba de punción en el dedo o de un análisis de laboratorio."
+          }
+        }
+      }
+    },
+    "After Meal" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Después de comer"
+          }
+        }
+      }
+    },
     "Based on %lld of %lld score components" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Basada en %lld de %lld componentes de la puntuación"
+          }
+        }
+      }
+    },
+    "Before Meal" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antes de comer"
+          }
+        }
+      }
+    },
+    "Blood Glucose Reading" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medición de glucosa en sangre"
           }
         }
       }
@@ -56,6 +99,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Componentes con datos"
+          }
+        }
+      }
+    },
+    "Enter Blood Glucose" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingrese la glucosa en sangre"
+          }
+        }
+      }
+    },
+    "HbA1c" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HbA1c"
           }
         }
       }
@@ -124,12 +187,32 @@
         }
       }
     },
-    "Needs a blood glucose reading" : {
+    "Meal Time" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Requiere una medición de la glucosa en sangre"
+            "value" : "Momento de la comida"
+          }
+        }
+      }
+    },
+    "Most Recent HbA1c" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HbA1c más reciente"
+          }
+        }
+      }
+    },
+    "Needs a blood glucose reading or HbA1c value" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requiere una medición de la glucosa en sangre o un valor de HbA1c"
           }
         }
       }
@@ -170,6 +253,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Muestra cómo se calcula tu puntuación"
+          }
+        }
+      }
+    },
+    "Unspecified" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin especificar"
+          }
+        }
+      }
+    },
+    "What would you like to enter?" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Qué desea ingresar?"
+          }
+        }
+      }
+    },
+    "Your average blood glucose over the past 2–3 months, from a lab test." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su nivel promedio de glucosa en sangre de los últimos 2 a 3 meses, de un análisis de laboratorio."
           }
         }
       }
@@ -3510,22 +3623,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Falso"
-          }
-        }
-      }
-    },
-    "Fasting Blood Glucose" : {
-      "localizations" : {
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fasting Blood Glucose"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Glucemia en ayunas"
           }
         }
       }
