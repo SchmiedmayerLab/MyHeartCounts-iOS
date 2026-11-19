@@ -299,13 +299,7 @@ extension CVHScore {
     }
     
     var bloodLipidsScore: ScoreResult {
-        ScoreResult(
-            "Most Recent Sample",
-            sampleType: .custom(.bloodLipids),
-            sample: bloodLipids.first,
-            value: { $0.value(as: $0.sampleType.displayUnit) },
-            definition: .cvhBloodLipids
-        )
+        Self.bloodLipidsScore(for: bloodLipids.first)
     }
     
     var bloodGlucoseScore: ScoreResult {
@@ -327,6 +321,17 @@ extension CVHScore {
                 BloodPressureMeasurement(systolic: Int(sample.systolic), diastolic: Int(sample.diastolic))
             },
             definition: .cvhBloodPressure
+        )
+    }
+    
+    static func bloodLipidsScore(for sample: QuantitySample?) -> ScoreResult {
+        ScoreResult(
+            "Most Recent Sample",
+            sampleType: .custom(.bloodLipids),
+            sample: sample,
+            // the `cvhBloodLipids` bands are defined in mg/dL, so we read the value in that unit (and not in the display unit)
+            value: { $0.value(as: .gramUnit(with: .milli) / .literUnit(with: .deci)) },
+            definition: .cvhBloodLipids
         )
     }
 }

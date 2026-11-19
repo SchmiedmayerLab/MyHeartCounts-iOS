@@ -120,7 +120,7 @@ extension ScoreDefinition {
         ])
     }()
     
-    /// LDL Cholesterol
+    /// LDL Cholesterol, in mg/dL
     static let cvhBloodLipids = ScoreDefinition(default: 0, scoringBands: [
         .inRange(..<55, score: 1, explainer: "< 55"),
         .inRange(55..<70, score: 0.9, explainer: "55 – 69"),
