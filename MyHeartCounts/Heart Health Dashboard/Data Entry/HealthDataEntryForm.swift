@@ -20,6 +20,53 @@ enum HealthDataEntry {
     case healthKit([HKSample])
     /// A sample of one of MHC's custom types.
     case custom(QuantitySample)
+
+    /// Where the form saves an entry.
+    enum Destination {
+        /// Saved into the Health app, from where MHC's HealthKit data collection picks the samples up and uploads them.
+        case healthApp([HKSample])
+        /// Straight into MHC's upload queue, as MHC may not save the samples into the Health app.
+        case healthKitSamplesUpload([HKSample])
+        /// Uploaded directly; samples of MHC's custom types only exist in MHC's backend.
+        case customSampleUpload(QuantitySample)
+    }
+
+    /// Where the form saves the entry, given whether MHC may save the entry's HealthKit types into the Health app.
+    func destination(given access: HealthWriteAccess) -> Destination {
+        switch self {
+        case .healthKit(let samples):
+            if access == .allowed {
+                .healthApp(samples)
+            } else {
+                .healthKitSamplesUpload(samples)
+            }
+        case .custom(let sample):
+            .customSampleUpload(sample)
+        }
+    }
+}
+
+
+/// Whether MHC may save samples of a ``HealthDataEntryForm``'s HealthKit types into the Health app.
+enum HealthWriteAccess: Equatable {
+    case allowed
+    /// MHC hasn't asked for access to (some of) the types yet.
+    case notAskedYet
+    /// The participant didn't allow access to (some of) the types.
+    case denied
+
+    /// The access that the write authorization statuses of all of a form's types amount to: a form without HealthKit types
+    /// saves nothing into the Health app, so it needs no access.
+    init(_ statuses: some Sequence<HKAuthorizationStatus>) {
+        let statuses = Set(statuses)
+        self = if statuses.contains(.sharingDenied) {
+            .denied
+        } else if statuses.contains(.notDetermined) {
+            .notAskedYet
+        } else {
+            .allowed
+        }
+    }
 }
 
 
@@ -32,15 +79,6 @@ enum HealthDataEntry {
 ///   They then reach the study, but don't appear in the Health app or on the dashboard (whose statistics are computed from HealthKit).
 /// - Samples of MHC's custom types only exist in MHC's backend, and get uploaded directly.
 struct HealthDataEntryForm<Content: View>: View {
-    /// Whether MHC may save samples of the form's HealthKit types into the Health app.
-    enum HealthWriteAccess {
-        case allowed
-        /// MHC hasn't asked for access to (some of) the types yet.
-        case notAskedYet
-        /// The participant didn't allow access to (some of) the types.
-        case denied
-    }
-
     @Environment(HealthKit.self)
     private var healthKit
     @Environment(MyHeartCountsStandard.self)
@@ -145,31 +183,22 @@ struct HealthDataEntryForm<Content: View>: View {
     }
 
     private func updateHealthWriteAccess() {
-        let statuses = healthKitTypes.map { healthKit.healthStore.authorizationStatus(for: $0) }
-        healthWriteAccess = if statuses.contains(.sharingDenied) {
-            .denied
-        } else if statuses.contains(.notDetermined) {
-            .notAskedYet
-        } else {
-            .allowed
-        }
+        healthWriteAccess = HealthWriteAccess(healthKitTypes.map { healthKit.healthStore.authorizationStatus(for: $0) })
     }
 
     private func save() async throws {
         guard canSave, let entry = makeEntry() else {
             return
         }
+        updateHealthWriteAccess()
         do {
-            switch entry {
-            case .healthKit(let samples):
-                updateHealthWriteAccess()
-                if healthWriteAccess == .allowed {
-                    try await healthKit.save(samples)
-                } else {
-                    // The samples would otherwise reach the upload queue through MHC's HealthKit data collection.
-                    try await standard.uploadHealthObservations(samples)
-                }
-            case .custom(let sample):
+            switch entry.destination(given: healthWriteAccess) {
+            case .healthApp(let samples):
+                try await healthKit.save(samples)
+            case .healthKitSamplesUpload(let samples):
+                // The samples would otherwise reach the upload queue through MHC's HealthKit data collection.
+                try await standard.uploadHealthObservations(samples)
+            case .customSampleUpload(let sample):
                 try await standard.uploadHealthObservation(sample)
             }
         } catch {
