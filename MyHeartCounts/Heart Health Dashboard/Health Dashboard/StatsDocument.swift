@@ -31,11 +31,12 @@ struct StatsDocument: Decodable, Sendable {
         case aggregate(Aggregate)
         case quantity(Quantity)
         case bloodPressure(BloodPressure)
+        case bloodGlucose(BloodGlucose)
         case workout(Workout)
         case electrocardiogram(Electrocardiogram)
 
         private enum CodingKeys: String, CodingKey {
-            case start, end, systolic, diastolic, endDate, duration, activityType
+            case start, end, systolic, diastolic, endDate, duration, activityType, userEntered
         }
 
         var unit: HKUnit {
@@ -43,6 +44,7 @@ struct StatsDocument: Decodable, Sendable {
             case .aggregate(let entry): entry.unit
             case .quantity(let entry): entry.unit
             case .bloodPressure(let entry): entry.unit
+            case .bloodGlucose(let entry): entry.unit
             case .workout: .second()
             case .electrocardiogram: .count()
             }
@@ -57,6 +59,8 @@ struct StatsDocument: Decodable, Sendable {
                 entry.date..<entry.date
             case .bloodPressure(let entry):
                 entry.date..<entry.date
+            case .bloodGlucose(let entry):
+                entry.date..<entry.date
             case .workout(let entry):
                 entry.date..<entry.date
             case .electrocardiogram(let entry):
@@ -70,6 +74,8 @@ struct StatsDocument: Decodable, Sendable {
                 self = .aggregate(try Aggregate(from: decoder))
             } else if container.contains(.systolic) || container.contains(.diastolic) {
                 self = .bloodPressure(try BloodPressure(from: decoder))
+            } else if container.contains(.userEntered) {
+                self = .bloodGlucose(try BloodGlucose(from: decoder))
             } else if container.contains(.duration) || container.contains(.activityType) {
                 self = .workout(try Workout(from: decoder))
             } else if container.contains(.endDate) {
@@ -84,6 +90,7 @@ struct StatsDocument: Decodable, Sendable {
             case .aggregate(let entry): try entry.encode(to: encoder)
             case .quantity(let entry): try entry.encode(to: encoder)
             case .bloodPressure(let entry): try entry.encode(to: encoder)
+            case .bloodGlucose(let entry): try entry.encode(to: encoder)
             case .workout(let entry): try entry.encode(to: encoder)
             case .electrocardiogram(let entry): try entry.encode(to: encoder)
             }

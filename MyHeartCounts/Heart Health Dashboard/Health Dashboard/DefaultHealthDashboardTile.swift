@@ -22,7 +22,7 @@ import SwiftUI
 /// Grid Cell intended for usage in the ``HealthDashboard``, with support for most (quantity-based) sample types.
 struct DefaultHealthDashboardTile: View {
     enum QueryInput {
-        /// Temporary HealthKit-backed history until blood glucose moves to the fasting/A1c sample types.
+        /// blood glucose, from the server-side stats documents: individual readings, and continuous glucose monitors' hourly aggregates.
         case bloodGlucose
         case firestore(CustomQuantitySampleType)
         /// fetch the data from the server-side stats documents (see ``StatsDocumentsQuery``)
@@ -188,7 +188,18 @@ private struct SamplesProviderView<Content: View>: View {
         switch input {
         case .bloodGlucose:
             BloodGlucoseImpl(
-                statistics: .init(.bloodGlucose, aggregatedBy: [.average], over: aggregationMode.interval, timeRange: timeRange),
+                readings: .init(bloodGlucoseReadingsIn: timeRange),
+                hourly: .init(
+                    metric: .bloodGlucoseHourly,
+                    timeRange: timeRange,
+                    aggregationKind: .avg,
+                    interval: .init(
+                        interval: aggregationMode.interval,
+                        anchor: calendar.startOfDay(for: timeRange.range.lowerBound),
+                        calendar: calendar,
+                        alignmentPolicy: .approximate
+                    )
+                ),
                 content: content
             )
         case .firestore(let sampleType):
@@ -230,21 +241,21 @@ private struct SamplesProviderView<Content: View>: View {
 
 extension SamplesProviderView {
     private struct BloodGlucoseImpl: View {
-        @HealthKitStatisticsQuery var statistics: [HKStatistics]
+        @StatsDocumentsQuery<BloodGlucoseStatsSample> var readings: [BloodGlucoseStatsSample]
+        @StatsDocumentsQuery<QuantitySample> var hourly: [QuantitySample]
         let content: @MainActor ([QuantitySample]) -> Content
 
         var body: some View {
-            content(statistics.compactMap { statistics in
-                statistics.averageQuantity().map { quantity in
-                    QuantitySample(
-                        id: UUID(),
-                        sampleType: .healthKit(.bloodGlucose),
-                        quantity: quantity,
-                        startDate: statistics.startDate,
-                        endDate: statistics.endDate
-                    )
-                }
-            })
+            let readings = readings.map { reading in
+                QuantitySample(
+                    id: UUID(),
+                    sampleType: .healthKit(.bloodGlucose),
+                    unit: .milligramsPerDeciliter,
+                    value: reading.value,
+                    date: reading.date
+                )
+            }
+            content((readings + hourly).sorted { $0.startDate < $1.startDate })
         }
     }
 

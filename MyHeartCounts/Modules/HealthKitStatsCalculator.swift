@@ -323,6 +323,10 @@ extension HealthKitStatsCalculator {
         static let bmi = Self(rawValue: "bmi")
         static let sleep = Self("sleep")
         static let bloodPressure = Self("blood-pressure")
+        /// Individual blood glucose readings (all but those of continuous glucose monitors; see ``bloodGlucoseEntries(for:monthStart:calendar:)``).
+        static let bloodGlucose = Self("blood-glucose")
+        /// Hourly aggregates of continuous glucose monitors' readings.
+        static let bloodGlucoseHourly = Self("blood-glucose-hourly")
         static let workouts = Self("workouts")
         static let electrocardiograms = Self("electrocardiograms")
         
@@ -507,6 +511,7 @@ extension HealthKitStatsCalculator {
     private enum NonstandardSamplesRunDescriptor: CaseIterable {
         case sleepSessions
         case bloodPressure
+        case bloodGlucose
         case workouts
         case electrocardiograms
     }
@@ -710,6 +715,8 @@ extension HealthKitStatsCalculator {
             await runSleepStats(months: months, persistence: persistence, runId: runId)
         case .bloodPressure:
             await runBloodPressureStats(months: months, persistence: persistence, runId: runId)
+        case .bloodGlucose:
+            await runBloodGlucoseStats(months: months, persistence: persistence, runId: runId)
         case .workouts:
             await process(
                 EventSamplesRunDescriptor(sampleType: .workout, metricId: .workouts, entry: StatsDocument.Workout.init(workout:)),
@@ -855,6 +862,52 @@ extension HealthKitStatsCalculator {
                     for: .init(metricId: .bloodPressure, month: month, entriesKey: .samples),
                     hasDeletions: !result.deletedObjects.isEmpty,
                     commitAnchor: { self.commitStatsAnchor(runId: runId) { self.queryAnchors[.bloodPressure, month] = result.newAnchor } }
+                )
+            }
+        }
+        await withDiscardingTaskGroup { taskGroup in
+            for month in months {
+                taskGroup.addTask {
+                    defer { self.workerDidExit(runId: runId) }
+                    do {
+                        try await imp(month: month)
+                    } catch {
+                        self.logger.error("[\(#function)] \(month.monthString): \(error)")
+                    }
+                }
+            }
+        }
+    }
+
+    /// Writes a month's blood glucose samples as two metrics: individual readings, and hourly aggregates of continuous glucose monitors' readings.
+    ///
+    /// They are separate metrics because a metric's readers expect either individual readings or time buckets, never a mix of both.
+    @concurrent
+    private func runBloodGlucoseStats(months: [StatsMonth], persistence: StatsPersistence, runId: UUID) async {
+        func imp(month: StatsMonth) async throws {
+            let results = self.healthKit.continuousQuery(
+                .bloodGlucose,
+                timeRange: .ever,
+                anchor: queryAnchors[.bloodGlucose, month],
+                predicate: month.samplesStartingInMonthPredicate
+            )
+            for try await result in results {
+                // Reread the full month so replacements and deletions never accumulate duplicate readings.
+                let samples = try await self.healthKit.query(.bloodGlucose, timeRange: .ever, predicate: month.samplesStartingInMonthPredicate)
+                let entries = Self.bloodGlucoseEntries(for: samples, monthStart: month.range.lowerBound)
+                let hasDeletions = !result.deletedObjects.isEmpty
+                // The anchor is committed only once both documents are written; a failure in between rewrites both on the next run.
+                try await persistence.persistStatsUpdate(
+                    entries.readings,
+                    for: .init(metricId: .bloodGlucose, month: month, entriesKey: .samples),
+                    hasDeletions: hasDeletions,
+                    commitAnchor: {}
+                )
+                try await persistence.persistStatsUpdate(
+                    entries.hourly,
+                    for: .init(metricId: .bloodGlucoseHourly, month: month, entriesKey: .hourly),
+                    hasDeletions: hasDeletions,
+                    commitAnchor: { self.commitStatsAnchor(runId: runId) { self.queryAnchors[.bloodGlucose, month] = result.newAnchor } }
                 )
             }
         }

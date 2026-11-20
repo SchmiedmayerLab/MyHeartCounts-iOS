@@ -125,6 +125,27 @@ extension StatsStore.Request where Element == SleepSessionStatsSample {
 }
 
 
+extension StatsStore.Request where Element == BloodGlucoseStatsSample {
+    private struct BloodGlucoseReadingsProcessor: MyHeartCountsShared.ValueTransformer {
+        let timeRange: Range<Date>
+        let sourcePolicy: StatsStore.SourcePolicy
+
+        func transform(_ documents: [StatsDocument]) throws -> StatsStore.Processor.Output<BloodGlucoseStatsSample> {
+            try StatsStore.Processor.bloodGlucoseReadings(documents: documents, timeRange: timeRange, sourcePolicy: sourcePolicy)
+        }
+    }
+
+    static func bloodGlucoseReadings(in timeRange: HealthKitQueryTimeRange, sourcePolicy: StatsStore.SourcePolicy = .automatic) -> Self {
+        let range = timeRange.range
+        return Self(
+            metricId: .bloodGlucose,
+            timeRange: range,
+            processor: BloodGlucoseReadingsProcessor(timeRange: range, sourcePolicy: sourcePolicy)
+        )
+    }
+}
+
+
 extension StatsStore.Request where Element == BloodPressureStatsSample {
     private struct BloodPressureProcessor: MyHeartCountsShared.ValueTransformer {
         let timeRange: Range<Date>

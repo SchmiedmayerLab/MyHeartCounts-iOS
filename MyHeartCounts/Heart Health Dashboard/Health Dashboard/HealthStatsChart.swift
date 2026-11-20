@@ -378,7 +378,7 @@ extension HealthStatsChartDataPoint {
                 if unit == .count() {
                     ""
                 } else {
-                    unit.unitString
+                    unit.mhcDisplayString
                 }
             }
             self.value = value
