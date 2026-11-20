@@ -1202,7 +1202,7 @@
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 12.12.1;
+				minimumVersion = 13.2.0;
 			};
 		};
 		8015C3582EB22EE400CA845E /* XCRemoteSwiftPackageReference "swift-nio" */ = {
@@ -1279,10 +1279,10 @@
 		};
 		80B8A2342EC1336F00F0E453 /* XCRemoteSwiftPackageReference "FHIRModels" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SchmiedmayerLab/FHIRModels.git";
+			repositoryURL = "https://github.com/apple/FHIRModels.git";
 			requirement = {
 				kind = upToNextMinorVersion;
-				minimumVersion = 0.9.0;
+				minimumVersion = 0.9.4;
 			};
 		};
 		80BE064E2DCF3A2D00171114 /* XCRemoteSwiftPackageReference "swift-package-list" */ = {
@@ -1297,8 +1297,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SchmiedmayerLab/Grove.git";
 			requirement = {
-				kind = exactVersion;
-				version = "0.3.0-beta.14";
+				kind = revision;
+				revision = 168fb4afceb4627bd67b02bb07f73f533b8dc1b4;
 			};
 			traits = (
 				Textual,
