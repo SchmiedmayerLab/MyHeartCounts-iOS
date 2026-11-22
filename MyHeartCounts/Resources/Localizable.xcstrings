@@ -150,7 +150,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Heart Counts no tiene permiso para guardar estos datos en la app Salud. Lo que ingrese aquí se compartirá con el estudio, pero no aparecerá en la app Salud ni en el panel de My Heart Counts. Puede cambiar esto en la app Configuración de iOS, en Privacidad y seguridad → Salud → My Heart Counts."
+            "value" : "My Heart Counts no tiene permiso para guardar estos datos en la app Salud. Lo que ingrese aquí se compartirá igualmente con el estudio, pero no aparecerá en la app Salud ni en su panel. Puede cambiar esto en la app Configuración de iOS, en Privacidad y seguridad → Salud → My Heart Counts."
           }
         }
       }
@@ -172,7 +172,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Heart Counts todavía no ha preguntado si puede guardar estos datos en la app Salud. A menos que lo permita, lo que ingrese aquí se compartirá con el estudio, pero no aparecerá en la app Salud ni en el panel de My Heart Counts."
+            "value" : "My Heart Counts todavía no ha preguntado si puede guardar estos datos en la app Salud. Si no lo permite, lo que ingrese aquí se compartirá igualmente con el estudio, pero no aparecerá en la app Salud ni en su panel."
           }
         }
       }
@@ -296,7 +296,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se guarda en la app Salud"
+            "value" : "No se guardará en la app Salud"
           }
         }
       }
