@@ -6,7 +6,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Grove
 import GroveOnboarding
 import GroveViews
 import MHCStudyDefinition

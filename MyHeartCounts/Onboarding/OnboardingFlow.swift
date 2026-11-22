@@ -6,7 +6,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-import Grove
 @_spi(TestingSupport)
 import GroveAccount
 import GroveFirebaseAccount
