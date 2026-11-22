@@ -322,13 +322,7 @@ extension CVHScore {
     }
     
     var bloodLipidsScore: ScoreResult {
-        ScoreResult(
-            "Most Recent Sample",
-            sampleType: .custom(.bloodLipids),
-            sample: bloodLipids.first,
-            value: { $0.value(as: $0.sampleType.displayUnit) },
-            definition: .cvhBloodLipids
-        )
+        Self.bloodLipidsScore(for: bloodLipids.first)
     }
     
     /// The blood glucose score, from either the most recent HbA1c value or the most recent fasting blood glucose reading
@@ -377,6 +371,19 @@ extension CVHScore {
             },
             definition: .cvhBloodPressure
         )
+    }
+    
+    static func bloodLipidsScore(for sample: QuantitySample?) -> ScoreResult {
+        // the `cvhBloodLipids` bands are defined in mg/dL, so we read (and display) the value in that unit, and not in the display unit
+        var result = ScoreResult(
+            "Most Recent Sample",
+            sampleType: .custom(.bloodLipids),
+            sample: sample,
+            value: { $0.value(as: .milligramsPerDeciliter) },
+            definition: .cvhBloodLipids
+        )
+        result.inputUnit = .milligramsPerDeciliter
+        return result
     }
 }
 
