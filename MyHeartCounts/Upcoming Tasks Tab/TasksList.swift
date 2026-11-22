@@ -20,7 +20,6 @@ import GroveStudyDefinition
 import GroveViews
 import MHCStudyDefinition
 import OSLog
-import ResearchKitSwiftUI
 import SFSafeSymbols
 import SwiftUI
 

@@ -112,7 +112,6 @@
 		80D032582FE5315D0090B041 /* XCTGroveNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032572FE5315D0090B041 /* XCTGroveNotifications */; };
 		80D0325A2FE5315D0090B041 /* XCTGroveQuestionnaire in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032592FE5315D0090B041 /* XCTGroveQuestionnaire */; };
 		80D0FA022FE52D3D0090B041 /* GroveQuestionnaireUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0FA012FE52D3D0090B041 /* GroveQuestionnaireUI */; };
-		80D8EE1E3027BA3D00A76707 /* ResearchKitSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */; };
 		80E982FB2EBA463500202499 /* GroveConsent in Frameworks */ = {isa = PBXBuildFile; productRef = 805BE3CE2E060B3A001E5CA4 /* GroveConsent */; };
 		9739A0C62AD7B5730084BEA5 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 9739A0C52AD7B5730084BEA5 /* FirebaseStorage */; };
 /* End PBXBuildFile section */
@@ -287,7 +286,6 @@
 				801A65FF2FEC47BD009182AD /* GroveFirebaseAccountStorage in Frameworks */,
 				801A65FE2FEC47BD009182AD /* GroveFirebaseAccount in Frameworks */,
 				801A65FD2FEC47BD009182AD /* GroveStudy in Frameworks */,
-				80D8EE1E3027BA3D00A76707 /* ResearchKitSwiftUI in Frameworks */,
 				801A65FC2FEC47BD009182AD /* GroveOnboarding in Frameworks */,
 				801A65FB2FEC47BD009182AD /* GroveHealthKitUI in Frameworks */,
 				801A65FA2FEC47BD009182AD /* GroveHealthKit in Frameworks */,
@@ -546,7 +544,6 @@
 				80D032342FE52D3D0090B041 /* GroveViews */,
 				80D0323C2FE52D3D0090B041 /* XCTGroveNotificationsUI */,
 				802118D0301663AA0088582C /* GroveHealthKitFHIR */,
-				80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */,
 			);
 			productName = MyHeartCounts;
 			productReference = 653A254D283387FE005D4D48 /* MyHeartCounts.app */;
@@ -678,7 +675,6 @@
 				8076696F2D772C40001B980B /* XCRemoteSwiftPackageReference "swift-collections" */,
 				8043E0092DC2348600E0DF01 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				80BE064E2DCF3A2D00171114 /* XCRemoteSwiftPackageReference "swift-package-list" */,
-				80A3A4812E1EB270002A8515 /* XCRemoteSwiftPackageReference "ResearchKit" */,
 				8015C3582EB22EE400CA845E /* XCRemoteSwiftPackageReference "swift-nio" */,
 				80B8A2342EC1336F00F0E453 /* XCRemoteSwiftPackageReference "FHIRModels" */,
 				804C11E22ECA380D004783C3 /* XCRemoteSwiftPackageReference "MyHeartCounts-StudyDefinitions" */,
@@ -1261,14 +1257,6 @@
 				minimumVersion = 7.0.0;
 			};
 		};
-		80A3A4812E1EB270002A8515 /* XCRemoteSwiftPackageReference "ResearchKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SchmiedmayerLab/ResearchKit.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.1.5;
-			};
-		};
 		80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/groue/GRDB.swift.git";
@@ -1743,11 +1731,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = GroveQuestionnaireUI;
-		};
-		80D8EE1D3027BA3D00A76707 /* ResearchKitSwiftUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 80A3A4812E1EB270002A8515 /* XCRemoteSwiftPackageReference "ResearchKit" */;
-			productName = ResearchKitSwiftUI;
 		};
 		80E08A712DD32D9F00E80C11 /* GroveHealthKit */ = {
 			isa = XCSwiftPackageProductDependency;
