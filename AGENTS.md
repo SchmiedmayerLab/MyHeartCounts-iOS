@@ -133,6 +133,11 @@ The StudyBundle, consisting of a StudyDefinition and resources referenced by the
 - Prefer the Observation framework (`@Observable`, etc) over legacy Combine-based `@ObservedObject`, `ObservableObject`, etc
 - `Swift::Task` is valid Swift, as of Swift 6.3. It is a *module selector*; it allows referring to a symbol by explicitly specifying its parent module; it is typically used to resolve ambiguous lookups.
 - Read the app's deployment target from the xcodeproj file and take that constraint into account when dealing with availability-limited code. (Currently: iOS 18.0 / watchOS 11.0.)
+- Asset catalog images:
+    - images that aren't mission-critical, such as the Kitten Mode critter photos, use lossy compression: `"compression-type": "lossy"` under `properties` in the imageset's `Contents.json`
+    - this applies to every new critter imageset as well
+    - images whose exact look matters (app icon, logos, UI imagery) stay lossless
+    - ship photos at the size they are displayed at (at most the screen width at 3x), not at camera resolution
 
 
 NO YAPPING!!!!!!!
