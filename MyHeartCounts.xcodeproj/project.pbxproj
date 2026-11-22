@@ -44,11 +44,9 @@
 		80A72D7D2F377E90006B6EAD /* SensorKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80A72D7C2F377E90006B6EAD /* SensorKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		80A8F7F32EDB222400944D94 /* MHCStudyDefinitionExporter in Frameworks */ = {isa = PBXBuildFile; productRef = 80A8F7F22EDB222400944D94 /* MHCStudyDefinitionExporter */; };
 		80B7F0642FADF2940040F247 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 80B7F0632FADF2940040F247 /* GRDB */; };
-		80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2352EC1336F00F0E453 /* ModelsDSTU2 */; };
 		80B8A2382EC1336F00F0E453 /* ModelsR4 in Frameworks */ = {isa = PBXBuildFile; productRef = 80B8A2372EC1336F00F0E453 /* ModelsR4 */; };
 		80D031FD2FE52D3D0090B041 /* Grove in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FC2FE52D3D0090B041 /* Grove */; };
 		80D031FF2FE52D3D0090B041 /* GroveAccount in Frameworks */ = {isa = PBXBuildFile; productRef = 80D031FE2FE52D3D0090B041 /* GroveAccount */; };
-		80D032032FE52D3D0090B041 /* GroveFHIR in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032022FE52D3D0090B041 /* GroveFHIR */; };
 		80D032112FE52D3D0090B041 /* GroveFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032102FE52D3D0090B041 /* GroveFoundation */; };
 		80D032192FE52D3D0090B041 /* GroveKeychainStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032182FE52D3D0090B041 /* GroveKeychainStorage */; };
 		80D0321B2FE52D3D0090B041 /* GroveLicense in Frameworks */ = {isa = PBXBuildFile; productRef = 80D0321A2FE52D3D0090B041 /* GroveLicense */; };
@@ -251,7 +249,6 @@
 				802118D3301663AA0088582C /* GroveSensorKitFHIR in Frameworks */,
 				2FB099B12A875DF100B20952 /* FirebaseFirestore in Frameworks */,
 				80D0321B2FE52D3D0090B041 /* GroveLicense in Frameworks */,
-				80B8A2362EC1336F00F0E453 /* ModelsDSTU2 in Frameworks */,
 				80D032332FE52D3D0090B041 /* GroveValidation in Frameworks */,
 				80D0321D2FE52D3D0090B041 /* GroveLocalStorage in Frameworks */,
 				80B7F0642FADF2940040F247 /* GRDB in Frameworks */,
@@ -259,7 +256,6 @@
 				8043DD7A2DC0CBE500E0DF01 /* FirebaseMessaging in Frameworks */,
 				80D031FF2FE52D3D0090B041 /* GroveAccount in Frameworks */,
 				80B8A2382EC1336F00F0E453 /* ModelsR4 in Frameworks */,
-				80D032032FE52D3D0090B041 /* GroveFHIR in Frameworks */,
 				802CB63F2F85177A0011907F /* AsyncAlgorithms in Frameworks */,
 				8076696E2D772C07001B980B /* Algorithms in Frameworks */,
 				9739A0C62AD7B5730084BEA5 /* FirebaseStorage in Frameworks */,
@@ -384,7 +380,6 @@
 				800BA3422E40DB4D00A90912 /* FirebaseFunctions */,
 				80E0E3152EB27C4A00F445B6 /* GroveSensorKit */,
 				800DF2402EBB4645001B9993 /* MyHeartCountsShared */,
-				80B8A2352EC1336F00F0E453 /* ModelsDSTU2 */,
 				80B8A2372EC1336F00F0E453 /* ModelsR4 */,
 				804C11E32ECA380D004783C3 /* MHCStudyDefinition */,
 				807423532F28E15E00113313 /* MHCStudyDefinitionExporter */,
@@ -392,7 +387,6 @@
 				80B7F0632FADF2940040F247 /* GRDB */,
 				80D031FC2FE52D3D0090B041 /* Grove */,
 				80D031FE2FE52D3D0090B041 /* GroveAccount */,
-				80D032022FE52D3D0090B041 /* GroveFHIR */,
 				80D032102FE52D3D0090B041 /* GroveFoundation */,
 				80D032182FE52D3D0090B041 /* GroveKeychainStorage */,
 				80D0321A2FE52D3D0090B041 /* GroveLicense */,
@@ -1289,11 +1283,6 @@
 			package = 80B7F0622FADF2940040F247 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
 		};
-		80B8A2352EC1336F00F0E453 /* ModelsDSTU2 */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 80B8A2342EC1336F00F0E453 /* XCRemoteSwiftPackageReference "FHIRModels" */;
-			productName = ModelsDSTU2;
-		};
 		80B8A2372EC1336F00F0E453 /* ModelsR4 */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 80B8A2342EC1336F00F0E453 /* XCRemoteSwiftPackageReference "FHIRModels" */;
@@ -1317,11 +1306,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
 			productName = GroveAccount;
-		};
-		80D032022FE52D3D0090B041 /* GroveFHIR */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
-			productName = GroveFHIR;
 		};
 		80D032102FE52D3D0090B041 /* GroveFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
