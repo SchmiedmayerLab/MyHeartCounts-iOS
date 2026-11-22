@@ -374,14 +374,16 @@ extension CVHScore {
     }
     
     static func bloodLipidsScore(for sample: QuantitySample?) -> ScoreResult {
-        ScoreResult(
+        // the `cvhBloodLipids` bands are defined in mg/dL, so we read (and display) the value in that unit, and not in the display unit
+        var result = ScoreResult(
             "Most Recent Sample",
             sampleType: .custom(.bloodLipids),
             sample: sample,
-            // the `cvhBloodLipids` bands are defined in mg/dL, so we read the value in that unit (and not in the display unit)
-            value: { $0.value(as: .gramUnit(with: .milli) / .literUnit(with: .deci)) },
+            value: { $0.value(as: .milligramsPerDeciliter) },
             definition: .cvhBloodLipids
         )
+        result.inputUnit = .milligramsPerDeciliter
+        return result
     }
 }
 

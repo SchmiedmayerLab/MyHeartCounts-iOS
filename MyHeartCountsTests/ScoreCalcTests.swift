@@ -40,23 +40,23 @@ struct ScoreCalcTests {
         #expect(score(BloodPressureMeasurement(systolic: 110, diastolic: 75)) == 1)
     }
     
-    /// The lipids score must use the unit its bands are defined in (mg/dL), regardless of the sample type's display unit.
+    /// The lipids score must use (and display) the unit its bands are defined in (mg/dL), regardless of the sample type's display unit.
     @Test
     @MainActor
     func bloodLipidsScoreIgnoresDisplayUnit() {
-        let mgPerDL: HKUnit = .gramUnit(with: .milli) / .literUnit(with: .deci)
         let cholesterolMmolPerL: HKUnit = .moleUnit(with: .milli, molarMass: 386.65) / .liter()
         let sampleType = CustomQuantitySampleType(
             id: "MHCTestSampleTypeBloodLipidsMmolPerL",
-            canonicalUnit: mgPerDL,
+            canonicalUnit: .milligramsPerDeciliter,
             displayTitle: "Blood Lipids",
             displayUnit: cholesterolMmolPerL,
             aggregationKind: .avg,
             preferredTintColor: .red
         )
-        let sample = QuantitySample(id: UUID(), sampleType: .custom(sampleType), unit: mgPerDL, value: 120, date: .now)
+        let sample = QuantitySample(id: UUID(), sampleType: .custom(sampleType), unit: .milligramsPerDeciliter, value: 120, date: .now)
         let result = CVHScore.bloodLipidsScore(for: sample)
         #expect(result.inputValue as? Double == 120)
+        #expect(result.inputUnit == .milligramsPerDeciliter)
         #expect(result.score == 0.6)
     }
 }
