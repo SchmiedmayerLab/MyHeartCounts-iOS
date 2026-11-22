@@ -127,6 +127,12 @@ The StudyBundle, consisting of a StudyDefinition and resources referenced by the
 - Pull Requests:
     - PRs created for this repository must follow the organization's [shared pull request template](https://github.com/SchmiedmayerLab/.github/blob/main/.github/pull_request_template.md).
     - Read the current template before drafting the PR description. Preserve its section headings and checklist, and replace the instructional placeholders with content relevant to the change.
+- Changelog:
+    - `CHANGELOG.md` lists the app's notable changes, with one section per App Store release (newest first); changes that haven't been released yet are in the `## Next` section at the top
+    - every PR that makes a change participants, testers or the study team would notice (a feature, a behavior change, a fix, a change to the collected or uploaded data) adds one bullet per change to `## Next`, at the end of the list; PRs that only touch CI, tests or docs add nothing
+    - each entry is one line: a short, plain sentence written for testers, with no PR numbers, code identifiers or nested bullets (the PR description's Release Notes section stays the detailed version for reviewers)
+    - TestFlight deployments use the `Next` entries added since the last successful deployment to the same environment as the build's "What to Test" text (`fastlane/changelog.rb`); entries never get moved by CI
+    - for an App Store release, a PR renames `## Next` to `## <version> (<release date>)` and adds a new, empty `## Next` above it
 - MHC uses SwiftLint to enforce code style rules
     - during development, the SwiftLint checks don't need to always perfectly pass; it is ok for warnings to exist in code that is actively being worked on
     - SwiftLint warnings/errors are required to be fully resolved when code is actually about to be merged into the main branch

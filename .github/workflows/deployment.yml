@@ -97,6 +97,33 @@ jobs:
             echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
             echo "version: ${{ inputs.version }}"
           fi
+  changelog:
+    name: Determine Changelog Base
+    runs-on: ubuntu-latest
+    permissions:
+      deployments: read
+    outputs:
+      sha: ${{ steps.script.outputs.sha }}
+    steps:
+      - id: script
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment || 'staging' }}
+        run: |
+          # The commit of the most recent successful deployment to this environment.
+          # The TestFlight changelog lists the CHANGELOG.md entries added since then,
+          # so the entries of cancelled, rejected, or failed deployments carry over to the next build.
+          DEPLOYMENTS=$(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=$DEPLOYMENT_ENVIRONMENT&per_page=100" --jq '.[] | "\(.id) \(.sha)"')
+          SHA=""
+          while read -r ID DEPLOYMENT_SHA; do
+            [[ -n "$ID" ]] || continue
+            if [[ "$(gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses?per_page=100" --jq 'any(.[]; .state == "success")')" == "true" ]]; then
+              SHA="$DEPLOYMENT_SHA"
+              break
+            fi
+          done <<< "$DEPLOYMENTS"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "changelog base: ${SHA:-none}"
   test:
     name: Build and Test
     uses: ./.github/workflows/build-and-test.yml
@@ -106,7 +133,7 @@ jobs:
     secrets: inherit
   deploy:
     name: Deploy
-    needs: [version, test]
+    needs: [version, changelog, test]
     # TestFlight deployments build, upload, and distribute both study variants;
     # production deployments submit the Stanford build to the App Store (see the `deploy` lane in the Fastfile).
     uses: SchmiedmayerLab/.github/.github/workflows/xcode-deploy.yml@v0.5
@@ -122,6 +149,7 @@ jobs:
         fastlane deploy environment:"${{ inputs.environment || 'staging' }}"
         versionname:"${{ needs.version.outputs.version }}" releasenotes:"${{ inputs.releasenotes }}"
         ${{ inputs.buildnumber && format('buildnumber:"{0}"', inputs.buildnumber) || '' }}
+        changelog_base:"${{ needs.changelog.outputs.sha }}"
         strip_sensorkit_entitlement:false
     secrets:
       APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}

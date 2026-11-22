@@ -6,8 +6,10 @@
 # SPDX-License-Identifier: MIT
 #
 
+require "open3"
 require_relative "xcodeproj_patch"
 require_relative "study_variant"
+require_relative "changelog"
 
 default_platform(:ios)
 
@@ -158,6 +160,8 @@ platform :ios do
     strip_sensorkit_entitlement = options[:strip_sensorkit_entitlement].to_s == "true"
     # The explicit build number is for the Stanford build; every other build takes the next free number.
     stanford_buildnumber = options[:buildnumber].to_s.strip
+    # The commit of the last successful deployment to this environment, if any; see the TestFlight changelog below.
+    changelog_base = options[:changelog_base].to_s.strip
     # TestFlight deployments always ship both study variants. Imperial builds are TestFlight-only.
     variants = environment == "production" ? ["stanford"] : ["stanford", "imperial"]
 
@@ -235,8 +239,6 @@ platform :ios do
         buildnumber: FastlaneCore::IpaFileAnalyser.fetch_app_build(ipa)
       }
     end
-    commit = last_git_commit
-    
     if environment == "production"
       deliver(
         app_identifier: appidentifier,
@@ -254,10 +256,24 @@ platform :ios do
         precheck_include_in_app_purchases: false,
       )
     else
+      # The TestFlight changelog lists the CHANGELOG.md `Next` entries added since the last successful deployment.
+      base_changelog = ""
+      unless changelog_base.empty?
+        # The deployment checkout is shallow, so the base commit has to be fetched first.
+        system("git", "fetch", "--quiet", "--depth=1", "origin", changelog_base)
+        base_changelog, status = Open3.capture2("git", "show", "#{changelog_base}:CHANGELOG.md")
+        unless status.success?
+          UI.important("No CHANGELOG.md at #{changelog_base}, so the changelog lists all `Next` entries.")
+          base_changelog = ""
+        end
+      end
+      changelog_lines = changelog_new_lines(File.read(CHANGELOG_PATH), base_changelog)
+      changelog_lines = [APP_CONFIG[:default_release_notes]] if changelog_lines.empty?
       changelogs = {
-        "stanford" => commit[:message],
-        "imperial" => "[UK] #{commit[:message]}"
+        "stanford" => testflight_changelog(changelog_lines),
+        "imperial" => testflight_changelog(changelog_lines, header: "[UK]")
       }
+      UI.message("Using TestFlight changelog:\n#{changelogs["stanford"]}")
       testflight_groups = {
         "stanford" => environment == "development" ? "Development" : "External Testers (Stanford)",
         "imperial" => "External Testers (Imperial)"
