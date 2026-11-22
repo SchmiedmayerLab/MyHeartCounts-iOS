@@ -182,6 +182,11 @@ extension HealthKitFHIRExporter {
         /// Grove never queries HealthKit, so an ECG's waveform and correlated symptoms are fetched here; each
         /// symptom becomes a record of its own. Every other sample is its own record.
         case healthKit(HealthKit)
+        /// The records of samples MHC created and couldn't save into HealthKit (see ``UnsavedHealthKitSample``).
+        ///
+        /// Each sample is its own record, which states MHC as the sample's source, as HealthKit would have had MHC
+        /// saved it. A sample other than a quantity sample or a correlation is refused.
+        case unsavedSamples
         /// Exists solely for testing purposes.
         case _custom( // swiftlint:disable:this identifier_name
             getNumVoltages: (HKSample) -> Int,
@@ -192,6 +197,8 @@ extension HealthKitFHIRExporter {
             switch self {
             case .healthKit:
                 (sample as? HKElectrocardiogram)?.numberOfVoltageMeasurements ?? 0
+            case .unsavedSamples:
+                0
             case ._custom(let getNumVoltages, getRecord: _):
                 getNumVoltages(sample)
             }
@@ -210,6 +217,15 @@ extension HealthKitFHIRExporter {
                     voltages: try await voltageMeasurements,
                     symptoms: try await correlatedSymptoms
                 )
+            case .unsavedSamples:
+                switch sample {
+                case let sample as HKQuantitySample:
+                    return .unsavedSample(.quantitySample(sample))
+                case let sample as HKCorrelation:
+                    return .unsavedSample(.correlation(sample))
+                default:
+                    throw UnsavedHealthKitSample.UnsupportedSampleError(sampleTypeIdentifier: sample.sampleType.identifier)
+                }
             case ._custom(getNumVoltages: _, let getRecord):
                 return try await getRecord(sample)
             }

@@ -25,7 +25,7 @@ enum HealthDataEntry {
     enum Destination {
         /// Saved into the Health app, from where MHC's HealthKit data collection picks the samples up and uploads them.
         case healthApp([HKSample])
-        /// Straight into MHC's upload queue, as MHC may not save the samples into the Health app.
+        /// Straight into MHC's upload queue, as MHC may not save the samples into the Health app (see ``UnsavedHealthKitSample``).
         case healthKitSamplesUpload([HKSample])
         /// Uploaded directly; samples of MHC's custom types only exist in MHC's backend.
         case customSampleUpload(QuantitySample)
@@ -196,8 +196,9 @@ struct HealthDataEntryForm<Content: View>: View {
             case .healthApp(let samples):
                 try await healthKit.save(samples)
             case .healthKitSamplesUpload(let samples):
-                // The samples would otherwise reach the upload queue through MHC's HealthKit data collection.
-                try await standard.uploadHealthObservations(samples)
+                // The samples would otherwise reach the upload queue through MHC's HealthKit data collection; their records
+                // state MHC as their source, as they would have had MHC saved them.
+                try await standard.uploadHealthObservations(samples.map(UnsavedHealthKitSample.init))
             case .customSampleUpload(let sample):
                 try await standard.uploadHealthObservation(sample)
             }
