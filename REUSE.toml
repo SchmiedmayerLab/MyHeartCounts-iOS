@@ -21,6 +21,8 @@ SPDX-License-Identifier = "MIT"
 path = [
     "MyHeartCounts/Resources/Assets.xcassets/Kittens/**/*.png",
     "MyHeartCounts/Resources/Assets.xcassets/RedPandas/**/*.png",
+    "MyHeartCounts/Resources/Assets.xcassets/GiantPandas/**/*.png",
+    "MyHeartCounts/Resources/Assets.xcassets/GoldenRetrievers/**/*.png",
     "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-fluffy.imageset/penguin-fluffy.png",
     "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-gentoo.imageset/penguin-gentoo.png",
     "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-looking-up.imageset/penguin-looking-up.png",
