@@ -123,6 +123,50 @@
         }
       }
     },
+    "HEALTH_DATA_ENTRY_DENIED_NOTICE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Heart Counts isn't allowed to save this data in the Health app. What you enter here is still shared with the study, but won't appear in the Health app or on your dashboard. You can change this in the iOS Settings app, under Privacy & Security → Health → My Heart Counts."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Heart Counts isn't allowed to save this data in the Health app. What you enter here is still shared with the study, but won't appear in the Health app or on your dashboard. You can change this in the iOS Settings app, under Privacy & Security → Health → My Heart Counts."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Heart Counts no tiene permiso para guardar estos datos en la app Salud. Lo que ingrese aquí se compartirá igualmente con el estudio, pero no aparecerá en la app Salud ni en su panel. Puede cambiar esto en la app Configuración de iOS, en Privacidad y seguridad → Salud → My Heart Counts."
+          }
+        }
+      }
+    },
+    "HEALTH_DATA_ENTRY_SAVE_TO_HEALTH_APP_FOOTER" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What you enter is always shared with the study. If you don't save it to the Health app, it won't appear there or on your dashboard."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What you enter is always shared with the study. If you don't save it to the Health app, it won't appear there or on your dashboard."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo que ingrese siempre se compartirá con el estudio. Si no lo guarda en la app Salud, no aparecerá allí ni en su panel."
+          }
+        }
+      }
+    },
     "Heart Health Score" : {
       "localizations" : {
         "es" : {
@@ -9060,6 +9104,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Guardar"
+          }
+        }
+      }
+    },
+    "Save to the Health App" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar en la app Salud"
           }
         }
       }
