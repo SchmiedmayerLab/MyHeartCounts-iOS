@@ -28,9 +28,7 @@ extension InterDeviceUserInfoKey {
     /// `Bool` flag indicating that the watch should start a workout
     public static let watchShouldEnableWorkout = Self(rawValue: "edu.stanford.MyHeartCounts.enableWatchWorkout")
     
-    /// `UInt8` value specifying which type of workout the watch should track.
-    ///
-    /// The value here corresponds to a `GroveStudyDefinition/TimedWalkingTestConfiguration/Kind` raw value.
+    /// `UInt8` value specifying which type of workout the watch should track: the raw value of a ``WatchWorkoutKind``.
     public static let watchWorkoutActivityKind = Self(rawValue: "edu.stanford.MyHeartCounts.watchWorkoutActivityKind")
     
     /// `TimeInterval` value specifying the duration of the to-be-tracked workout, in seconds.

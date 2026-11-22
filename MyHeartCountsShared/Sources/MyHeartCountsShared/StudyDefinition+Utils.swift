@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-#if canImport(SFSafeSymbols) && canImport(GroveStudyDefinition)
+#if !os(Linux) && !os(watchOS)
 
 public import GroveStudyDefinition
 public import SFSafeSymbols

@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-#if !os(Linux)
+#if !os(Linux) && !os(watchOS)
 
 public import struct Foundation.URL
 public import MHCStudyDefinition
