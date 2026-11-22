@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		80D032312FE52D3D0090B041 /* GroveTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 80D032302FE52D3D0090B041 /* GroveTesting */; };
 		2FB099AF2A875DF100B20952 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 2FB099AE2A875DF100B20952 /* FirebaseAuth */; };
 		2FB099B12A875DF100B20952 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 2FB099B02A875DF100B20952 /* FirebaseFirestore */; };
 		800BA3432E40DB4D00A90912 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 800BA3422E40DB4D00A90912 /* FirebaseFunctions */; };
@@ -254,6 +255,7 @@
 				80D032332FE52D3D0090B041 /* GroveValidation in Frameworks */,
 				80D0321D2FE52D3D0090B041 /* GroveLocalStorage in Frameworks */,
 				80B7F0642FADF2940040F247 /* GRDB in Frameworks */,
+				80D032312FE52D3D0090B041 /* GroveTesting in Frameworks */,
 				8043DD7A2DC0CBE500E0DF01 /* FirebaseMessaging in Frameworks */,
 				80D031FF2FE52D3D0090B041 /* GroveAccount in Frameworks */,
 				80B8A2382EC1336F00F0E453 /* ModelsR4 in Frameworks */,
@@ -354,6 +356,7 @@
 			);
 			name = MyHeartCounts;
 			packageProductDependencies = (
+				80D032302FE52D3D0090B041 /* GroveTesting */,
 				802118D0301663AA0088582D /* GroveFHIRContract */,
 				802118D0301663AA0088582E /* GroveSensorKitFHIR */,
 				2FBD738B2A3BD150004228E7 /* GroveScheduler */,
@@ -1139,6 +1142,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		80D032302FE52D3D0090B041 /* GroveTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 80D031F72FE52D3D0090B041 /* XCRemoteSwiftPackageReference "Grove" */;
+			productName = GroveTesting;
+		};
 		2FB099AE2A875DF100B20952 /* FirebaseAuth */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2FE5DC9029EDD9C3004B9AB4 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
