@@ -983,6 +983,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 4.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-Xlinker",
+					"-no_exported_symbols",
+				);
 				OTHER_SWIFT_FLAGS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = edu.stanford.MyHeartCounts;
 				PRODUCT_NAME = "$(TARGET_NAME)";
