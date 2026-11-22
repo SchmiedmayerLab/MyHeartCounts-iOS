@@ -122,6 +122,30 @@ struct StatsDocumentCodingTests {
         #expect(try encode(entry) == data)
     }
 
+    @Test(arguments: [StatsDocument.BloodGlucose.MealTime.beforeMeal, nil])
+    func bloodGlucosePayloadRoundTrips(mealTime: StatsDocument.BloodGlucose.MealTime?) throws {
+        let unit = HKUnit.milligramsPerDeciliter
+        let payload = StatsDocument.BloodGlucose(date: start, unit: unit, value: 95, mealTime: mealTime, isUserEntered: true)
+        let data = try encode(payload)
+        let object = try jsonObject(data)
+        let expectedKeys: Set<String> = ["date", "unit", "value", "userEntered"]
+        #expect(Set(object.keys) == (mealTime == nil ? expectedKeys : expectedKeys.union(["mealTime"])))
+        #expect(object["mealTime"] as? String == mealTime?.rawValue)
+
+        let document = try monthlyDocument([object], kind: "samples", metric: "blood-glucose")
+        let entry = try #require(document.entriesBySourceId[source]?.first)
+        guard case let .bloodGlucose(decoded) = entry else {
+            Issue.record("Expected the writer's blood glucose payload to decode as a blood glucose reading")
+            return
+        }
+        #expect(document.malformedEntryCount == 0)
+        #expect(decoded.date == start)
+        #expect(decoded.value == 95)
+        #expect(decoded.mealTime == mealTime)
+        #expect(decoded.isUserEntered)
+        #expect(try encode(entry) == data)
+    }
+
     @Test(arguments: [
         #"{"start":"1970-01-01T01:00:00.125+01:00","end":"1970-01-01T01:00:00.625+01:00","unit":"count","sum":100,"futureMetadata":{"version":1}}"#,
         #"{"date":"1970-01-01T00:00:00.125Z","unit":"kg","value":70,"futureMetadata":{"version":1}}"#,
@@ -141,7 +165,7 @@ struct StatsDocumentCodingTests {
             #expect(value.date == expectedDate)
             #expect(value.systolic == 120)
             #expect(value.diastolic == 80)
-        case .workout, .electrocardiogram:
+        case .bloodGlucose, .workout, .electrocardiogram:
             Issue.record("Expected a non-event stats entry")
         }
     }

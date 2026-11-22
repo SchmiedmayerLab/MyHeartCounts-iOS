@@ -258,7 +258,7 @@ extension HeartHealthDashboard {
                 case \.bloodLipidsScore:
                     SaveQuantitySampleView(sampleType: MHCQuantitySampleType.custom(.bloodLipids))
                 case \.bloodGlucoseScore:
-                    SaveQuantitySampleView(sampleType: MHCQuantitySampleType.healthKit(.bloodGlucose))
+                    SaveBloodGlucoseSampleView()
                 case \.bloodPressureScore:
                     SaveBloodPressureSampleView()
                 default:

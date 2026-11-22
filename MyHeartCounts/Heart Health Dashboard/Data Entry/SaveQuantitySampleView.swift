@@ -33,6 +33,8 @@ struct SaveQuantitySampleView: View {
     private let completionHandler: (@MainActor (QuantitySample) -> Void)?
     @State private var date: Date = .now
     @State private var value: Double?
+    /// When the blood glucose reading was taken, relative to a meal. Only applies to blood glucose; `nil` if unspecified.
+    @State private var bloodGlucoseMealTime: HKBloodGlucoseMealTime?
     @State private var containsInvalidInput = true
     @State private var viewState: ViewState = .idle
     @FocusState private var valueFieldIsFocused: Bool
@@ -42,6 +44,13 @@ struct SaveQuantitySampleView: View {
             Section {
                 LabeledContent("Sample Type", value: sampleType.displayTitle)
                 DatePicker("Date", selection: $date)
+                if sampleType == .healthKit(.bloodGlucose) {
+                    Picker("Meal Time", selection: $bloodGlucoseMealTime) {
+                        Text("Unspecified").tag(HKBloodGlucoseMealTime?.none)
+                        Text("Before Meal").tag(HKBloodGlucoseMealTime?.some(.preprandial))
+                        Text("After Meal").tag(HKBloodGlucoseMealTime?.some(.postprandial))
+                    }
+                }
                 if sampleType == .healthKit(.height) {
                     let binding = Binding<HKQuantity?> {
                         value.map { HKQuantity(unit: unit, doubleValue: $0) }
@@ -153,16 +162,20 @@ struct SaveQuantitySampleView: View {
         }
         switch sampleType {
         case .healthKit(let sampleType):
+            // The user typed the value in, and the date picker reads the entered time in the current time zone.
+            var metadata: [String: Any] = [
+                HKMetadataKeyTimeZone: TimeZone.current.identifier,
+                HKMetadataKeyWasUserEntered: true
+            ]
+            if sampleType == .bloodGlucose, let bloodGlucoseMealTime {
+                metadata[HKMetadataKeyBloodGlucoseMealTime] = bloodGlucoseMealTime.rawValue
+            }
             let sample = HKQuantitySample(
                 type: sampleType.hkSampleType,
                 quantity: HKQuantity(unit: unit, doubleValue: value),
                 start: self.date,
                 end: self.date,
-                // The user typed the value in, and the date picker reads the entered time in the current time zone.
-                metadata: [
-                    HKMetadataKeyTimeZone: TimeZone.current.identifier,
-                    HKMetadataKeyWasUserEntered: true
-                ]
+                metadata: metadata
             )
             do {
                 try await self.healthKit.save(sample)
@@ -220,7 +233,11 @@ extension MHCQuantitySampleType {
         case .healthKit(.bloodPressureDiastolic):
             30..<150
         case .healthKit(.bloodGlucose):
-            40..<400
+            // 40..<400 mg/dL, in the entry unit
+            convert(40, from: .milligramsPerDeciliter, to: unit)..<convert(400, from: .milligramsPerDeciliter, to: unit)
+        case .custom(.hbA1c):
+            // 3..<20 %, in the entry unit
+            convert(3, from: .percent(), to: unit)..<convert(20, from: .percent(), to: unit)
         case .healthKit(.height) where unit == .meter():
             0.9..<2.5
         case .healthKit(.height) where unit == .meterUnit(with: .centi):

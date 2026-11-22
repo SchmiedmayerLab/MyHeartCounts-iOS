@@ -48,10 +48,7 @@ extension AnySampleType {
     ///
     /// - Important: Always use this property instead of `displayTitle`!
     var mhcDisplayTitle: String {
-        if self == .bloodGlucose {
-            String(localized: "Fasting Blood Glucose")
-        } else {
-            self.displayTitle
-        }
+        // (the place for MHC-specific titles; there currently are none.)
+        self.displayTitle
     }
 }
