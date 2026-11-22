@@ -41,18 +41,21 @@ struct HealthDataEntryFormTests {
     }
 
     @Test
-    func healthKitEntryIsSavedIntoTheHealthAppOnlyWithAccess() {
+    func healthKitEntryIsSavedIntoTheHealthAppOnlyWithAccessAndWhenWanted() {
         let sample = Self.bloodGlucoseSample()
         let entry = HealthDataEntry.healthKit([sample])
-        guard case .healthApp(let saved) = entry.destination(given: .allowed) else {
-            Issue.record("with access, the entry isn't saved into the Health app")
+        guard case .healthApp(let saved) = entry.destination(given: .allowed, savingToHealthApp: true) else {
+            Issue.record("with access, the wanted entry isn't saved into the Health app")
             return
         }
         #expect(saved == [sample])
-        // without access, the very samples go straight into the upload queue instead
-        for access in [HealthWriteAccess.notAskedYet, .denied] {
-            guard case .healthKitSamplesUpload(let uploaded) = entry.destination(given: access) else {
-                Issue.record("with access \(access), the entry isn't uploaded")
+        // otherwise, the very samples go straight into the upload queue instead
+        let otherwise: [(HealthWriteAccess, Bool)] = [
+            (.allowed, false), (.notAskedYet, true), (.notAskedYet, false), (.denied, true), (.denied, false)
+        ]
+        for (access, savingToHealthApp) in otherwise {
+            guard case .healthKitSamplesUpload(let uploaded) = entry.destination(given: access, savingToHealthApp: savingToHealthApp) else {
+                Issue.record("with access \(access), saving to the Health app \(savingToHealthApp), the entry isn't uploaded")
                 continue
             }
             #expect(uploaded == [sample])
@@ -69,11 +72,14 @@ struct HealthDataEntryFormTests {
             date: .now
         )
         for access in [HealthWriteAccess.allowed, .notAskedYet, .denied] {
-            guard case .customSampleUpload(let uploaded) = HealthDataEntry.custom(sample).destination(given: access) else {
-                Issue.record("with access \(access), the custom sample isn't uploaded")
-                continue
+            for savingToHealthApp in [true, false] {
+                let destination = HealthDataEntry.custom(sample).destination(given: access, savingToHealthApp: savingToHealthApp)
+                guard case .customSampleUpload(let uploaded) = destination else {
+                    Issue.record("with access \(access), the custom sample isn't uploaded")
+                    continue
+                }
+                #expect(uploaded.id == sample.id)
             }
-            #expect(uploaded.id == sample.id)
         }
     }
 }

@@ -43,16 +43,6 @@
         }
       }
     },
-    "Allow Saving to the Health App" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Permitir guardar en la app Salud"
-          }
-        }
-      }
-    },
     "Based on %lld of %lld score components" : {
       "localizations" : {
         "es" : {
@@ -155,24 +145,24 @@
         }
       }
     },
-    "HEALTH_DATA_ENTRY_NOT_ASKED_YET_NOTICE" : {
+    "HEALTH_DATA_ENTRY_SAVE_TO_HEALTH_APP_FOOTER" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Heart Counts hasn't asked yet whether it may save this data in the Health app. Unless you allow it, what you enter here is still shared with the study, but won't appear in the Health app or on your dashboard."
+            "value" : "What you enter is always shared with the study. If you don't save it to the Health app, it won't appear there or on your dashboard."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Heart Counts hasn't asked yet whether it may save this data in the Health app. Unless you allow it, what you enter here is still shared with the study, but won't appear in the Health app or on your dashboard."
+            "value" : "What you enter is always shared with the study. If you don't save it to the Health app, it won't appear there or on your dashboard."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Heart Counts todavía no ha preguntado si puede guardar estos datos en la app Salud. Si no lo permite, lo que ingrese aquí se compartirá igualmente con el estudio, pero no aparecerá en la app Salud ni en su panel."
+            "value" : "Lo que ingrese siempre se compartirá con el estudio. Si no lo guarda en la app Salud, no aparecerá allí ni en su panel."
           }
         }
       }
@@ -287,16 +277,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Requiere un resultado de laboratorio"
-          }
-        }
-      }
-    },
-    "Not Saved to the Health App" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se guardará en la app Salud"
           }
         }
       }
@@ -9124,6 +9104,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Guardar"
+          }
+        }
+      }
+    },
+    "Save to the Health App" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar en la app Salud"
           }
         }
       }

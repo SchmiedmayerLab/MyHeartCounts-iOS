@@ -25,17 +25,19 @@ enum HealthDataEntry {
     enum Destination {
         /// Saved into the Health app, from where MHC's HealthKit data collection picks the samples up and uploads them.
         case healthApp([HKSample])
-        /// Straight into MHC's upload queue, as MHC may not save the samples into the Health app (see ``UnsavedHealthKitSample``).
+        /// Straight into MHC's upload queue, as the participant doesn't want the samples in the Health app, or MHC may not
+        /// save them there (see ``UnsavedHealthKitSample``).
         case healthKitSamplesUpload([HKSample])
         /// Uploaded directly; samples of MHC's custom types only exist in MHC's backend.
         case customSampleUpload(QuantitySample)
     }
 
-    /// Where the form saves the entry, given whether MHC may save the entry's HealthKit types into the Health app.
-    func destination(given access: HealthWriteAccess) -> Destination {
+    /// Where the form saves the entry: into the Health app only if the participant wants it there (`savingToHealthApp`)
+    /// and MHC may save the entry's HealthKit types there (`access`).
+    func destination(given access: HealthWriteAccess, savingToHealthApp: Bool) -> Destination {
         switch self {
         case .healthKit(let samples):
-            if access == .allowed {
+            if savingToHealthApp && access == .allowed {
                 .healthApp(samples)
             } else {
                 .healthKitSamplesUpload(samples)
@@ -73,10 +75,12 @@ enum HealthWriteAccess: Equatable {
 /// The shared form of MHC's manual health data entry sheets.
 ///
 /// The form provides the sheet's Cancel and Save buttons, and the saving itself:
-/// - Samples of HealthKit types get saved into the Health app, from where MHC's HealthKit data collection picks them up and uploads them.
-/// - If MHC may not save some of the types into the Health app, the form says so while the participant enters the values
-///   (and, if MHC hasn't asked for access yet, offers to ask), and the samples instead go straight into MHC's upload queue.
-///   They then reach the study, but don't appear in the Health app or on the dashboard (whose statistics are computed from HealthKit).
+/// - Samples of HealthKit types get saved into the Health app, from where MHC's HealthKit data collection picks them up and
+///   uploads them, unless the participant turns off "Save to the Health App", which the form offers for them.
+/// - If MHC hasn't asked for access to the types yet, saving asks first. If MHC may not save some of the types into the Health
+///   app, the toggle is off, and says so.
+/// - Samples that aren't saved into the Health app go straight into MHC's upload queue instead. They then reach the study, but
+///   don't appear in the Health app or on the dashboard (whose statistics are computed from HealthKit).
 /// - Samples of MHC's custom types only exist in MHC's backend, and get uploaded directly.
 struct HealthDataEntryForm<Content: View>: View {
     @Environment(HealthKit.self)
@@ -90,6 +94,8 @@ struct HealthDataEntryForm<Content: View>: View {
 
     @State private var viewState: ViewState = .idle
     @State private var healthWriteAccess: HealthWriteAccess = .allowed
+    /// Whether the participant wants the entry in the Health app, as well.
+    @State private var savesToHealthApp = true
 
     private let title: LocalizedStringKey
     private let healthKitTypes: [HKSampleType]
@@ -101,10 +107,10 @@ struct HealthDataEntryForm<Content: View>: View {
 
     var body: some View {
         Form {
-            if healthWriteAccess != .allowed {
-                healthWriteAccessNotice
-            }
             content
+            if !healthKitTypes.isEmpty {
+                healthAppSection
+            }
         }
         .navigationTitle(title)
         .viewStateAlert(state: $viewState)
@@ -130,30 +136,17 @@ struct HealthDataEntryForm<Content: View>: View {
         }
     }
 
-    private var healthWriteAccessNotice: some View {
+    private var healthAppSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 6) {
-                Label("Not Saved to the Health App", systemSymbol: .exclamationmarkTriangle)
-                    .font(.headline)
-                switch healthWriteAccess {
-                case .notAskedYet:
-                    Text("HEALTH_DATA_ENTRY_NOT_ASKED_YET_NOTICE")
-                case .denied:
-                    Text("HEALTH_DATA_ENTRY_DENIED_NOTICE")
-                case .allowed:
-                    EmptyView()
-                }
-            }
-            .font(.footnote)
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("HealthDataEntry:HealthWriteAccessNotice")
-            if healthWriteAccess == .notAskedYet {
-                AsyncButton(state: $viewState) {
-                    try await healthKit.askForAuthorization(for: .init(readAndWrite: healthKitTypes))
-                    updateHealthWriteAccess()
-                } label: {
-                    Text("Allow Saving to the Health App")
-                }
+            // without access, the toggle is off and can't be turned on; the footer says why
+            Toggle("Save to the Health App", isOn: healthWriteAccess == .denied ? .constant(false) : $savesToHealthApp)
+                .disabled(healthWriteAccess == .denied)
+                .accessibilityIdentifier("HealthDataEntry:SaveToHealthApp")
+        } footer: {
+            if healthWriteAccess == .denied {
+                Text("HEALTH_DATA_ENTRY_DENIED_NOTICE")
+            } else {
+                Text("HEALTH_DATA_ENTRY_SAVE_TO_HEALTH_APP_FOOTER")
             }
         }
     }
@@ -191,8 +184,13 @@ struct HealthDataEntryForm<Content: View>: View {
             return
         }
         updateHealthWriteAccess()
+        if case .healthKit = entry, savesToHealthApp, healthWriteAccess == .notAskedYet {
+            // if asking fails, the access stays undetermined, and the entry goes straight into the upload queue
+            try? await healthKit.askForAuthorization(for: .init(readAndWrite: healthKitTypes))
+            updateHealthWriteAccess()
+        }
         do {
-            switch entry.destination(given: healthWriteAccess) {
+            switch entry.destination(given: healthWriteAccess, savingToHealthApp: savesToHealthApp) {
             case .healthApp(let samples):
                 try await healthKit.save(samples)
             case .healthKitSamplesUpload(let samples):
