@@ -41,7 +41,7 @@ struct QuantityInputRow: View {
                 .keyboardType(allowsDecimalEntry ? .decimalPad : .numberPad)
                 .preference(key: ContainsInvalidInputPreferenceKey.self, value: inputIsOutOfLimits)
                 if let displayUnit, displayUnit != .count() {
-                    Text(displayUnit.unitString)
+                    Text(displayUnit.mhcDisplayString)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -84,7 +84,7 @@ struct QuantityInputRow: View {
         self.displayUnit = displayUnit ?? sampleType.displayUnit
         self.allowsDecimalEntry = switch allowsDecimalEntry {
         case .automatic:
-            !sampleType.prefersNonDecimalValues
+            !sampleType.prefersNonDecimalValues(in: self.displayUnit ?? sampleType.displayUnit)
         case .yes:
             true
         case .no:
@@ -116,7 +116,7 @@ struct QuantityInputRow: View {
         self.displayUnit = displayUnit ?? sampleType.displayUnit
         self.allowsDecimalEntry = switch allowsDecimalEntry {
         case .automatic:
-            !sampleType.prefersNonDecimalValues
+            !sampleType.prefersNonDecimalValues(in: self.displayUnit ?? sampleType.displayUnit)
         case .yes:
             true
         case .no:
@@ -149,13 +149,19 @@ extension View {
 
 
 extension MHCQuantitySampleType {
-    /// whether the sample type prefers non-decimal values (i.e., natural numbers) in its data entry.
-    var prefersNonDecimalValues: Bool {
+    /// whether the sample type prefers non-decimal values (i.e., natural numbers) in its data entry, when entered in `unit`.
+    func prefersNonDecimalValues(in unit: HKUnit) -> Bool {
         switch self {
+        case .healthKit(.bloodGlucose):
+            // mg/dL values are whole numbers; mmol/L values have a decimal place.
+            unit != .bloodGlucoseMillimolesPerLiter
+        case .custom(.hbA1c):
+            // mmol/mol values are whole numbers; percentages have a decimal place.
+            unit == .hbA1cMillimolesPerMole
         case .healthKit(let sampleType):
             // we only consider the ones we actually support data entry for in MHC...
             switch sampleType {
-            case .stepCount, .bloodGlucose:
+            case .stepCount:
                 true
             default:
                 false

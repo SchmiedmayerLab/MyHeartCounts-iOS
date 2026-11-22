@@ -73,6 +73,22 @@ extension QuantitySample: SelfModelledHealthObservation {
                     unit: .gramUnit(with: .milli) / .literUnit(with: .deci)
                 )
             ))
+        case .custom(.hbA1c):
+            // Must match what the backend writes for HeartRisk HbA1c answers (MyHeartCounts-Firebase `heartRiskHbA1cParsingService`).
+            observation.append(codings: [
+                Coding(
+                    code: "4548-4".asFHIRStringPrimitive(),
+                    display: "Hemoglobin A1c/Hemoglobin.total in Blood".asFHIRStringPrimitive(),
+                    system: LOINC.system
+                ),
+                Coding(
+                    code: sampleType.id.asFHIRStringPrimitive(),
+                    display: sampleType.displayTitle.asFHIRStringPrimitive(),
+                    system: MHCCodingSystem.system
+                )
+            ])
+            // NGSP percentage points, e.g. 6.5 for 6.5 %.
+            observation.value = .quantity(try fhirQuantity(binding: .init(code: "%", display: "%", unit: .percent())))
         case .custom(.nicotineExposure), .custom(.dietMEPAScore), .custom(.mentalWellbeingScore):
             let code = sampleType.id.asFHIRStringPrimitive()
             observation.append(coding: Coding(
@@ -207,6 +223,13 @@ extension QuantitySample {
                 return nil
             }
             unit = .count()
+        case .custom(.hbA1c):
+            // NGSP percentage points (6.5 for 6.5 %), which is also the type's canonical value;
+            // a HealthKit-catalog lookup could apply HealthKit's 0...1 percent convention.
+            guard ucumCode == "%" else {
+                return nil
+            }
+            unit = .percent()
         default:
             unit = HealthKitCatalog.unit(forUCUMCode: ucumCode)
         }

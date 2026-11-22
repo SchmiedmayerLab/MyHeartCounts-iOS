@@ -19,11 +19,13 @@ extension StatsStore {
         enum Event {
             case workout(StatsDocument.Workout)
             case electrocardiogram(StatsDocument.Electrocardiogram)
+            case bloodGlucoseReading(StatsDocument.BloodGlucose)
 
             var endDate: Date {
                 switch self {
                 case .workout(let entry): entry.endDate
                 case .electrocardiogram(let entry): entry.endDate
+                case .bloodGlucoseReading(let entry): entry.date
                 }
             }
         }
@@ -133,6 +135,35 @@ extension StatsStore {
                 contributingSourceIDs: Set(values.flatMap(\.sources))
             )
         }
+
+        static func bloodGlucoseReadings(
+            documents: [StatsDocument], timeRange: Range<Date>, sourcePolicy: SourcePolicy = .automatic
+        ) throws -> Output<BloodGlucoseStatsSample> {
+            let input = Input(
+                metricID: "blood-glucose",
+                timeRange: timeRange,
+                sourcePolicy: sourcePolicy,
+                unit: .milligramsPerDeciliter,
+                aggregationKind: .avg
+            )
+            var diagnostics: [Diagnostic] = []
+            let values = try selectedValues(documents: documents, input: input, diagnostics: &diagnostics)
+            return Output(
+                elements: values.compactMap { value in
+                    guard case .bloodGlucoseReading(let reading) = value.event else {
+                        return nil
+                    }
+                    return BloodGlucoseStatsSample(
+                        date: value.range.lowerBound,
+                        value: value.amount,
+                        mealTime: reading.mealTime,
+                        isUserEntered: reading.isUserEntered
+                    )
+                },
+                diagnostics: diagnostics,
+                contributingSourceIDs: Set(values.flatMap(\.sources))
+            )
+        }
     }
 }
 
@@ -140,6 +171,9 @@ extension StatsStore {
 // MARK: Validation and Normalization
 
 extension StatsStore.Processor {
+    /// The metrics whose documents hold only their own, dedicated kind of entry, never plain quantities or aggregates.
+    private static let metricsWithDedicatedEntries: Set<String> = ["blood-pressure", "blood-glucose", "workouts", "electrocardiograms"]
+
     private static func values(documents: [StatsDocument], input: Input, diagnostics: inout [StatsStore.Diagnostic]) -> [Value] {
         guard !input.timeRange.isEmpty else {
             return []
@@ -205,29 +239,22 @@ extension StatsStore.Processor {
         var event: Event?
         switch entry {
         case .aggregate(let aggregate):
-            guard !["blood-pressure", "workouts", "electrocardiograms"].contains(input.metricID),
+            guard !Self.metricsWithDedicatedEntries.contains(input.metricID),
                   let values = aggregateValues(aggregate.values, kind: input.aggregationKind) else {
                 return nil
             }
             amounts = (values.amount, nil)
             average = values.average
         case .quantity(let quantity):
-            amounts = ["blood-pressure", "workouts", "electrocardiograms"].contains(input.metricID) ? nil : (quantity.value, nil)
+            amounts = Self.metricsWithDedicatedEntries.contains(input.metricID) ? nil : (quantity.value, nil)
         case .bloodPressure(let pressure):
             amounts = input.metricID == "blood-pressure" ? (pressure.systolic, pressure.diastolic) : nil
-        case .workout(let workout):
-            guard input.metricID == "workouts", !workout.id.isEmpty, workout.endDate >= workout.date,
-                  workout.duration.isFinite, workout.duration >= 0 else {
+        case .bloodGlucose, .workout, .electrocardiogram:
+            guard let (amount, entryEvent) = eventAmount(entry, metricID: input.metricID) else {
                 return nil
             }
-            amounts = (workout.duration, nil)
-            event = .workout(workout)
-        case .electrocardiogram(let electrocardiogram):
-            guard input.metricID == "electrocardiograms", !electrocardiogram.id.isEmpty, electrocardiogram.endDate >= electrocardiogram.date else {
-                return nil
-            }
-            amounts = (1, nil)
-            event = .electrocardiogram(electrocardiogram)
+            amounts = (amount, nil)
+            event = entryEvent
         }
         guard let amounts, amounts.primary.isFinite, amounts.secondary?.isFinite != false else {
             return nil
@@ -243,6 +270,30 @@ extension StatsStore.Processor {
             sources: [source],
             event: event
         )
+    }
+
+    /// The amount and event of an entry that describes one individual event, if the entry belongs to the metric.
+    private static func eventAmount(_ entry: StatsDocument.Entry, metricID: String) -> (amount: Double, event: Event)? {
+        switch entry {
+        case .bloodGlucose(let reading):
+            guard metricID == "blood-glucose" else {
+                return nil
+            }
+            return (reading.value, .bloodGlucoseReading(reading))
+        case .workout(let workout):
+            guard metricID == "workouts", !workout.id.isEmpty, workout.endDate >= workout.date,
+                  workout.duration.isFinite, workout.duration >= 0 else {
+                return nil
+            }
+            return (workout.duration, .workout(workout))
+        case .electrocardiogram(let electrocardiogram):
+            guard metricID == "electrocardiograms", !electrocardiogram.id.isEmpty, electrocardiogram.endDate >= electrocardiogram.date else {
+                return nil
+            }
+            return (1, .electrocardiogram(electrocardiogram))
+        case .aggregate, .quantity, .bloodPressure:
+            return nil
+        }
     }
 
     private static func convertedAverage(_ average: StatsDocument.Average?, from sourceUnit: HKUnit, to unit: HKUnit) -> StatsDocument.Average? {

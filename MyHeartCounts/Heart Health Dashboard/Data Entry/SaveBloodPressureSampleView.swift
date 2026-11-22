@@ -32,20 +32,20 @@ struct SaveBloodPressureSampleView: View {
         }
     }
     
-    @Environment(HealthKit.self)
-    private var healthKit
-    @Environment(\.dismiss)
-    private var dismiss
-    
     @FocusState private var focusedField: Field?
-    @State private var viewState: ViewState = .idle
     @State private var date: Date = .now
     @State private var systolic: Int?
     @State private var diastolic: Int?
     @State private var containsInvalidInput = true
     
     var body: some View {
-        Form {
+        HealthDataEntryForm(
+            "Enter Blood Pressure",
+            // a correlation can't be authorized itself; saving it requires access to its members' types
+            healthKitTypes: [SampleType.bloodPressureSystolic.hkSampleType, SampleType.bloodPressureDiastolic.hkSampleType],
+            canSave: systolic != nil && diastolic != nil && !containsInvalidInput,
+            makeEntry: makeEntry
+        ) {
             Section {
                 DatePicker("Date", selection: $date)
                 makeRow(for: $systolic, sampleType: .bloodPressureSystolic)
@@ -54,11 +54,8 @@ struct SaveBloodPressureSampleView: View {
                     .focused($focusedField, equals: .diastolic)
             }
         }
-        .navigationTitle("Enter Blood Pressure")
-        .viewStateAlert(state: $viewState)
         .storeQuantityRowInputsAllValid(in: $containsInvalidInput)
         .toolbar {
-            navigationToobarItems
             focusToolbarItems
         }
         .onAppear {
@@ -70,27 +67,6 @@ struct SaveBloodPressureSampleView: View {
             } else {
                 focusedField = .systolic
             }
-        }
-    }
-    
-    
-    @ToolbarContentBuilder private var navigationToobarItems: some ToolbarContent {
-        ToolbarItem(placement: .cancellationAction) {
-            DismissButton()
-        }
-        ToolbarItem(placement: .confirmationAction) {
-            AsyncButton(
-                state: $viewState,
-                action: {
-                    try await save()
-                    dismiss()
-                },
-                label: {
-                    Label("Save", systemSymbol: .checkmark)
-                }
-            )
-            .disabled(systolic == nil || diastolic == nil || containsInvalidInput)
-            .buttonStyleGlassProminent()
         }
     }
     
@@ -125,9 +101,9 @@ struct SaveBloodPressureSampleView: View {
         )
     }
     
-    private func save() async throws {
-        guard let systolic, let diastolic, !containsInvalidInput else {
-            return
+    private func makeEntry() -> HealthDataEntry? {
+        guard let systolic, let diastolic else {
+            return nil
         }
         // The user typed the reading in, and the date picker reads the entered time in the current time zone.
         // The correlation and its members must state the same zone, or HealthKit may silently drop the correlation
@@ -158,6 +134,6 @@ struct SaveBloodPressureSampleView: View {
             ],
             metadata: metadata
         )
-        try await healthKit.save(correlation)
+        return .healthKit([correlation])
     }
 }

@@ -109,7 +109,7 @@ SPDX-License-Identifier: MIT
 ### Custom Quantity Samples
 - MHC supports data entry (via the dashboard) for quantity sample types not supported by HealthKit
   - (It also supports data entry for HealthKit-supported quantity sample types; in these cases the entered data simply gets saved into HealthKit and ptocessed via the pipeline described below)
-- Custom quantity values (i.e., blood lipids / LDL cholesterol, and A1c blood glusose) are encoded as FHIR [Observation][R4Observation]s and written directly into firestore, as individual documents at `/users/{uid}/HealthObservations_{sampleTypeId}/{uuid}` (with the document id being the observation's id)uploaded using the same pipeline as regular HealthKit samples
+- Custom quantity values (i.e., blood lipids / LDL cholesterol, and HbA1c) are encoded as FHIR [Observation][R4Observation]s and written directly into firestore, as individual documents at `/users/{uid}/HealthObservations_{sampleTypeId}/{uuid}` (with the document id being the observation's id)uploaded using the same pipeline as regular HealthKit samples
 
 
 ### HealthKit
@@ -452,8 +452,8 @@ Not all data in the user's firestore tree is written by the app; the backend als
 | Heart Rate                | HHD | Stats doc |
 | Blood Pressure            | HHD | Stats doc |
 | LDL cholesterol           | HHD | Individual samples (`/users/{uid}/HealthObservations_MHCCustomSampleTypeBloodLipidMeasurement/`) |
-| Blood Glucose (Fasting)   | HHD | Individual samples (`/users/{uid}/HealthObservations_MHCCustomSampleTypeBloodGlucoseFasting/`) |
-| Blood Glucose (A1c)       | HHD | Individual samples (`/users/{uid}/HealthObservations_MHCCustomSampleTypeBloodGlucoseA1c/`) |
+| Blood Glucose             | HHD | Stats docs (`blood-glucose`, `blood-glucose-hourly`) |
+| HbA1c                     | HHD | Individual samples (`/users/{uid}/HealthObservations_MHCCustomSampleTypeBloodGlucoseA1c/`) |
 | BMI                       | HHD | Stats doc |
 | Height                    | HHD | Stats doc |
 | Weight                    | HHD | Stats doc |
@@ -515,7 +515,7 @@ Current engagement functionality:
 | Heart Rate | HHD | Hourly min/max/avg |
 | Blood Pressure | HHD | Individual samples for sys/dia |
 | LDL cholesterol | HHD | Individual samples |
-| Blood Glucose (Fasting + A1c) | HHD | Individual samples |
+| Blood Glucose (readings + HbA1c) | HHD | Individual readings; continuous glucose monitors' readings as hourly aggregates; HbA1c as individual samples |
 | BMI | HHD | Individual samples |
 | Height | HHD | Individual samples |
 | Weight | HHD | Individual samples |
@@ -573,10 +573,10 @@ The collection key describes how entries represent time. The entry shape defines
 
 | Collection | Time representation | Current use |
 | :--------- | :------------------ | :---------- |
-| `hourly` | Hourly interval buckets containing sums or min/max/average summaries. | Steps, exercise time, active energy, walking/running distance, flights climbed, and heart rate. |
+| `hourly` | Hourly interval buckets containing sums or min/max/average summaries. | Steps, exercise time, active energy, walking/running distance, flights climbed, heart rate, and continuous glucose monitors' blood glucose. |
 | `daily` | Daily interval buckets containing sums or min/max/average summaries. | Supported by the reader; the current HealthKit writer does not produce this collection. Clients can derive daily results from hourly entries. |
 | `sessions` | Variable-length intervals representing whole sessions. | Sleep sessions, with the amount of time asleep stored separately from the session's elapsed duration. |
-| `samples` | Individual measurements or events, with a timestamp or event start/end. | Weight, height, BMI, resting heart rate, blood pressure, workouts, and ECGs. |
+| `samples` | Individual measurements or events, with a timestamp or event start/end. | Weight, height, BMI, resting heart rate, blood pressure, blood glucose readings, workouts, and ECGs. |
 
 
 #### Entry shapes
@@ -589,6 +589,7 @@ Entries use one of the following flat JSON shapes; the Swift equivalents are sha
 | Interval min/max/avg | `start`, `end`, `unit`, `min`, `max`, `avg` | `average` | High-frequency non-cumulative metrics such as heart rate. All three statistics are required. |
 | Individual quantity | `date`, `unit`, `value` | — | Weight, height, BMI, and resting heart rate. |
 | Blood-pressure pair | `date`, `unit`, `systolic`, `diastolic` | — | One systolic/diastolic reading pair. Both values are required. |
+| Blood glucose reading | `date`, `unit`, `value`, `userEntered` | `mealTime` | One individual blood glucose reading. `userEntered` states whether it was entered by hand; `mealTime` (`beforeMeal` or `afterMeal`) when it was taken relative to a meal, if known. |
 | Workout | `id`, `date`, `endDate`, `unit`, `value`, `duration`, `activityType` | — | One workout, retaining active duration and activity type. |
 | Electrocardiogram | `id`, `date`, `endDate`, `unit`, `value` | — | One ECG recording summary, without waveform data or classification. |
 
@@ -802,6 +803,8 @@ The iOS HealthKit calculator implements writes for every metric below, subject t
 | Heart Rate | `heart-rate` | `hourly` | Interval min/max/avg | `count/min` |
 | Sleep Stats | `sleep` | `sessions` | Interval sum | `hr` |
 | Blood Pressure | `blood-pressure` | `samples` | Blood-pressure pair | `mmHg` |
+| Blood Glucose | `blood-glucose` | `samples` | Blood glucose reading | `mg/dL` |
+| Blood Glucose (continuous) | `blood-glucose-hourly` | `hourly` | Interval min/max/avg | `mg/dL` |
 | Weight | `weight` | `samples` | Individual quantity | `kg` |
 | Height | `height` | `samples` | Individual quantity | `cm` |
 | BMI | `bmi` | `samples` | Individual quantity | `count` |
@@ -812,7 +815,8 @@ The iOS HealthKit calculator implements writes for every metric below, subject t
 | Workouts | `workouts` | `samples` | Workout | `s` |
 | Electrocardiograms | `electrocardiograms` | `samples` | Electrocardiogram | `count` |
 
-- Note: the survey-derived scores (Diet, Mental Well Being, Nicotine Exposure) and the custom quantity samples (LDL cholesterol, blood glucose) deliberately do *not* get stats documents: they are single-source data that is already stored directly in firestore, in queryable per-sample collections, so the app can simply fetch them from there (in line with the rule above)
+- Note: blood glucose is split across two metrics, because a metric's readers select either individual readings or time buckets. A reading is stored individually in `blood-glucose`, unless its source recorded more than 24 readings on some day of the month (i.e., a continuous glucose monitor); those readings are stored as hourly aggregates in `blood-glucose-hourly`, whose `avg` is the readings' arithmetic mean (and which therefore has no `average` field). Readings entered by hand or tagged with their meal time are always stored individually.
+- Note: the survey-derived scores (Diet, Mental Well Being, Nicotine Exposure) and the custom quantity samples (LDL cholesterol, HbA1c) deliberately do *not* get stats documents: they are single-source data that is already stored directly in firestore, in queryable per-sample collections, so the app can simply fetch them from there (in line with the rule above)
 
 
 

@@ -16,15 +16,6 @@ import SwiftUI
 
 
 struct SaveQuantitySampleView: View {
-    @Environment(HealthKit.self)
-    private var healthKit
-    
-    @Environment(\.dismiss)
-    private var dismiss
-    
-    @Environment(MyHeartCountsStandard.self)
-    private var standard
-    
     private let title: LocalizedStringKey
     private let sampleType: MHCQuantitySampleType
     private let unit: HKUnit
@@ -33,15 +24,45 @@ struct SaveQuantitySampleView: View {
     private let completionHandler: (@MainActor (QuantitySample) -> Void)?
     @State private var date: Date = .now
     @State private var value: Double?
+    /// When the blood glucose reading was taken, relative to a meal. Only applies to blood glucose; `nil` if unspecified.
+    @State private var bloodGlucoseMealTime: HKBloodGlucoseMealTime?
     @State private var containsInvalidInput = true
-    @State private var viewState: ViewState = .idle
     @FocusState private var valueFieldIsFocused: Bool
     
     var body: some View {
-        Form {
+        HealthDataEntryForm(
+            title,
+            healthKitTypes: { () -> [HKSampleType] in
+                if case .healthKit(let sampleType) = sampleType {
+                    [sampleType.hkSampleType]
+                } else {
+                    []
+                }
+            }(),
+            canSave: value != nil && !containsInvalidInput,
+            isSaveAllowedToFail: isDefaultSaveAllowedToFail,
+            makeEntry: makeEntry,
+            didSave: { entry in
+                switch entry {
+                case .healthKit(let samples):
+                    if let sample = samples.first as? HKQuantitySample {
+                        completionHandler?(QuantitySample(sample))
+                    }
+                case .custom(let sample):
+                    completionHandler?(sample)
+                }
+            }
+        ) {
             Section {
                 LabeledContent("Sample Type", value: sampleType.displayTitle)
                 DatePicker("Date", selection: $date)
+                if sampleType == .healthKit(.bloodGlucose) {
+                    Picker("Meal Time", selection: $bloodGlucoseMealTime) {
+                        Text("Unspecified").tag(HKBloodGlucoseMealTime?.none)
+                        Text("Before Meal").tag(HKBloodGlucoseMealTime?.some(.preprandial))
+                        Text("After Meal").tag(HKBloodGlucoseMealTime?.some(.postprandial))
+                    }
+                }
                 if sampleType == .healthKit(.height) {
                     let binding = Binding<HKQuantity?> {
                         value.map { HKQuantity(unit: unit, doubleValue: $0) }
@@ -62,27 +83,6 @@ struct SaveQuantitySampleView: View {
                 }
             }
             .storeQuantityRowInputsAllValid(in: $containsInvalidInput)
-        }
-        .navigationTitle(title)
-        .viewStateAlert(state: $viewState)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                DismissButton()
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                AsyncButton(
-                    state: $viewState,
-                    action: {
-                        try await save()
-                        dismiss()
-                    },
-                    label: {
-                        Label("Save", systemSymbol: .checkmark)
-                    }
-                )
-                .disabled(value == nil || containsInvalidInput)
-                .buttonStyleGlassProminent()
-            }
         }
         .onAppear {
             valueFieldIsFocused = true
@@ -147,48 +147,38 @@ struct SaveQuantitySampleView: View {
     }
     
     
-    private func save() async throws {
-        guard let value = self.value, !containsInvalidInput else {
-            return
+    private func makeEntry() -> HealthDataEntry? {
+        guard let value else {
+            return nil
         }
         switch sampleType {
         case .healthKit(let sampleType):
-            let sample = HKQuantitySample(
-                type: sampleType.hkSampleType,
-                quantity: HKQuantity(unit: unit, doubleValue: value),
-                start: self.date,
-                end: self.date,
-                // The user typed the value in, and the date picker reads the entered time in the current time zone.
-                metadata: [
-                    HKMetadataKeyTimeZone: TimeZone.current.identifier,
-                    HKMetadataKeyWasUserEntered: true
-                ]
-            )
-            do {
-                try await self.healthKit.save(sample)
-            } catch {
-                if !isDefaultSaveAllowedToFail {
-                    throw error
-                }
+            // The user typed the value in, and the date picker reads the entered time in the current time zone.
+            var metadata: [String: Any] = [
+                HKMetadataKeyTimeZone: TimeZone.current.identifier,
+                HKMetadataKeyWasUserEntered: true
+            ]
+            if sampleType == .bloodGlucose, let bloodGlucoseMealTime {
+                metadata[HKMetadataKeyBloodGlucoseMealTime] = bloodGlucoseMealTime.rawValue
             }
-            completionHandler?(.init(sample))
+            return .healthKit([
+                HKQuantitySample(
+                    type: sampleType.hkSampleType,
+                    quantity: HKQuantity(unit: unit, doubleValue: value),
+                    start: date,
+                    end: date,
+                    metadata: metadata
+                )
+            ])
         case .custom(let sampleType):
-            let sample = QuantitySample(
+            return .custom(QuantitySample(
                 id: UUID(),
                 sampleType: .custom(sampleType),
                 unit: unit,
                 value: value,
-                startDate: self.date,
-                endDate: self.date
-            )
-            do {
-                try await self.standard.uploadHealthObservation(sample)
-            } catch {
-                if !isDefaultSaveAllowedToFail {
-                    throw error
-                }
-            }
-            completionHandler?(sample)
+                startDate: date,
+                endDate: date
+            ))
         }
     }
 }
@@ -220,7 +210,11 @@ extension MHCQuantitySampleType {
         case .healthKit(.bloodPressureDiastolic):
             30..<150
         case .healthKit(.bloodGlucose):
-            40..<400
+            // 40..<400 mg/dL, in the entry unit
+            convert(40, from: .milligramsPerDeciliter, to: unit)..<convert(400, from: .milligramsPerDeciliter, to: unit)
+        case .custom(.hbA1c):
+            // 3..<20 %, in the entry unit
+            convert(3, from: .percent(), to: unit)..<convert(20, from: .percent(), to: unit)
         case .healthKit(.height) where unit == .meter():
             0.9..<2.5
         case .healthKit(.height) where unit == .meterUnit(with: .centi):

@@ -83,6 +83,13 @@ extension StatsDocumentsQuery where Element == SleepSessionStatsSample {
 }
 
 
+extension StatsDocumentsQuery where Element == BloodGlucoseStatsSample {
+    init(bloodGlucoseReadingsIn timeRange: HealthKitQueryTimeRange, sourcePolicy: StatsStore.SourcePolicy = .automatic) {
+        self.init(.bloodGlucoseReadings(in: timeRange, sourcePolicy: sourcePolicy))
+    }
+}
+
+
 extension StatsDocumentsQuery where Element == BloodPressureStatsSample {
     init(bloodPressureIn timeRange: HealthKitQueryTimeRange, sourcePolicy: StatsStore.SourcePolicy = .automatic) {
         self.init(.bloodPressure(in: timeRange, sourcePolicy: sourcePolicy))
