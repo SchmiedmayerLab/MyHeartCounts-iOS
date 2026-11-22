@@ -63,10 +63,30 @@ struct BloodGlucoseTests {
         #expect(hbA1c(6.9) == 0.25)
         #expect(hbA1c(7.0) == 0)
         #expect(hbA1c(10.0) == 0)
-        let hbA1cWithDiabetes = ScoreDefinition.cvhHbA1cWithDiabetes
-        #expect(hbA1cWithDiabetes(5.6) == 0.4)
-        #expect(hbA1cWithDiabetes(7.0) == 0.3)
-        #expect(hbA1cWithDiabetes(9.9) == 0.1)
+    }
+
+    @Test
+    func scoreSource() throws {
+        typealias Source = CVHScore.BloodGlucoseScoreSource
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let hbA1cDate = try #require(calendar.date(from: DateComponents(year: 2024, month: 3, day: 1)))
+        let threeYearsEarlier = try #require(calendar.date(byAdding: .year, value: -3, to: hbA1cDate))
+        let oneYearLater = try #require(calendar.date(byAdding: .year, value: 1, to: hbA1cDate))
+        let twoYearsLater = try #require(calendar.date(byAdding: .year, value: 2, to: hbA1cDate))
+        let twoYearsAndADayLater = try #require(calendar.date(byAdding: .day, value: 1, to: twoYearsLater))
+        func source(_ hbA1cDate: Date?, _ fastingReadingDate: Date?) -> Source {
+            Source(hbA1cDate: hbA1cDate, fastingReadingDate: fastingReadingDate, calendar: calendar)
+        }
+        // without an HbA1c value, the fasting reading scores (or there's no score)
+        #expect(source(nil, nil) == .fastingReading)
+        #expect(source(nil, hbA1cDate) == .fastingReading)
+        // an HbA1c value scores, however old, unless the fasting reading is more than 2 years newer
+        #expect(source(hbA1cDate, nil) == .hbA1c)
+        #expect(source(hbA1cDate, threeYearsEarlier) == .hbA1c)
+        #expect(source(hbA1cDate, oneYearLater) == .hbA1c)
+        #expect(source(hbA1cDate, twoYearsLater) == .hbA1c)
+        #expect(source(hbA1cDate, twoYearsAndADayLater) == .fastingReading)
     }
 
     @Test

@@ -108,7 +108,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ingrese la glucosa en sangre"
+            "value" : "Ingresar glucosa en sangre"
           }
         }
       }
@@ -212,7 +212,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Requiere una medición de la glucosa en sangre o un valor de HbA1c"
+            "value" : "Requiere una medición de glucosa en sangre o un valor de HbA1c"
           }
         }
       }
@@ -282,7 +282,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Su nivel promedio de glucosa en sangre de los últimos 2 a 3 meses, de un análisis de laboratorio."
+            "value" : "Su nivel promedio de glucosa en sangre de los últimos 2 a 3 meses, medido en un análisis de laboratorio."
           }
         }
       }
@@ -3491,7 +3491,14 @@
       }
     },
     "Ethnicity (UK)" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etnia (Reino Unido)"
+          }
+        }
+      }
     },
     "Exercise Time" : {
       "localizations" : {
@@ -4418,7 +4425,14 @@
       }
     },
     "HealthKit Upload (Unreadable)" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga de HealthKit (ilegible)"
+          }
+        }
+      }
     },
     "HEALTHKIT_PERMISSIONS_DESCRIPTION" : {
       "localizations" : {

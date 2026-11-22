@@ -24,6 +24,27 @@ struct CVHScore: DynamicProperty {
         var timeRange: Range<Date> { get }
     }
     
+    /// Which measurement the blood glucose score is computed from (the study team's "HbA1c default, fasting blood glucose
+    /// fallback").
+    enum BloodGlucoseScoreSource: Equatable {
+        case hbA1c
+        case fastingReading
+
+        /// The most recent HbA1c value scores whenever there is one, unless the most recent fasting reading is more than
+        /// 2 years newer; without an HbA1c value, the most recent fasting reading scores.
+        init(hbA1cDate: Date?, fastingReadingDate: Date?, calendar: Calendar = .current) {
+            guard let hbA1cDate else {
+                self = .fastingReading
+                return
+            }
+            guard let fastingReadingDate, let cutoff = calendar.date(byAdding: .year, value: 2, to: hbA1cDate) else {
+                self = .hbA1c
+                return
+            }
+            self = fastingReadingDate > cutoff ? .fastingReading : .hbA1c
+        }
+    }
+
     enum PreferredExerciseMetric {
         case exerciseMinutes
         case stepCount
@@ -68,7 +89,8 @@ struct CVHScore: DynamicProperty {
     @MHCFirestoreQuery(sampleType: .nicotineExposure, timeRange: .last(months: 2))
     private var nicotineExposure
     
-    @MHCFirestoreQuery(sampleType: .hbA1c, timeRange: .last(months: 3))
+    // the most recent HbA1c value, however old (see `BloodGlucoseScoreSource`).
+    @MHCFirestoreQuery(sampleType: .hbA1c, timeRange: .ever)
     private var hbA1cSamples
     
     // MARK: server-side stats documents
@@ -309,55 +331,40 @@ extension CVHScore {
         )
     }
     
-    /// The blood glucose score, from either an HbA1c value or a fasting blood glucose reading (each from the last 3 months).
+    /// The blood glucose score, from either the most recent HbA1c value or the most recent fasting blood glucose reading
+    /// (from the last 3 months), as ``BloodGlucoseScoreSource`` picks.
     ///
-    /// - Participants who told us they have diabetes are scored by their HbA1c alone, with AHA Life's Essential 8's diabetes tiers.
-    /// - Everyone else is scored by their most recent HbA1c value; their most recent blood glucose reading counts only if they
-    ///   have none (the study team's "HbA1c default, fasting blood glucose fallback").
-    /// - Readings taken before a meal or without a meal time count; readings taken after a meal don't
+    /// - Readings taken before a meal or without a meal time count as fasting readings; readings taken after a meal don't
     ///   (the bands are fasting thresholds, and blood glucose rises after meals).
-    ///
-    /// Continuous glucose monitors' readings (which are stored as hourly aggregates) never count.
+    /// - Continuous glucose monitors' readings (which are stored as hourly aggregates) never count.
+    /// - Everyone is scored with the same bands, whether or not they told us they have diabetes.
     var bloodGlucoseScore: ScoreResult {
         // the component keeps the blood glucose sample type (and with it its title and detail view), whichever measurement it's scored from.
         let sampleType = MHCSampleType.healthKit(.quantity(.bloodGlucose))
         let hbA1c = hbA1cSamples.first
-        func hbA1cScore(_ definition: ScoreDefinition) -> ScoreResult {
+        let reading = statsBloodGlucoseReadings.last { $0.mealTime != .afterMeal }
+        switch BloodGlucoseScoreSource(hbA1cDate: hbA1c?.startDate, fastingReadingDate: reading?.date) {
+        case .hbA1c:
             let hbA1cUnit = MHCQuantitySampleType.custom(.hbA1c).displayUnit
             var result = ScoreResult(
                 "Most Recent HbA1c",
                 sampleType: sampleType,
                 sample: hbA1c,
                 value: { $0.value(as: hbA1cUnit) },
-                definition: definition
+                definition: .cvhHbA1c
             )
             result.inputUnit = hbA1cUnit
             return result
+        case .fastingReading:
+            let readingType = MHCQuantitySampleType.healthKit(.bloodGlucose)
+            return ScoreResult(
+                "Most Recent Sample",
+                sampleType: sampleType,
+                sample: reading,
+                value: { readingType.convert($0.value, from: .milligramsPerDeciliter, to: readingType.displayUnit) },
+                definition: .cvhBloodGlucose
+            )
         }
-        if hasDiabetes {
-            return hbA1cScore(.cvhHbA1cWithDiabetes)
-        }
-        if hbA1c != nil {
-            return hbA1cScore(.cvhHbA1c)
-        }
-        let reading = statsBloodGlucoseReadings.last { $0.mealTime != .afterMeal }
-        let readingType = MHCQuantitySampleType.healthKit(.bloodGlucose)
-        return ScoreResult(
-            "Most Recent Sample",
-            sampleType: sampleType,
-            sample: reading,
-            value: { readingType.convert($0.value, from: .milligramsPerDeciliter, to: readingType.displayUnit) },
-            definition: .cvhBloodGlucose
-        )
-    }
-    
-    /// Whether the participant told us (in their demographics) that they have diabetes.
-    private var hasDiabetes: Bool {
-        guard let comorbidities = account?.details?.comorbidities,
-              let diabetes = Comorbidities.Comorbidity(id: "diabetes") else {
-            return false
-        }
-        return comorbidities[diabetes] != .notSelected
     }
     
     var bloodPressureScore: ScoreResult {

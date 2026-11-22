@@ -144,24 +144,13 @@ extension ScoreDefinition {
         sampleType: .healthKit(.bloodGlucose)
     )
     
-    /// HbA1c, for participants who haven't told us they have diabetes; matched in the participant's HbA1c display unit.
+    /// HbA1c, matched in the participant's HbA1c display unit.
     ///
     /// The study team's bands, specified in %: < 5.5 → 1, 5.5–5.6 → 0.9, 5.7–5.9 → 0.75, 6.0–6.4 → 0.5, 6.5–6.9 → 0.25,
     /// 7.0+ → 0.
     static let cvhHbA1c = bands(
         upperBounds: [5.5, 5.7, 6, 6.5, 7],
         scores: [1, 0.9, 0.75, 0.5, 0.25, 0],
-        specifiedIn: .percent(),
-        sampleType: .custom(.hbA1c)
-    )
-
-    /// HbA1c, for participants who told us they have diabetes; matched in the participant's HbA1c display unit.
-    ///
-    /// AHA Life's Essential 8's diabetes tiers (Lloyd-Jones et al., Circulation 2022, Table 1), specified in %:
-    /// < 7 → 0.4, 7–7.9 → 0.3, 8–8.9 → 0.2, 9–9.9 → 0.1, 10+ → 0.
-    static let cvhHbA1cWithDiabetes = bands(
-        upperBounds: [7, 8, 9, 10],
-        scores: [0.4, 0.3, 0.2, 0.1, 0],
         specifiedIn: .percent(),
         sampleType: .custom(.hbA1c)
     )
