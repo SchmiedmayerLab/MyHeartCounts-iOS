@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: MIT
 #
 
-require "open3"
 require_relative "xcodeproj_patch"
 require_relative "study_variant"
 require_relative "changelog"
@@ -180,6 +179,18 @@ platform :ios do
 
     releasenotes = releasenotes.gsub('\u2019', "'")
 
+    # TestFlight builds list the CHANGELOG.md `Next` entries added since the last successful deployment.
+    # Worked out before archiving, so that a failure stops the deployment early.
+    unless environment == "production"
+      base_changelog = changelog_base.empty? ? "" : changelog_at(changelog_base)
+      if base_changelog.nil?
+        UI.important("No CHANGELOG.md at #{changelog_base}, so the changelog lists all `Next` entries.")
+        base_changelog = ""
+      end
+      changelog_lines = changelog_new_lines(File.read(CHANGELOG_PATH), base_changelog)
+      changelog_lines = [APP_CONFIG[:default_release_notes]] if changelog_lines.empty?
+    end
+
     currentversion = get_version_number(
       xcodeproj: APP_CONFIG[:xcodeproj],
       target: APP_CONFIG[:scheme]
@@ -256,19 +267,6 @@ platform :ios do
         precheck_include_in_app_purchases: false,
       )
     else
-      # The TestFlight changelog lists the CHANGELOG.md `Next` entries added since the last successful deployment.
-      base_changelog = ""
-      unless changelog_base.empty?
-        # The deployment checkout is shallow, so the base commit has to be fetched first.
-        system("git", "fetch", "--quiet", "--depth=1", "origin", changelog_base)
-        base_changelog, status = Open3.capture2("git", "show", "#{changelog_base}:CHANGELOG.md")
-        unless status.success?
-          UI.important("No CHANGELOG.md at #{changelog_base}, so the changelog lists all `Next` entries.")
-          base_changelog = ""
-        end
-      end
-      changelog_lines = changelog_new_lines(File.read(CHANGELOG_PATH), base_changelog)
-      changelog_lines = [APP_CONFIG[:default_release_notes]] if changelog_lines.empty?
       changelogs = {
         "stanford" => testflight_changelog(changelog_lines),
         "imperial" => testflight_changelog(changelog_lines, header: "[UK]")

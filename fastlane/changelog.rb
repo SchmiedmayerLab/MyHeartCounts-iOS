@@ -6,6 +6,8 @@
 # SPDX-License-Identifier: MIT
 #
 
+require "open3"
+
 CHANGELOG_PATH = File.expand_path("../CHANGELOG.md", __dir__)
 # App Store Connect's limit for a TestFlight build's "What to Test" text.
 TESTFLIGHT_CHANGELOG_LIMIT = 4000
@@ -20,6 +22,19 @@ def changelog_next_lines(text)
     end
     line.rstrip if section == "## Next" && !line.strip.empty?
   end
+end
+
+# The CHANGELOG.md text at commit `sha`, or nil if that commit has no CHANGELOG.md.
+# Raises if the commit can't be fetched or the file can't be read.
+def changelog_at(sha)
+  # The deployment checkout is shallow, so the commit has to be fetched first.
+  raise "Couldn't fetch commit #{sha}." unless system("git", "fetch", "--quiet", "--depth=1", "origin", sha)
+  return nil unless system("git", "cat-file", "-e", "#{sha}:CHANGELOG.md", err: File::NULL)
+
+  text, status = Open3.capture2("git", "show", "#{sha}:CHANGELOG.md")
+  raise "Couldn't read CHANGELOG.md at #{sha}." unless status.success?
+
+  text
 end
 
 # The `## Next` lines of `text` that aren't in the `## Next` section of `base_text`,

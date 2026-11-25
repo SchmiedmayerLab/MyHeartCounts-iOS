@@ -117,7 +117,9 @@ jobs:
           SHA=""
           while read -r ID DEPLOYMENT_SHA; do
             [[ -n "$ID" ]] || continue
-            if [[ "$(gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses?per_page=100" --jq 'any(.[]; .state == "success")')" == "true" ]]; then
+            # A plain assignment, so that a failed request fails the job (inside the `if` condition it wouldn't).
+            SUCCEEDED=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses?per_page=100" --jq 'any(.[]; .state == "success")')
+            if [[ "$SUCCEEDED" == "true" ]]; then
               SHA="$DEPLOYMENT_SHA"
               break
             fi
