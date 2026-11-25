@@ -33,6 +33,16 @@ extension StudyVariant {
         }
     }
 
+    /// Whether participants who withdrew from the study sign the consent again when they re-enroll, even if they already signed its current version.
+    ///
+    /// Logging back in without a prior withdrawal never asks for this.
+    var requiresConsentToReenroll: Bool {
+        switch self {
+        case .stanford: false
+        case .imperial: true
+        }
+    }
+
     /// Selects the variant-specific version of a localized text.
     ///
     /// Study variant is a localization axis separate from language: variant-dependent texts use one string catalog key per variant,

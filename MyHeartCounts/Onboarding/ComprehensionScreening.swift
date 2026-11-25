@@ -21,6 +21,8 @@ struct ComprehensionScreening: View {
     private var consentManager
     
     let consentDoc: ConsentDocument
+    /// Work that the consent step performs after storing the signed consent, before the flow continues.
+    let onSigned: (@MainActor () async throws -> Void)?
     
     var body: some View {
         SinglePageScreening(
@@ -45,9 +47,9 @@ struct ComprehensionScreening: View {
             }
             return isTrue(\.seekHelpIfNotFeelingWell) && isTrue(\.studyParticipationIsVoluntary) && isTrue(\.canStopParticipatingAtAnyTime)
         } continue: { _, path in
-            let showConsent: @MainActor () -> Void = { [consentDoc] in
+            let showConsent: @MainActor () -> Void = { [consentDoc, onSigned] in
                 path.append {
-                    Consent(document: consentDoc)
+                    Consent(document: consentDoc, onSigned: onSigned)
                         .onboardingStep(.consent)
                         .injectingGrove()
                 }
@@ -100,7 +102,7 @@ private struct Question: ScreeningComponent {
 #if DEBUG
 #Preview {
     ManagedNavigationStack {
-        ComprehensionScreening(consentDoc: .previewDoc)
+        ComprehensionScreening(consentDoc: .previewDoc, onSigned: nil)
     }
     .environment(OnboardingDataCollection())
 }

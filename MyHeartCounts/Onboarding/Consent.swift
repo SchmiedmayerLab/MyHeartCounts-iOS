@@ -30,6 +30,7 @@ struct Consent: View {
     // swiftlint:enable attributes
     
     private let document: ConsentDocument
+    private let onSigned: (@MainActor () async throws -> Void)?
     private let continueAction: (@MainActor () -> Void)?
     @State private var viewState: ViewState = .idle
     
@@ -47,6 +48,7 @@ struct Consent: View {
                 let modifications = try AccountModifications(modifiedDetails: accountDetailUpdates)
                 try await account.accountService.updateAccountDetails(modifications)
             }
+            try await onSigned?()
             if let continueAction {
                 continueAction()
             } else {
@@ -75,8 +77,16 @@ struct Consent: View {
     
     /// - parameter continueAction: An action which should be performed when the user submits the consent, to continue in the flow.
     ///     Defaults to `nil`, in which case the `Consent` view will advance its `ManagedNavigationStack`.
-    init(document: ConsentDocument, continueAction: (@MainActor () -> Void)? = nil) {
+    /// - parameter onSigned: Work that completes the signing, performed after the signed consent was uploaded and recorded in the account,
+    ///     before the flow continues. If it fails, the participant stays on this step and can submit the consent again.
+    ///     (Placed after `continueAction`, so that a trailing closure keeps binding to `continueAction`.)
+    init(
+        document: ConsentDocument,
+        continueAction: (@MainActor () -> Void)? = nil,
+        onSigned: (@MainActor () async throws -> Void)? = nil
+    ) {
         self.document = document
+        self.onSigned = onSigned
         self.continueAction = continueAction
     }
 }

@@ -92,7 +92,8 @@ struct OnboardingNavigator { // swiftlint:disable:this type_body_length
     }
     
     
-    func navigateEligibility(region: Locale.Region) throws {
+    /// - parameter region: The region to select, or `nil` if the app preselects and locks the region, as it does for a forced study variant (e.g., Imperial).
+    func navigateEligibility(region: Locale.Region?) throws {
         let continueButton = app.collectionViews.firstMatch.buttons["Continue"]
         let ofAgeToggle = app.switches["Are you 18 years old or older?"].descendants(matching: .switch).firstMatch
         XCTAssert(ofAgeToggle.waitForExistence(timeout: 2))
@@ -100,18 +101,22 @@ struct OnboardingNavigator { // swiftlint:disable:this type_body_length
         ofAgeToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         sleep(for: .seconds(0.25))
         XCTAssertEqual(try XCTUnwrap(ofAgeToggle.value as? String), "1")
-        app.buttons["What country do you currently live in?"].tap()
-        sleep(for: .seconds(0.55))
-        do {
+        if let region {
+            app.buttons["What country do you currently live in?"].tap()
+            sleep(for: .seconds(0.55))
             app.searchFields["Search"].firstMatch.tap()
             app.searchFields["Search"].firstMatch.typeText(try XCTUnwrap(region.name()))
             let countryButton = app.buttons[try XCTUnwrap(region.name(includeEmoji: true))]
             XCTAssert(countryButton.waitForExistence(timeout: 1))
             countryButton.tap()
             sleep(for: .seconds(0.25))
-            app.swipeUp()
-            XCTAssertFalse(continueButton.isEnabled)
+        } else {
+            let regionButton = app.buttons.matching("label BEGINSWITH %@", "What country do you currently live in?").firstMatch
+            XCTAssert(regionButton.exists)
+            XCTAssertFalse(regionButton.isEnabled)
         }
+        app.swipeUp()
+        XCTAssertFalse(continueButton.isEnabled)
         app.otherElements["Screening Section, Language"].buttons["Yes"].tryToTapReallySoftlyMaybeThisWillMakeItWork()
         XCTAssertFalse(continueButton.isEnabled)
         app.otherElements["Screening Section, Apple ID Sharing"].buttons["No"].tryToTapReallySoftlyMaybeThisWillMakeItWork()
