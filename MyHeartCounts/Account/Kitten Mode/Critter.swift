@@ -17,6 +17,9 @@ struct Critter: Identifiable {
         case drawnKitten(DrawnKitten)
         case drawnRedPanda(DrawnRedPanda)
         case drawnPenguin(DrawnPenguin)
+        case drawnGiantPanda(DrawnGiantPanda)
+        case drawnGoldenRetriever(DrawnGoldenRetriever)
+        case drawnBlackPanther(DrawnBlackPanther)
         /// The name of a photo in the asset catalog, cut out of its background and facing right.
         case photo(String)
     }
@@ -49,6 +52,27 @@ struct Critter: Identifiable {
         "penguin-shy", // Lonely Penguin (Unsplash).jpg
         "penguin-looking-up", // Gentoo Penguin. (9) (8670581675).jpg
     ]
+    static let giantPandaPhotos = [
+        "giant-panda-lounging", // Zhengzhou Zoo- Giant Panda.jpg
+        "giant-panda-bamboo", // Panda bear eating.jpg
+        "giant-panda-munching", // Panda - Aibao.jpg
+        "giant-panda-perched", // Panda, Guangzhou, China-Xiangjiang Safari Park.jpg
+        "giant-panda-napping", // Beijing Zoo Giant Panda (9870779193).jpg
+    ]
+    static let goldenRetrieverPhotos = [
+        "golden-retriever-standing", // Golden Retriever 88.JPG
+        "golden-retriever-sitting", // Retriever 04.JPG
+        "golden-retriever-puppy", // Golden-retriever-1827903 1920.jpg
+        "golden-retriever-sleepy-puppy", // Golden Retriever puppy (3813393).jpg
+        "golden-retriever-happy", // Image of golden retriever.jpg
+    ]
+    static let blackPantherPhotos = [
+        "black-panther-prowling", // Panthera pardus pardus - darrenmclaughlin - 589100198.jpeg
+        "black-panther-watchful", // Panthera pardus pardus - darrenmclaughlin - 589100233.jpeg (twigs painted out)
+        "black-panther-jaguar", // Black jaguar.jpg
+        "black-panther-cub", // Lage prijzen in Artis in september, jonge zwarte panter, Bestanddeelnr 924-8761.jpg
+        "black-panther-lounging", // Black panter.jpg
+    ]
 
     let id = UUID()
     let start = Date.now
@@ -74,11 +98,14 @@ struct Critter: Identifiable {
         )
     }
 
-    /// Half of the critters are kittens, and half of each kind are photos.
+    /// 40% of the critters are kittens, and the other five kinds get 12% each. Half of each kind are photos.
     private static func randomLook() -> Look {
-        switch Int.random(in: 0..<4) {
-        case 0: Bool.random() ? .drawnRedPanda(.random()) : .photo(redPandaPhotos.randomElement()!)
-        case 1: Bool.random() ? .drawnPenguin(.random()) : .photo(penguinPhotos.randomElement()!)
+        switch Int.random(in: 0..<25) {
+        case 0..<3: Bool.random() ? .drawnRedPanda(.random()) : .photo(redPandaPhotos.randomElement()!)
+        case 3..<6: Bool.random() ? .drawnPenguin(.random()) : .photo(penguinPhotos.randomElement()!)
+        case 6..<9: Bool.random() ? .drawnGiantPanda(.random()) : .photo(giantPandaPhotos.randomElement()!)
+        case 9..<12: Bool.random() ? .drawnGoldenRetriever(.random()) : .photo(goldenRetrieverPhotos.randomElement()!)
+        case 12..<15: Bool.random() ? .drawnBlackPanther(.random()) : .photo(blackPantherPhotos.randomElement()!)
         default: Bool.random() ? .drawnKitten(.random()) : .photo(kittenPhotos.randomElement()!)
         }
     }
@@ -102,6 +129,12 @@ struct Critter: Identifiable {
                 redPanda.draw(in: layer, phase: phase)
             case .drawnPenguin(let penguin):
                 penguin.draw(in: layer, phase: phase)
+            case .drawnGiantPanda(let giantPanda):
+                giantPanda.draw(in: layer, phase: phase)
+            case .drawnGoldenRetriever(let goldenRetriever):
+                goldenRetriever.draw(in: layer, phase: phase)
+            case .drawnBlackPanther(let blackPanther):
+                blackPanther.draw(in: layer, phase: phase)
             case .photo(let name):
                 drawPhoto(named: name, in: layer, phase: phase)
             }

@@ -10,8 +10,8 @@
 
 import SwiftUI
 
-/// The secret kitten mode: every `releaseCritter(in:)` sends a random kitten, red panda or penguin
-/// across the screen.
+/// The secret kitten mode: every `releaseCritter(in:)` sends a random kitten, red panda, penguin,
+/// giant panda, golden retriever or black panther across the screen.
 ///
 /// The critters run in a window of their own, because the sheet they're released from covers
 /// everything in the app's window. Their window ignores touches, so the sheet stays usable.

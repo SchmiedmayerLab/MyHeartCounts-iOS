@@ -21,6 +21,11 @@ SPDX-License-Identifier = "MIT"
 path = [
     "MyHeartCounts/Resources/Assets.xcassets/Kittens/**/*.png",
     "MyHeartCounts/Resources/Assets.xcassets/RedPandas/**/*.png",
+    "MyHeartCounts/Resources/Assets.xcassets/GiantPandas/**/*.png",
+    "MyHeartCounts/Resources/Assets.xcassets/GoldenRetrievers/**/*.png",
+    "MyHeartCounts/Resources/Assets.xcassets/BlackPanthers/black-panther-cub.imageset/black-panther-cub.png",
+    "MyHeartCounts/Resources/Assets.xcassets/BlackPanthers/black-panther-prowling.imageset/black-panther-prowling.png",
+    "MyHeartCounts/Resources/Assets.xcassets/BlackPanthers/black-panther-watchful.imageset/black-panther-watchful.png",
     "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-fluffy.imageset/penguin-fluffy.png",
     "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-gentoo.imageset/penguin-gentoo.png",
     "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-looking-up.imageset/penguin-looking-up.png",
@@ -33,7 +38,13 @@ SPDX-License-Identifier = "CC0-1.0"
 path = [
     "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-chicks.imageset/penguin-chicks.png",
     "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-family.imageset/penguin-family.png",
-    "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-waving.imageset/penguin-waving.png"
+    "MyHeartCounts/Resources/Assets.xcassets/Penguins/penguin-waving.imageset/penguin-waving.png",
+    "MyHeartCounts/Resources/Assets.xcassets/BlackPanthers/black-panther-jaguar.imageset/black-panther-jaguar.png"
 ]
 SPDX-FileCopyrightText = "United States Government, via Wikimedia Commons (see Critter.swift for the original files)"
 SPDX-License-Identifier = "LicenseRef-PublicDomain"
+
+[[annotations]]
+path = "MyHeartCounts/Resources/Assets.xcassets/BlackPanthers/black-panther-lounging.imageset/black-panther-lounging.png"
+SPDX-FileCopyrightText = "Izmaelt, via Wikimedia Commons (see Critter.swift for the original file)"
+SPDX-License-Identifier = "LicenseRef-PublicDomain-Dedication"
