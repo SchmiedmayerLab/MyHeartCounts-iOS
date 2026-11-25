@@ -90,13 +90,13 @@ struct Critter: Identifiable {
         )
     }
 
-    /// Half of the critters are kittens, and half of each kind are photos.
+    /// 40% of the critters are kittens, and the other four kinds get 15% each. Half of each kind are photos.
     private static func randomLook() -> Look {
-        switch Int.random(in: 0..<8) {
-        case 0: Bool.random() ? .drawnRedPanda(.random()) : .photo(redPandaPhotos.randomElement()!)
-        case 1: Bool.random() ? .drawnPenguin(.random()) : .photo(penguinPhotos.randomElement()!)
-        case 2: Bool.random() ? .drawnGiantPanda(.random()) : .photo(giantPandaPhotos.randomElement()!)
-        case 3: Bool.random() ? .drawnGoldenRetriever(.random()) : .photo(goldenRetrieverPhotos.randomElement()!)
+        switch Int.random(in: 0..<20) {
+        case 0..<3: Bool.random() ? .drawnRedPanda(.random()) : .photo(redPandaPhotos.randomElement()!)
+        case 3..<6: Bool.random() ? .drawnPenguin(.random()) : .photo(penguinPhotos.randomElement()!)
+        case 6..<9: Bool.random() ? .drawnGiantPanda(.random()) : .photo(giantPandaPhotos.randomElement()!)
+        case 9..<12: Bool.random() ? .drawnGoldenRetriever(.random()) : .photo(goldenRetrieverPhotos.randomElement()!)
         default: Bool.random() ? .drawnKitten(.random()) : .photo(kittenPhotos.randomElement()!)
         }
     }
