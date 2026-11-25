@@ -38,6 +38,10 @@ Versions before 4.0.0 belong to the previous My Heart Counts app and aren't list
 - The study definition now downloads as a zstd archive.
 - Background task events can now be exported from the debug view.
 - The app is now built on Grove (formerly Spezi), Firebase 13.2, and the iOS 27 SDK.
+- Kitten Mode now also has giant pandas, golden retrievers and black panthers.
+- The app takes about 48 MB less space on iPhone and about 55 MB less on Apple Watch.
+- UK study: participants who withdrew and log back in to re-enroll now sign the consent again.
+- Health records now upload as one archive per batch, including the files the Health app stores with them.
 
 
 ## 4.0.7 (2026-08-08)
