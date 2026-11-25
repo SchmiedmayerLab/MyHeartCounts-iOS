@@ -54,6 +54,26 @@ struct ZipArchiveTests {
         }
     }
 
+    /// The bytes of the archive `body` writes to a fresh archive created under `limits`, then finalizes.
+    private static func archive(limits: ZipArchive.Limits, _ body: (inout ZipArchive) throws -> Void) throws -> Data {
+        try withTemporaryFile { url in
+            var archive = try ZipArchive(writingTo: url, limits: limits)
+            try body(&archive)
+            try archive.finalize()
+            return try Data(contentsOf: url)
+        }
+    }
+
+    /// `contents` in a temporary file, which `body` gets the URL of; the file is removed once `body` returns.
+    private static func withFile<Result>(holding contents: Data, _ body: (URL) throws -> Result) throws -> Result {
+        let url = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString)
+        try contents.write(to: url)
+        defer {
+            try? FileManager.default.removeItem(at: url)
+        }
+        return try body(url)
+    }
+
     /// The error adding an empty entry at `path` to `archive` throws, if any.
     private static func error(addingEntryAt path: String, to archive: inout ZipArchive) -> ZipArchive.ZipError? {
         do {
@@ -149,7 +169,7 @@ struct ZipArchiveTests {
 
 #if os(macOS) || os(Linux)
 extension ZipArchiveTests {
-    private static func unzip(_ arguments: [String]) throws -> Int32 {
+    fileprivate static func unzip(_ arguments: [String]) throws -> Int32 {
         let process = Process()
         process.executableURL = URL(filePath: unzipPath)
         process.arguments = arguments
@@ -261,6 +281,84 @@ extension ZipArchiveTests {
         #expect(throws: ZipArchive.ZipError.duplicatePath("entry-one")) {
             try ZipArchive.Reader(duplicated)
         }
+    }
+
+    /// A file streamed into an entry spans several read chunks, is stored as it is, and makes exactly the bytes adding
+    /// the same contents from memory without compression makes.
+    @Test
+    func fileEntryIsStreamedAndStored() throws {
+        // More than two of the archive's 1 MiB read chunks, so the CRC-32 runs across chunk boundaries.
+        let contents = Self.noise(byteCount: (5 << 20) / 2) + Data(String(repeating: "text", count: 1_000).utf8)
+        let streamed = try Self.withFile(holding: contents) { file in
+            try Self.archive(limits: ZipArchive.Limits()) { archive in
+                try archive.addEntry(at: "recordings/file.pdf", contentsOf: file)
+            }
+        }
+        let fromMemory = try Self.archive([.init(path: "recordings/file.pdf", contents: contents)], compression: .none)
+        #expect(streamed == fromMemory)
+        #expect(Self.methodOfOnlyEntry(in: streamed) == 0)
+        let reader = try ZipArchive.Reader(streamed)
+        let entry = try #require(reader.entries.first)
+        #expect(entry.crc32 == ZipArchive.crc32(contents))
+        #expect(try reader.contents(of: entry) == contents)
+    }
+
+    /// A file that can't be read throws before anything is written, so the archive stays usable and unchanged.
+    @Test
+    func unreadableFileLeavesTheArchiveUsable() throws {
+        let missing = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString)
+        let archive = try Self.archive(limits: ZipArchive.Limits()) { archive in
+            #expect(throws: (any Error).self) {
+                try archive.addEntry(at: "missing.pdf", contentsOf: missing)
+            }
+            try archive.addEntry(at: "a", contents: Data("a".utf8))
+        }
+        #expect(try archive == Self.archive([.init(path: "a", contents: Data("a".utf8))]))
+    }
+
+    /// Where every size and offset is written with ZIP64 fields, as an archive past 4 GiB writes them, every entry still
+    /// reads back exactly, compressed, stored or streamed, and an independent extractor accepts the archive.
+    @Test
+    func zip64SizesAndOffsetsRoundTrip() throws {
+        let streamedContents = Self.noise(byteCount: 3_000)
+        let archive = try Self.withFile(holding: streamedContents) { file in
+            try Self.archive(limits: ZipArchive.Limits(field: 0)) { archive in
+                for entry in Self.entries {
+                    try archive.addEntry(at: entry.path, contents: entry.contents)
+                }
+                try archive.addEntry(at: "recordings/streamed.bin", contentsOf: file)
+            }
+        }
+        let expected = Self.entries + [.init(path: "recordings/streamed.bin", contents: streamedContents)]
+        #expect(try ZipArchive.entries(in: archive) == expected)
+        let reader = try ZipArchive.Reader(archive)
+        #expect(reader.entries.map(\.size) == expected.map(\.contents.count))
+        #if os(macOS) || os(Linux)
+        if FileManager.default.isExecutableFile(atPath: unzipPath) {
+            let status = try Self.withFile(holding: archive) { url in
+                try Self.unzip(["-t", "-qq", url.path])
+            }
+            #expect(status == 0)
+        }
+        #endif
+    }
+
+    /// Where the entry count is too large for the end record, as past 65,535 entries, a ZIP64 end record states it.
+    @Test
+    func zip64EntryCountRoundTrips() throws {
+        let entries = (0..<5).map { ZipArchive.Entry(path: "entry-\($0)", contents: Data("\($0)".utf8)) }
+        let archive = try Self.archive(limits: ZipArchive.Limits(entryCount: 3)) { archive in
+            for entry in entries {
+                try archive.addEntry(at: entry.path, contents: entry.contents)
+            }
+        }
+        // The end record defers its entry counts to the ZIP64 end record.
+        #expect(archive[archive.endIndex - 14] == 0xFF && archive[archive.endIndex - 13] == 0xFF)
+        #expect(try ZipArchive.entries(in: archive) == entries)
+        // The same entries without ZIP64 make another, shorter archive that reads back the same.
+        let classic = try Self.archive(entries)
+        #expect(classic.count < archive.count)
+        #expect(try ZipArchive.entries(in: classic) == entries)
     }
 
     /// A local header that describes its entry differently from the central directory makes the entry malformed.
