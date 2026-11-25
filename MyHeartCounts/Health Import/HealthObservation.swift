@@ -181,7 +181,11 @@ extension HealthKitFHIRExporter {
         ///
         /// Grove never queries HealthKit, so an ECG's waveform and correlated symptoms are fetched here; each
         /// symptom becomes a record of its own. Every other sample is its own record.
-        case healthKit(HealthKit)
+        ///
+        /// A clinical record's files are copied into `attachmentDirectory` too (see ``ClinicalRecordAttachments``), which
+        /// the caller removes once it has archived them; a clinical record without one is refused, as its files would
+        /// otherwise be lost.
+        case healthKit(HealthKit, attachmentDirectory: URL? = nil)
         /// The records of samples MHC created and couldn't save into HealthKit (see ``UnsavedHealthKitSample``).
         ///
         /// Each sample is its own record, which states MHC as the sample's source, as HealthKit would have had MHC
@@ -206,7 +210,20 @@ extension HealthKitFHIRExporter {
         
         func record(for sample: HKSample) async throws -> Record {
             switch self {
-            case .healthKit(let healthKit):
+            case let .healthKit(healthKit, attachmentDirectory):
+                if let clinicalRecord = sample as? HKClinicalRecord {
+                    guard let attachmentDirectory else {
+                        throw ClinicalRecordAttachments.Failure.noAttachmentDirectory
+                    }
+                    return .clinicalRecord(
+                        clinicalRecord,
+                        attachments: try await ClinicalRecordAttachments.copy(
+                            of: clinicalRecord,
+                            from: healthKit.healthStore,
+                            into: attachmentDirectory
+                        )
+                    )
+                }
                 guard let electrocardiogram = sample as? HKElectrocardiogram else {
                     return .sample(sample)
                 }

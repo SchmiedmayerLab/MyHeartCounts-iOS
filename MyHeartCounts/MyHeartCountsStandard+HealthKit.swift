@@ -119,6 +119,9 @@ extension MyHeartCountsStandard {
         @available(*, deprecated, message: "Will be removed in a future update!")
         case directFirestore
         case firebaseStorage
+        /// Clinical records: exported with the files HealthKit stores with them, and uploaded as
+        /// ``UploadBatchArchive``s that carry those files beside their Bundles (see ``ClinicalRecordAttachments``).
+        case clinicalRecordArchive
     }
 
     /// What uploading health observations reaches beyond the observations themselves.
@@ -182,9 +185,13 @@ extension MyHeartCountsStandard {
     }
     
     /// Determines how a health observation / resource should be persisted when uploading it to firebase.
-    private static func uploadStrategy(forSampleType identifier: String) -> HealthObservationUploadStrategy {
+    static func uploadStrategy(forSampleType identifier: String) -> HealthObservationUploadStrategy {
         if identifier == TimedWalkingTestResult.sampleTypeIdentifier {
             return .directFirestore
+        }
+        // Before the HealthKit types MHC stages: a staged row holds a record's Bundle only, never its files.
+        if ClinicalRecordAttachments.isClinicalRecordType(identifier) {
+            return .clinicalRecordArchive
         }
         return switch MHCSampleType(sampleTypeIdentifier: identifier) {
         case nil:
@@ -250,7 +257,7 @@ extension MyHeartCountsStandard {
     }
 
     /// Uploads `observations` by `uploadStrategy`, or the strategy their sample type takes.
-    static func uploadHealthObservations<Observations: Collection & Sendable>( // swiftlint:disable:this function_body_length
+    static func uploadHealthObservations<Observations: Collection & Sendable>( // swiftlint:disable:this function_body_length cyclomatic_complexity
         _ observations: consuming Observations,
         accountDataGeneration: Int,
         uploadStrategy: HealthObservationUploadStrategy?,
@@ -324,6 +331,18 @@ extension MyHeartCountsStandard {
                 try await dependencies.stageUnreadableFile(url, accountDataGeneration)
             }
             await triggerDidUploadNotification()
+        case .clinicalRecordArchive:
+            let triggerDidUploadNotification = await showDebugWillUploadHealthDataUploadEventNotification(
+                for: .new(sampleTypeTitle: sampleTypeIdentifier, count: observations.count, uploadStrategy: uploadStrategy)
+            )
+            try await uploadClinicalRecords(
+                consume observations,
+                sampleType: sampleTypeIdentifier,
+                at: conversionInstant,
+                destination: destination,
+                through: dependencies
+            )
+            await triggerDidUploadNotification()
         case .directFirestore:
             // Self-modelled observations only: they need no exporter, so neither the identity secret nor the app
             // facts. A HealthKit sample asks for one and is refused here.
@@ -381,6 +400,8 @@ extension MyHeartCountsStandard {
             "direct"
         case .firebaseStorage:
             "storage"
+        case .clinicalRecordArchive:
+            "clinicalRecordArchive"
         }
     }
     

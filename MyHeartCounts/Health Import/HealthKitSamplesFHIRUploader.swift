@@ -72,9 +72,19 @@ struct HealthKitSamplesFHIRUploader: BatchProcessor {
             let samples = samples
             // The logged outcome covers the staging too: a batch counts as exported once its upload file is staged.
             _ = try await HealthKitExportLog.record(.historical, samples: HealthKitExportLog.counts(samples), exporter: exporter) {
+                let conversionInstant = now()
+                // Clinical records travel with the files HealthKit stores with them, as archives (see ClinicalRecordAttachments).
+                if ClinicalRecordAttachments.isClinicalRecordType(sampleType.id) {
+                    return try await ClinicalRecordAttachments.exportAndStage(
+                        samples,
+                        sampleType: sampleType.id,
+                        at: conversionInstant,
+                        healthKit: healthKit,
+                        exporter: exporter
+                    ) { try await stage($0, accountDataGeneration) } stageUnreadable: { try await stageUnreadable($0, accountDataGeneration) }
+                }
                 // Potential memory hotspot: this buffers all exchange records for a time window before packing them.
                 // If memory pressure becomes an issue, investigate streaming encoding/compression while keeping large upload files.
-                let conversionInstant = now()
                 var records: [ExchangeRecord] = []
                 let export = try await exporter.exportBatch(
                     samples,
