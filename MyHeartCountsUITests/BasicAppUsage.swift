@@ -7,6 +7,7 @@
 //
 
 import HealthKit
+import MHCStudyDefinition
 import MyHeartCountsShared
 import XCTest
 import XCTestExtensions
