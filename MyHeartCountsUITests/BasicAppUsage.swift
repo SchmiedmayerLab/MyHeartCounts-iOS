@@ -58,6 +58,19 @@ final class BasicAppUsage: MHCTestCase, @unchecked Sendable {
     }
     
     
+    /// Taps the account sheet's footer, which releases a Kitten Mode critter.
+    func testKittenMode() throws {
+        try launchAppAndEnrollIntoStudy()
+        openAccountSheet()
+        let footer = app.staticTexts.element(matching: NSPredicate(format: "label BEGINSWITH 'Made with'"))
+        for _ in 0..<3 where !footer.isHittable {
+            app.swipeUp()
+        }
+        XCTAssert(footer.waitForExistence(timeout: 2))
+        footer.tap()
+    }
+
+
     func testLogout() throws {
         try launchAppAndEnrollIntoStudy()
         openAccountSheet()
