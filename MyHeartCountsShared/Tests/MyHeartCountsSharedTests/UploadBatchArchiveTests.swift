@@ -48,7 +48,7 @@ struct UploadBatchArchiveTests {
         #expect(reader.info.startDate == Self.start)
         #expect(reader.info.endDate == Self.start.addingTimeInterval(90))
         #expect(try reader.bundle() == Self.bundle)
-        #expect(reader.recordingPaths == [UploadBatchArchive.recordingPath(forName: "first.csv")])
+        #expect(reader.recordingPaths == [UploadBatchArchive.path(forName: "first.csv", in: .recordings)])
         #expect(try reader.recording(at: "recordings/first.csv") == Data("t,x\n1,2\n".utf8))
     }
 
@@ -64,7 +64,7 @@ struct UploadBatchArchiveTests {
         }
         let reader = try UploadBatchArchive.Reader(contentsOf: url)
         #expect(reader.info.numRecords == 2)
-        #expect(reader.recordingPaths == [UploadBatchArchive.recordingPath(forName: "identical.csv")])
+        #expect(reader.recordingPaths == [UploadBatchArchive.path(forName: "identical.csv", in: .recordings)])
     }
 
     /// A record's recordings, in memory or in files, are each written once, under the path the Bundle states, and read back
@@ -80,8 +80,8 @@ struct UploadBatchArchiveTests {
         let image = Data(repeating: 0x7F, count: 2_048)
         try pdf.write(to: directory.appending(component: "note.pdf"))
         try image.write(to: directory.appending(component: "scan.png"))
-        let pdfRecording = UploadBatchArchive.Recording(name: "note.pdf", fileAt: directory.appending(component: "note.pdf"))
-        let imageRecording = UploadBatchArchive.Recording(name: "scan.png", fileAt: directory.appending(component: "scan.png"))
+        let pdfRecording = UploadBatchArchive.Recording(name: "note.pdf", in: .documents, fileAt: directory.appending(component: "note.pdf"))
+        let imageRecording = UploadBatchArchive.Recording(name: "scan.png", in: .documents, fileAt: directory.appending(component: "scan.png"))
         let csvRecording = UploadBatchArchive.Recording(name: "values.csv", contents: Data("t,x\n1,2\n".utf8))
 
         var archive = try UploadBatchArchive(source: .healthKit, sampleTypeId: "HKClinicalTypeIdentifierClinicalNoteRecord", device: nil)
@@ -103,12 +103,12 @@ struct UploadBatchArchiveTests {
         let reader = try UploadBatchArchive.Reader(contentsOf: url)
         #expect(reader.info.source == .healthKit)
         #expect(reader.info.numRecords == 2)
-        #expect(reader.recordingPaths == ["recordings/note.pdf", "recordings/scan.png", "recordings/values.csv"])
-        #expect(try reader.recording(at: "recordings/note.pdf") == pdf)
-        #expect(try reader.recording(at: "recordings/scan.png") == image)
+        #expect(reader.recordingPaths == ["documents/note.pdf", "documents/scan.png", "recordings/values.csv"])
+        #expect(try reader.recording(at: "documents/note.pdf") == pdf)
+        #expect(try reader.recording(at: "documents/scan.png") == image)
         #expect(try reader.recording(at: "recordings/values.csv") == Data("t,x\n1,2\n".utf8))
         let entries = try ZipArchive.Reader(contentsOf: url).entries
-        #expect(entries.first { $0.path == "recordings/note.pdf" }?.compression == ZipArchive.Compression.none)
+        #expect(entries.first { $0.path == "documents/note.pdf" }?.compression == ZipArchive.Compression.none)
     }
 
     @Test

@@ -47,11 +47,11 @@ struct ClinicalRecordAttachmentsTests {
         HealthUploadBatch.ArchivedRecord(record: record, recordings: recordings, timeRange: ExchangeHarness.start..<ExchangeHarness.start)
     }
 
-    /// `contents` as a recording named `name`, in a file in `directory`.
+    /// `contents` as a clinical record's file named `name`, in a file in `directory`.
     private static func recording(_ name: String, _ contents: Data, in directory: URL) throws -> UploadBatchArchive.Recording {
         let url = directory.appending(component: name, directoryHint: .notDirectory)
         try contents.write(to: url)
-        return UploadBatchArchive.Recording(name: name, fileAt: url)
+        return UploadBatchArchive.Recording(name: name, in: .documents, fileAt: url)
     }
 
     @Test
@@ -121,9 +121,9 @@ struct ClinicalRecordAttachmentsTests {
         let readers = try archives.map { try UploadBatchArchive.Reader($0.contents) }
         #expect(readers.map(\.info.source) == [.healthKit, .healthKit])
         #expect(readers.map(\.info.numRecords) == [2, 1])
-        #expect(readers[0].recordingPaths == ["recordings/first.pdf", "recordings/shared.png"])
-        #expect(readers[1].recordingPaths == ["recordings/shared.png", "recordings/last.pdf"])
-        #expect(try readers[1].recording(at: "recordings/last.pdf") == Data("%PDF last".utf8))
+        #expect(readers[0].recordingPaths == ["documents/first.pdf", "documents/shared.png"])
+        #expect(readers[1].recordingPaths == ["documents/shared.png", "documents/last.pdf"])
+        #expect(try readers[1].recording(at: "documents/last.pdf") == Data("%PDF last".utf8))
         let bundled = try readers.map { try packedRecords(in: $0.bundle()) }
         #expect(bundled.map { $0.map(\.version) } == [[records[0].version, records[1].version], [records[2].version]])
         #expect(archives[1].name == HealthUploadBatch.filename(
@@ -164,7 +164,7 @@ struct ClinicalRecordAttachmentsTests {
         ))
         let reader = try UploadBatchArchive.Reader(objects[0].contents)
         #expect(try reader.bundle() == records[0].json)
-        #expect(try reader.recording(at: "recordings/note.pdf") == Data("%PDF note".utf8))
+        #expect(try reader.recording(at: "documents/note.pdf") == Data("%PDF note".utf8))
         #expect(objects[1].name.hasSuffix(".zstd"))
     }
 }

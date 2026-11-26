@@ -14,8 +14,8 @@ public import Foundation
 /// The archive's layout (``BatchInfo/formatVersion`` 1):
 /// - `batchinfo.json`: the batch's ``BatchInfo``, which sums up the records it holds.
 /// - `bundle.json`: the one FHIR Bundle that holds every record, verbatim.
-/// - `recordings/<name>`: each recording the Bundle references, at the path relative to the archive's root that the Bundle
-///     states (see ``recordingPath(forName:)``).
+/// - `recordings/<name>`: each sensor recording the Bundle references, and `documents/<name>`: each file a clinical record
+///     carries, at the path relative to the archive's root that the Bundle states (see ``path(forName:in:)``).
 ///
 /// Records are added one at a time: each record's recordings are written to the archive's file right away, and
 /// ``finalize(bundle:)`` writes `bundle.json` and `batchinfo.json`. An archive that is not finalized removes its file.
@@ -31,6 +31,14 @@ public import Foundation
 public struct UploadBatchArchive: ~Copyable {
     /// A recording the Bundle references.
     public struct Recording: Hashable, Sendable {
+        /// The archive directory a recording is in.
+        public enum Directory: String, CaseIterable, Hashable, Sendable {
+            /// A sensor recording, such as SensorKit samples.
+            case recordings = "recordings/"
+            /// A file a clinical record carries, such as a clinical note's PDF.
+            case documents = "documents/"
+        }
+
         /// Where a recording's exact bytes are.
         public enum Source: Hashable, Sendable {
             /// The bytes, in memory.
@@ -39,20 +47,29 @@ public struct UploadBatchArchive: ~Copyable {
             case file(URL)
         }
 
-        /// The recording's file name within the archive's `recordings/` directory.
+        /// The recording's file name within its ``directory``.
         public let name: String
+        /// The archive directory the recording is in.
+        public let directory: Directory
         /// Where the recording's exact bytes are.
         public let source: Source
 
+        /// The recording's path relative to the archive's root.
+        public var path: String {
+            UploadBatchArchive.path(forName: name, in: directory)
+        }
+
         /// A recording of `contents`, held in memory.
-        public init(name: String, contents: Data) {
+        public init(name: String, in directory: Directory = .recordings, contents: Data) {
             self.name = name
+            self.directory = directory
             self.source = .contents(contents)
         }
 
         /// A recording of the bytes of the file at `url`, which must stay in place until the recording is added.
-        public init(name: String, fileAt url: URL) {
+        public init(name: String, in directory: Directory = .recordings, fileAt url: URL) {
             self.name = name
+            self.directory = directory
             self.source = .file(url)
         }
     }
@@ -66,7 +83,6 @@ public struct UploadBatchArchive: ~Copyable {
 
     private static let batchInfoPath = "batchinfo.json"
     private static let bundlePath = "bundle.json"
-    private static let recordingsDirectory = "recordings/"
     /// The deterministic JSON the batch info is written as: sorted keys, and every date as an ISO 8601 instant in UTC,
     /// with its fractional seconds.
     private static let encoder: JSONEncoder = {
@@ -85,8 +101,8 @@ public struct UploadBatchArchive: ~Copyable {
     private var info: BatchInfo
     private let url: URL
     private var archive: ZipArchive
-    /// The names of the recordings written so far.
-    private var recordingNames: Set<String> = []
+    /// The paths of the recordings written so far.
+    private var recordingPaths: Set<String> = []
 
     /// Creates an empty archive in a temporary file, for records of one sample type.
     ///
@@ -98,19 +114,18 @@ public struct UploadBatchArchive: ~Copyable {
         self.url = url
     }
 
-    /// The path, relative to the archive's root, of the recording named `name`: the path the Bundle that references
-    /// the recording must state.
-    public static func recordingPath(forName name: String) -> String {
-        recordingsDirectory + name
+    /// The path, relative to the archive's root, of the recording named `name` in `directory`: the path the Bundle that
+    /// references the recording must state.
+    public static func path(forName name: String, in directory: Recording.Directory) -> String {
+        directory.rawValue + name
     }
 
     /// Adds one record: the recording the Bundle references for it, if any, and the facts the batch info sums up.
     ///
-    /// A recording name is written once: equal names hold equal bytes, and byte-identical records at two coordinates
+    /// A recording path is written once: equal paths hold equal bytes, and byte-identical records at two coordinates
     /// are legal, so the second record's recording is the first's.
     ///
-    /// - parameter recording: The recording the Bundle references, under the path ``recordingPath(forName:)`` gives
-    ///     for its name.
+    /// - parameter recording: The recording the Bundle references, under its ``Recording/path``.
     /// - parameter timeRange: The time span the record's samples cover.
     /// - parameter sampleCount: The number of samples the record holds.
     public mutating func addRecord(
@@ -123,11 +138,10 @@ public struct UploadBatchArchive: ~Copyable {
 
     /// Adds one record: every recording the Bundle references for it, in order, and the facts the batch info sums up.
     ///
-    /// A recording name is written once: equal names hold equal bytes, so a recording two records, or one record twice,
+    /// A recording path is written once: equal paths hold equal bytes, so a recording two records, or one record twice,
     /// reference is written for the first.
     ///
-    /// - parameter recordings: The recordings the Bundle references for the record, each under the path
-    ///     ``recordingPath(forName:)`` gives for its name.
+    /// - parameter recordings: The recordings the Bundle references for the record, each under its ``Recording/path``.
     /// - parameter timeRange: The time span the record's samples cover.
     /// - parameter sampleCount: The number of samples the record holds.
     public mutating func addRecord(
@@ -135,8 +149,8 @@ public struct UploadBatchArchive: ~Copyable {
         timeRange: Range<Date>,
         sampleCount: Int
     ) throws {
-        for recording in recordings where recordingNames.insert(recording.name).inserted {
-            let path = Self.recordingPath(forName: recording.name)
+        for recording in recordings where recordingPaths.insert(recording.path).inserted {
+            let path = recording.path
             switch recording.source {
             case .contents(let contents):
                 try archive.addEntry(at: path, contents: contents, compression: .zstd)
@@ -250,7 +264,8 @@ extension UploadBatchArchive {
     public struct Reader {
         /// The batch's info.
         public let info: BatchInfo
-        /// The paths of the batch's recordings, relative to the archive's root, as the Bundle that references them states.
+        /// The paths of the batch's recordings in every ``Recording/Directory``, relative to the archive's root, as the
+        /// Bundle that references them states.
         public let recordingPaths: [String]
         private let archive: ZipArchive.Reader
 
@@ -273,7 +288,9 @@ extension UploadBatchArchive {
                 throw FormatError.unsupportedFormatVersion(info.formatVersion)
             }
             self.info = info
-            self.recordingPaths = archive.entries.map(\.path).filter { $0.hasPrefix(UploadBatchArchive.recordingsDirectory) }
+            self.recordingPaths = archive.entries.map(\.path).filter { path in
+                Recording.Directory.allCases.contains { path.hasPrefix($0.rawValue) }
+            }
             self.archive = archive
         }
 

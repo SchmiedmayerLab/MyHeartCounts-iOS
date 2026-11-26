@@ -232,7 +232,7 @@ struct DeviceUsageFHIRExchangeTests {
         #expect(content.attachment.size?.value?.integer == Int32(payload.count))
         #expect(content.attachment.hash != nil)
         #expect(
-            content.format?.code?.value?.string == RegisteredRecordingFormat.nativeRecording.rawValue
+            content.format?.code?.value?.string == RegisteredRecordingFormat.nativeRecordingJSON.rawValue
         )
     }
 }

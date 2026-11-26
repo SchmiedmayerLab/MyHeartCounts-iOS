@@ -24,7 +24,7 @@ extension HealthUploadBatch {
 
     /// Packs records fresh from the exporter as ``stage(_:sampleType:packedAt:recordsPerPass:makeBundle:stage:stageUnreadable:)``
     /// does, but hands each Bundle to `stage` as an ``UploadBatchArchive``: the Bundle in `bundle.json`, and every recording
-    /// its records reference under `recordings/`, at the path the records state.
+    /// its records reference under `documents/`, at the path the records state.
     ///
     /// An archive carries only the recordings of the records its Bundle holds. A record no one-record Bundle can carry
     /// leaves through `stageUnreadable`: alone as its compressed bytes, or, with recordings, as an archive of its own, so
