@@ -107,9 +107,10 @@ final class BasicAppUsage: MHCTestCase, @unchecked Sendable {
     }
 
 
-    /// Imperial participants who withdrew sign the consent again when they re-enroll, even though they already signed its current version.
+    /// Participants who withdrew sign the consent again when they re-enroll, even though they already signed its current version.
     /// The account is reactivated only once they have signed it, so an interrupted re-enrollment asks for the consent again.
-    func testImperialReenrollmentAfterWithdrawalRequiresConsent() throws {
+    /// (Runs as an Imperial participant, whose withdrawal includes signing the withdrawal form.)
+    func testReenrollmentAfterWithdrawalRequiresConsent() throws {
         let credentials: SetupTestEnvironmentConfig.Credentials = .random()
         try launchAppAndEnrollIntoStudy(
             studyVariant: .imperial,

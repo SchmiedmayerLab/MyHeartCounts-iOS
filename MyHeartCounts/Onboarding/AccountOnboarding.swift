@@ -78,25 +78,18 @@ struct AccountOnboarding: View {
             updates.studyVariant = studyVariant
             try await account.accountService.updateAccountDetails(AccountModifications(modifiedDetails: updates))
         }
-        let isReenrollingAfterWithdrawal = details.hasWithdrawnFromStudy == true
-        let consentDoc = try await consentDocumentToSign(
-            studyVariant: studyVariant,
-            isReenrollingAfterWithdrawal: isReenrollingAfterWithdrawal
-        )
-        guard isReenrollingAfterWithdrawal else {
+        guard details.hasWithdrawnFromStudy == true else {
+            let consentDoc = try await consentDocumentToSign()
             advance(studyVariant: studyVariant, consentDocToSign: consentDoc, onSigned: nil)
             return
         }
+        // participants who withdrew sign the consent again when they re-enroll, even if they already signed its current version
+        let consentDoc = try await consentManager.loadConsentDoc()
         path.append {
             ReactivatePreviouslyWithdrawnAccount {
-                if let consentDoc {
-                    // The account is reactivated only once the participant has signed the consent.
-                    // An interrupted flow thus leaves the account withdrawn, and the next login asks for the consent again.
-                    advance(studyVariant: studyVariant, consentDocToSign: consentDoc, onSigned: Self.markAccountForStudyReenrollment)
-                } else {
-                    try await Self.markAccountForStudyReenrollment()
-                    advance(studyVariant: studyVariant, consentDocToSign: nil, onSigned: nil)
-                }
+                // The account is reactivated only once the participant has signed the consent.
+                // An interrupted flow thus leaves the account withdrawn, and the next login asks for the consent again.
+                advance(studyVariant: studyVariant, consentDocToSign: consentDoc, onSigned: Self.markAccountForStudyReenrollment)
             }
             .injectingGrove()
             .navigationBarBackButtonHidden()
@@ -125,12 +118,8 @@ struct AccountOnboarding: View {
     }
     
     
-    private func consentDocumentToSign(studyVariant: StudyVariant, isReenrollingAfterWithdrawal: Bool) async throws -> ConsentDocument? {
+    private func consentDocumentToSign() async throws -> ConsentDocument? {
         let doc = try await consentManager.loadConsentDoc()
-        if isReenrollingAfterWithdrawal && studyVariant.requiresConsentToReenroll {
-            // the participant signs the consent again, even if they already signed this version before withdrawing
-            return doc
-        }
         switch try consentManager.shouldSign(doc.metadata) {
         case .no:
             // the user does not need to go through the whole flow,
@@ -151,8 +140,8 @@ private struct ReactivatePreviouslyWithdrawnAccount: View {
     @Environment(Account.self)
     private var account
     
-    /// Reactivates the account, or continues to the step that does so.
-    let onReactivation: @MainActor () async throws -> Void
+    /// Continues to the consent, whose signing reactivates the account.
+    let onReactivation: () -> Void
     
     var body: some View {
         OnboardingPage(
@@ -165,7 +154,7 @@ private struct ReactivatePreviouslyWithdrawnAccount: View {
             PageActions(
                 primaryTitle: "Reactivate Account",
                 primaryAction: {
-                    try await onReactivation()
+                    onReactivation()
                 },
                 secondaryTitle: "Don't reactivate",
                 secondaryAction: {
