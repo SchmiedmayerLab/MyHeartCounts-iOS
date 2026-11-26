@@ -31,6 +31,8 @@ struct ConsentDisclaimers: View {
     let step: DisclaimerConfig
     let trailingSteps: [DisclaimerConfig]
     let consentDoc: ConsentDocument
+    /// Work that the consent step performs after storing the signed consent, before the flow continues.
+    let onSigned: (@MainActor () async throws -> Void)?
     
     @State private var isShowingLearnMoreText = false
     
@@ -60,21 +62,27 @@ struct ConsentDisclaimers: View {
         )
     }
     
-    init(step: DisclaimerConfig, trailing trailingSteps: some Collection<DisclaimerConfig>, consentDoc: ConsentDocument) {
+    init(
+        step: DisclaimerConfig,
+        trailing trailingSteps: some Collection<DisclaimerConfig>,
+        consentDoc: ConsentDocument,
+        onSigned: (@MainActor () async throws -> Void)?
+    ) {
         self.step = step
         self.trailingSteps = Array(trailingSteps)
         self.consentDoc = consentDoc
+        self.onSigned = onSigned
     }
     
     private func next() {
         if let next = trailingSteps.first {
             path.append {
-                Self(step: next, trailing: trailingSteps.dropFirst(), consentDoc: consentDoc)
+                Self(step: next, trailing: trailingSteps.dropFirst(), consentDoc: consentDoc, onSigned: onSigned)
             }
         } else {
             // we've gone through all disclaimers, the next step is the Consent Comprehension
             path.append {
-                ComprehensionScreening(consentDoc: consentDoc)
+                ComprehensionScreening(consentDoc: consentDoc, onSigned: onSigned)
                     .onboardingStep(.comprehension)
                     .injectingGrove()
             }
@@ -84,7 +92,7 @@ struct ConsentDisclaimers: View {
 
 
 extension ConsentDisclaimers {
-    init(studyVariant variant: StudyVariant, consentDoc: ConsentDocument) {
+    init(studyVariant variant: StudyVariant, consentDoc: ConsentDocument, onSigned: (@MainActor () async throws -> Void)?) {
         let steps: [DisclaimerConfig] = [
             .init(
                 icon: .textPageBadgeMagnifyingglass,
@@ -130,7 +138,7 @@ extension ConsentDisclaimers {
                 stepId: .disclaimer4
             )
         ]
-        self.init(step: steps[0], trailing: steps.dropFirst(), consentDoc: consentDoc)
+        self.init(step: steps[0], trailing: steps.dropFirst(), consentDoc: consentDoc, onSigned: onSigned)
     }
 }
 

@@ -7,6 +7,7 @@
 //
 
 import HealthKit
+import MHCStudyDefinition
 import MyHeartCountsShared
 import XCTest
 import XCTestExtensions
@@ -81,9 +82,10 @@ final class BasicAppUsage: MHCTestCase, @unchecked Sendable {
     }
     
     
+    /// Stanford participants who withdrew sign the consent again when they re-enroll, and are back in the study once they have signed it.
     func testWithdrawal() throws {
-        throw XCTSkip("needs https://github.com/SchmiedmayerLab/MyHeartCounts-Firebase/pull/111")
         let credentials: SetupTestEnvironmentConfig.Credentials = .random()
+        let name = PersonNameComponents(givenName: "Leland", familyName: "Stanford")
         try launchAppAndEnrollIntoStudy(
             locale: .enUS,
             testEnvironmentConfig: .init(resetExistingData: true, loginAndEnroll: .enable(credentials))
@@ -96,12 +98,79 @@ final class BasicAppUsage: MHCTestCase, @unchecked Sendable {
         let navigator = OnboardingNavigator(testCase: self)
         navigator.navigateWelcome(timeout: 10)
         try navigator.navigateEligibility(region: .unitedStates)
-        try navigator.navigateSignup(
-            name: .init(givenName: "Leland", familyName: "Stanford"),
-            credentials: credentials
-        )
+        try navigator.navigateSignup(name: name, credentials: credentials)
         XCTAssert(app.staticTexts["Reactivate Account"].waitForExistence(timeout: 10))
         app.buttons["Reactivate Account"].tap()
         navigator.navigateOnboardingDisclaimers()
+        navigator.navigateConsentComprehension()
+        navigator.navigateConsent(expectedName: name, signUpForExtraTrial: false)
+        // signing the consent reactivates the account, which lets the onboarding continue
+        XCTAssert(app.staticTexts["HealthKit Access"].waitForExistence(timeout: 10))
+    }
+
+
+    /// Participants who withdrew sign the consent again when they re-enroll, even though they already signed its current version.
+    /// The account is reactivated only once they have signed it, so an interrupted re-enrollment asks for the consent again.
+    /// (Runs as an Imperial participant, whose withdrawal includes signing the withdrawal form.)
+    func testReenrollmentAfterWithdrawalRequiresConsent() throws {
+        let credentials: SetupTestEnvironmentConfig.Credentials = .random()
+        try launchAppAndEnrollIntoStudy(
+            studyVariant: .imperial,
+            testEnvironmentConfig: .init(resetExistingData: true, loginAndEnroll: .enable(credentials))
+        )
+        openAccountSheet()
+        app.swipeUp()
+        // the Imperial account sheet lists "Withdraw from Study" without going through "Edit"
+        app.buttons["Withdraw from Study"].tap()
+        app.alerts["Withdraw from Study"].buttons["Withdraw"].tap()
+        signWithdrawalForm()
+
+        let navigator = OnboardingNavigator(testCase: self)
+        let name = PersonNameComponents(givenName: "Leland", familyName: "Stanford")
+        let consentFlowIndicator = app.staticTexts["Study Overview & Participation"]
+        navigator.navigateWelcome(timeout: 10)
+        try navigator.navigateEligibility(region: nil)
+        try navigator.navigateSignup(name: name, credentials: credentials)
+        XCTAssert(app.staticTexts["Reactivate Account"].waitForExistence(timeout: 10))
+        app.buttons["Reactivate Account"].tap()
+        XCTAssert(consentFlowIndicator.waitForExistence(timeout: 10))
+
+        // leaving the consent flow without signing keeps the account withdrawn
+        app.terminate()
+        try launchAppAndEnrollIntoStudy(
+            studyVariant: .imperial,
+            testEnvironmentConfig: .init(resetExistingData: false, loginAndEnroll: .skip),
+            skipGoingToHomeTab: true
+        )
+        navigator.navigateWelcome(timeout: 10)
+        try navigator.navigateEligibility(region: nil)
+        try navigator.navigateSignup(name: name, credentials: credentials)
+        XCTAssert(app.staticTexts["Reactivate Account"].waitForExistence(timeout: 10))
+        app.buttons["Reactivate Account"].tap()
+        XCTAssert(consentFlowIndicator.waitForExistence(timeout: 10))
+    }
+
+    private func signWithdrawalForm() {
+        let toggle = app.scrollViews.switches["ConsentForm:withdraw-from-study"].switches.firstMatch
+        XCTAssert(toggle.waitForExistence(timeout: 10))
+        while !toggle.isHittable {
+            app.swipeUp()
+        }
+        if toggle.value as? String == "0" {
+            toggle.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap()
+        }
+        let signature = app.scrollViews["ConsentForm:sig"]
+        while !signature.isHittable {
+            app.swipeUp()
+        }
+        signature.swipeRight()
+        sleep(for: .seconds(0.25))
+        // the form's button, rather than the account sheet's button of the same name underneath the form
+        let withdrawButton = app.scrollViews.buttons["Withdraw from Study"].firstMatch
+        while !withdrawButton.isHittable {
+            app.swipeUp()
+        }
+        XCTAssert(withdrawButton.isEnabled)
+        withdrawButton.tap()
     }
 }
