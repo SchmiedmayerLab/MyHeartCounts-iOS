@@ -202,9 +202,14 @@ final class StudyBundleLoader: Module, Sendable {
             studyBundleArchiveUrl = url
         case .bundledWithApp(let variant):
             do {
-                studyBundleArchiveUrl = try export(variant, to: .temporaryDirectory, as: .zstd)
+                studyBundleArchiveUrl = try exportBundledStudyBundle(variant)
             } catch {
                 throw .unableToCreateLocalBundle(error)
+            }
+        }
+        defer {
+            if case .bundledWithApp = selector {
+                try? fileManager.removeItem(at: studyBundleArchiveUrl.deletingLastPathComponent())
             }
         }
         let downloadUrl: URL
@@ -232,21 +237,6 @@ final class StudyBundleLoader: Module, Sendable {
     }
 
 
-    /// Loads the study bundle shipped with the app, after the firebase-hosted one could not be fetched or decoded.
-    ///
-    /// - parameter error: the error that made us fall back; re-thrown if the local bundle can't be created either.
-    private func fallBackToBundledStudyBundle(after error: LoadError, using variant: StudyVariant) async throws(LoadError) -> StudyBundle {
-        logger.error("Unable to load the firebase-hosted study bundle. falling back to the one bundled with the app. (error: \(error))")
-        do {
-            return try await _update(using: .bundledWithApp(variant))
-        } catch LoadError.unableToCreateLocalBundle {
-            // if the local bundle creation fails, we don't expose that error (since the local bundle thing here was an implicit fallback),
-            // and insead re-propagate the original error.
-            throw error
-        }
-    }
-    
-    
     private func openDownloadedStudyBundle(at url: URL) async throws(LoadError) -> StudyBundle {
         let dstUrl = self.studyBundlesUrl.appendingPathComponent(UUID().uuidString, conformingTo: .studyBundle)
         // Can we maybe elide the url -> tmpUrl copy here?(!)
@@ -347,6 +337,36 @@ extension StudyBundleLoader {
         "https://firebasestorage.googleapis.com/v0/b/\(bucketName)/o/public%2F\(filename)?alt=media"
     }
 
+    /// Loads the study bundle shipped with the app, after the firebase-hosted one could not be fetched or decoded.
+    ///
+    /// - parameter error: the error that made us fall back; re-thrown if the local bundle can't be created either.
+    private func fallBackToBundledStudyBundle(after error: LoadError, using variant: StudyVariant) async throws(LoadError) -> StudyBundle {
+        logger.error("Unable to load the firebase-hosted study bundle. falling back to the one bundled with the app. (error: \(error))")
+        do {
+            return try await _update(using: .bundledWithApp(variant))
+        } catch LoadError.unableToCreateLocalBundle {
+            // if the local bundle creation fails, we don't expose that error (since the local bundle thing here was an implicit fallback),
+            // and insead re-propagate the original error.
+            throw error
+        }
+    }
+    
+    /// Exports the study bundle shipped with the app, into a new temporary directory of its own.
+    ///
+    /// Exports run off the main actor, and an update that gets superseded can't be stopped mid-export,
+    /// so two exports can run at the same time: they must not share any paths.
+    /// The caller deletes the directory (the returned archive's parent) once it has read the archive.
+    fileprivate func exportBundledStudyBundle(_ variant: StudyVariant) throws -> URL {
+        let directory = URL.temporaryDirectory.appending(component: UUID().uuidString, directoryHint: .isDirectory)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        do {
+            return try export(variant, to: directory, as: .zstd)
+        } catch {
+            try? fileManager.removeItem(at: directory)
+            throw error
+        }
+    }
+    
     /// Refreshes the study bundle once someone opens the app.
     ///
     /// Only someone using the app needs a fresh study bundle right away.
