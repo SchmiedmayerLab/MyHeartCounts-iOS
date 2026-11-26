@@ -262,7 +262,7 @@ struct OnboardingNavigator { // swiftlint:disable:this type_body_length
     }
     
     
-    private func navigateConsentComprehension() {
+    func navigateConsentComprehension() {
         let continueButton = app.collectionViews.firstMatch.buttons["Continue"]
         if continueButton.exists {
             XCTAssertFalse(continueButton.isEnabled)

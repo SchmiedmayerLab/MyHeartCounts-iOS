@@ -82,9 +82,10 @@ final class BasicAppUsage: MHCTestCase, @unchecked Sendable {
     }
     
     
+    /// Stanford participants who withdrew sign the consent again when they re-enroll, and are back in the study once they have signed it.
     func testWithdrawal() throws {
-        throw XCTSkip("needs https://github.com/SchmiedmayerLab/MyHeartCounts-Firebase/pull/111")
         let credentials: SetupTestEnvironmentConfig.Credentials = .random()
+        let name = PersonNameComponents(givenName: "Leland", familyName: "Stanford")
         try launchAppAndEnrollIntoStudy(
             locale: .enUS,
             testEnvironmentConfig: .init(resetExistingData: true, loginAndEnroll: .enable(credentials))
@@ -97,13 +98,14 @@ final class BasicAppUsage: MHCTestCase, @unchecked Sendable {
         let navigator = OnboardingNavigator(testCase: self)
         navigator.navigateWelcome(timeout: 10)
         try navigator.navigateEligibility(region: .unitedStates)
-        try navigator.navigateSignup(
-            name: .init(givenName: "Leland", familyName: "Stanford"),
-            credentials: credentials
-        )
+        try navigator.navigateSignup(name: name, credentials: credentials)
         XCTAssert(app.staticTexts["Reactivate Account"].waitForExistence(timeout: 10))
         app.buttons["Reactivate Account"].tap()
         navigator.navigateOnboardingDisclaimers()
+        navigator.navigateConsentComprehension()
+        navigator.navigateConsent(expectedName: name, signUpForExtraTrial: false)
+        // signing the consent reactivates the account, which lets the onboarding continue
+        XCTAssert(app.staticTexts["HealthKit Access"].waitForExistence(timeout: 10))
     }
 
 
