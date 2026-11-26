@@ -145,54 +145,6 @@
         }
       }
     },
-    "NSLocationAlwaysAndWhenInUseUsageDescription" : {
-      "comment" : "Privacy - Location Always and When In Use Usage Description",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "This message should never appear. Please adjust this when you start using location information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect."
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This message should never appear. Please adjust this when you start using location information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This message should never appear. Please adjust this when you start using location information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect."
-          }
-        }
-      }
-    },
-    "NSLocationWhenInUseUsageDescription" : {
-      "comment" : "Privacy - Location When In Use Usage Description",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "This message should never appear. Please adjust this when you start using location information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect."
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This message should never appear. Please adjust this when you start using location information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This message should never appear. Please adjust this when you start using location information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect."
-          }
-        }
-      }
-    },
     "NSMicrophoneUsageDescription" : {
       "comment" : "Privacy - Microphone Usage Description",
       "extractionState" : "extracted_with_value",
@@ -285,30 +237,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Al habilitar SensorKit, se obtienen datos más precisos y detallados para mediciones como el electrocardiograma (ECG), lo que contribuye al avance de la investigación cardiovascular."
-          }
-        }
-      }
-    },
-    "NSSpeechRecognitionUsageDescription" : {
-      "comment" : "Privacy - Speech Recognition Usage Description",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "This message should never appear. Please adjust this when you start using speech information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect."
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This message should never appear. Please adjust this when you start using speech information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This message should never appear. Please adjust this when you start using speech information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect."
           }
         }
       }

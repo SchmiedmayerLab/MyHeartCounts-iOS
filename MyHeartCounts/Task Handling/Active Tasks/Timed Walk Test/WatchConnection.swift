@@ -48,7 +48,7 @@ final class WatchConnection: NSObject, Module, EnvironmentAccessible, Sendable {
         try await healthKit.startWatchApp(toHandle: configuration, timeout: .seconds(2.5))
         wcSession.send(userInfo: [
             .watchShouldEnableWorkout: true,
-            .watchWorkoutActivityKind: test.kind.rawValue,
+            .watchWorkoutActivityKind: WatchWorkoutKind(test.kind).rawValue,
             .watchWorkoutDuration: test.duration.timeInterval,
             .watchWorkoutStartDate: Date.now
         ])
@@ -57,6 +57,18 @@ final class WatchConnection: NSObject, Module, EnvironmentAccessible, Sendable {
     // periphery:ignore - API
     func stopWorkoutOnWatch() async throws {
         wcSession.send(userInfo: [.watchShouldEnableWorkout: false])
+    }
+}
+
+
+extension WatchWorkoutKind {
+    fileprivate init(_ kind: TimedWalkingTestConfiguration.Kind) {
+        switch kind {
+        case .walking:
+            self = .walking
+        case .running:
+            self = .running
+        }
     }
 }
 

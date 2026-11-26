@@ -9,7 +9,6 @@
 // periphery:ignore:all - API
 
 import Foundation
-import GroveStudy
 import GroveViews
 import SFSafeSymbols
 import SwiftUI

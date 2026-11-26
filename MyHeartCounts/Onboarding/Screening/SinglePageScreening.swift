@@ -8,7 +8,6 @@
 
 import Foundation
 import Grove
-import GroveFirebaseConfiguration
 import GroveFoundation
 import GroveOnboarding
 import GroveViews

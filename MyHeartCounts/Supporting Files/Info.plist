@@ -56,10 +56,6 @@
 	<string>My Heart Counts uses Health data to understand all aspects of health.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>My Heart Counts can optionally save some Health information collected via surveys and other in-app mechanisms into the Health Data Store.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>This message should never appear. Please adjust this when you start using location information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This message should never appear. Please adjust this when you start using location information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This message should never appear. Please adjust this when you start using microphone information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect.</string>
 	<key>NSMotionUsageDescription</key>
@@ -126,8 +122,6 @@
 			<string>SENSORKIT_USAGE_DESC_WRIST_TEMP</string>
 		</dict>
 	</dict>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>This message should never appear. Please adjust this when you start using speech information. We have to put this in here as ResearchKit has the possibility to use it and not putting it here returns an error on AppStore Connect.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

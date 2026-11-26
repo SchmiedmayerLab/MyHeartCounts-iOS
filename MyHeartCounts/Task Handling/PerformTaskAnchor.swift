@@ -16,7 +16,6 @@ import GroveStudy
 import GroveStudyDefinition
 import MHCStudyDefinition
 import MyHeartCountsShared
-import ResearchKitSwiftUI
 import SFSafeSymbols
 import SwiftUI
 

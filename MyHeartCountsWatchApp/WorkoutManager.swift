@@ -9,8 +9,8 @@
 import Foundation
 import Grove
 import GroveHealthKit
-import GroveStudyDefinition
 import HealthKit
+import MyHeartCountsShared
 import WatchKit
 
 
@@ -60,16 +60,16 @@ final class WorkoutManager: NSObject, Module, EnvironmentAccessible, HKWorkoutSe
     }
     
     
-    /// Starts a workout for the specified test config, and schedules a ``stopWorkout()`` call.
+    /// Starts a workout of the specified kind, and schedules a ``stopWorkout()`` call for the end of `timeRange`.
     ///
     /// This function returns after starting the workout and does not wait for it to have completed.
-    func startWorkout(for test: TimedWalkingTestConfiguration, timeRange: Range<Date>) async throws {
+    func startWorkout(kind: WatchWorkoutKind, timeRange: Range<Date>) async throws {
         guard workoutSession == nil else {
             throw WorkoutSessionError.alreadyAWorkoutOngoing
         }
         try await healthKit.askForAuthorization()
         let configuration = HKWorkoutConfiguration()
-        switch test.kind {
+        switch kind {
         case .walking:
             configuration.activityType = .walking
         case .running:

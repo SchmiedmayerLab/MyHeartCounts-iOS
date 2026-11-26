@@ -7,7 +7,6 @@
 //
 
 import Grove
-import GroveFirebaseConfiguration
 import GroveFoundation
 import GroveHealthKit
 import GroveHealthKitBulkExport

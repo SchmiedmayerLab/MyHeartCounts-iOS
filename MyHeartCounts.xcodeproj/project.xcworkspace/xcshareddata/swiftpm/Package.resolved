@@ -1,5 +1,5 @@
 {
-  "originHash" : "d819ec7a5252deda586d0f4e5a64dc59306d449c50ebb7787b928894ff34e92a",
+  "originHash" : "5eade604feda02ade8572c4c53b4ec2b27b4378355bc46871b84a65673953e7b",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -187,15 +187,6 @@
       "state" : {
         "revision" : "f4a19a3c313dc2616c70bb49d29a799fb16be837",
         "version" : "2.4.1"
-      }
-    },
-    {
-      "identity" : "researchkit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SchmiedmayerLab/ResearchKit.git",
-      "state" : {
-        "revision" : "b5d6883f0b3479480601b7e0649b377a35eb3eaa",
-        "version" : "3.1.5"
       }
     },
     {

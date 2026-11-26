@@ -30,6 +30,13 @@ let commonSwiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("InternalImportsByDefault")
 ]
 
+/// Keeps the study definition stack out of the watch app, which doesn't use it.
+///
+/// The stack depends on FHIRModels. Linking a Swift module keeps all of its types in the binary, used or not,
+/// so these dependencies added about 35–45 MB of FHIR code to each architecture slice of the watch app.
+/// The source files that use them are guarded with `#if !os(watchOS)` to match.
+let notOnWatchOS: TargetDependencyCondition? = .when(platforms: [.iOS, .macOS, .linux])
+
 /// The `MyHeartCountsShared` SPM package
 let package = Package(
     name: "MyHeartCountsShared",
@@ -55,14 +62,14 @@ let package = Package(
             dependencies: { () -> [Target.Dependency] in
                 var deps: [Target.Dependency] = [
                     .product(name: "GroveFoundation", package: "Grove"),
-                    .product(name: "MHCStudyDefinition", package: "MyHeartCounts-StudyDefinitions"),
+                    .product(name: "MHCStudyDefinition", package: "MyHeartCounts-StudyDefinitions", condition: notOnWatchOS),
                     // Apple's SDKs ship zlib as a module of their own.
                     .target(name: "MyHeartCountsCZlib", condition: .when(platforms: [.linux]))
                 ]
                 #if !os(Linux)
                 deps += [
-                    .product(name: "GroveStudyDefinition", package: "Grove"),
-                    .product(name: "SFSafeSymbols", package: "SFSafeSymbols")
+                    .product(name: "GroveStudyDefinition", package: "Grove", condition: notOnWatchOS),
+                    .product(name: "SFSafeSymbols", package: "SFSafeSymbols", condition: notOnWatchOS)
                 ]
                 #endif
                 return deps
