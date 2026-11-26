@@ -11,7 +11,6 @@ import FHIRModelsExtensions
 import FirebaseFirestore
 import Foundation
 import GroveAccount
-import GroveFHIR
 import GroveFHIRContract
 import GroveFoundation
 import GroveHealthKit

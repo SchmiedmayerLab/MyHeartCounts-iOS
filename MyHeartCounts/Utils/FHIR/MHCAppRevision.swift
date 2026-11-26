@@ -8,7 +8,6 @@
 
 import FHIRModelsExtensions
 import Foundation
-import ModelsDSTU2
 import ModelsR4
 
 
@@ -104,24 +103,6 @@ extension ModelsR4.Extension {
 }
 
 
-extension ModelsDSTU2.Extension {
-    /// A FHIR Extension identifying the My Heart Counts build which created the resource.
-    ///
-    /// Invariant for the lifetime of the process.
-    static let mhcAppRevision: Self = {
-        let children: [Self] = MHCAppRevision.fields.map { (field: MHCAppRevision.Field) -> Self in
-            switch field {
-            case let .string(_, value):
-                return Self(url: field.url.dstu2, value: .string(value.asFHIRStringPrimitive()))
-            case let .integer(_, value):
-                return Self(url: field.url.dstu2, value: .integer(value.asFHIRIntegerPrimitive()))
-            }
-        }
-        return Self(extension: children, url: FHIRExtensionURL.mhcAppRevision.dstu2)
-    }()
-}
-
-
 // MARK: Application
 
 extension FHIRExtensionBuilderProtocol where Self == FHIRExtensionBuilder<Void> {
@@ -145,17 +126,6 @@ extension ModelsR4.DomainResource {
     mutating func addMHCAppRevision() {
         var extensions = self.extension ?? []
         extensions.removeAll { $0.url == FHIRExtensionURL.mhcAppRevision.r4 }
-        extensions.append(.mhcAppRevision)
-        self.extension = extensions
-    }
-}
-
-
-extension ModelsDSTU2.DomainResource {
-    /// Writes the ``MHCAppRevision`` into the resource, replacing any already-present `mhcAppRevision` extension.
-    mutating func addMHCAppRevision() {
-        var extensions = self.extension ?? []
-        extensions.removeAll { $0.url == FHIRExtensionURL.mhcAppRevision.dstu2 }
         extensions.append(.mhcAppRevision)
         self.extension = extensions
     }

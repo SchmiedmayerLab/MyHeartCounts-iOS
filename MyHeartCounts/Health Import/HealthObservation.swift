@@ -318,8 +318,6 @@ extension FHIRResource {
         switch self {
         case .r4(let resource):
             resource
-        case .dstu2(let resource):
-            resource
         }
     }
 }
