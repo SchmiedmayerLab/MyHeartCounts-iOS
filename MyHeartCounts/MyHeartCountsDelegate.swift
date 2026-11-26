@@ -108,6 +108,7 @@ final class MyHeartCountsDelegate: GroveAppDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? // swiftlint:disable:this discouraged_optional_collection
     ) -> Bool {
         Self.didFinishLaunching = true
+        LaunchSignposts.endLaunch()
         return true
     }
 

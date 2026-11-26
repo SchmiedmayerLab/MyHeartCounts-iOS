@@ -61,7 +61,9 @@ struct HomeTab: RootViewTab {
     }
     
     @ViewBuilder private var missedEventsSection: some View {
-        if !missedEvents.isEmpty {
+        // `missedEvents` filters the queried events on every access, so read it only once.
+        let numMissedTasks = missedEvents.count
+        if numMissedTasks > 0 {
             Section {
                 NavigationLink {
                     Form {
@@ -76,7 +78,6 @@ struct HomeTab: RootViewTab {
                     .navigationTitle("Missed Tasks")
                     .navigationBarTitleDisplayMode(.inline)
                 } label: {
-                    let numMissedTasks = missedEvents.count
                     Label(symbol: .calendar) {
                         VStack(alignment: .leading) {
                             Text("Missed Tasks")

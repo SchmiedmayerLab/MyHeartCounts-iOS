@@ -40,9 +40,13 @@ final class ClinicalRecordPermissions: Module, EnvironmentAccessible, Sendable {
     private(set) var authorizationState: AuthorizationState = .undetermined
     
     func configure() {
-        Task {
-            _ = try? await studyLoader.update()
-            await updateAuthorizationState()
+        // The authorization state only feeds UI, so a launch into the background doesn't need it
+        // (nor the study bundle download it waits for).
+        Lifecycle.afterFirstActivation {
+            Task {
+                _ = try? await self.studyLoader.update()
+                await self.updateAuthorizationState()
+            }
         }
     }
     

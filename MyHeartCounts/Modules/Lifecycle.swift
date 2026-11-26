@@ -100,20 +100,59 @@ extension ScenePhase: @retroactive RawRepresentable<String>, @retroactive Custom
 }
 
 
+// MARK: First activation
+
+extension Lifecycle {
+    /// Whether the app has been active at some point during this process' lifetime.
+    @MainActor private static var hasBeenActive = false
+    @MainActor private static var pendingActivationWork: [@MainActor () -> Void] = []
+
+    /// Runs `work` once the app first becomes active, i.e., once someone actually opens it.
+    ///
+    /// Use this for launch-time work that only matters while the app is being used. A launch into the background
+    /// (a background task, HealthKit background delivery) then leaves its short time budget to the work that woke the app up.
+    /// The app doesn't know which kind of launch it is until the scene enters the foreground, so this is decided by waiting for that.
+    ///
+    /// If the app has already been active during this process' lifetime, `work` runs right away.
+    /// Keep `work` short; start a `Task` for anything longer.
+    @MainActor
+    static func afterFirstActivation(_ work: @escaping @MainActor () -> Void) {
+        if hasBeenActive {
+            work()
+        } else {
+            pendingActivationWork.append(work)
+        }
+    }
+
+    @MainActor
+    fileprivate static func scenePhaseDidChange(to newValue: ScenePhase) {
+        guard newValue == .active, !hasBeenActive else {
+            return
+        }
+        hasBeenActive = true
+        LaunchSignposts.signposter.emitEvent("First Activation")
+        for work in exchange(&pendingActivationWork, with: []) {
+            work()
+        }
+    }
+}
+
+
 // MARK: SwiftUI integration
 
 extension Lifecycle {
     fileprivate struct ScenePhaseTrackingModifier: ViewModifier {
         @Environment(\.scenePhase)
         private var scenePhase
-        
+
         @Environment(Lifecycle.self)
         private var lifecycle
-        
+
         func body(content: Content) -> some View {
             content
                 .onChange(of: scenePhase, initial: true) { _, newValue in
                     lifecycle._set(\.scenePhase, to: newValue)
+                    Lifecycle.scenePhaseDidChange(to: newValue)
                 }
         }
     }

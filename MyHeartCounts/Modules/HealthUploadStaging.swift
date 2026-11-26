@@ -111,7 +111,7 @@ final class HealthUploadStaging: Grove::Module, EnvironmentAccessible, @unchecke
     }
     
     func configure() {
-        Task(priority: .utility) {
+        Task(priority: .utility) { @concurrent in // off the main actor: a loop of synchronous writes, growing with the staged rows
             try? self.elidePendingUploadsAtLaunch()
         }
     }
