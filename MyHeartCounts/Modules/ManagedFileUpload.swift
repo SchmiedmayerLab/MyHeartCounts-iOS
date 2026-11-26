@@ -610,7 +610,11 @@ extension ManagedFileUpload {
     ///
     /// Such files can come into existence when the app gets terminated after an upload's database entry was deleted, but before its file was.
     private func deleteOrphanedStagingFiles() {
-        guard let modelContext, let uploads = try? modelContext.fetch(FetchDescriptor<ScheduledUpload>()) else {
+        // Only the ids, and on a throwaway context: this runs during launch, and fetching there on the `mainContext`
+        // would also keep every pending model object registered for the lifetime of the process.
+        var descriptor = FetchDescriptor<ScheduledUpload>()
+        descriptor.propertiesToFetch = [\.id]
+        guard let modelContainer = modelContainer.value, let uploads = try? ModelContext(modelContainer).fetch(descriptor) else {
             // if we can't read the database, we can't tell which files are orphaned. leave everything in place.
             return
         }

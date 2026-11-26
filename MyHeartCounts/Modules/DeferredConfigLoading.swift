@@ -621,8 +621,12 @@ private final class LoadFirebaseTracking: Module {
         for waiter in waiters {
             waiter.resume()
         }
-        Task {
-            try? await studyLoader.update()
+        // On launches into the background, the `AppRefresh` background task keeps the study bundle up to date instead.
+        let studyLoader = studyLoader
+        Lifecycle.afterFirstActivation {
+            Task {
+                try? await studyLoader.update()
+            }
         }
     }
 }

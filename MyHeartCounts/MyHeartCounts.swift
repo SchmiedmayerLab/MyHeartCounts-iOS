@@ -40,6 +40,7 @@ struct MyHeartCounts: App {
     }
     
     init() {
+        LaunchSignposts.beginLaunch()
         print(CommandLine.arguments)
         // This needs to run before *any* Grove-related code is executed,
         // i.e. before the AppDelegate's `willFinishLaunchingWithOptions`

@@ -107,7 +107,8 @@ final class TimedWalkingTest: Module, EnvironmentAccessible, Sendable {
     @ObservationIgnored @Dependency(AchievementsManager.self) private var achievements: AchievementsManager?
     // swiftlint:enable attributes
     
-    private let hapticEngine = try? CHHapticEngine()
+    /// Created on first use rather than with the module, i.e., during every launch.
+    @ObservationIgnored private lazy var hapticEngine = try? CHHapticEngine()
     nonisolated(unsafe) private let pedometer = CMPedometer()
     nonisolated(unsafe) private let altimeter = CMAltimeter()
     

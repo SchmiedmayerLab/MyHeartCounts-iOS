@@ -67,8 +67,8 @@ final class StudyBundleLoader: Module, Sendable {
     
     private init() {
         studyBundlesUrl = URL.documentsDirectory.appending(path: "MHC/StudyBundlesCache", directoryHint: .isDirectory)
-        Task {
-            _ = try? await update()
+        Task { @MainActor in
+            self.updateAfterFirstActivation()
         }
         Task(priority: .background) {
             try? await cleanupOldStudyBundles()
@@ -180,6 +180,8 @@ final class StudyBundleLoader: Module, Sendable {
     }
     
     
+    /// Off the main actor: exporting the bundled study bundle and unpacking a downloaded one are synchronous, and would otherwise block the main actor.
+    @concurrent
     private func _update( // swiftlint:disable:this cyclomatic_complexity
         using selector: StudyBundleSelector,
         firebaseConfig: DeferredConfigLoading.FirebaseConfigSelector? = nil
@@ -343,6 +345,19 @@ final class StudyBundleLoader: Module, Sendable {
 extension StudyBundleLoader {
     private static func url(ofFile filename: String, inBucket bucketName: String) -> URL {
         "https://firebasestorage.googleapis.com/v0/b/\(bucketName)/o/public%2F\(filename)?alt=media"
+    }
+
+    /// Refreshes the study bundle once someone opens the app.
+    ///
+    /// Only someone using the app needs a fresh study bundle right away.
+    /// On launches into the background, the `AppRefresh` background task keeps the bundle up to date instead.
+    @MainActor
+    fileprivate func updateAfterFirstActivation() {
+        Lifecycle.afterFirstActivation {
+            Task {
+                _ = try? await self.update()
+            }
+        }
     }
 }
 
