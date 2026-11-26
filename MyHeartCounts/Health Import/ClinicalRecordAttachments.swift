@@ -33,7 +33,7 @@ enum ClinicalRecordAttachments {
         identifier.hasPrefix("HKClinicalTypeIdentifier")
     }
 
-    /// The name of a file within its archive's `recordings/` directory: its SHA-256 in lowercase hex, and the file
+    /// The name of a file within its archive's `documents/` directory: its SHA-256 in lowercase hex, and the file
     /// extension its type prefers, else `bin`. Changed bytes get another name, and the name carries no record identifier.
     static func recordingName(sha256: Data, contentType: UTType) -> String {
         "\(sha256.lowercaseHexString).\(contentType.preferredFilenameExtension ?? "bin")"
@@ -68,7 +68,7 @@ enum ClinicalRecordAttachments {
             return HealthKitFHIRExporter.Record.ClinicalAttachment(
                 copy.attachment,
                 payload: .sidecar(
-                    path: UploadBatchArchive.recordingPath(forName: name),
+                    path: UploadBatchArchive.path(forName: name, in: .documents),
                     byteCount: copy.byteCount,
                     sha1: copy.sha1
                 )
@@ -86,7 +86,11 @@ enum ClinicalRecordAttachments {
         return try FileManager.default.contentsOfDirectory(atPath: directory.path)
             .sorted()
             .map { name in
-                UploadBatchArchive.Recording(name: name, fileAt: directory.appending(component: name, directoryHint: .notDirectory))
+                UploadBatchArchive.Recording(
+                    name: name,
+                    in: .documents,
+                    fileAt: directory.appending(component: name, directoryHint: .notDirectory)
+                )
             }
     }
 

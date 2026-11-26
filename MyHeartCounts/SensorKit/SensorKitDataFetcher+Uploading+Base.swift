@@ -258,7 +258,7 @@ extension MHCSensorSampleUploadStrategy {
         let sourceRecordIDs = try publication.sourceRecordIDs(of: uploads)
         for (upload, sourceRecordID) in zip(uploads, sourceRecordIDs) {
             let recording = upload.sidecar.map(Self.recording(of:))
-            let sidecarPath = recording.map { UploadBatchArchive.recordingPath(forName: $0.name) }
+            let sidecarPath = recording.map(\.path)
             do {
                 records.append(try upload.makeRecord(sourceRecordID, title, sidecarPath))
             } catch {
