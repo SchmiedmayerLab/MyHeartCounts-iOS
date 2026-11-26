@@ -17,9 +17,10 @@ public import Foundation
 /// - `recordings/<name>`: each recording the Bundle references, at the path relative to the archive's root that the Bundle
 ///     states (see ``recordingPath(forName:)``).
 ///
-/// Records are added one at a time: each record's recording is written to the archive's file right away, and
+/// Records are added one at a time: each record's recordings are written to the archive's file right away, and
 /// ``finalize(bundle:)`` writes `bundle.json` and `batchinfo.json`. An archive that is not finalized removes its file.
-/// Every entry is compressed with Zstandard, unless that would not make it smaller.
+/// Every entry held in memory is compressed with Zstandard, unless that would not make it smaller; a recording read from a
+/// file is streamed in and stored as it is, so the archive holds a file of any size without holding it in memory.
 ///
 /// The same records, added in the same order, and the same Bundle always produce the same entries. The archive's
 /// compressed bytes are the same only under the same version of Zstandard, which guarantees reproducible output within a
@@ -30,14 +31,29 @@ public import Foundation
 public struct UploadBatchArchive: ~Copyable {
     /// A recording the Bundle references.
     public struct Recording: Hashable, Sendable {
+        /// Where a recording's exact bytes are.
+        public enum Source: Hashable, Sendable {
+            /// The bytes, in memory.
+            case contents(Data)
+            /// The file holding the bytes, which is read when the recording is added to an archive.
+            case file(URL)
+        }
+
         /// The recording's file name within the archive's `recordings/` directory.
         public let name: String
-        /// The recording's exact bytes.
-        public let contents: Data
+        /// Where the recording's exact bytes are.
+        public let source: Source
 
+        /// A recording of `contents`, held in memory.
         public init(name: String, contents: Data) {
             self.name = name
-            self.contents = contents
+            self.source = .contents(contents)
+        }
+
+        /// A recording of the bytes of the file at `url`, which must stay in place until the recording is added.
+        public init(name: String, fileAt url: URL) {
+            self.name = name
+            self.source = .file(url)
         }
     }
 
@@ -102,8 +118,31 @@ public struct UploadBatchArchive: ~Copyable {
         timeRange: Range<Date>,
         sampleCount: Int
     ) throws {
-        if let recording, recordingNames.insert(recording.name).inserted {
-            try archive.addEntry(at: Self.recordingPath(forName: recording.name), contents: recording.contents, compression: .zstd)
+        try addRecord(recordings: recording.map { [$0] } ?? [], timeRange: timeRange, sampleCount: sampleCount)
+    }
+
+    /// Adds one record: every recording the Bundle references for it, in order, and the facts the batch info sums up.
+    ///
+    /// A recording name is written once: equal names hold equal bytes, so a recording two records, or one record twice,
+    /// reference is written for the first.
+    ///
+    /// - parameter recordings: The recordings the Bundle references for the record, each under the path
+    ///     ``recordingPath(forName:)`` gives for its name.
+    /// - parameter timeRange: The time span the record's samples cover.
+    /// - parameter sampleCount: The number of samples the record holds.
+    public mutating func addRecord(
+        recordings: [Recording],
+        timeRange: Range<Date>,
+        sampleCount: Int
+    ) throws {
+        for recording in recordings where recordingNames.insert(recording.name).inserted {
+            let path = Self.recordingPath(forName: recording.name)
+            switch recording.source {
+            case .contents(let contents):
+                try archive.addEntry(at: path, contents: contents, compression: .zstd)
+            case .file(let url):
+                try archive.addEntry(at: path, contentsOf: url)
+            }
         }
         info.startDate = min(info.startDate ?? timeRange.lowerBound, timeRange.lowerBound)
         info.endDate = max(info.endDate ?? timeRange.upperBound, timeRange.upperBound)

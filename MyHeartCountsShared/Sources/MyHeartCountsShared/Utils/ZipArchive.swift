@@ -28,10 +28,11 @@ import MyHeartCountsCZlib
 /// behind.
 ///
 /// The implementation covers the subset needed to package a set of files: regular files, stored, deflated or compressed
-/// with Zstandard, without
-/// ZIP64, encryption, data descriptors or extra fields. Writing is deterministic — entries are emitted in the order they
-/// are added, all under the same fixed timestamp — so the same entries always produce the same bytes. Each entry is stored
-/// as is or compressed, as the ``Compression`` it is added with says.
+/// with Zstandard, without encryption or data descriptors. An entry, an offset or an entry count too large for the
+/// classic fields is written with ZIP64 extensions, so an archive has no size limit; the only extra field written is
+/// ZIP64's. Writing is deterministic — entries are emitted in the order they are added, all under the same fixed
+/// timestamp — so the same entries always produce the same bytes. Each entry is stored as is or compressed, as the
+/// ``Compression`` it is added with says; an entry streamed from a file (``addEntry(at:contentsOf:)``) is stored.
 ///
 /// ``entries(in:)`` reads an archive back.
 public struct ZipArchive: ~Copyable {
@@ -53,8 +54,11 @@ public struct ZipArchive: ~Copyable {
         case invalidPath(String)
         /// Two entries share a path.
         case duplicatePath(String)
-        /// The archive would need ZIP64: more than 65,535 entries, or an entry, offset or path too large for its field.
+        /// An entry's path is longer than 65,535 bytes, which no ZIP field can state.
         case tooLarge
+        /// A file streamed into an entry changed while it was being read: it held another number of bytes than it did
+        /// when its entry was started.
+        case sourceChanged(path: String)
         /// Compressing an entry's contents failed.
         case compressionFailed
         /// An earlier write to the archive's file failed, leaving it without a consistent structure.
@@ -82,16 +86,32 @@ public struct ZipArchive: ~Copyable {
         case zstd
     }
 
+    /// The values from which on the archive writes ZIP64 fields; tests lower them to write ZIP64 without gigabytes.
+    struct Limits {
+        /// A size or offset at least this large is written as `0xFFFFFFFF` in its classic field and in full in a ZIP64
+        /// field.
+        var field = UInt64(UInt32.max)
+        /// An entry count at least this large is written as `0xFFFF` in the end record and in full in a ZIP64 one.
+        var entryCount = UInt64(UInt16.max)
+    }
+
     private static let localFileHeaderSignature: UInt32 = 0x0403_4B50
     private static let centralDirectoryHeaderSignature: UInt32 = 0x0201_4B50
     private static let endOfCentralDirectorySignature: UInt32 = 0x0605_4B50
+    private static let zip64EndRecordSignature: UInt32 = 0x0606_4B50
+    private static let zip64EndRecordLocatorSignature: UInt32 = 0x0706_4B50
+    /// The tag of the ZIP64 extended information extra field (APPNOTE §4.5.3).
+    private static let zip64ExtraFieldTag: UInt16 = 0x0001
+    /// The bytes read from a streamed file at a time.
+    private static let streamChunkSize = 1 << 20
 
     private let url: URL
     private let handle: FileHandle
+    private let limits: Limits
     /// The number of bytes written so far: the offset of the next local header.
-    private var offset = 0
+    private var offset: UInt64 = 0
     private var centralDirectory = Data()
-    private var entryCount = 0
+    private var entryCount: UInt64 = 0
     private var paths = Set<String>()
     /// Whether a write failed part of the way through, which leaves the file without a consistent structure.
     private var hasFailed = false
@@ -99,6 +119,11 @@ public struct ZipArchive: ~Copyable {
 
     /// Creates the archive's file at `url`, replacing any file there.
     public init(writingTo url: URL) throws {
+        try self.init(writingTo: url, limits: Limits())
+    }
+
+    /// Creates the archive's file at `url`, replacing any file there, writing ZIP64 fields from `limits` on.
+    init(writingTo url: URL, limits: Limits) throws {
         guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
             throw CocoaError(.fileWriteUnknown, userInfo: [NSURLErrorKey: url])
         }
@@ -106,6 +131,7 @@ public struct ZipArchive: ~Copyable {
         let handle = try FileHandle(forWritingTo: url)
         self.url = url
         self.handle = handle
+        self.limits = limits
     }
 
     /// Appends a file entry at `path`, relative to the archive's root, with `/` separating its components.
@@ -115,53 +141,138 @@ public struct ZipArchive: ~Copyable {
     /// - throws: ``ZipError/invalidPath(_:)`` or ``ZipError/duplicatePath(_:)`` for a path the archive cannot hold, in
     ///     which case nothing is written; a failure to write leaves the archive unusable.
     public mutating func addEntry(at path: String, contents: Data, compression: Compression = .deflate) throws {
-        try ensureUsable()
-        try Self.validatePath(path)
-        guard !paths.contains(path) else {
-            throw ZipError.duplicatePath(path)
-        }
-        guard entryCount < Int(UInt16.max) else {
-            throw ZipError.tooLarge
-        }
+        let name = try validatedName(of: path)
         let (method, payload) = try Self.encode(contents, compression: compression)
-        guard let header = Header(
-            name: Data(path.utf8),
+        let header = Header(
+            name: name,
             method: method,
             crc32: Self.crc32(contents),
-            compressedSize: payload.count,
-            size: contents.count,
-            localHeaderOffset: offset
-        ) else {
-            throw ZipError.tooLarge
-        }
+            compressedSize: UInt64(payload.count),
+            size: UInt64(contents.count),
+            localHeaderOffset: offset,
+            limit: limits.field
+        )
         let localHeader = header.localFileHeader()
         try write(localHeader)
         try write(payload)
-        offset += localHeader.count + payload.count
+        offset += UInt64(localHeader.count) + UInt64(payload.count)
+        centralDirectory.append(header.centralDirectoryHeader())
+        entryCount += 1
+        paths.insert(path)
+    }
+
+    /// Appends a file entry at `path` holding the contents of the file at `fileURL`, stored as they are.
+    ///
+    /// The file is read and written one chunk at a time, and its CRC-32 is computed on the way, so memory stays flat
+    /// however large the file is. The entry is stored without compression: a file streamed in is usually in a format of
+    /// its own, such as a PDF or an image, that another compression pass would only spend time on.
+    ///
+    /// - throws: ``ZipError/invalidPath(_:)`` or ``ZipError/duplicatePath(_:)`` for a path the archive cannot hold, and
+    ///     any error reading the file before it is started, in which case nothing is written;
+    ///     ``ZipError/sourceChanged(path:)`` if the file holds another number of bytes once read. A failure once the entry
+    ///     is started leaves the archive unusable.
+    public mutating func addEntry(at path: String, contentsOf fileURL: URL) throws {
+        let name = try validatedName(of: path)
+        let source = try FileHandle(forReadingFrom: fileURL)
+        defer {
+            try? source.close()
+        }
+        let size = try source.seekToEnd()
+        try source.seek(toOffset: 0)
+        var header = Header(
+            name: name,
+            method: .stored,
+            crc32: 0,
+            compressedSize: size,
+            size: size,
+            localHeaderOffset: offset,
+            limit: limits.field
+        )
+        // The CRC-32 is only known once the file is read, so the local header is written with none and patched after.
+        let localHeader = header.localFileHeader()
+        try write(localHeader)
+        var crc = StreamingCRC32()
+        var written: UInt64 = 0
+        do {
+            while let chunk = try source.read(upToCount: Self.streamChunkSize), !chunk.isEmpty {
+                crc.update(chunk)
+                try handle.write(contentsOf: chunk)
+                written += UInt64(chunk.count)
+            }
+            guard written == size else {
+                throw ZipError.sourceChanged(path: path)
+            }
+            header.crc32 = crc.value
+            try handle.seek(toOffset: offset + Header.crc32OffsetInLocalHeader)
+            var crcField = Data()
+            crcField.appendLittleEndian(header.crc32)
+            try handle.write(contentsOf: crcField)
+            try handle.seekToEnd()
+        } catch {
+            hasFailed = true
+            throw error
+        }
+        offset += UInt64(localHeader.count) + size
         centralDirectory.append(header.centralDirectoryHeader())
         entryCount += 1
         paths.insert(path)
     }
 
     /// Appends the central directory and closes the file, which then holds the complete archive.
+    ///
+    /// The end record states the entry count and the central directory's size and offset; where one is too large for its
+    /// field, a ZIP64 end record and its locator precede it and state them in full.
     public consuming func finalize() throws {
         try ensureUsable()
-        guard let centralDirectoryOffset = UInt32(exactly: offset),
-              let centralDirectorySize = UInt32(exactly: centralDirectory.count) else {
-            throw ZipError.tooLarge
-        }
+        let centralDirectoryOffset = offset
+        let centralDirectorySize = UInt64(centralDirectory.count)
+        let needsZip64 = entryCount >= limits.entryCount
+            || centralDirectoryOffset >= limits.field
+            || centralDirectorySize >= limits.field
         var trailer = centralDirectory
+        if needsZip64 {
+            let zip64EndRecordOffset = centralDirectoryOffset + centralDirectorySize
+            trailer.appendLittleEndian(ZipArchive.zip64EndRecordSignature)
+            trailer.appendLittleEndian(UInt64(44)) // size of the record that follows this field
+            trailer.appendLittleEndian(Header.versionMadeBy)
+            trailer.appendLittleEndian(Header.zip64VersionNeeded)
+            trailer.appendLittleEndian(UInt32(0)) // number of this disk
+            trailer.appendLittleEndian(UInt32(0)) // disk on which the central directory starts
+            trailer.appendLittleEndian(entryCount) // entries on this disk
+            trailer.appendLittleEndian(entryCount) // entries in total
+            trailer.appendLittleEndian(centralDirectorySize)
+            trailer.appendLittleEndian(centralDirectoryOffset)
+            trailer.appendLittleEndian(ZipArchive.zip64EndRecordLocatorSignature)
+            trailer.appendLittleEndian(UInt32(0)) // disk on which the ZIP64 end record starts
+            trailer.appendLittleEndian(zip64EndRecordOffset)
+            trailer.appendLittleEndian(UInt32(1)) // total number of disks
+        }
+        let entryCountField = entryCount >= limits.entryCount ? UInt16.max : UInt16(entryCount)
         trailer.appendLittleEndian(ZipArchive.endOfCentralDirectorySignature)
         trailer.appendLittleEndian(UInt16(0)) // number of this disk
         trailer.appendLittleEndian(UInt16(0)) // disk on which the central directory starts
-        trailer.appendLittleEndian(UInt16(entryCount)) // entries on this disk
-        trailer.appendLittleEndian(UInt16(entryCount)) // entries in total
-        trailer.appendLittleEndian(centralDirectorySize)
-        trailer.appendLittleEndian(centralDirectoryOffset)
+        trailer.appendLittleEndian(entryCountField) // entries on this disk
+        trailer.appendLittleEndian(entryCountField) // entries in total
+        trailer.appendLittleEndian(Header.field(centralDirectorySize, limit: limits.field))
+        trailer.appendLittleEndian(Header.field(centralDirectoryOffset, limit: limits.field))
         trailer.appendLittleEndian(UInt16(0)) // comment length
         try write(trailer)
         try handle.close()
         isFinalized = true
+    }
+
+    /// `path` as an entry name, checked to be one the archive can add.
+    private func validatedName(of path: String) throws -> Data {
+        try ensureUsable()
+        try Self.validatePath(path)
+        guard !paths.contains(path) else {
+            throw ZipError.duplicatePath(path)
+        }
+        let name = Data(path.utf8)
+        guard name.count <= Int(UInt16.max) else {
+            throw ZipError.tooLarge
+        }
+        return name
     }
 
     private func ensureUsable() throws {
@@ -316,6 +427,13 @@ extension ZipArchive {
         fileprivate let localHeaderOffset: Int
     }
 
+    /// Where an archive's central directory is, and how many entries it lists.
+    private struct CentralDirectoryLocation {
+        let offset: Int
+        let size: Int
+        let entryCount: Int
+    }
+
     /// Reads an archive one entry at a time.
     ///
     /// Creating a reader reads only the archive's central directory, which lists its ``entries``; ``contents(of:)`` then
@@ -345,27 +463,14 @@ extension ZipArchive {
         }
 
         private init(source: Source, maximumEntrySize: Int) throws {
-            let endRecordOffset = try Self.endOfCentralDirectoryOffset(in: source)
-            var endRecord = ByteReader(try source.read(at: endRecordOffset + 4, count: 18), offset: 0)
-            let disk = try endRecord.read(UInt16.self)
-            let centralDirectoryDisk = try endRecord.read(UInt16.self)
-            let entriesOnDisk = try endRecord.read(UInt16.self)
-            let entryCount = try endRecord.read(UInt16.self)
-            let centralDirectorySize = try endRecord.readSize()
-            let centralDirectoryOffset = try endRecord.readSize()
-            guard disk == 0,
-                  centralDirectoryDisk == 0,
-                  entriesOnDisk == entryCount,
-                  centralDirectoryOffset <= endRecordOffset,
-                  centralDirectorySize <= endRecordOffset - centralDirectoryOffset else {
-                throw ZipError.malformedArchive
-            }
+            let directory = try Self.centralDirectoryLocation(in: source)
             var centralDirectory = ByteReader(
-                try source.read(at: centralDirectoryOffset, count: centralDirectorySize),
+                try source.read(at: directory.offset, count: directory.size),
                 offset: 0
             )
+            let entryCount = directory.entryCount
             var entries: [EntryInfo] = []
-            entries.reserveCapacity(Int(entryCount))
+            entries.reserveCapacity(Swift.min(entryCount, 1 << 16))
             var paths = Set<String>()
             for _ in 0..<entryCount {
                 let entry = try Self.readEntryInfo(at: &centralDirectory)
@@ -380,6 +485,114 @@ extension ZipArchive {
             self.source = source
         }
 
+        /// Where the central directory is and how many entries it lists, as the end record states it, or the ZIP64 end
+        /// record where the end record defers to one.
+        private static func centralDirectoryLocation(in source: Source) throws -> CentralDirectoryLocation {
+            let endRecordOffset = try Self.endOfCentralDirectoryOffset(in: source)
+            var endRecord = ByteReader(try source.read(at: endRecordOffset + 4, count: 18), offset: 0)
+            let disk = try endRecord.read(UInt16.self)
+            let centralDirectoryDisk = try endRecord.read(UInt16.self)
+            let entriesOnDisk = try endRecord.read(UInt16.self)
+            let entryCount = try endRecord.read(UInt16.self)
+            let centralDirectorySize = try endRecord.read(UInt32.self)
+            let centralDirectoryOffset = try endRecord.read(UInt32.self)
+            guard disk == 0, centralDirectoryDisk == 0, entriesOnDisk == entryCount else {
+                throw ZipError.malformedArchive
+            }
+            let defersToZip64 = entryCount == UInt16.max
+                || centralDirectorySize == UInt32.max
+                || centralDirectoryOffset == UInt32.max
+            let location: CentralDirectoryLocation
+            let directoryEnd: Int
+            if defersToZip64 {
+                (location, directoryEnd) = try zip64CentralDirectoryLocation(in: source, endRecordOffset: endRecordOffset)
+            } else {
+                location = CentralDirectoryLocation(
+                    offset: try Int.exactly(centralDirectoryOffset),
+                    size: try Int.exactly(centralDirectorySize),
+                    entryCount: Int(entryCount)
+                )
+                directoryEnd = endRecordOffset
+            }
+            guard location.offset <= directoryEnd, location.size <= directoryEnd - location.offset else {
+                throw ZipError.malformedArchive
+            }
+            return location
+        }
+
+        /// The central directory's location as the ZIP64 end record states it, which the locator just before the end
+        /// record at `endRecordOffset` points at, and the offset that record starts at, where the central directory ends.
+        private static func zip64CentralDirectoryLocation(
+            in source: Source,
+            endRecordOffset: Int
+        ) throws -> (location: CentralDirectoryLocation, directoryEnd: Int) {
+            let locatorSize = 20
+            guard endRecordOffset >= locatorSize else {
+                throw ZipError.malformedArchive
+            }
+            var locator = ByteReader(try source.read(at: endRecordOffset - locatorSize, count: locatorSize), offset: 0)
+            guard try locator.read(UInt32.self) == ZipArchive.zip64EndRecordLocatorSignature,
+                  try locator.read(UInt32.self) == 0 else { // disk on which the ZIP64 end record starts
+                throw ZipError.malformedArchive
+            }
+            let recordOffset = try locator.readSize64()
+            guard try locator.read(UInt32.self) == 1, // total number of disks
+                  recordOffset <= endRecordOffset - locatorSize - 56 else {
+                throw ZipError.malformedArchive
+            }
+            var record = ByteReader(try source.read(at: recordOffset, count: 56), offset: 0)
+            guard try record.read(UInt32.self) == ZipArchive.zip64EndRecordSignature else {
+                throw ZipError.malformedArchive
+            }
+            _ = try record.read(UInt64.self) // size of the record
+            _ = try record.read(UInt16.self) // version made by
+            _ = try record.read(UInt16.self) // version needed to extract
+            let disk = try record.read(UInt32.self)
+            let centralDirectoryDisk = try record.read(UInt32.self)
+            let entriesOnDisk = try record.read(UInt64.self)
+            let entryCount = try record.read(UInt64.self)
+            let size = try record.readSize64()
+            let offset = try record.readSize64()
+            guard disk == 0, centralDirectoryDisk == 0, entriesOnDisk == entryCount else {
+                throw ZipError.malformedArchive
+            }
+            return (CentralDirectoryLocation(offset: offset, size: size, entryCount: try Int.exactly(entryCount)), recordOffset)
+        }
+
+        /// The values of a ZIP64 extended information extra field among `extraFields`, in the order they appear, or
+        /// none where there is no such field.
+        private static func zip64Values(in extraFields: Data) throws -> [UInt64] {
+            var extra = ByteReader(extraFields, offset: 0)
+            while !extra.isAtEnd {
+                let tag = try extra.read(UInt16.self)
+                let length = Int(try extra.read(UInt16.self))
+                let data = try extra.read(byteCount: length)
+                guard tag == ZipArchive.zip64ExtraFieldTag else {
+                    continue
+                }
+                guard length.isMultiple(of: 8) else {
+                    throw ZipError.malformedArchive
+                }
+                var values = ByteReader(data, offset: 0)
+                return try (0..<(length / 8)).map { _ in try values.read(UInt64.self) }
+            }
+            return []
+        }
+
+        /// The classic 32-bit `fields` resolved: each that is `0xFFFFFFFF` takes the next of `zip64Values`, in order.
+        private static func resolve(_ fields: [UInt32], with zip64Values: [UInt64]) throws -> [Int] {
+            var remaining = zip64Values[...]
+            return try fields.map { field in
+                guard field == UInt32.max else {
+                    return try Int.exactly(field)
+                }
+                guard let value = remaining.popFirst() else {
+                    throw ZipError.malformedArchive
+                }
+                return try Int.exactly(value)
+            }
+        }
+
         /// Reads the entry whose central-directory header `centralDirectory` is positioned at, and advances it past it.
         private static func readEntryInfo(at centralDirectory: inout ByteReader) throws -> EntryInfo {
             guard try centralDirectory.read(UInt32.self) == ZipArchive.centralDirectoryHeaderSignature else {
@@ -392,17 +605,24 @@ extension ZipArchive {
             _ = try centralDirectory.read(UInt16.self) // modification time
             _ = try centralDirectory.read(UInt16.self) // modification date
             let crc32 = try centralDirectory.read(UInt32.self)
-            let compressedSize = try centralDirectory.readSize()
-            let size = try centralDirectory.readSize()
+            let compressedSizeField = try centralDirectory.read(UInt32.self)
+            let sizeField = try centralDirectory.read(UInt32.self)
             let nameLength = try centralDirectory.read(UInt16.self)
             let extraLength = try centralDirectory.read(UInt16.self)
             let commentLength = try centralDirectory.read(UInt16.self)
             _ = try centralDirectory.read(UInt16.self) // disk number start
             _ = try centralDirectory.read(UInt16.self) // internal attributes
             _ = try centralDirectory.read(UInt32.self) // external attributes
-            let localHeaderOffset = try centralDirectory.readSize()
+            let localHeaderOffsetField = try centralDirectory.read(UInt32.self)
             let path = String(decoding: try centralDirectory.read(byteCount: Int(nameLength)), as: UTF8.self)
-            _ = try centralDirectory.read(byteCount: Int(extraLength) + Int(commentLength))
+            let extraFields = try centralDirectory.read(byteCount: Int(extraLength))
+            _ = try centralDirectory.read(byteCount: Int(commentLength))
+            // APPNOTE §4.5.3 orders the ZIP64 values as the size, the compressed size, then the offset.
+            let resolved = try resolve(
+                [sizeField, compressedSizeField, localHeaderOffsetField],
+                with: try zip64Values(in: extraFields)
+            )
+            let (size, compressedSize, localHeaderOffset) = (resolved[0], resolved[1], resolved[2])
             guard !flags.contains(.encrypted), let method = Method(rawValue: method) else {
                 throw ZipError.unsupportedEntry(path: path)
             }
@@ -450,36 +670,7 @@ extension ZipArchive {
             guard entry.size <= maximumEntrySize else {
                 throw ZipError.sizeLimitExceeded(path: entry.path)
             }
-            var localHeader = ByteReader(try source.read(at: entry.localHeaderOffset, count: 30), offset: 0)
-            guard try localHeader.read(UInt32.self) == ZipArchive.localFileHeaderSignature else {
-                throw ZipError.malformedArchive
-            }
-            _ = try localHeader.read(UInt16.self) // version needed to extract
-            let flags = GeneralPurposeFlags(rawValue: try localHeader.read(UInt16.self))
-            let method = try localHeader.read(UInt16.self)
-            _ = try localHeader.read(UInt16.self) // modification time
-            _ = try localHeader.read(UInt16.self) // modification date
-            let crc32 = try localHeader.read(UInt32.self)
-            let compressedSize = try localHeader.readSize()
-            let size = try localHeader.readSize()
-            let nameLength = Int(try localHeader.read(UInt16.self))
-            let extraLength = Int(try localHeader.read(UInt16.self))
-            // The local header precedes the stored bytes `entry.localHeaderOffset` points at, which the read above checked.
-            let nameOffset = entry.localHeaderOffset + 30
-            let name = try source.read(at: nameOffset, count: nameLength)
-            // The local header must describe the entry as the central directory does; with a data descriptor, it leaves
-            // the CRC-32 and the sizes to the descriptor that follows the stored bytes.
-            guard String(decoding: name, as: UTF8.self) == entry.path,
-                  Method(rawValue: method)?.compression == entry.compression,
-                  !flags.contains(.encrypted),
-                  flags.contains(.dataDescriptor)
-                    || (crc32 == entry.crc32 && compressedSize == entry.compressedSize && size == entry.size) else {
-                throw ZipError.malformedArchive
-            }
-            let (dataOffset, overflow) = nameOffset.addingReportingOverflow(nameLength + extraLength)
-            guard !overflow else {
-                throw ZipError.malformedArchive
-            }
+            let dataOffset = try dataOffset(of: entry)
             let payload = try source.read(at: dataOffset, count: entry.compressedSize)
             let contents: Data
             switch entry.compression {
@@ -499,6 +690,48 @@ extension ZipArchive {
                 throw ZipError.malformedArchive
             }
             return contents
+        }
+
+        /// The offset of `entry`'s stored bytes, after its local header, which must describe the entry as the central
+        /// directory does.
+        private func dataOffset(of entry: EntryInfo) throws -> Int {
+            var localHeader = ByteReader(try source.read(at: entry.localHeaderOffset, count: 30), offset: 0)
+            guard try localHeader.read(UInt32.self) == ZipArchive.localFileHeaderSignature else {
+                throw ZipError.malformedArchive
+            }
+            _ = try localHeader.read(UInt16.self) // version needed to extract
+            let flags = GeneralPurposeFlags(rawValue: try localHeader.read(UInt16.self))
+            let method = try localHeader.read(UInt16.self)
+            _ = try localHeader.read(UInt16.self) // modification time
+            _ = try localHeader.read(UInt16.self) // modification date
+            let crc32 = try localHeader.read(UInt32.self)
+            let compressedSizeField = try localHeader.read(UInt32.self)
+            let sizeField = try localHeader.read(UInt32.self)
+            let nameLength = Int(try localHeader.read(UInt16.self))
+            let extraLength = Int(try localHeader.read(UInt16.self))
+            // The local header precedes the stored bytes `entry.localHeaderOffset` points at, which the read above checked.
+            let nameOffset = entry.localHeaderOffset + 30
+            let name = try source.read(at: nameOffset, count: nameLength)
+            // A local header's ZIP64 field holds the size and then the compressed size (APPNOTE §4.5.3).
+            let resolved = try Self.resolve(
+                [sizeField, compressedSizeField],
+                with: try Self.zip64Values(in: try source.read(at: nameOffset + nameLength, count: extraLength))
+            )
+            let (size, compressedSize) = (resolved[0], resolved[1])
+            // The local header must describe the entry as the central directory does; with a data descriptor, it leaves
+            // the CRC-32 and the sizes to the descriptor that follows the stored bytes.
+            guard String(decoding: name, as: UTF8.self) == entry.path,
+                  Method(rawValue: method)?.compression == entry.compression,
+                  !flags.contains(.encrypted),
+                  flags.contains(.dataDescriptor)
+                    || (crc32 == entry.crc32 && compressedSize == entry.compressedSize && size == entry.size) else {
+                throw ZipError.malformedArchive
+            }
+            let (dataOffset, overflow) = nameOffset.addingReportingOverflow(nameLength + extraLength)
+            guard !overflow else {
+                throw ZipError.malformedArchive
+            }
+            return dataOffset
         }
     }
 
@@ -629,61 +862,90 @@ extension ZipArchive {
         /// Made by a UNIX system, under version 6.3 of the specification, which the newest method written (Zstandard)
         /// needs. Extractors convert the paths of entries made on MS-DOS from its code page, which would garble any
         /// non-ASCII UTF-8 path.
-        private static let versionMadeBy: UInt16 = 3 << 8 | 63
+        static let versionMadeBy: UInt16 = 3 << 8 | 63
+        /// The version of the specification an extractor needs for ZIP64 fields: 4.5.
+        static let zip64VersionNeeded: UInt16 = 45
+        /// Where the CRC-32 sits in a local header: after the signature, version, flags, method, time and date.
+        static let crc32OffsetInLocalHeader: UInt64 = 14
         /// Every entry is a regular file, readable by everyone and writable by its owner (`-rw-r--r--`).
         private static let fileType = UnixFileType.regularFile
         private static let permissions: UnixFilePermissions = [.ownerRead, .ownerWrite, .groupRead, .othersRead]
 
         let name: Data
-        let nameLength: UInt16
         let method: Method
-        let crc32: UInt32
-        let compressedSize: UInt32
-        let size: UInt32
-        let localHeaderOffset: UInt32
+        var crc32: UInt32
+        let compressedSize: UInt64
+        let size: UInt64
+        let localHeaderOffset: UInt64
+        /// The value from which on a size or offset is written in a ZIP64 field.
+        let limit: UInt64
 
-        /// `nil` if a value does not fit its field.
-        init?(name: Data, method: Method, crc32: UInt32, compressedSize: Int, size: Int, localHeaderOffset: Int) {
-            guard let nameLength = UInt16(exactly: name.count),
-                  let compressedSize = UInt32(exactly: compressedSize),
-                  let size = UInt32(exactly: size),
-                  let localHeaderOffset = UInt32(exactly: localHeaderOffset) else {
-                return nil
+        /// Whether the sizes need ZIP64 fields; if so, both are written there, as a local header must.
+        private var sizesNeedZip64: Bool {
+            size >= limit || compressedSize >= limit
+        }
+
+        /// Whether the local header's offset needs a ZIP64 field, which only the central directory states.
+        private var offsetNeedsZip64: Bool {
+            localHeaderOffset >= limit
+        }
+
+        /// `value` as its classic 32-bit field states it: in full below `limit`, and as `0xFFFFFFFF`, which defers to a
+        /// ZIP64 field, from it on.
+        static func field(_ value: UInt64, limit: UInt64) -> UInt32 {
+            value >= limit ? UInt32.max : UInt32(value)
+        }
+
+        /// The ZIP64 extended information extra field holding `values`, or nothing when there are none.
+        private static func zip64ExtraField(_ values: [UInt64]) -> Data {
+            guard !values.isEmpty else {
+                return Data()
             }
-            self.name = name
-            self.nameLength = nameLength
-            self.method = method
-            self.crc32 = crc32
-            self.compressedSize = compressedSize
-            self.size = size
-            self.localHeaderOffset = localHeaderOffset
+            var field = Data()
+            field.appendLittleEndian(ZipArchive.zip64ExtraFieldTag)
+            field.appendLittleEndian(UInt16(values.count * 8))
+            for value in values {
+                field.appendLittleEndian(value)
+            }
+            return field
+        }
+
+        private func versionNeeded(zip64: Bool) -> UInt16 {
+            zip64 ? Swift.max(method.versionNeeded, Self.zip64VersionNeeded) : method.versionNeeded
         }
 
         func localFileHeader() -> Data {
+            let extra = Self.zip64ExtraField(sizesNeedZip64 ? [size, compressedSize] : [])
             var header = Data()
             header.appendLittleEndian(ZipArchive.localFileHeaderSignature)
-            header.appendLittleEndian(method.versionNeeded)
+            header.appendLittleEndian(versionNeeded(zip64: sizesNeedZip64))
             appendCommonFields(to: &header)
-            header.appendLittleEndian(UInt16(0)) // extra field length
+            header.appendLittleEndian(UInt16(extra.count)) // extra field length
             header.append(name)
+            header.append(extra)
             return header
         }
 
         func centralDirectoryHeader() -> Data {
+            // In the order APPNOTE §4.5.3 sets, each only where its classic field defers to it.
+            let extra = Self.zip64ExtraField(
+                (sizesNeedZip64 ? [size, compressedSize] : []) + (offsetNeedsZip64 ? [localHeaderOffset] : [])
+            )
             var header = Data()
             header.appendLittleEndian(ZipArchive.centralDirectoryHeaderSignature)
             header.appendLittleEndian(Self.versionMadeBy)
-            header.appendLittleEndian(method.versionNeeded)
+            header.appendLittleEndian(versionNeeded(zip64: sizesNeedZip64 || offsetNeedsZip64))
             appendCommonFields(to: &header)
-            header.appendLittleEndian(UInt16(0)) // extra field length
+            header.appendLittleEndian(UInt16(extra.count)) // extra field length
             header.appendLittleEndian(UInt16(0)) // comment length
             header.appendLittleEndian(UInt16(0)) // disk number start
             header.appendLittleEndian(UInt16(0)) // internal attributes
             // The external attributes: the UNIX file mode (file type and permissions) in their upper half, MS-DOS
             // attributes (none) in their lower half.
             header.appendLittleEndian(UInt32(Self.fileType.rawValue | Self.permissions.rawValue) << 16)
-            header.appendLittleEndian(localHeaderOffset)
+            header.appendLittleEndian(offsetNeedsZip64 ? UInt32.max : UInt32(localHeaderOffset))
             header.append(name)
+            header.append(extra)
             return header
         }
 
@@ -694,9 +956,10 @@ extension ZipArchive {
             header.appendLittleEndian(Self.modificationTime)
             header.appendLittleEndian(Self.modificationDate)
             header.appendLittleEndian(crc32)
-            header.appendLittleEndian(compressedSize)
-            header.appendLittleEndian(size)
-            header.appendLittleEndian(nameLength)
+            header.appendLittleEndian(sizesNeedZip64 ? UInt32.max : UInt32(compressedSize))
+            header.appendLittleEndian(sizesNeedZip64 ? UInt32.max : UInt32(size))
+            // `ZipArchive` checks every name's length before it builds a header.
+            header.appendLittleEndian(UInt16(name.count))
         }
     }
 }
@@ -707,6 +970,11 @@ extension ZipArchive {
     private struct ByteReader {
         private let data: Data
         private var offset: Int
+
+        /// Whether every byte has been read.
+        var isAtEnd: Bool {
+            offset >= data.count
+        }
 
         init(_ data: Data, offset: Int) {
             self.data = data
@@ -722,17 +990,25 @@ extension ZipArchive {
             return Data(data[start..<(start + byteCount)])
         }
 
-        /// A 32-bit size or offset, which is malformed where it does not fit an `Int` (whose width is 32 bits on watchOS).
-        mutating func readSize() throws -> Int {
-            guard let size = Int(exactly: try read(UInt32.self)) else {
-                throw ZipArchive.ZipError.malformedArchive
-            }
-            return size
+        /// A 64-bit size or offset, which is malformed where it does not fit an `Int` (whose width is 32 bits on watchOS).
+        mutating func readSize64() throws -> Int {
+            try Int.exactly(try read(UInt64.self))
         }
 
         mutating func read<Value: FixedWidthInteger>(_: Value.Type) throws -> Value {
             try read(byteCount: MemoryLayout<Value>.size).reversed().reduce(Value.zero) { $0 << 8 | Value($1) }
         }
+    }
+}
+
+
+extension Int {
+    /// `value` as an `Int`; a size or offset that does not fit one (whose width is 32 bits on watchOS) is malformed.
+    fileprivate static func exactly(_ value: some BinaryInteger) throws -> Int {
+        guard let result = Int(exactly: value) else {
+            throw ZipArchive.ZipError.malformedArchive
+        }
+        return result
     }
 }
 
@@ -745,6 +1021,31 @@ extension Data {
 
 
 extension ZipArchive {
+    /// A CRC-32 (ISO-HDLC, as ZIP stores it) over bytes that arrive one chunk at a time.
+    fileprivate struct StreamingCRC32 {
+        /// zlib's running value, which starts at 0.
+        private var crc: uLong = 0
+
+        /// The CRC-32 of every byte so far.
+        var value: UInt32 {
+            UInt32(truncatingIfNeeded: crc)
+        }
+
+        mutating func update(_ bytes: Data) {
+            bytes.withUnsafeBytes { buffer in
+                var start = 0
+                // zlib counts its input in 32 bits.
+                while start < buffer.count {
+                    let count = Swift.min(buffer.count - start, Int(Int32.max))
+                    let chunk = UnsafeRawBufferPointer(rebasing: buffer[start..<(start + count)])
+                    crc = zlibCRC32(crc, chunk.baseAddress?.assumingMemoryBound(to: Bytef.self), uInt(count))
+                    start += count
+                }
+            }
+        }
+    }
+
+
     /// The CRC-32 of each byte value, for the reflected polynomial `0xEDB88320`.
     private static let crc32Table: [UInt32] = (0..<256).map { index in
         (0..<8).reduce(UInt32(index)) { crc, _ in
@@ -763,4 +1064,10 @@ extension ZipArchive {
             }
         }
     }
+}
+
+
+/// zlib's CRC-32 update, under a name of its own: within ``ZipArchive``, its `crc32(_:)` shadows zlib's.
+private func zlibCRC32(_ crc: uLong, _ buffer: UnsafePointer<Bytef>?, _ count: uInt) -> uLong {
+    crc32(crc, buffer, count)
 }

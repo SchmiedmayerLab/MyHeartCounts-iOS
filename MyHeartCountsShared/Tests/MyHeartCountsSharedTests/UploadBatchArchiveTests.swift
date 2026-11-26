@@ -67,6 +67,50 @@ struct UploadBatchArchiveTests {
         #expect(reader.recordingPaths == [UploadBatchArchive.recordingPath(forName: "identical.csv")])
     }
 
+    /// A record's recordings, in memory or in files, are each written once, under the path the Bundle states, and read back
+    /// exactly; a file-backed recording is stored as it is.
+    @Test
+    func recordingsFromFilesAndMemoryRoundTrip() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let pdf = Data("%PDF-1.7\n".utf8) + Data(repeating: 0x42, count: 10_000)
+        let image = Data(repeating: 0x7F, count: 2_048)
+        try pdf.write(to: directory.appending(component: "note.pdf"))
+        try image.write(to: directory.appending(component: "scan.png"))
+        let pdfRecording = UploadBatchArchive.Recording(name: "note.pdf", fileAt: directory.appending(component: "note.pdf"))
+        let imageRecording = UploadBatchArchive.Recording(name: "scan.png", fileAt: directory.appending(component: "scan.png"))
+        let csvRecording = UploadBatchArchive.Recording(name: "values.csv", contents: Data("t,x\n1,2\n".utf8))
+
+        var archive = try UploadBatchArchive(source: .healthKit, sampleTypeId: "HKClinicalTypeIdentifierClinicalNoteRecord", device: nil)
+        try archive.addRecord(
+            recordings: [pdfRecording, imageRecording],
+            timeRange: Self.start..<Self.start,
+            sampleCount: 1
+        )
+        // A second record referencing a file the first one already wrote, and a recording in memory.
+        try archive.addRecord(
+            recordings: [pdfRecording, csvRecording],
+            timeRange: Self.start..<Self.start.addingTimeInterval(1),
+            sampleCount: 1
+        )
+        let url = try archive.finalize(bundle: Self.bundle).url
+        defer {
+            try? FileManager.default.removeItem(at: url)
+        }
+        let reader = try UploadBatchArchive.Reader(contentsOf: url)
+        #expect(reader.info.source == .healthKit)
+        #expect(reader.info.numRecords == 2)
+        #expect(reader.recordingPaths == ["recordings/note.pdf", "recordings/scan.png", "recordings/values.csv"])
+        #expect(try reader.recording(at: "recordings/note.pdf") == pdf)
+        #expect(try reader.recording(at: "recordings/scan.png") == image)
+        #expect(try reader.recording(at: "recordings/values.csv") == Data("t,x\n1,2\n".utf8))
+        let entries = try ZipArchive.Reader(contentsOf: url).entries
+        #expect(entries.first { $0.path == "recordings/note.pdf" }?.compression == ZipArchive.Compression.none)
+    }
+
     @Test
     func archiveIsDeterministic() throws {
         let first = try Self.archive()
